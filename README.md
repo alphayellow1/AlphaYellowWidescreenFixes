@@ -1,2 +1,2 @@
-# Secret Agent Barbie - Widescreen Fix
-This fix aims to fix HUD and FOV in Secret Agent Barbie (2001).
+# AlphaYellow Widescreen Fixes
+This page aims to add widescreen support and fix FOV in old PC games.
