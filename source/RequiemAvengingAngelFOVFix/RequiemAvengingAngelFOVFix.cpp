@@ -67,7 +67,7 @@ int main()
     }
 
     // Confirmation message
-    cout << "\nSuccessfully changed field of view in the executable. You can close the program now." << endl;
+    cout << "\nSuccessfully changed field of view in the executable. You can now press Enter to close the program." << endl;
 
     // Close the file
     file.close();
