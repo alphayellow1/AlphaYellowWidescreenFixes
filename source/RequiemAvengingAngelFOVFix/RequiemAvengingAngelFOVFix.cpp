@@ -38,7 +38,7 @@ int main()
 
     do
     {
-        cout << "Enter the desired height: ";
+        cout << "\nEnter the desired height: ";
         cin >> height;
 
         if (cin.fail())
@@ -67,7 +67,7 @@ int main()
     }
 
     // Confirmation message
-    cout << "Successfully changed field of view in the executable. You can close the program now." << endl;
+    cout << "\nSuccessfully changed field of view in the executable. You can close the program now." << endl;
 
     // Close the file
     file.close();
