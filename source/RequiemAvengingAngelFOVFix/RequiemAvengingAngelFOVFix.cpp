@@ -10,7 +10,7 @@ using namespace std;
 int main()
 {
     int language;
-    cout << "Requiem: Avenging Angel Widescreen Fix by AlphaYellow, 2024\n\n----------------\n\n";
+    cout << "Requiem: Avenging Angel FOV Fixer by AlphaYellow, 2024\n\n----------------\n\n";
     float width, height, result;
     union
     {
