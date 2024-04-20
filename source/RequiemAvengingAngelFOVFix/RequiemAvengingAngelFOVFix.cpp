@@ -61,8 +61,9 @@ int main()
     for (size_t i = 0; i != sizeof(float); ++i)
     {
         file.seekp(0x000242E6 + i);
-        file << char(pf[i]); 
-        // printf("%X ", pf[i]);
+        file << char(pf[i]);
+        file.seekp(0x0002431D + i);
+        file << char(pf[i]);
     }
 
     // Confirmation message
