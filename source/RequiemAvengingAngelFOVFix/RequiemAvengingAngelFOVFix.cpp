@@ -55,7 +55,6 @@ int main()
     } while (height <= 0 || height > 65535);
 
     fstream file("D3D.exe", ios::in | ios::out | ios::binary);
-    fstream file("D3D.exe", ios::in | ios::out | ios::binary);
 
     result = (4.0f / 3.0f) / (width / height);
     const unsigned char *pf = reinterpret_cast<const unsigned char *>(&result);
