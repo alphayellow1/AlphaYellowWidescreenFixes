@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "cstdint": "cpp"
+        "cstdint": "cpp",
+        "iomanip": "cpp"
     }
 }
