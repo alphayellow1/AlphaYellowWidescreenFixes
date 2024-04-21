@@ -27,7 +27,7 @@ int main()
         {
             cin.clear();                                                   // Clear error flags
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Ignore invalid input
-            width = -1;                                                         // Ensure the loop continues
+            width = -1;                                                    // Ensure the loop continues
             cout << "Invalid input. Please enter a numeric value." << std::endl;
         }
         else if (width <= 0 || width > 65535)
@@ -45,7 +45,7 @@ int main()
         {
             cin.clear();                                                   // Clear error flags
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Ignore invalid input
-            height = -1;                                                        // Ensure the loop continues
+            height = -1;                                                   // Ensure the loop continues
             cout << "Invalid input. Please enter a numeric value." << endl;
         }
         else if (height <= 0 || height > 65535)
