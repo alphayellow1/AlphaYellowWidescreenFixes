@@ -65,6 +65,27 @@ int main()
     simplifiedWidth = static_cast<int>(newWidth) / aspectRatioGCD;
     simplifiedHeight = static_cast<int>(newHeight) / aspectRatioGCD;
 
+    if (simplifiedWidth == 16 && simplifiedHeight == 3)
+    {
+        simplifiedWidth = 48;
+        simplifiedHeight = 9;
+    }
+    else if (simplifiedWidth == 8 && simplifiedHeight == 5)
+    {
+        simplifiedWidth = 16;
+        simplifiedHeight = 10;
+    }
+    else if (simplifiedWidth == 7 && simplifiedHeight == 3)
+    {
+        simplifiedWidth = 21;
+        simplifiedHeight = 9;
+    }
+    else if (simplifiedWidth == 5 && simplifiedHeight == 1)
+    {
+        simplifiedWidth = 45;
+        simplifiedHeight = 9;
+    }
+
     newAspectRatio = newWidth / newHeight;
     fov = 64 / (newAspectRatio * 0.75);
 
@@ -84,7 +105,7 @@ int main()
     file.write(reinterpret_cast<const char *>(&fov), sizeof(fov));
 
     // Confirmation message
-    cout << "\nSuccessfully changed the aspect ratio to " << simplifiedWidth << ":" << simplifiedHeight << " and fixed the field of view in the executable." << endl;
+    cout << "\nSuccessfully changed the aspect ratio to " << simplifiedWidth << ":" << simplifiedHeight << " and fixed the field of view in the executable. Now all " << simplifiedWidth << ":" << simplifiedHeight << " resolutions supported by the graphics card's driver will appear in the game's video settings." << endl;
 
     // Closes the file
     file.close();
