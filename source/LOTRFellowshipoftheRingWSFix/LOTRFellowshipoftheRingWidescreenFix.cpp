@@ -102,7 +102,7 @@ int main()
 
     // Puts the FOV value in the FOV address
     fov1 = 64 / (newAspectRatio * 0.75);
-    file.seekp(0x001208C0);
+    file.seekp(0x001208CC);
     file.write(reinterpret_cast<const char *>(&fov1), sizeof(fov1));
     fov2 = fov1;
     file.seekp(0x00120A90);
