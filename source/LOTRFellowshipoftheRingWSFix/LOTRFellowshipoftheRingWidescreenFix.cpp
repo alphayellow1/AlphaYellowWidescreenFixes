@@ -16,8 +16,8 @@ using namespace std;
 
 int main()
 {
-    double newWidth, newHeight, fov;
-    float newAspectRatio;
+    double newWidth, newHeight, fov2;
+    float newAspectRatio, fov1;
     int simplifiedWidth, simplifiedHeight, aspectRatioGCD;
 
     cout << "The Lord of the Rings: The Fellowship of the Ring (2002) Widescreen Fix by AlphaYellow, 2024\n\n----------------\n\n";
@@ -87,7 +87,7 @@ int main()
     }
 
     newAspectRatio = newWidth / newHeight;
-    fov = 64 / (newAspectRatio * 0.75);
+    
 
     fstream file("Fellowship.exe", ios::in | ios::out | ios::binary);
     if (!file.is_open())
@@ -101,8 +101,12 @@ int main()
     file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
     // Puts the FOV value in the FOV address
+    fov1 = 64 / (newAspectRatio * 0.75);
+    file.seekp(0x001208C0);
+    file.write(reinterpret_cast<const char *>(&fov1), sizeof(fov1));
+    fov2 = fov1;
     file.seekp(0x00120A90);
-    file.write(reinterpret_cast<const char *>(&fov), sizeof(fov));
+    file.write(reinterpret_cast<const char *>(&fov2), sizeof(fov2));
 
     // Confirmation message
     cout << "\nSuccessfully changed the aspect ratio to " << simplifiedWidth << ":" << simplifiedHeight << " and fixed the field of view in the executable. Now all " << simplifiedWidth << ":" << simplifiedHeight << " resolutions supported by the graphics card's driver will appear in the game's video settings." << endl;
