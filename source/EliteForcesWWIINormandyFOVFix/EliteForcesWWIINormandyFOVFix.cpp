@@ -101,7 +101,7 @@ int main()
         // Calculates the new horizontal FOV
         newHorizontalFOV = 2.0 * radToDeg(atan((newAspectRatio / oldAspectRatio) * tan(degToRad(oldHorizontalFOV / 2.0))));
 
-        fstream file("lithtech.exe", ios::in | ios::out | ios::binary);
+        fstream file("client.exe", ios::in | ios::out | ios::binary);
         if (!file.is_open())
         {
             cout << "Failed to open the file." << endl;
