@@ -88,7 +88,6 @@ int main()
 
     newAspectRatio = newWidth / newHeight;
     
-
     fstream file("Fellowship.exe", ios::in | ios::out | ios::binary);
     if (!file.is_open())
     {
