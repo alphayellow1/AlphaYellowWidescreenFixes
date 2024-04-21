@@ -16,7 +16,8 @@ using namespace std;
 
 int main()
 {
-    double newWidth, newHeight, fov, newAspectRatio;
+    double newWidth, newHeight, fov;
+    float newAspectRatio;
     int simplifiedWidth, simplifiedHeight, aspectRatioGCD;
 
     cout << "The Lord of the Rings: The Fellowship of the Ring (2002) Widescreen Fix by AlphaYellow, 2024\n\n----------------\n\n";
