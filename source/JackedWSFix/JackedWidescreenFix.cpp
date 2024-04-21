@@ -9,7 +9,7 @@ using namespace std;
 
 int main()
 {
-    cout << "Jacked (2005) Widescreen Fix by AlphaYellow, 2024\n\n----------------\n\n";
+    cout << "Jacked (2006) Widescreen Fix by AlphaYellow, 2024\n\n----------------\n\n";
     int width, height;
     float fov;
 
