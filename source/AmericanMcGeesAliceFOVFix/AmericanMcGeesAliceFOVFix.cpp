@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <conio.h>
-#include <cstdint> // For uint8_t
+#include <cstdint>
 #include <cmath>
 #include <limits>
 #include <windows.h>
