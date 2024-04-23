@@ -1,7 +1,6 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <conio.h>
 #include <cstdint>
 #include <cmath>
 #include <limits>
@@ -36,13 +35,44 @@ int main()
 
     int choice;
     double newWidth, newHeight, result, horizontalFOV, verticalFOV;
-    float horizontalFovInRadians1, verticalFovinRadians1, horizontalFovInRadians2, verticalFovInRadians2;
+    float horizontalFovInRadians1, verticalFovInRadians1, horizontalFovInRadians2, verticalFovInRadians2;
+    float currentHFOV, currentVFOV, newHFOV1, newVFOV1, newHFOV2, newVFOV2;
 
     cout << "KISS Psycho Circus: The Nightmare Child (2000) FOV Fixer by AlphaYellow, 2024\n\n----------------\n\n";
 
+    fstream file("client.exe", ios::in | ios::out | ios::binary);
+    if (!file.is_open())
+    {
+        cout << "Failed to open the file." << endl;
+        return 1;
+    }
+
+    file.seekg(0x00096246);
+    file.read(reinterpret_cast<char *>(&currentHFOV), sizeof(currentHFOV));
+    file.seekg(0x0009625B);
+    file.read(reinterpret_cast<char *>(&currentVFOV), sizeof(currentVFOV));
+
+    // Defines a tolerance for the approximation
+    const double tolerance = 0.01;
+
+    // Converts the FOV values from radians to degrees
+    currentHFOV = radToDeg(currentHFOV);
+    currentVFOV = radToDeg(currentVFOV);
+
+    // Checks if the FOV values correspond to exactly 90 (horizontal), and exactly or approximately 75 (vertical) degrees
+    string fovDescriptor = "";
+    if (abs(currentHFOV - 90.0) < numeric_limits<float>::epsilon() &&
+        abs(currentVFOV - 67.5) < tolerance)
+    {
+        fovDescriptor = "[Default for 4:3 aspect ratio]";
+    }
+
+    cout << "- Your current FOV: " << currentHFOV << " degrees (Horizontal); " << currentVFOV << " degrees (Vertical) " << fovDescriptor << "\n\n";
+    file.close();
+
     do
     {
-        cout << "- Do you want to set FOV automatically (1) or set custom horizontal and vertical FOV values? (2): ";
+        cout << "- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values? (2): ";
         cin >> choice;
 
         if (cin.fail())
@@ -110,15 +140,18 @@ int main()
 
         horizontalFovInRadians1 = static_cast<float>(newHorizontalFOV * (M_PI / 180.0)); // Converts degrees to radians
 
-        verticalFovinRadians1 = 1.1780972451;
+        verticalFovInRadians1 = 1.1780972451;
 
         file.seekp(0x00096246);
         file.write(reinterpret_cast<const char *>(&horizontalFovInRadians1), sizeof(horizontalFovInRadians1));
         file.seekp(0x0009625B);
-        file.write(reinterpret_cast<const char *>(&verticalFovinRadians1), sizeof(verticalFovinRadians1));
+        file.write(reinterpret_cast<const char *>(&verticalFovInRadians1), sizeof(verticalFovInRadians1));
+
+        newHFOV1 = radToDeg(horizontalFovInRadians1);
+        newVFOV1 = radToDeg(verticalFovInRadians1);
 
         // Confirmation message
-        cout << "\nSuccessfully changed the field of view in the executable."
+        cout << "\nSuccessfully changed automatically the horizontal FOV to " << newHFOV1 << " degrees and vertical FOV to " << newVFOV1 << " degrees.\n"
              << endl;
 
         // Closes the file
@@ -128,7 +161,7 @@ int main()
     {
         do
         {
-            cout << "\n- Enter the desired horizontal FOV: ";
+            cout << "\n- Enter the desired horizontal FOV (in degrees): ";
             cin >> horizontalFOV;
 
             if (cin.fail())
@@ -146,7 +179,7 @@ int main()
 
         do
         {
-            cout << "\n- Enter the desired vertical FOV: ";
+            cout << "\n- Enter the desired vertical FOV (in degrees): ";
             cin >> verticalFOV;
 
             if (cin.fail())
@@ -177,8 +210,11 @@ int main()
         file.seekp(0x0009625B);
         file.write(reinterpret_cast<const char *>(&verticalFovInRadians2), sizeof(verticalFovInRadians2));
 
+        newHFOV2 = radToDeg(horizontalFovInRadians2);
+        newVFOV2 = radToDeg(verticalFovInRadians2);
+
         // Confirmation message
-        cout << "\nSuccessfully changed the horizontal and vertical field of views in the executable.\n"
+        cout << "\nSuccessfully changed manually the horizontal FOV to " << newHFOV2 << " degrees and vertical FOV to " << newVFOV2 << " degrees.\n"
              << endl;
 
         // Closes the file
