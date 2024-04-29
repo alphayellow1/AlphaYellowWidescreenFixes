@@ -21,7 +21,7 @@ Contributions are welcome! If you have a new fix for a classic game or improveme
 This project is licensed under the GPL 3.0 license - see the LICENSE file for details.
 
 ## Acknowledgments
-- Huge thanks to contributors like Automaniak, who have helped to keep classic games alive and well kept on modern systems.
+Huge thanks to contributors like Automaniak, who have helped to keep classic games alive and well kept on modern systems.
 
 ## Disclaimer
 The fixes provided in this repository are to be used at your own risk. The maintainers are not responsible for any damage or loss of data that may occur.
