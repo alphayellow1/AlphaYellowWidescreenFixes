@@ -10,8 +10,8 @@ using namespace std;
 int main()
 {
     int choice;
-    cout << "State of Emergency (2003) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
-    float hFOV, desiredWidth, desiredHeight;
+    cout << "State of Emergency (2003) FOV Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
+    float hFOV, desiredWidth, desiredHeight, clippingFix;
 
     do
     {
@@ -51,12 +51,14 @@ int main()
             }
         } while (desiredHeight <= 0 || desiredHeight > 65535);
 
+        hFOV = desiredWidth / desiredHeight;
+        clippingFix = (4.0f / 3.0f) / (desiredWidth / desiredHeight);
+
         fstream file("KaosPC.exe", ios::in | ios::out | ios::binary);
-
-        hFOV = (desiredWidth / desiredHeight) / (4.0f / 3.0f);
-
-        file.seekp(0x000B77C0);
+        file.seekp(0x00086057);
         file.write(reinterpret_cast<const char *>(&hFOV), sizeof(hFOV));
+        file.seekp(0x0015F6E0);
+        file.write(reinterpret_cast<const char *>(&clippingFix), sizeof(clippingFix));
 
         // Confirmation message
         cout << "\nSuccessfully changed the field of view." << endl;
