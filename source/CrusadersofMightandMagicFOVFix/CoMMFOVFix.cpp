@@ -9,7 +9,7 @@ using namespace std;
 
 int main()
 {
-    cout << "Crusaders of Might and Magic (1999) FOV Fixer by AlphaYellow, 2024\n\n----------------\n\n";
+    cout << "Crusaders of Might and Magic (1999) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
     float width, height, desiredFOV;
     int choice, fileOpened;
     bool fileNotFound;
@@ -51,7 +51,7 @@ int main()
 
         do
         {
-            cout << "Enter the desired width: ";
+            cout << "\nEnter the desired width: ";
             cin >> width;
 
             if (cin.fail())
@@ -92,7 +92,7 @@ int main()
         file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
 
         // Confirmation message
-        cout << "\nSuccessfully changed the field of view. You can now press Enter to close the program." << endl;
+        cout << "\nSuccessfully changed the field of view." << endl;
 
         // Close the file
         file.close();
@@ -115,6 +115,10 @@ int main()
             }
         } while (choice < 1 || choice > 2);
     } while (choice != 1); // Checks the flag in the loop condition
+
+    cout << "\nPress Enter to exit the program...";
+    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
+    cin.get();
 
     return 0;
 }
