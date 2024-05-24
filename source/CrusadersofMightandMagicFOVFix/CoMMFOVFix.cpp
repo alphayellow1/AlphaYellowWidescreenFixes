@@ -86,6 +86,7 @@ int main()
         } while (height <= 0 || height > 65535);
 
         desiredFOV = (4.0f / 3.0f) / (width / height);
+        
         file.seekp(0x0002F762); // HFOV
         file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
         file.seekp(0x0002F799); // VFOV
