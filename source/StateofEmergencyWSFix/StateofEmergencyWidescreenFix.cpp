@@ -14,7 +14,7 @@ int main()
     int choice, fileOpened;
     bool fileNotFound;
 
-    cout << "State of Emergency (2003) Widescreen Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "State of Emergency (2003) Widescreen Fixer v1.3 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
@@ -94,8 +94,8 @@ int main()
             }
         } while (desiredHeight <= 0 || desiredHeight > 65535);
 
-        hFOV = desiredWidth / desiredHeight;
-        clippingFix = (4.0f / 3.0f) / (desiredWidth / desiredHeight);
+        hFOV = static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight);
+        clippingFix = (4.0f / 3.0f) / (static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight));
 
         file.seekp(0x000B77C1);
         file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
