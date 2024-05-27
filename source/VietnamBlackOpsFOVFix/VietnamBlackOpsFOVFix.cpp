@@ -159,6 +159,8 @@ int main()
 
             verticalFovInRadians1 = 1.1780972480773926;
 
+            file.open("BlackOps.exe", ios::in | ios::out | ios::binary);
+
             file.seekp(0x00076DE6);
             file.write(reinterpret_cast<const char *>(&horizontalFovInRadians1), sizeof(horizontalFovInRadians1));
             file.seekp(0x00076E06);
@@ -214,6 +216,8 @@ int main()
 
             horizontalFovInRadians2 = static_cast<float>(horizontalFOV * (M_PI / 180.0)); // Converts degrees to radians
             verticalFovInRadians2 = static_cast<float>(verticalFOV * (M_PI / 180.0));     // Converts degrees to radians
+
+            file.open("BlackOps.exe", ios::in | ios::out | ios::binary);
 
             file.seekp(0x00076DE6);
             file.write(reinterpret_cast<const char *>(&horizontalFovInRadians2), sizeof(horizontalFovInRadians2));
