@@ -255,7 +255,7 @@ int main()
         } while (choice < 1 || choice > 2);
     } while (choice == 2); // Checks the flag in the loop condition
 
-    cout << "Press enter to exit the program...";
+    cout << "\nPress enter to exit the program...";
     cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
     cin.get();
 
