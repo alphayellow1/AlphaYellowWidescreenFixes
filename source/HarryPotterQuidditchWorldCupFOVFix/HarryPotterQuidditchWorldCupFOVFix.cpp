@@ -14,13 +14,7 @@ int main()
 
     do
     {
-        fstream file("QWC.exe", ios::in | ios::out | ios::binary);
-
-        if (!file.is_open())
-        {
-            cout << "Failed to open the file." << endl;
-            return 1;
-        }
+        
 
         do
         {
