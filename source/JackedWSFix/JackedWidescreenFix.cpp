@@ -13,7 +13,7 @@ int main()
     float fov;
     bool fileNotFound;
 
-    cout << "Jacked (2006) Widescreen Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Jacked (2006) Widescreen Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
