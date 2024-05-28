@@ -91,7 +91,7 @@ int main()
         file.write(reinterpret_cast<const char *>(&fov), sizeof(fov));
 
         // Confirmation message
-        cout << "\nSuccessfully changed field of view in the executable.\n"
+        cout << "\nSuccessfully changed field of view in the executable."
              << endl;
 
         // Closes the file
@@ -118,7 +118,7 @@ int main()
         } while (choice < 1 || choice > 2);
     } while (choice == 2); // Checks the flag in the loop condition
 
-    cout << "Press enter to exit the program...";
+    cout << "\nPress enter to exit the program...";
     cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
     cin.get();
 
