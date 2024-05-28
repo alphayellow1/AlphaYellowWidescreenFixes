@@ -99,7 +99,7 @@ int main()
         // Confirmation message
         cout << "\nSuccessfully changed resolution to " << width << "x" << height << " and fixed the field of view." << endl;
 
-        // Close the file
+        // Closes the file
         file.close();
 
         do
