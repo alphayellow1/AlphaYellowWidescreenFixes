@@ -9,11 +9,12 @@ using namespace std;
 
 int main()
 {
-    cout << "Frogger: The Great Quest (2002) Widescreen Fixer by AlphaYellow, 2024\n\n----------------\n";
     int16_t desiredWidth, desiredHeight;
     float desiredFOV, desiredAspectRatio;
     int choice, fileOpened;
     bool fileNotFound;
+
+    cout << "Frogger: The Great Quest (2002) Widescreen Fixer by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
