@@ -9,65 +9,121 @@ using namespace std;
 
 int main()
 {
-    cout << "Batman: Vengeance (2002) Widescreen Fix by AlphaYellow, 2024\n\n----------------\n\n";
-    int width, height;
+    cout << "Batman: Vengeance (2002) Widescreen Fix by AlphaYellow, 2024\n\n----------------\n";
+    int16_t width, height;
+    int choice, fileOpened;
+    bool fileNotFound;
     float fov;
 
     do
     {
-        cout << "Enter the desired width: ";
-        cin >> width;
+        fstream file;
+        fileNotFound = false;
+        fileOpened = 0; // Initializes fileOpened to 0
 
-        if (cin.fail())
+        // Tries to open the file initially
+        file.open("osr_dx8_vf.dll", ios::in | ios::out | ios::binary);
+
+        // If the file is not open, sets fileNotFound to true
+        if (!file.is_open())
         {
-            cin.clear();                                         // Clears error flags
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-            width = -1;                                          // Ensures the loop continues
-            cout << "Invalid input. Please enter a numeric value." << endl;
+            fileNotFound = true;
         }
-        else if (width <= 0 || width > 65535)
+
+        // Loops until the file is found and opened
+        while (fileNotFound)
         {
-            cout << "Please enter a positive number for width less than 65536." << endl;
+            cout << "\nFailed to open osr_dx8_vf.dll, check if the file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the DLL is currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            cin.get();
+
+            // Tries to open the file again
+            file.open("osr_dx8_vf.dll", ios::in | ios::out | ios::binary);
+
+            if (file.is_open())
+            {
+                if (fileOpened == 0)
+                {
+                    cout << "\nosr_dx8_vf.dll opened successfully!" << endl;
+                    fileOpened = 1; // Sets fileOpened to 1 after the file is opened successfully
+                }
+                fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
+            }
         }
-    } while (width <= 0 || width > 65535);
 
-    do
-    {
-        cout << "\nEnter the desired height: ";
-        cin >> height;
-
-        if (cin.fail())
+        do
         {
-            cin.clear();                                         // Clears error flags
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-            height = -1;                                         // Ensures the loop continues
-            cout << "Invalid input. Please enter a numeric value." << endl;
-        }
-        else if (height <= 0 || height > 65535)
+            cout << "\n- Enter the desired width: ";
+            cin >> width;
+
+            if (cin.fail())
+            {
+                cin.clear();                                         // Clears error flags
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+                width = -1;                                          // Ensures the loop continues
+                cout << "Invalid input. Please enter a numeric value." << endl;
+            }
+            else if (width <= 0 || width > 65535)
+            {
+                cout << "Please enter a positive number for width less than 65536." << endl;
+            }
+        } while (width <= 0 || width > 65535);
+
+        do
         {
-            cout << "Please enter a positive number for height less than 65536." << endl;
-        }
-    } while (height <= 0 || height > 65535);
+            cout << "\n- Enter the desired height: ";
+            cin >> height;
 
-    fstream file("osr_dx8_vf.dll", ios::in | ios::out | ios::binary);
+            if (cin.fail())
+            {
+                cin.clear();                                         // Clears error flags
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+                height = -1;                                         // Ensures the loop continues
+                cout << "Invalid input. Please enter a numeric value." << endl;
+            }
+            else if (height <= 0 || height > 65535)
+            {
+                cout << "Please enter a positive number for height less than 65536." << endl;
+            }
+        } while (height <= 0 || height > 65535);
 
-    file.seekp(0x00098AE8);
-    file.write(reinterpret_cast<const char *>(&width), sizeof(width));
+        file.seekp(0x00098AE8);
+        file.write(reinterpret_cast<const char *>(&width), sizeof(width));
 
-    file.seekp(0x00098AEC);
-    file.write(reinterpret_cast<const char *>(&height), sizeof(height));
+        file.seekp(0x00098AEC);
+        file.write(reinterpret_cast<const char *>(&height), sizeof(height));
 
-    fov = (4.0f / 3.0f) / (width / height);
-    file.seekp(0x000862A0);
-    file.write(reinterpret_cast<const char *>(&fov), sizeof(fov));
+        fov = (4.0f / 3.0f) / (static_cast<float>(width) / static_cast<float>(height));
+        file.seekp(0x000862A0);
+        file.write(reinterpret_cast<const char *>(&fov), sizeof(fov));
 
-    // Confirmation message
-    cout << "\nSuccessfully changed resolution to " << width << "x" << height << " and fixed field of view in the executable." << endl;
+        // Confirmation message
+        cout << "\nSuccessfully changed the resolution to " << width << "x" << height << " and fixed the field of view." << endl;
 
-    // Close the file
-    file.close();
+        // Closes the file
+        file.close();
 
-    cout << "Press Enter to exit the program...";
+        do
+        {
+            cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
+            cin >> choice;
+
+            if (cin.fail())
+            {
+                cin.clear();                                         // Clears error flags
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+                choice = -1;
+                cout << "Invalid input. Please enter 1 to exit the program or 2 to try another value.\n"
+                     << endl;
+            }
+            else if (choice < 1 || choice > 2)
+            {
+                cout << "Please enter a valid number.\n"
+                     << endl;
+            }
+        } while (choice < 1 || choice > 2);
+    } while (choice == 2); // Checks the flag in the loop condition
+
+    cout << "\nPress Enter to exit the program...";
     cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
     cin.get();
 
