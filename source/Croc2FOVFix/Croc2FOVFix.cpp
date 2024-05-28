@@ -9,10 +9,11 @@ using namespace std;
 
 int main()
 {
-    cout << "Croc 2 (2000) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
     float desiredWidth, desiredHeight, fov;
     int choice, fileOpened;
     bool fileNotFound;
+
+    cout << "Croc 2 (2000) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
