@@ -1,7 +1,6 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <conio.h> // For getch()
 #include <cstdint> // For uint8_t
 #include <limits>
 #include <windows.h>
@@ -11,21 +10,17 @@ using namespace std;
 int main()
 {
     int choice, fileOpened;
-    cout << "Carmageddon II: Carpocalypse Now (1998) Widescreen Fix by AlphaYellow, 2024\n\n----------------\n\n";
-    float width, height, aspectratio, fov;
+    int16_t width, height;
+    float aspectRatio;
     bool fileNotFound, validInput = false;
+
+    cout << "Carmageddon II: Carpocalypse Now (1998) Widescreen Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        cout << "Enter the desired width: ";
-        cin >> width;
-
         fstream file;
         fileNotFound = false;
         fileOpened = 0; // Initializes fileOpened to 0
-
-        TCHAR buffer[MAX_PATH];
-        GetCurrentDirectory(MAX_PATH, buffer);
 
         // Tries to open the file initially
         file.open("CARMA2_HW0.EXE", ios::in | ios::out | ios::binary);
@@ -58,48 +53,72 @@ int main()
             }
         }
 
-        if (cin.fail())
+        do
         {
-            cin.clear();                                         // Clear error flags
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignore invalid input
-            width = -1;                                          // Ensure the loop continues
-            cout << "Invalid input. Please enter a numeric value." << endl;
-        }
-        else if (width <= 0 || width > 65535)
+            cout << "\n- Enter the desired width: ";
+            cin >> width;
+
+            if (cin.fail())
+            {
+                cin.clear();                                         // Clears error flags
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+                width = -1;                                          // Ensures the loop continues
+                cout << "Invalid input. Please enter a numeric value." << endl;
+            }
+            else if (width <= 0 || width > 65535)
+            {
+                cout << "Please enter a positive number for height less than 65536." << endl;
+            }
+        } while (width <= 0 || width > 65535);
+
+        do
         {
-            cout << "Please enter a positive number for width less than 65536." << endl;
-        }
-    } while (width <= 0 || width > 65535);
+            cout << "\n- Enter the desired height: ";
+            cin >> height;
 
-    do
-    {
-        cout << "\nEnter the desired height: ";
-        cin >> height;
+            if (cin.fail())
+            {
+                cin.clear();                                         // Clears error flags
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+                height = -1;                                         // Ensures the loop continues
+                cout << "Invalid input. Please enter a numeric value." << endl;
+            }
+            else if (height <= 0 || height > 65535)
+            {
+                cout << "Please enter a positive number for height less than 65536." << endl;
+            }
+        } while (height <= 0 || height > 65535);
 
-        if (cin.fail())
+        aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+
+        file.seekp(0x001874A3);
+        file.write(reinterpret_cast<const char *>(&aspectRatio), sizeof(aspectRatio));
+
+        cout << "\nSuccessfully changed the field of view." << endl;
+
+        // Close the file
+        file.close();
+
+        do
         {
-            cin.clear();                                         // Clear error flags
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignore invalid input
-            height = -1;                                         // Ensure the loop continues
-            cout << "Invalid input. Please enter a numeric value." << endl;
-        }
-        else if (height <= 0 || height > 65535)
-        {
-            cout << "Please enter a positive number for height less than 65536." << endl;
-        }
-    } while (height <= 0 || height > 65535);
+            cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
+            cin >> choice;
 
-    fstream file("CARMA2_HW0.EXE", ios::in | ios::out | ios::binary);
-
-    aspectratio = width / height;
-
-    file.seekp(0x001874A3);
-    file.write(reinterpret_cast<const char *>(&aspectratio), sizeof(aspectratio));
-
-    cout << "\nSuccessfully changed the field of view." << endl;
-
-    // Close the file
-    file.close();
+            if (cin.fail())
+            {
+                cin.clear();                                         // Clears error flags
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+                choice = -1;
+                cout << "Invalid input. Please enter 1 to exit the program or 2 to try another value.\n"
+                     << endl;
+            }
+            else if (choice < 1 || choice > 2)
+            {
+                cout << "Please enter a valid number.\n"
+                     << endl;
+            }
+        } while (choice < 1 || choice > 2);
+    } while (choice == 2); // Checks the flag in the loop condition
 
     cout << "\nPress Enter to exit the program...";
     cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
