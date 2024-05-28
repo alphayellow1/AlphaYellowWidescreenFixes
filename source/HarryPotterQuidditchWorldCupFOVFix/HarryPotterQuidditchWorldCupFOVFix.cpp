@@ -89,7 +89,7 @@ int main()
             }
         } while (desiredHeight <= 0 || desiredHeight > 65535);
 
-        newAspectRatio = desiredWidth / desiredHeight;
+        newAspectRatio = static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight);
 
         file.seekp(0x0009F445);
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
