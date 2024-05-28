@@ -92,7 +92,7 @@ int main()
 
         do
         {
-            cout << "- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values? (2): ";
+            cout << "- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values (2)?: ";
             cin >> choice;
 
             if (cin.fail())
