@@ -31,7 +31,7 @@ int main()
     double oldWidth = 4.0, oldHeight = 3.0, oldHorizontalFOV = 90.0, newHorizontalFOV, newAspectRatio, newWidth, newHeight, result, horizontalFOV, verticalFOV, oldAspectRatio;
     float horizontalFovInRadians1, verticalFovInRadians1, horizontalFovInRadians2, verticalFovInRadians2, currentHFOV, currentVFOV, newHFOV1, newVFOV1, newHFOV2, newVFOV2;
 
-    cout << "Alcatraz: Prison Escape (2001) FOV Fixer v1.3 by AlphaYellow, 2024\n\n----------------\n\n";
+    cout << "Alcatraz: Prison Escape (2001) FOV Fixer v1.3 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
@@ -89,7 +89,6 @@ int main()
         }
 
         cout << "\n- Your current FOV: " << currentHFOV << " degrees (Horizontal); " << currentVFOV << " degrees (Vertical) " << fovDescriptor << "\n\n";
-        file.close();
 
         do
         {
@@ -101,11 +100,11 @@ int main()
                 cin.clear();                                         // Clears error flags
                 cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
                 choice = -1;                                         // Ensures the loop continues
-                cout << "Invalid input. Please enter a numeric value." << endl;
+                cout << "Invalid input. Please enter a numeric value.\n" << endl;
             }
             else if (choice < 1 || choice > 2)
             {
-                cout << "Please enter a valid number." << endl;
+                cout << "Please enter a valid number.\n" << endl;
             }
         } while (choice < 1 || choice > 2);
 
@@ -159,8 +158,6 @@ int main()
 
             verticalFovInRadians1 = 1.1780972480773926;
 
-            file.open("lithtech.exe", ios::in | ios::out | ios::binary);
-
             file.seekp(0x000C42D1);
             file.write(reinterpret_cast<const char *>(&horizontalFovInRadians1), sizeof(horizontalFovInRadians1));
             file.seekp(0x000C42E6);
@@ -170,7 +167,7 @@ int main()
             newVFOV1 = radToDeg(verticalFovInRadians1);
 
             // Confirmation message
-            cout << "\nSuccessfully changed automatically the horizontal FOV to " << newHFOV1 << " degrees and vertical FOV to " << newVFOV1 << " degrees.\n"
+            cout << "\nSuccessfully changed automatically the horizontal FOV to " << newHFOV1 << " degrees and vertical FOV to " << newVFOV1 << " degrees."
                  << endl;
 
             // Closes the file
@@ -217,8 +214,6 @@ int main()
             horizontalFovInRadians2 = static_cast<float>(horizontalFOV * (M_PI / 180.0)); // Converts degrees to radians
             verticalFovInRadians2 = static_cast<float>(verticalFOV * (M_PI / 180.0));     // Converts degrees to radians
 
-            file.open("lithtech.exe", ios::in | ios::out | ios::binary);
-
             file.seekp(0x000C42D1);
             file.write(reinterpret_cast<const char *>(&horizontalFovInRadians2), sizeof(horizontalFovInRadians2));
             file.seekp(0x000C42E6);
@@ -246,11 +241,11 @@ int main()
                 cin.clear();                                         // Clears error flags
                 cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
                 choice = -1;
-                cout << "Invalid input. Please enter 1 to exit the program or 2 to try another value." << endl;
+                cout << "Invalid input. Please enter 1 to exit the program or 2 to try another value.\n" << endl;
             }
             else if (choice < 1 || choice > 2)
             {
-                cout << "Please enter a valid number." << endl;
+                cout << "Please enter a valid number.\n" << endl;
             }
         } while (choice < 1 || choice > 2);
     } while (choice == 2); // Checks the flag in the loop condition
