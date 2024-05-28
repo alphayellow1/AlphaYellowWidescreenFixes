@@ -31,7 +31,7 @@ int main()
     double oldWidth = 4.0, oldHeight = 3.0, oldHorizontalFOV = 90.0, newHorizontalFOV, newAspectRatio, newWidth, newHeight, result, horizontalFOV, verticalFOV, oldAspectRatio;
     float horizontalFovInRadians1, verticalFovInRadians1, horizontalFovInRadians2, verticalFovInRadians2, currentHFOV, currentVFOV, newHFOV1, newVFOV1, newHFOV2, newVFOV2;
 
-    cout << "Elite Forces: WWII Iwo Jima (2001) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Elite Forces: WWII Iwo Jima (2001) FOV Fixer v1.4 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
