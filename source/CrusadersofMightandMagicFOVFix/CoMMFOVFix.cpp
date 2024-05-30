@@ -9,10 +9,11 @@ using namespace std;
 
 int main()
 {
-    cout << "Crusaders of Might and Magic (1999) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
     float width, height, desiredFOV;
     int choice, fileOpened;
     bool fileNotFound;
+
+    cout << "Crusaders of Might and Magic (1999) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
