@@ -136,7 +136,7 @@ int main()
         file.write(reinterpret_cast<const char *>(&fov2), sizeof(fov2));
 
         // Confirmation message
-        cout << "\nSuccessfully changed the aspect ratio to " << simplifiedWidth << ":" << simplifiedHeight << " and fixed the field of view in the executable. Now all " << simplifiedWidth << ":" << simplifiedHeight << " resolutions supported by the graphics card's driver will appear in the game's video settings." << endl;
+        cout << "\nSuccessfully changed the aspect ratio to " << simplifiedWidth << ":" << simplifiedHeight << " and fixed the field of view. Now all " << simplifiedWidth << ":" << simplifiedHeight << " resolutions supported by the graphics card's driver will appear in the game's video settings." << endl;
 
         // Closes the file
         file.close();
@@ -151,18 +151,18 @@ int main()
                 cin.clear();                                         // Clears error flags
                 cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
                 choice = -1;
-                cout << "Invalid input. Please enter 1 to exit the program or 2 to try another value.\n"
+                cout << "Invalid input. Please enter 1 to exit the program or 2 to try another value."
                      << endl;
             }
             else if (choice < 1 || choice > 2)
             {
-                cout << "Please enter a valid number.\n"
+                cout << "Please enter a valid number."
                      << endl;
             }
         } while (choice < 1 || choice > 2);
     } while (choice == 2); // Checks the flag in the loop condition
 
-    cout << "Press enter to exit the program...";
+    cout << "\nPress enter to exit the program...";
     cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
     cin.get();
 
