@@ -1,8 +1,6 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <conio.h>
-#include <cstdint>
 #include <cmath>
 #include <limits>
 #include <windows.h>
@@ -28,38 +26,58 @@ using namespace std;
 
 int main()
 {
-    int choice1, choice2, choice3;
-    float fov, fov2;
-    bool fileNotFound = false;
-    double newWidth, newHeight;
-    double oldWidth = 4.0;
-    double oldHeight = 3.0;
-    double oldAspectRatio = oldWidth / oldHeight;
-    double oldHorizontalFOV = 75.0; // Known horizontal FOV for 4:3 aspect ratio
-    double newHorizontalFOV;
-    double newAspectRatio;
+    int choice1, choice2, fileOpened;
+    bool fileNotFound;
+    float newFOV, currentFOV;
+    double newWidth, newHeight, oldWidth = 4.0, oldHeight = 3.0, oldAspectRatio = oldWidth / oldHeight, oldHorizontalFOV = 75.0, newHorizontalFOV, newAspectRatio;
 
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "Rune Gold (2001) Cutscenes FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Rune Gold (2001) Cutscenes FOV Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        fstream file("Engine.u", ios::in | ios::out | ios::binary);
+        fstream file;
+        fileNotFound = false;
+        fileOpened = 0; // Initializes fileOpened to 0
+
+        // Tries to open the file initially
+        file.open("Engine.u", ios::in | ios::out | ios::binary);
+
+        // If the file is not open, sets fileNotFound to true
         if (!file.is_open())
         {
-            cout << "Failed to open the file." << endl;
-            return 1;
+            fileNotFound = true;
+        }
+
+        // Loops until the file is found and opened
+        while (fileNotFound)
+        {
+            cout << "\nFailed to open Engine.u, check if the file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the file is currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            cin.get();
+
+            // Tries to open the file again
+            file.open("Engine.u", ios::in | ios::out | ios::binary);
+
+            if (file.is_open())
+            {
+                if (fileOpened == 0)
+                {
+                    cout << "\nEngine.u opened successfully!" << endl;
+                    fileOpened = 1; // Sets fileOpened to 1 after the file is opened successfully
+                }
+                fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
+            }
         }
 
         file.seekg(0x000132FB);
-        file.read(reinterpret_cast<char *>(&fov2), sizeof(fov2));
+        file.read(reinterpret_cast<char *>(&currentFOV), sizeof(currentFOV));
 
-        cout << "\nThe current cutscenes FOV is " << fov2 << "\u00B0" << endl;
+        cout << "\nThe current cutscenes FOV is " << currentFOV << "\u00B0" << endl;
 
         do
         {
-            cout << "\n- Do you want to set cutscenes FOV automatically based on the desired resolution (1) or set a custom cutscenes FOV value (2) ?: ";
+            cout << "\n- Do you want to set cutscenes FOV automatically based on the desired resolution (1) or set a custom cutscenes FOV value (2)?: ";
             cin >> choice1;
 
             if (cin.fail())
@@ -117,45 +135,8 @@ int main()
 
             newAspectRatio = newWidth / newHeight;
 
-            // Calculates the new horizontal FOV
-            fov = 2.0 * radToDeg(atan((newAspectRatio / oldAspectRatio) * tan(degToRad(oldHorizontalFOV / 2.0))));
-
-            if (!file.is_open())
-            {
-                cout << "Failed to open the file." << endl;
-                fileNotFound = true; // Sets the flag to true as the file is not found
-                break;               // Breaks out of the loop
-            }
-
-            file.seekp(0x000132FB);
-            file.write(reinterpret_cast<const char *>(&fov), sizeof(fov));
-
-            // Confirmation message
-            cout << "\nSuccessfully changed the cutscenes FOV automatically to " << fov << "\u00B0."
-                 << endl;
-
-            // Closes the file
-            file.close();
-
-            do
-            {
-                cout << "\n- Do you want to exit the program (1) or try another value (2) ?: ";
-                cin >> choice2;
-
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    choice2 = -1;
-                    cout << "Invalid input. Please enter 1 to exit or 2 to try another value.\n"
-                         << endl;
-                }
-                else if (choice2 < 1 || choice2 > 2)
-                {
-                    cout << "Please enter a valid number." << endl;
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
-                }
-            } while (choice2 < 1 || choice2 > 2);
+            // Calculates the new FOV
+            newFOV = 2.0 * radToDeg(atan((newAspectRatio / oldAspectRatio) * tan(degToRad(oldHorizontalFOV / 2.0))));
 
             break;
 
@@ -163,7 +144,7 @@ int main()
             do
             {
                 cout << "\n- Enter the desired cutscenes FOV value (from 1\u00B0 to 180\u00B0, default FOV for 4:3 aspect ratio is 75.0\u00B0): ";
-                cin >> fov;
+                cin >> newFOV;
 
                 if (cin.fail())
                 {
@@ -171,50 +152,46 @@ int main()
                     cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
                     cout << "Invalid input. Please enter a numeric value." << endl;
                 }
-                else if (fov < 1 || fov > 180)
+                else if (newFOV < 1 || newFOV > 180)
                 {
                     cout << "Please enter a valid cutscenes FOV value." << endl;
                 }
-            } while (fov < 1 || fov > 180);
+            } while (newFOV < 1 || newFOV > 180);
 
-            if (!file.is_open())
-            {
-                cout << "\nFailed to open the file. Please check the file path and permissions." << endl;
-                fileNotFound = true; // Set the flag to true as the file is not found
-                break;               // Break out of the loop
-            }
-
-            file.seekp(0x000132FB);
-            file.write(reinterpret_cast<const char *>(&fov), sizeof(fov));
-
-            // Confirmation message
-            cout << "\nSuccessfully changed the cutscenes FOV to " << fov << "\u00B0" << ".\n"
-                 << endl;
-
-            // Closes the file
-            file.close();
-
-            do
-            {
-                cout << "- Do you want to exit the program (1) or try another value (2) ?: ";
-                cin >> choice3;
-
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    choice3 = -1;
-                    cout << "Invalid input. Please enter 1 to exit or 2 to try another value." << endl;
-                }
-                else if (choice3 < 1 || choice3 > 2)
-                {
-                    cout << "Please enter a valid number." << endl;
-                }
-            } while (choice3 < 1 || choice3 > 2);
             break;
         }
 
-    } while (choice2 != 1 && choice3 != 1 && !fileNotFound); // Checks the flag in the loop condition
+        // Searches for the 000132FB hexadecimal address in Engine.u and writes the new FOV value (4-bytes floating point number) into it
+        file.seekp(0x000132FB);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        // Confirmation message
+        cout << "\nSuccessfully changed the cutscenes FOV to " << newFOV << "\u00B0" << "."
+             << endl;
+
+        // Closes the file
+        file.close();
+
+        do
+        {
+            cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
+            cin >> choice2;
+
+            if (cin.fail())
+            {
+                cin.clear();                                         // Clears error flags
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+                choice2 = -1;
+                cout << "Invalid input. Please enter 1 to exit or 2 to try another value."
+                     << endl;
+            }
+            else if (choice2 < 1 || choice2 > 2)
+            {
+                cout << "Please enter a valid number." << endl;
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
+            }
+        } while (choice2 < 1 || choice2 > 2);
+    } while (choice2 != 1); // Checks the flag in the loop condition
 
     cout << "\nPress Enter to exit the program...";
     cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
