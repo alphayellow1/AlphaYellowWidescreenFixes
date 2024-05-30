@@ -58,13 +58,13 @@ int main()
             if (cin.fail())
             {
                 cin.clear();                                                   // Clear error flags
-                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Ignore invalid input
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignore invalid input
                 width = -1;                                                    // Ensure the loop continues
-                cout << "Invalid input. Please enter a numeric value." << std::endl;
+                cout << "Invalid input. Please enter a numeric value." << endl;
             }
             else if (width <= 0 || width > 65535)
             {
-                cout << "Please enter a positive number for width less than 65536." << std::endl;
+                cout << "Please enter a positive number for width less than 65536." << endl;
             }
         } while (width <= 0 || width > 65535);
 
@@ -76,13 +76,13 @@ int main()
             if (cin.fail())
             {
                 cin.clear();                                                   // Clear error flags
-                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Ignore invalid input
+                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignore invalid input
                 height = -1;                                                   // Ensure the loop continues
                 cout << "Invalid input. Please enter a numeric value." << endl;
             }
             else if (height <= 0 || height > 65535)
             {
-                std::cout << "Please enter a positive number for height less than 65536." << endl;
+                cout << "Please enter a positive number for height less than 65536." << endl;
             }
         } while (height <= 0 || height > 65535);
 
