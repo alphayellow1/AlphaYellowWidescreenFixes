@@ -233,7 +233,7 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Type a custom FOV multiplier value (default for 4:3 aspect ratio is 0,8546222448): " << endl;
+            cout << "\n- Type a custom FOV multiplier value (default for 4:3 aspect ratio is 0,8546222448): ";
             cin >> FOV;
             isFOVKnown = true;
             break;
