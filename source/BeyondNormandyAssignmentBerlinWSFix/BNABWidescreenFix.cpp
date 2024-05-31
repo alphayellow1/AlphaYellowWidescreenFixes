@@ -48,8 +48,8 @@ int main()
 	}
 	if (isFileCorrect == true)
 	{
-    	if (language == 1)
-    	{
+		if (language == 1)
+		{
 			cout << "Type your resolution width: ";
 			cin >> newWidth;
 			if (newWidth == 0)
@@ -91,8 +91,8 @@ int main()
 				return 0;
 			}
 		}
-    	else if (language == 2)
-    	{
+		else if (language == 2)
+		{
 			setlocale(LC_CTYPE, "Polish");
 			cout << "Wpisz szeroko�� rozdzielczo�ci: ";
 			cin >> newWidth;
@@ -160,126 +160,126 @@ int main()
 		binaryFile << char(newHeightSmall);
 		binaryFile.seekp(0x00013D79);
 		binaryFile << char(newHeightBig);
-    	aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
-    	hudWidth = 600 * aspectRatio;
-    	if (language == 1)
+		aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+		hudWidth = 600 * aspectRatio;
+		if (language == 1)
 		{
 			cout << "Type your FOV multiplier\n(use dot as a separator; 1 = default; at high values, the character's hands may appear unfinished):\n";
 			cin >> fovMultiplier;
-			cout << "Type your HUD margin (0 = default, " << hudWidth/2-400 << " = centered to 4:3):\n";
+			cout << "Type your HUD margin (0 = default, " << hudWidth / 2 - 400 << " = centered to 4:3):\n";
 			cin >> hudMargin;
 		}
-    	else if (language == 2)
-    	{
+		else if (language == 2)
+		{
 			cout << "Wpisz mno�nik pola widzenia\n(u�yj kropki jako separator, 1 = domy�lny, przy wysokich warto�ciach r�ce postaci mog� wygl�da� na niekompletne):\n";
 			cin >> fovMultiplier;
-			cout << "Wpisz margines dla interfejsu (0 = domy�lny, " << hudWidth/2-400 << " = wy�rodkowany do 4:3):\n";
+			cout << "Wpisz margines dla interfejsu (0 = domy�lny, " << hudWidth / 2 - 400 << " = wy�rodkowany do 4:3):\n";
 			cin >> hudMargin;
 		}
 		cout << "\n----------------\n\n";
-		// Compass needle width	
+		// Compass needle width
 		flt = 0.0333333 / aspectRatio;
-		const unsigned char * pf = reinterpret_cast<const unsigned char*>(&flt);
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		const unsigned char *pf = reinterpret_cast<const unsigned char *>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x0019D0F8+i);
+			binaryFile.seekp(0x0019D0F8 + i);
 			binaryFile << char(pf[i]);
 		}
 		// FOV
 		flt = 0.75 * aspectRatio * fovMultiplier;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x0019D0FC+i);
+			binaryFile.seekp(0x0019D0FC + i);
 			binaryFile << char(pf[i]);
 		}
 		// Loading bar X
 		flt = 222 + (hudWidth - 800) / 2;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A707C+i);
+			binaryFile.seekp(0x001A707C + i);
 			binaryFile << char(pf[i]);
 		}
 		// Red cross and menu text width
 		flt = 0.001666 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A7084+i);
+			binaryFile.seekp(0x001A7084 + i);
 			binaryFile << char(pf[i]);
 		}
 		// HUD left margin
 		flt = 0.0333333 / aspectRatio + hudMargin / hudWidth;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A7128+i);
+			binaryFile.seekp(0x001A7128 + i);
 			binaryFile << char(pf[i]);
 		}
 		// Compass needle X
 		flt = (hudWidth - 79 - hudMargin) / hudWidth;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A8200+i);
+			binaryFile.seekp(0x001A8200 + i);
 			binaryFile << char(pf[i]);
 		}
 		// Objective direction width
 		dbl = 0.001666 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char*>(&dbl);
+		pf = reinterpret_cast<const unsigned char *>(&dbl);
 		for (size_t i = 0; i != sizeof(double); ++i)
 		{
-			binaryFile.seekp(0x001A8220+i);
+			binaryFile.seekp(0x001A8220 + i);
 			binaryFile << char(pf[i]);
 		}
 		// Compass X
 		flt = (hudWidth - 118 - hudMargin) / hudWidth;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A822C+i);
+			binaryFile.seekp(0x001A822C + i);
 			binaryFile << char(pf[i]);
 		}
 		// Compass width
 		flt = 0.163333 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A8234+i);
+			binaryFile.seekp(0x001A8234 + i);
 			binaryFile << char(pf[i]);
 		}
 		// Weapons list width
 		flt = 0.17 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A8244+i);
+			binaryFile.seekp(0x001A8244 + i);
 			binaryFile << char(pf[i]);
 		}
 		// HUD text width
 		dbl = 0.0006666666666 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char*>(&dbl);
+		pf = reinterpret_cast<const unsigned char *>(&dbl);
 		for (size_t i = 0; i != sizeof(double); ++i)
 		{
-			binaryFile.seekp(0x001A8328+i);
+			binaryFile.seekp(0x001A8328 + i);
 			binaryFile << char(pf[i]);
 		}
 		// Ammo X
 		flt = (hudWidth - 74 - hudMargin) / hudWidth;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A8354+i);
+			binaryFile.seekp(0x001A8354 + i);
 			binaryFile << char(pf[i]);
 		}
 		// Ammo Width
 		flt = 0.116666 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char*>(&flt);
+		pf = reinterpret_cast<const unsigned char *>(&flt);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001A835C+i);
+			binaryFile.seekp(0x001A835C + i);
 			binaryFile << char(pf[i]);
 		}
 		if (language == 1)

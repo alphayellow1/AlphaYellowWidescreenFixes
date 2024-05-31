@@ -4,147 +4,179 @@
 #include <cstdint>
 #include <cmath>
 #include <limits>
-
-// Define M_PI if not already defined
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-// Function to convert degrees to radians
-double degToRad(double degrees)
-{
-    return degrees * (M_PI / 180.0);
-}
-
-// Function to convert radians to degrees
-double radToDeg(double radians)
-{
-    return radians * (180.0 / M_PI);
-}
+#include <conio.h>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
+// Constants
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
+const streampos kHFOVOffset = 0x000CAF91;
+
+// Variables
+int choice, fileOpened, tempChoice;
+bool fileNotFound, validKeyPressed;
+double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
+float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
+string descriptor, fovDescriptor, input;
+fstream file;
+char ch;
+
+// Function to convert degrees to radians
+double DegToRad(double degrees)
+{
+    return degrees * (kPi / 180.0);
+}
+
+// Function to convert radians to degrees
+double RadToDeg(double radians)
+{
+    return radians * (180.0 / kPi);
+}
+
+// Function to handle user input in choices
+void HandleUserInput(int &choice)
+{
+    tempChoice = -1;         // Temporary variable to store the input
+    validKeyPressed = false; // Flag to track if a valid key was pressed
+
+    while (true)
+    {
+        ch = _getch(); // Waits for user to press a key
+
+        // Checks if the key is '1' or '2'
+        if ((ch == '1' || ch == '2') && !validKeyPressed)
+        {
+            tempChoice = ch - '0';  // Stores the input temporarily
+            cout << ch;             // Echoes the valid input
+            validKeyPressed = true; // Sets the flag as a valid key has been pressed
+        }
+        else if (ch == '\b' || ch == 127) // Handles backspace or delete keys
+        {
+            if (tempChoice != -1) // Checks if there is something to delete
+            {
+                tempChoice = -1;         // Resets the temporary choice
+                cout << "\b \b";         // Erases the last character from the console
+                validKeyPressed = false; // Resets the flag as the input has been deleted
+            }
+        }
+        else if (ch == '\r') // If 'Enter' is pressed
+        {
+            if (tempChoice != -1) // Checks if a valid input has been made
+            {
+                choice = tempChoice; // Assigns the temporary input to the choice variable
+                cout << endl;        // Moves to a new line
+                break;               // Exits the loop since we have a confirmed input
+            }
+        }
+    }
+}
+
+double HandleResolutionInput()
+{
+    do
+    {
+        cin >> newCustomResolutionValue;
+
+        cin.clear();                                         // Clears error flags
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+
+        if (cin.fail())
+        {
+            cin.clear();                                         // Clears error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+            cout << "Invalid input. Please enter a numeric value." << endl;
+        }
+        else if (newCustomResolutionValue <= 0 || newCustomResolutionValue >= 65535)
+        {
+            cout << "Please enter a valid number." << endl;
+        }
+    } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
+
+    return newCustomResolutionValue;
+}
+
+// Function to open the file
+void OpenFile(fstream &file)
+{
+    fileNotFound = false;
+    fileOpened = 0; // Initializes fileOpened to 0
+
+    file.open("lithtech.exe", ios::in | ios::out | ios::binary);
+
+    // If the file is not open, sets fileNotFound to true
+    if (!file.is_open())
+    {
+        fileNotFound = true;
+    }
+
+    // Loops until the file is found and opened
+    while (fileNotFound)
+    {
+
+        // Tries to open the file again
+        file.open("lithtech.exe", ios::in | ios::out | ios::binary);
+
+        if (!file.is_open())
+        {
+            cout << "\nFailed to open lithtech.exe, check if the DLL file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the DLL is currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            do
+            {
+                ch = _getch(); // Wait for user to press a key
+            } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+        }
+        else
+        {
+            cout << "\nlithtech.exe opened successfully!" << endl;
+            fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
+        }
+    }
+}
+
 int main()
 {
-    int choice, fileOpened;
-    bool fileNotFound;
-    double oldWidth = 4.0, oldHeight = 3.0, oldAspectRatio = oldWidth / oldHeight, oldHorizontalFOV = 90.0, newHorizontalFOV, newAspectRatio, newWidth, newHeight, horizontalFOV;
-    float horizontalFovInRadians;
-
     cout << "Nina: Agent Chronicles (2002) FOV Fixer v1.3 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        fstream file;
-        fileNotFound = false;
-        fileOpened = 0; // Initializes fileOpened to 0
+        cout << "\n- Enter the desired width: ";
+        newWidth = HandleResolutionInput();
 
-        // Tries to open the file initially
-        file.open("lithtech.exe", ios::in | ios::out | ios::binary);
-
-        // If the file is not open, sets fileNotFound to true
-        if (!file.is_open())
-        {
-            fileNotFound = true;
-        }
-
-        // Loops until the file is found and opened
-        while (fileNotFound)
-        {
-            cout << "\nFailed to open lithtech.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
-            cin.get();
-
-            // Tries to open the file again
-            file.open("lithtech.exe", ios::in | ios::out | ios::binary);
-
-            if (file.is_open())
-            {
-                if (fileOpened == 0)
-                {
-                    cout << "\nlithtech.exe opened successfully!" << endl;
-                    fileOpened = 1; // Sets fileOpened to 1 after the file is opened successfully
-                }
-                fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
-            }
-        }
-
-        do
-        {
-            cout << "\n- Enter the desired width: ";
-            cin >> newWidth;
-
-            if (cin.fail())
-            {
-                cin.clear();                                         // Clears error flags
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                newWidth = -1;                                       // Ensures the loop continues
-                cout << "Invalid input. Please enter a numeric value." << endl;
-            }
-            else if (newWidth <= 0 || newWidth > 65535)
-            {
-                cout << "Please enter a positive number for width less than 65536." << endl;
-            }
-        } while (newWidth <= 0 || newWidth > 65535);
-
-        do
-        {
-            cout << "\n- Enter the desired height: ";
-            cin >> newHeight;
-
-            if (cin.fail())
-            {
-                cin.clear();                                         // Clears error flags
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                newHeight = -1;                                      // Ensures the loop continues
-                cout << "Invalid input. Please enter a numeric value." << endl;
-            }
-            else if (newHeight <= 0 || newHeight > 65535)
-            {
-                cout << "Please enter a positive number for height less than 65536." << endl;
-            }
-        } while (newHeight <= 0 || newHeight > 65535);
+        cout << "\n- Enter the desired height: ";
+        newHeight = HandleResolutionInput();
 
         newAspectRatio = newWidth / newHeight;
 
         // Calculates the new horizontal FOV
-        newHorizontalFOV = 2.0 * radToDeg(atan((newAspectRatio / oldAspectRatio) * tan(degToRad(oldHorizontalFOV / 2.0))));
+        newHFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
 
-        horizontalFovInRadians = static_cast<float>(newHorizontalFOV * (M_PI / 180.0)); // Converts degrees to radians
+        newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
 
-        file.seekp(0x000CAF91);
-        file.write(reinterpret_cast<const char *>(&horizontalFovInRadians), sizeof(horizontalFovInRadians));
+        OpenFile(file);
+
+        file.seekp(kHFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newHFOVInRadians), sizeof(newHFOVInRadians));
 
         // Confirmation message
-        cout << "\nSuccessfully fixed the field of view."
+        cout << "\nSuccessfully changed automatically the horizontal FOV to " << newHFOVInDegrees << " degrees."
              << endl;
 
         // Closes the file
         file.close();
 
-        do
+        cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
+        HandleUserInput(choice);
+
+        if (choice == 1)
         {
-            cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-            cin >> choice;
-
-            if (cin.fail())
+            cout << "\nPress enter to exit the program...";
+            do
             {
-                cin.clear();                                         // Clears error flags
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                choice = -1;
-                cout << "Invalid input. Please enter 1 to exit the program or 2 to try another value."
-                     << endl;
-            }
-            else if (choice < 1 || choice > 2)
-            {
-                cout << "Please enter a valid number."
-                     << endl;
-            }
-        } while (choice < 1 || choice > 2);
+                ch = _getch(); // Wait for user to press a key
+            } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+            return 0;
+        }
     } while (choice == 2); // Checks the flag in the loop condition
-
-    cout << "\nPress enter to exit the program...";
-    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
-    cin.get();
-
-    return 0;
 }

@@ -23,7 +23,7 @@ string input;
 char ch;
 
 // Function to handle user input in choices
-void HandleUserInput(int &choice)
+void HandleChoiceInput(int &choice)
 {
     tempChoice = -1;         // Temporary variable to store the input
     validKeyPressed = false; // Flag to track if a valid key was pressed
@@ -148,7 +148,7 @@ int main()
         aspectRatioWrittenToFile = true;
 
         cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2)?: ";
-        HandleUserInput(choice);
+        HandleChoiceInput(choice);
 
         switch (choice)
         {
@@ -271,7 +271,7 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleUserInput(choice2);
+        HandleChoiceInput(choice2);
 
         if (choice2 == 1)
         {

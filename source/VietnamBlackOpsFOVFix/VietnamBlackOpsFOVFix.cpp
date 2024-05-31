@@ -4,260 +4,264 @@
 #include <cstdint>
 #include <cmath>
 #include <limits>
-
-// Define M_PI if not already defined
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-// Function to convert degrees to radians
-double degToRad(double degrees)
-{
-    return degrees * (M_PI / 180.0);
-}
-
-// Function to convert radians to degrees
-double radToDeg(double radians)
-{
-    return radians * (180.0 / M_PI);
-}
+#include <conio.h>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
+// Constants
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
+const streampos kHFOVOffset = 0x00076DE6;
+const streampos kVFOVOffset = 0x00076E06;
+const float kDefaultVFOVInRadians = 1.1780972480773926;
+
+// Variables
+int choice1, choice2, fileOpened, tempChoice;
+bool fileNotFound, validKeyPressed;
+double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
+float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
+string descriptor, fovDescriptor, input;
+fstream file;
+char ch;
+
+// Function to convert degrees to radians
+double DegToRad(double degrees)
+{
+    return degrees * (kPi / 180.0);
+}
+
+// Function to convert radians to degrees
+double RadToDeg(double radians)
+{
+    return radians * (180.0 / kPi);
+}
+
+// Function to handle user input in choices
+void HandleUserInput(int &choice)
+{
+    tempChoice = -1;         // Temporary variable to store the input
+    validKeyPressed = false; // Flag to track if a valid key was pressed
+
+    while (true)
+    {
+        ch = _getch(); // Waits for user to press a key
+
+        // Checks if the key is '1' or '2'
+        if ((ch == '1' || ch == '2') && !validKeyPressed)
+        {
+            tempChoice = ch - '0';  // Stores the input temporarily
+            cout << ch;             // Echoes the valid input
+            validKeyPressed = true; // Sets the flag as a valid key has been pressed
+        }
+        else if (ch == '\b' || ch == 127) // Handles backspace or delete keys
+        {
+            if (tempChoice != -1) // Checks if there is something to delete
+            {
+                tempChoice = -1;         // Resets the temporary choice
+                cout << "\b \b";         // Erases the last character from the console
+                validKeyPressed = false; // Resets the flag as the input has been deleted
+            }
+        }
+        else if (ch == '\r') // If 'Enter' is pressed
+        {
+            if (tempChoice != -1) // Checks if a valid input has been made
+            {
+                choice = tempChoice; // Assigns the temporary input to the choice variable
+                cout << endl;        // Moves to a new line
+                break;               // Exits the loop since we have a confirmed input
+            }
+        }
+    }
+}
+
+float HandleFOVInput()
+{
+    do
+    {
+        // Reads the input as a string
+        cin >> input;
+
+        // Replaces all commas with dots
+        replace(input.begin(), input.end(), ',', '.');
+
+        // Parses the string to a float
+        newCustomFOVInDegrees = stof(input);
+
+        if (cin.fail())
+        {
+            cin.clear();                                         // Clears error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+            cout << "Invalid input. Please enter a numeric value." << endl;
+        }
+        else if (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180)
+        {
+            cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
+        }
+    } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
+
+    return newCustomFOVInDegrees;
+}
+
+double HandleResolutionInput()
+{
+    do
+    {
+        cin >> newCustomResolutionValue;
+
+        cin.clear();                                         // Clears error flags
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+
+        if (cin.fail())
+        {
+            cin.clear();                                         // Clears error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+            cout << "Invalid input. Please enter a numeric value." << endl;
+        }
+        else if (newCustomResolutionValue <= 0 || newCustomResolutionValue >= 65535)
+        {
+            cout << "Please enter a valid number." << endl;
+        }
+    } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
+
+    return newCustomResolutionValue;
+}
+
+// Function to open the file
+void OpenFile(fstream &file)
+{
+    fileNotFound = false;
+    fileOpened = 0; // Initializes fileOpened to 0
+
+    file.open("BlackOps.exe", ios::in | ios::out | ios::binary);
+
+    // If the file is not open, sets fileNotFound to true
+    if (!file.is_open())
+    {
+        fileNotFound = true;
+    }
+
+    // Loops until the file is found and opened
+    while (fileNotFound)
+    {
+
+        // Tries to open the file again
+        file.open("BlackOps.exe", ios::in | ios::out | ios::binary);
+
+        if (!file.is_open())
+        {
+            cout << "\nFailed to open BlackOps.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it isn't currently running. Press Enter when all the mentioned problems are solved." << endl;
+            do
+            {
+                ch = _getch(); // Wait for user to press a key
+            } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+        }
+        else
+        {
+            cout << "\nBlackOps.exe opened successfully!" << endl;
+            fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
+        }
+    }
+}
+
 int main()
 {
-    int choice, fileOpened;
-    bool fileNotFound;
-    double oldWidth = 4.0, oldHeight = 3.0, oldHorizontalFOV = 90.0, newHorizontalFOV, newAspectRatio, newWidth, newHeight, result, horizontalFOV, verticalFOV, oldAspectRatio;
-    float horizontalFovInRadians1, verticalFovInRadians1, horizontalFovInRadians2, verticalFovInRadians2, currentHFOV, currentVFOV, newHFOV1, newVFOV1, newHFOV2, newVFOV2;
-
     cout << "Vietnam: Black Ops (2000) FOV Fixer v1.3 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        fstream file;
-        fileNotFound = false;
-        fileOpened = 0; // Initializes fileOpened to 0
+        OpenFile(file);
 
-        // Tries to open the file initially
-        file.open("BlackOps.exe", ios::in | ios::out | ios::binary);
+        file.seekg(kHFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentHFOVInRadians), sizeof(currentHFOVInRadians));
+        file.seekg(kVFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentVFOVInRadians), sizeof(currentVFOVInRadians));
 
-        // If the file is not open, sets fileNotFound to true
-        if (!file.is_open())
-        {
-            fileNotFound = true;
-        }
-
-        // Loops until the file is found and opened
-        while (fileNotFound)
-        {
-            cout << "\nFailed to open BlackOps.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
-            cin.get();
-
-            // Tries to open the file again
-            file.open("BlackOps.exe", ios::in | ios::out | ios::binary);
-
-            if (file.is_open())
-            {
-                if (fileOpened == 0)
-                {
-                    cout << "\nBlackOps.exe opened successfully!" << endl;
-                    fileOpened = 1; // Sets fileOpened to 1 after the file is opened successfully
-                }
-                fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
-            }
-        }
-
-        file.seekg(0x00076DE6);
-        file.read(reinterpret_cast<char *>(&currentHFOV), sizeof(currentHFOV));
-        file.seekg(0x00076E06);
-        file.read(reinterpret_cast<char *>(&currentVFOV), sizeof(currentVFOV));
-
-        // Defines a tolerance for the approximation
-        const double tolerance = 0.01;
+        file.close();
 
         // Converts the FOV values from radians to degrees
-        currentHFOV = radToDeg(currentHFOV);
-        currentVFOV = radToDeg(currentVFOV);
+        currentHFOVInDegrees = RadToDeg(currentHFOVInRadians);
+        currentVFOVInDegrees = RadToDeg(currentVFOVInRadians);
 
         // Checks if the FOV values correspond to exactly 90 (horizontal), and exactly or approximately 75 (vertical) degrees
-        string fovDescriptor = "";
-        if (abs(currentHFOV - 90.0) < numeric_limits<float>::epsilon() &&
-            abs(currentVFOV - 67.5) < tolerance)
+        fovDescriptor = "";
+        if (abs(currentHFOVInDegrees - 90.0) < numeric_limits<float>::epsilon() &&
+            abs(currentVFOVInDegrees - 67.65) < kTolerance)
         {
             fovDescriptor = "[Default for 4:3 aspect ratio]";
         }
 
-        cout << "\n- Your current FOV: " << currentHFOV << " degrees (Horizontal); " << currentVFOV << " degrees (Vertical) " << fovDescriptor << "\n\n";
-        file.close();
+        cout << "\nYour current FOV: " << currentHFOVInDegrees << " degrees (Horizontal); " << currentVFOVInDegrees << " degrees (Vertical) " << fovDescriptor << "\n";
 
-        do
-        {
-            cout << "- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values? (2): ";
-            cin >> choice;
+        cout << "\n- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values (2)?: ";
+        HandleUserInput(choice1);
 
-            if (cin.fail())
-            {
-                cin.clear();                                         // Clears error flags
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                choice = -1;                                         // Ensures the loop continues
-                cout << "Invalid input. Please enter a numeric value." << endl;
-            }
-            else if (choice < 1 || choice > 2)
-            {
-                cout << "Please enter a valid number." << endl;
-            }
-        } while (choice < 1 || choice > 2);
-
-        switch (choice)
+        switch (choice1)
         {
         case 1:
-            do
-            {
-                cout << "\n- Enter the desired width: ";
-                cin >> newWidth;
+            cout << "\n- Enter the desired width: ";
+            newWidth = HandleResolutionInput();
 
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    newWidth = -1;                                       // Ensures the loop continues
-                    cout << "Invalid input. Please enter a numeric value." << endl;
-                }
-                else if (newWidth <= 0 || newWidth > 65535)
-                {
-                    cout << "Please enter a positive number for width less than 65536." << endl;
-                }
-            } while (newWidth <= 0 || newWidth > 65535);
-
-            do
-            {
-                cout << "\n- Enter the desired height: ";
-                cin >> newHeight;
-
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    newHeight = -1;                                      // Ensures the loop continues
-                    cout << "Invalid input. Please enter a numeric value." << endl;
-                }
-                else if (newHeight <= 0 || newHeight > 65535)
-                {
-                    cout << "Please enter a positive number for height less than 65536." << endl;
-                }
-            } while (newHeight <= 0 || newHeight > 65535);
-
-            oldAspectRatio = oldWidth / oldHeight;
+            cout << "\n- Enter the desired height: ";
+            newHeight = HandleResolutionInput();
 
             newAspectRatio = newWidth / newHeight;
 
             // Calculates the new horizontal FOV
-            newHorizontalFOV = 2.0 * radToDeg(atan((newAspectRatio / oldAspectRatio) * tan(degToRad(oldHorizontalFOV / 2.0))));
+            newHFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
 
-            horizontalFovInRadians1 = static_cast<float>(newHorizontalFOV * (M_PI / 180.0)); // Converts degrees to radians
+            newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
 
-            verticalFovInRadians1 = 1.1780972480773926;
+            newVFOVInRadians = kDefaultVFOVInRadians;
 
-            file.open("BlackOps.exe", ios::in | ios::out | ios::binary);
+            newVFOVInDegrees = RadToDeg(newVFOVInRadians);
 
-            file.seekp(0x00076DE6);
-            file.write(reinterpret_cast<const char *>(&horizontalFovInRadians1), sizeof(horizontalFovInRadians1));
-            file.seekp(0x00076E06);
-            file.write(reinterpret_cast<const char *>(&verticalFovInRadians1), sizeof(verticalFovInRadians1));
+            descriptor = "automatically";
 
-            newHFOV1 = radToDeg(horizontalFovInRadians1);
-            newVFOV1 = radToDeg(verticalFovInRadians1);
-
-            // Confirmation message
-            cout << "\nSuccessfully changed automatically the horizontal FOV to " << newHFOV1 << " degrees and vertical FOV to " << newVFOV1 << " degrees.\n"
-                 << endl;
-
-            // Closes the file
-            file.close();
             break;
 
         case 2:
-            do
-            {
-                cout << "\n- Enter the desired horizontal FOV (in degrees): ";
-                cin >> horizontalFOV;
+            cout << "\n- Enter the desired horizontal FOV (in degrees): ";
+            newHFOVInDegrees = HandleFOVInput();
 
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    horizontalFOV = -1;                                  // Ensures the loop continues
-                    cout << "Invalid input. Please enter a numeric value." << endl;
-                }
-                else if (horizontalFOV <= 0 || horizontalFOV >= 180)
-                {
-                    cout << "Please enter a valid number for the horizontal FOV." << endl;
-                }
-            } while (horizontalFOV <= 0 || horizontalFOV >= 180);
+            cout << "\n- Enter the desired vertical FOV (in degrees): ";
+            newVFOVInDegrees = HandleFOVInput();
 
-            do
-            {
-                cout << "\n- Enter the desired vertical FOV (in degrees): ";
-                cin >> verticalFOV;
+            newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
 
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    verticalFOV = -1;                                    // Ensures the loop continues
-                    cout << "Invalid input. Please enter a numeric value." << endl;
-                }
-                else if (verticalFOV <= 0 || verticalFOV >= 180)
-                {
-                    cout << "Please enter a valid number for the vertical FOV." << endl;
-                }
-            } while (verticalFOV <= 0 || verticalFOV >= 180);
+            newVFOVInRadians = static_cast<float>(DegToRad(newVFOVInDegrees)); // Converts degrees to radians
 
-            horizontalFovInRadians2 = static_cast<float>(horizontalFOV * (M_PI / 180.0)); // Converts degrees to radians
-            verticalFovInRadians2 = static_cast<float>(verticalFOV * (M_PI / 180.0));     // Converts degrees to radians
+            descriptor = "manually";
 
-            file.open("BlackOps.exe", ios::in | ios::out | ios::binary);
-
-            file.seekp(0x00076DE6);
-            file.write(reinterpret_cast<const char *>(&horizontalFovInRadians2), sizeof(horizontalFovInRadians2));
-            file.seekp(0x00076E06);
-            file.write(reinterpret_cast<const char *>(&verticalFovInRadians2), sizeof(verticalFovInRadians2));
-
-            newHFOV2 = radToDeg(horizontalFovInRadians2);
-            newVFOV2 = radToDeg(verticalFovInRadians2);
-
-            // Confirmation message
-            cout << "\nSuccessfully changed manually the horizontal FOV to " << newHFOV2 << " degrees and vertical FOV to " << newVFOV2 << " degrees.\n"
-                 << endl;
-
-            // Closes the file
-            file.close();
             break;
         }
 
-        do
+        OpenFile(file);
+        
+        file.seekp(kHFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newHFOVInRadians), sizeof(newHFOVInRadians));
+        file.seekp(kVFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newVFOVInRadians), sizeof(newVFOVInRadians));
+
+        // Confirmation message
+        cout << "\nSuccessfully changed " << descriptor << " the horizontal FOV to " << newHFOVInDegrees << " degrees and vertical FOV to " << newVFOVInDegrees << " degrees."
+             << endl;
+
+        // Closes the file
+        file.close();
+
+        cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
+        HandleUserInput(choice2);
+
+        if (choice2 == 1)
         {
-            cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-            cin >> choice;
-
-            if (cin.fail())
+            cout << "\nPress enter to exit the program...";
+            do
             {
-                cin.clear();                                         // Clears error flags
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                choice = -1;
-                cout << "Invalid input. Please enter 1 to exit the program or 2 to try another value." << endl;
-            }
-            else if (choice < 1 || choice > 2)
-            {
-                cout << "Please enter a valid number." << endl;
-            }
-        } while (choice < 1 || choice > 2);
-    } while (choice == 2); // Checks the flag in the loop condition
-
-    cout << "\nPress enter to exit the program...";
-    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clears the input buffer
-    cin.get();
-
-    return 0;
+                ch = _getch(); // Wait for user to press a key
+            } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+            return 0;
+        }
+    } while (choice2 == 2); // Checks the flag in the loop condition
 }
