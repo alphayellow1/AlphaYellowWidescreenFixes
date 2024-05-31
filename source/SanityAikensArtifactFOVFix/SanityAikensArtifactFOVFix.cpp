@@ -186,7 +186,6 @@ int main()
         cout << "\nYour current FOV: " << currentHFOVInDegrees << " degrees (Horizontal); " << currentVFOVInDegrees << " degrees (Vertical) " << fovDescriptor << "\n";
 
         cout << "\n- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values (2)?: ";
-
         HandleUserInput(choice1);
 
         switch (choice1)
