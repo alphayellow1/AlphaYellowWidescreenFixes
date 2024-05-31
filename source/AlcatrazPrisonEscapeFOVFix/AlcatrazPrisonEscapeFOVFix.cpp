@@ -5,6 +5,8 @@
 #include <cmath>
 #include <limits>
 #include <conio.h>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
@@ -20,7 +22,7 @@ int choice1, choice2, fileOpened, tempChoice;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
 float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
-string descriptor, fovDescriptor;
+string descriptor, fovDescriptor, input;
 fstream file;
 char ch;
 
@@ -37,7 +39,7 @@ double RadToDeg(double radians)
 }
 
 // Function to handle user input in choices
-void HandleUserInput(int &choice)
+void HandleChoiceInput(int &choice)
 {
     tempChoice = -1;         // Temporary variable to store the input
     validKeyPressed = false; // Flag to track if a valid key was pressed
@@ -78,7 +80,14 @@ float HandleFOVInput()
 {
     do
     {
-        cin >> newCustomFOVInDegrees;
+        // Reads the input as a string
+        cin >> input;
+
+        // Replaces all commas with dots
+        replace(input.begin(), input.end(), ',', '.');
+
+        // Parses the string to a float
+        newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
         {
