@@ -4,6 +4,9 @@
 #include <cmath>
 #include <limits>
 #include <windows.h>
+#include <conio.h>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
