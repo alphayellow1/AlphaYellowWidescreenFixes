@@ -227,6 +227,8 @@ int main()
             newVFOVInRadians = static_cast<float>(DegToRad(newVFOVInDegrees)); // Converts degrees to radians
 
             descriptor = "manually";
+
+            break;
         }
 
         OpenFile(file);
