@@ -20,7 +20,7 @@ fstream file;
 char ch;
 
 // Function to handle user input in choices
-void HandleUserInput(int &choice)
+void HandleChoiceInput(int &choice)
 {
     tempChoice = -1;         // Temporary variable to store the input
     validKeyPressed = false; // Flag to track if a valid key was pressed
@@ -147,7 +147,7 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleUserInput(choice);
+        HandleChoiceInput(choice);
 
         if (choice == 1)
         {

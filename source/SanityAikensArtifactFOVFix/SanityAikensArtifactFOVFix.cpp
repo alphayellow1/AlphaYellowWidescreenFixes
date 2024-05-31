@@ -22,7 +22,7 @@ int choice1, choice2, fileOpened, tempChoice;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
 float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
-string descriptor, fovDescriptor;
+string descriptor, fovDescriptor, input;
 fstream file;
 char ch;
 
