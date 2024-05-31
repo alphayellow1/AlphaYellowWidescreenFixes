@@ -4,6 +4,8 @@
 #include <conio.h> // For getch()
 #include <cstdint> // For uint8_t
 #include <limits>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
@@ -17,6 +19,7 @@ bool fileNotFound, aspectRatioWrittenToFile, isFOVKnown, validKeyPressed;
 int choice, choice2, fileOpened, tempChoice;
 double newCustomResolutionValue, newWidth, newHeight;
 fstream file;
+string input;
 char ch;
 
 // Function to handle user input in choices
@@ -234,7 +237,16 @@ int main()
 
         case 2:
             cout << "\n- Type a custom FOV multiplier value (default for 4:3 aspect ratio is 0,8546222448): ";
-            cin >> FOV;
+
+            // Reads the input as a string
+            cin >> input;
+
+            // Replaces all commas with dots
+            replace(input.begin(), input.end(), ',', '.');
+
+            // Parses the string to a float
+            FOV = stof(input);
+
             isFOVKnown = true;
             break;
         }
@@ -255,7 +267,7 @@ int main()
             cout << "\nSuccessfully changed the aspect ratio and field of view." << endl;
         }
 
-        // Close the file
+        // Closes the file
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
