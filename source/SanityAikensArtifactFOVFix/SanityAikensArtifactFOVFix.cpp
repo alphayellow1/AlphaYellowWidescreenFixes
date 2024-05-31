@@ -215,11 +215,9 @@ int main()
 
         case 2:
             cout << "\n- Enter the desired horizontal FOV (in degrees): ";
-
             newHFOVInDegrees = HandleFOVInput();
 
             cout << "\n- Enter the desired vertical FOV (in degrees): ";
-
             newVFOVInDegrees = HandleFOVInput();
 
             newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
@@ -232,7 +230,7 @@ int main()
         }
 
         OpenFile(file);
-
+        
         file.seekp(kHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newHFOVInRadians), sizeof(newHFOVInRadians));
         file.seekp(kVFOVOffset);
@@ -246,7 +244,6 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-
         HandleUserInput(choice2);
 
         if (choice2 == 1)
