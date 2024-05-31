@@ -18,7 +18,7 @@ const float kDefaultVFOVInRadians = 1.1806666851043701;
 // Variables
 int choice1, choice2, fileOpened, tempChoice;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees;
+double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
 float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
 string descriptor, fovDescriptor;
 fstream file;
@@ -72,6 +72,51 @@ void HandleUserInput(int &choice)
             }
         }
     }
+}
+
+float HandleFOVInput()
+{
+    do
+    {
+        cin >> newCustomFOVInDegrees;
+
+        if (cin.fail())
+        {
+            cin.clear();                                         // Clears error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+            cout << "Invalid input. Please enter a numeric value." << endl;
+        }
+        else if (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180)
+        {
+            cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
+        }
+    } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
+
+    return newCustomFOVInDegrees;
+}
+
+double HandleResolutionInput()
+{
+    do
+    {
+        cin >> newCustomResolutionValue;
+
+        cin.clear();                                         // Clears error flags
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+
+        if (cin.fail())
+        {
+            cin.clear();                                         // Clears error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+            cout << "Invalid input. Please enter a numeric value." << endl;
+        }
+        else if (newCustomResolutionValue <= 0 || newCustomResolutionValue >= 65535)
+        {
+            cout << "Please enter a valid number." << endl;
+        }
+    } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
+
+    return newCustomResolutionValue;
 }
 
 // Function to open the file
@@ -147,44 +192,11 @@ int main()
         switch (choice1)
         {
         case 1:
-            do
-            {
-                cout << "\n- Enter the desired width: ";
-                cin >> newWidth;
+            cout << "\n- Enter the desired width: ";
+            newWidth = HandleResolutionInput();
 
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    newWidth = -1;                                       // Ensures the loop continues
-                    cout << "Invalid input. Please enter a numeric value." << endl;
-                }
-                else if (newWidth <= 0 || newWidth > 65535)
-                {
-                    cout << "Please enter a positive number for width less than 65536." << endl;
-                }
-            } while (newWidth <= 0 || newWidth > 65535);
-
-            do
-            {
-                cout << "\n- Enter the desired height: ";
-                cin >> newHeight;
-
-                cin.clear();                                         // Clears error flags
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    newHeight = -1;                                      // Ensures the loop continues
-                    cout << "Invalid input. Please enter a numeric value." << endl;
-                }
-                else if (newHeight <= 0 || newHeight > 65535)
-                {
-                    cout << "Please enter a positive number for height less than 65536." << endl;
-                }
-            } while (newHeight <= 0 || newHeight > 65535);
+            cout << "\n- Enter the desired height: ";
+            newHeight = HandleResolutionInput();
 
             newAspectRatio = newWidth / newHeight;
 
@@ -202,44 +214,13 @@ int main()
             break;
 
         case 2:
-            do
-            {
-                cout << "\n- Enter the desired horizontal FOV (in degrees): ";
-                cin >> newHFOVInDegrees;
+            cout << "\n- Enter the desired horizontal FOV (in degrees): ";
 
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    newHFOVInDegrees = -1;                               // Ensures the loop continues
-                    cout << "Invalid input. Please enter a numeric value." << endl;
-                }
-                else if (newHFOVInDegrees <= 0 || newHFOVInDegrees >= 180)
-                {
-                    cout << "Please enter a valid number for the horizontal FOV." << endl;
-                }
-            } while (newHFOVInDegrees <= 0 || newHFOVInDegrees >= 180);
+            newHFOVInDegrees = HandleFOVInput();
 
-            do
-            {
-                cout << "\n- Enter the desired vertical FOV (in degrees): ";
-                cin >> newVFOVInDegrees;
+            cout << "\n- Enter the desired vertical FOV (in degrees): ";
 
-                cin.clear();                                         // Clears error flags
-                cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-
-                if (cin.fail())
-                {
-                    cin.clear();                                         // Clears error flags
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-                    newVFOVInDegrees = -1;                               // Ensures the loop continues
-                    cout << "Invalid input. Please enter a numeric value." << endl;
-                }
-                else if (newVFOVInDegrees <= 0 || newVFOVInDegrees >= 180)
-                {
-                    cout << "Please enter a valid number for the vertical FOV." << endl;
-                }
-            } while (newVFOVInDegrees <= 0 || newVFOVInDegrees >= 180);
+            newVFOVInDegrees = HandleFOVInput();
 
             newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
 
