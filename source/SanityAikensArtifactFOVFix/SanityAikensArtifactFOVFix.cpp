@@ -5,6 +5,8 @@
 #include <cmath>
 #include <limits>
 #include <conio.h>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
@@ -78,7 +80,14 @@ float HandleFOVInput()
 {
     do
     {
-        cin >> newCustomFOVInDegrees;
+        // Reads the input as a string
+        cin >> input;
+
+        // Replaces all commas with dots
+        replace(input.begin(), input.end(), ',', '.');
+
+        // Parses the string to a float
+        newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
         {
