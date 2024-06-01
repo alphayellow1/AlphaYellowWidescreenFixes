@@ -143,15 +143,15 @@ int main()
         cout << "\n- Enter the desired height: ";
         newHeight = HandleResolutionInput();
 
+        newHFOV = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+
+        clippingFix = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
-
-        newHFOV = static_cast<float>(newWidth) / static_cast<float>(newHeight);
-
-        clippingFix = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
 
         file.seekp(kHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
