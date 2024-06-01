@@ -124,7 +124,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Frogger: The Great Quest (2002) Widescreen Fixer by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Frogger: The Great Quest (2002) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
