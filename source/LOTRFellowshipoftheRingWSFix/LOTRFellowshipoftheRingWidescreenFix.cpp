@@ -16,11 +16,11 @@ const streampos kFOVOffset1 = 0x001208CC;
 const streampos kFOVOffset2 = 0x00120A90;
 
 // Variables
-int choice1, choice2, fileOpened, tempChoice;
+int choice, fileOpened, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
+int16_t newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
-float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
-string descriptor, fovDescriptor, input;
+double desiredFOV2;
+float desiredFOV, newAspectRatio;
 fstream file;
 char ch;
 
@@ -97,7 +97,7 @@ void OpenFile(fstream &file)
     fileNotFound = false;
     fileOpened = 0; // Initializes fileOpened to 0
 
-    file.open("QWC.exe", ios::in | ios::out | ios::binary);
+    file.open("Fellowship.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -110,11 +110,11 @@ void OpenFile(fstream &file)
     {
 
         // Tries to open the file again
-        file.open("QWC.exe", ios::in | ios::out | ios::binary);
+        file.open("Fellowship.exe", ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open QWC.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open Fellowship.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -122,7 +122,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nQWC.exe opened successfully!" << endl;
+            cout << "\nFellowship.exe opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -130,12 +130,6 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    int choice, fileOpened, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
-    int16_t newWidth, newHeight;
-    double desiredFOV2;
-    float newAspectRatio, desiredFOV;
-    bool fileNotFound;
-
     cout << "The Lord of the Rings: The Fellowship of the Ring (2002) Widescreen Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
 
     do
