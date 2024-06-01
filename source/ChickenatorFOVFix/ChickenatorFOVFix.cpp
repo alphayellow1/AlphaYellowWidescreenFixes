@@ -3,6 +3,9 @@
 #include <fstream>
 #include <cstdint>
 #include <limits>
+#include <conio.h>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
