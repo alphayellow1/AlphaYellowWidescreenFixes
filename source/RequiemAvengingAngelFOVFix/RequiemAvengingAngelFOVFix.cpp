@@ -2,8 +2,9 @@
 #include <iomanip>
 #include <fstream>
 #include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
 #include <limits>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
