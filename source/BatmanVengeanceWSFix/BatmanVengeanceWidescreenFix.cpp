@@ -122,7 +122,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Batman: Vengeance (2002) Widescreen Fix by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Batman: Vengeance (2002) Widescreen Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
