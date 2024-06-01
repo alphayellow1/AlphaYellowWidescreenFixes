@@ -17,7 +17,7 @@ const streampos kFOVOffset = 0x000132FB;
 // Variables
 int choice1, choice2, fileOpened, tempChoice;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 70.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue, newFOV;
+double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 75.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue, newFOV;
 float currentFOV, fovInFloat;
 string descriptor, fovDescriptor, input;
 fstream file;
