@@ -165,7 +165,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "TNN Outdoors Pro Hunter 2 (1999) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
+    cout << "TNN Outdoors Pro Hunter 2 (1999) FOV Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
