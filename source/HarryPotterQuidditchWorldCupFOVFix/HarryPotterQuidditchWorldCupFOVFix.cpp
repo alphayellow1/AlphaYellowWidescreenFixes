@@ -2,6 +2,8 @@
 #include <iomanip>
 #include <fstream>
 #include <limits>
+#include <conio.h> // For getch()
+#include <cstdint> // For int16_t
 #include <string>
 #include <algorithm>
 
