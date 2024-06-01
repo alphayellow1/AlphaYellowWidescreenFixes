@@ -172,17 +172,17 @@ int main()
 
         newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
+        // Puts the FOV value in the FOV addresses (as float and double)
+        desiredFOV = 64 / (newAspectRatio * 0.75);
+
+        desiredFOV2 = desiredFOV;
+
         // Puts the aspect ratio value in the AR address
         file.seekp(kAspectRatioOffset);
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        // Puts the FOV value in the FOV addresses (as float and double)
-        desiredFOV = 64 / (newAspectRatio * 0.75);
-
         file.seekp(kFOVOffset1);
         file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
-
-        desiredFOV2 = desiredFOV;
 
         file.seekp(kFOVOffset2);
         file.write(reinterpret_cast<const char *>(&desiredFOV2), sizeof(desiredFOV2));
