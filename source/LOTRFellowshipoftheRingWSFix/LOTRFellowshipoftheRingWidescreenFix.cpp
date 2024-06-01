@@ -200,7 +200,7 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleUserChoice(choice);
+        HandleChoiceInput(choice);
 
         if (choice == 1)
         {
