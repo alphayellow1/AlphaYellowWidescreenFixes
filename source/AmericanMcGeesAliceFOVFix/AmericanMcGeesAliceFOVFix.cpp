@@ -165,7 +165,7 @@ int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "American McGee's Alice (2000) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "American McGee's Alice (2000) FOV Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
