@@ -20,7 +20,7 @@ fstream file;
 char ch;
 
 // Function to handle user input in choices
-void HandleUserInput(int &choice)
+void HandleChoiceInput(int &choice)
 {
     tempChoice = -1;         // Temporary variable to store the input
     validKeyPressed = false; // Flag to track if a valid key was pressed
@@ -32,7 +32,7 @@ void HandleUserInput(int &choice)
         // Checks if the key is '1' or '2'
         if ((ch == '1' || ch == '2') && !validKeyPressed)
         {
-            tempChoice = ch - '0';  // Stores the input temporarily
+            tempChoice = ch - '0';  // Converts char to int and stores the input temporarily
             cout << ch;             // Echoes the valid input
             validKeyPressed = true; // Sets the flag as a valid key has been pressed
         }
@@ -45,14 +45,12 @@ void HandleUserInput(int &choice)
                 validKeyPressed = false; // Resets the flag as the input has been deleted
             }
         }
-        else if (ch == '\r') // If 'Enter' is pressed
+        // If 'Enter' is pressed and a valid key has been pressed prior
+        else if (ch == '\r' && validKeyPressed) 
         {
-            if (tempChoice != -1) // Checks if a valid input has been made
-            {
-                choice = tempChoice; // Assigns the temporary input to the choice variable
-                cout << endl;        // Moves to a new line
-                break;               // Exits the loop since we have a confirmed input
-            }
+            choice = tempChoice; // Assigns the temporary input to the choice variable
+            cout << endl;        // Moves to a new line
+            break;               // Exits the loop since we have a confirmed input
         }
     }
 }
@@ -147,7 +145,7 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleUserInput(choice);
+        HandleChoiceInput(choice);
 
         if (choice == 1)
         {
