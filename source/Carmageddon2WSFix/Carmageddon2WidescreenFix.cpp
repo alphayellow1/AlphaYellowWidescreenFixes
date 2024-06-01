@@ -4,6 +4,7 @@
 #include <cstdint> // For uint8_t
 #include <limits>
 #include <windows.h>
+#include <conio.h>
 #include <string>
 #include <algorithm>
 
