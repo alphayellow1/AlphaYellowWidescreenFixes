@@ -48,7 +48,7 @@ void HandleChoiceInput(int &choice)
         // Checks if the key is '1' or '2'
         if ((ch == '1' || ch == '2') && !validKeyPressed)
         {
-            tempChoice = ch - '0';  // Stores the input temporarily
+            tempChoice = ch - '0';  // Converts char to int and stores the input temporarily
             cout << ch;             // Echoes the valid input
             validKeyPressed = true; // Sets the flag as a valid key has been pressed
         }
@@ -61,14 +61,12 @@ void HandleChoiceInput(int &choice)
                 validKeyPressed = false; // Resets the flag as the input has been deleted
             }
         }
-        else if (ch == '\r') // If 'Enter' is pressed
+        // If 'Enter' is pressed and a valid key has been pressed prior
+        else if (ch == '\r' && validKeyPressed) 
         {
-            if (tempChoice != -1) // Checks if a valid input has been made
-            {
-                choice = tempChoice; // Assigns the temporary input to the choice variable
-                cout << endl;        // Moves to a new line
-                break;               // Exits the loop since we have a confirmed input
-            }
+            choice = tempChoice; // Assigns the temporary input to the choice variable
+            cout << endl;        // Moves to a new line
+            break;               // Exits the loop since we have a confirmed input
         }
     }
 }
@@ -178,7 +176,7 @@ int main()
         cout << "\nThe current cutscenes FOV is " << currentFOV << "\u00B0" << endl;
 
         cout << "\n- Do you want to set cutscenes FOV automatically based on the desired resolution (1) or set a custom cutscenes FOV value (2)?: ";
-        HandleUserInput(choice1);
+        HandleChoiceInput(choice1);
 
         switch (choice1)
         {
