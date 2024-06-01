@@ -127,7 +127,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Adventure Pinball: Forgotten Island (2001) Resolution Fixer by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Adventure Pinball: Forgotten Island (2001) Resolution Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
