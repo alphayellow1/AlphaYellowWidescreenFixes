@@ -118,11 +118,6 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    int choice, fileOpened;
-    bool fileNotFound;
-    int16_t width, height;
-    float fov;
-
     cout << "The Chickenator (2003) FOV Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
 
     do
