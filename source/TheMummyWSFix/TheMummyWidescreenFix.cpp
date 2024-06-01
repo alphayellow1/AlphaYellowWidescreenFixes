@@ -14,12 +14,12 @@ const streampos kAspectRatioOffset = 0x00082F5C;
 const streampos kFOVOffset = 0x000673E5;
 
 // Variables
-int16_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+int16_t newWidth, newHeight, newCustomResolutionValue;
 fstream file;
 string input;
 int choice, choice2, fileOpened, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newAspectRatio, newFOV;
+float newAspectRatio, newFOV, customFOVMultiplier;
 char ch;
 
 // Function to handle user input in choices
@@ -49,7 +49,7 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
@@ -57,6 +57,35 @@ void HandleChoiceInput(int &choice)
         }
     }
 }
+
+float HandleFOVInput()
+{
+    do
+    {
+        // Reads the input as a string
+        cin >> input;
+
+        // Replaces all commas with dots
+        replace(input.begin(), input.end(), ',', '.');
+
+        // Parses the string to a float
+        customFOVMultiplier = stof(input);
+
+        if (cin.fail())
+        {
+            cin.clear();                                         // Clears error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+            cout << "Invalid input. Please enter a numeric value." << endl;
+        }
+        else if (customFOVMultiplier <= 0)
+        {
+            cout << "Please enter a number greater than 0 for the FOV." << endl;
+        }
+    } while (customFOVMultiplier <= 0);
+
+    return customFOVMultiplier;
+}
+
 // Function to handle user input in resolution
 int16_t HandleResolutionInput()
 {
@@ -145,21 +174,11 @@ int main()
         {
         case 1:
             newFOV = newAspectRatio / (4.0f / 3.0f);
-
             break;
 
         case 2:
             cout << "\nType a custom FOV multiplier value (default for 4:3 aspect ratio is 1,0): ";
-
-            // Reads the input as a string
-            cin >> input;
-
-            // Replaces all commas with dots
-            replace(input.begin(), input.end(), ',', '.');
-
-            // Parses the string to a float
-            newFOV = stof(input);
-
+            newFOV = HandleFOVInput();
             break;
         }
 
