@@ -1,6 +1,3 @@
-#include <iostream>
-#include <iomanip>
-#include <fstream>
 #include <conio.h> // For getch()
 #include <cstdint> // For uint8_t
 #include <limits>
@@ -20,7 +17,7 @@ int choice, fileOpened, tempChoice;
 int16_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
 float desiredFOV, desiredAspectRatio;
-double newCustomResolutionValue, newWidth, newHeight;
+double newCustomResolutionValue;
 fstream file;
 char ch;
 
@@ -61,7 +58,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-double HandleResolutionInput()
+int16_t HandleResolutionInput()
 {
     do
     {
