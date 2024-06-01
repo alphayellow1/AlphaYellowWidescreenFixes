@@ -121,7 +121,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Crusaders of Might and Magic (1999) FOV Fixer by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Crusaders of Might and Magic (1999) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
