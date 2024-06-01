@@ -17,7 +17,7 @@ int choice, fileOpened, tempChoice;
 int16_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
 float desiredFOV, newAspectRatio;
-double newCustomResolutionValue, newWidth, newHeight;
+double newCustomResolutionValue;
 fstream file;
 char ch;
 
@@ -58,7 +58,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-double HandleResolutionInput()
+int16_t HandleResolutionInput()
 {
     do
     {
