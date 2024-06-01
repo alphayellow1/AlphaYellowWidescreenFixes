@@ -131,7 +131,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         newHeight = HandleResolutionInput();
 
-        newHFOV = (4.0f / 3.0f) / (static_cast<float>(width) / static_cast<float>(height));
+        newHFOV = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
 
         file.seekp(kHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
