@@ -1,3 +1,8 @@
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <cmath>
+#include <limits>
 #include <conio.h> // For getch()
 #include <cstdint> // For uint8_t
 #include <limits>
