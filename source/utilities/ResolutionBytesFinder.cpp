@@ -34,7 +34,7 @@ int main()
             std::cout << "Found first value at address: " << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << i << std::endl;
             for (int byteRange = -15; byteRange <= 15; ++byteRange)
             {
-                if (i + j >= 0 && i + j < buffer.size() - 2)
+                if (i + byteRange >= 0 && i + byteRange < buffer.size() - 2)
                 {
                     if (*reinterpret_cast<int16_t *>(&buffer[i + byteRange]) == secondValue)
                     {
