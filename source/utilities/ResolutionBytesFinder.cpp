@@ -13,7 +13,7 @@
 using namespace std;
 
 // Variables
-string executableName;
+string fileName;
 int16_t firstValue, secondValue, byteRange, number;
 int choice, tempChoice;
 bool validKeyPressed, foundSecondValue;
@@ -82,12 +82,12 @@ int16_t HandleNumberInput()
 
 int main()
 {
-    cout << "\n- Enter the executable name: ";
-    getline(cin, executableName);
+    cout << "\n- Enter the file name: ";
+    getline(cin, fileName);
 
     do
     {
-        ifstream file(executableName, ios::binary);
+        ifstream file(fileName, ios::binary);
         if (!file)
         {
             cerr << "\nCould not open the file." << endl;
