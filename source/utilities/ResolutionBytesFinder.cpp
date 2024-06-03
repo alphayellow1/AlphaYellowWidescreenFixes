@@ -102,6 +102,8 @@ int main()
         byteRange = HandleNumberInput();
         cout << "\n";
 
+        cout << "Found second value (" << dec << secondValue << ") within " << dec << byteRange << " bytes of first value (" << firstValue << ") at the following addresses:" << endl;
+
         vector<char> buffer(istreambuf_iterator<char>(file), {});
         for (size_t i = 0; i < buffer.size(); ++i)
         {
@@ -113,7 +115,7 @@ int main()
                     {
                         if (*reinterpret_cast<int16_t *>(&buffer[i + j]) == secondValue)
                         {
-                            cout << "Found second value (" << dec << secondValue << ") within " << dec << byteRange << " bytes of first value at address: " << uppercase << setfill('0') << setw(8) << hex << i + j << endl;
+                            cout << uppercase << setfill('0') << setw(8) << hex << i + j << endl;
                         }
                     }
                 }
