@@ -16,7 +16,7 @@ using namespace std;
 string executableName;
 int16_t firstValue, secondValue, byteRange, number;
 int choice, tempChoice;
-bool validKeyPressed;
+bool validKeyPressed, foundSecondValue;
 char ch;
 
 // Function to handle user input in choices
@@ -102,7 +102,7 @@ int main()
         byteRange = HandleNumberInput();
         cout << "\n";
 
-        cout << "Found second value (" << dec << secondValue << ") within " << dec << byteRange << " bytes of the first value (" << firstValue << ") at the following addresses:" << endl;
+        vector<size_t> foundAddresses; // Vector to store the addresses where the second value is found
 
         vector<char> buffer(istreambuf_iterator<char>(file), {});
         for (size_t i = 0; i < buffer.size(); ++i)
@@ -115,11 +115,24 @@ int main()
                     {
                         if (*reinterpret_cast<int16_t *>(&buffer[i + j]) == secondValue)
                         {
-                            cout << uppercase << setfill('0') << setw(8) << hex << i + j << endl;
+                            foundAddresses.push_back(i + j); // Store the address
                         }
                     }
                 }
             }
+        }
+
+        if (!foundAddresses.empty())
+        { // Check if any addresses were found
+            cout << "Found second value (" << dec << secondValue << ") within " << dec << byteRange << " bytes of the first value (" << firstValue << ") at the following addresses:" << endl;
+            for (const auto &address : foundAddresses)
+            {
+                cout << uppercase << setfill('0') << setw(8) << hex << address << endl;
+            }
+        }
+        else
+        {
+            cout << "No second value (" << dec << secondValue << ") was found within " << dec << byteRange << " bytes of the first value (" << firstValue << ")." << endl;
         }
 
         file.close();
