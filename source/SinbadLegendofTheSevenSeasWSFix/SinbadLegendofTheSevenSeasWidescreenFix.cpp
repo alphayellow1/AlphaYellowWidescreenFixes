@@ -17,9 +17,8 @@ const streampos kResolutionHeightOffset = 0x002273B4;
 
 // Variables
 int choice, fileOpened, tempChoice;
-int16_t newWidth, newHeight;
+int16_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
-double newCustomResolutionValue;
 fstream file;
 char ch;
 
@@ -128,6 +127,14 @@ int main()
     do
     {
         OpenFile(file);
+
+        file.seekg(kResolutionWidthOffset);
+        file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
+
+        file.seekg(kResolutionHeightOffset);
+        file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
+
+        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
         cout << "\n- Enter the desired width: ";
         newWidth = HandleResolutionInput();
