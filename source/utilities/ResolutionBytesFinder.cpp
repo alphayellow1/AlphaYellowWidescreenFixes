@@ -82,11 +82,11 @@ int16_t HandleNumberInput()
 
 int main()
 {
+    cout << "- Enter the executable name: ";
+    getline(cin, executableName);
+
     do
     {
-        cout << "- Enter the executable name: ";
-        getline(cin, executableName);
-
         ifstream file(executableName, ios::binary);
         if (!file)
         {
