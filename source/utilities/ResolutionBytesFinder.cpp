@@ -14,8 +14,9 @@ using namespace std;
 
 // Variables
 string fileName;
-int16_t firstValue, secondValue, byteRange, number;
-int choice, tempChoice;
+int16_t firstValue, secondValue, byteRange, number, currentValue;
+size_t i, searchIndex;
+int choice, tempChoice, j;
 bool validKeyPressed, foundSecondValue;
 char ch;
 
@@ -103,39 +104,45 @@ int main()
         byteRange = HandleNumberInput();
         cout << "\n";
 
-        vector<size_t> foundAddresses; // Vector to store the addresses where the second value is found
+        vector<pair<size_t, size_t>> foundPairs; // Vector to store pairs of addresses for the first and second values
 
         vector<char> buffer(istreambuf_iterator<char>(file), {});
-        for (size_t i = 0; i < buffer.size(); ++i)
+        for (i = 0; i < buffer.size(); ++i)
         {
-            if (i <= buffer.size() - 2 && *reinterpret_cast<int16_t *>(&buffer[i]) == firstValue)
+            if (i <= buffer.size() - 2)
             {
-                for (int j = -byteRange; j <= byteRange; ++j)
+                currentValue = *reinterpret_cast<int16_t *>(&buffer[i]);
+                if (currentValue == firstValue)
                 {
-                    if (i + j >= 0 && i + j < buffer.size() - 2)
+                    // Searches for the second value within the byte range of the first value
+                    for (j = -byteRange; j <= byteRange; ++j)
                     {
-                        if (*reinterpret_cast<int16_t *>(&buffer[i + j]) == secondValue)
+                        searchIndex = i + j;
+                        if (searchIndex >= 0 && searchIndex < buffer.size() - 2)
                         {
-                            foundAddresses.push_back(i + j); // Store the address
+                            if (*reinterpret_cast<int16_t *>(&buffer[searchIndex]) == secondValue)
+                            {
+                                foundPairs.push_back(make_pair(i, searchIndex)); // Stores the pair of addresses
+                            }
                         }
                     }
                 }
             }
         }
 
-        if (!foundAddresses.empty())
-        { // Check if any addresses were found
-            cout << "Found second value (" << dec << secondValue << ") within " << dec << byteRange << " bytes of the first value (" << firstValue << ") at the following addresses:" << endl;
-            for (const auto &address : foundAddresses)
+        if (!foundPairs.empty())
+        {
+            cout << "Found pairs within " << dec << byteRange << " bytes at the following addresses:" << endl;
+            for (const auto &pair : foundPairs)
             {
-                cout << uppercase << setfill('0') << setw(8) << hex << address << endl;
+                cout << "First value (" << dec << firstValue << ") at: " << uppercase << setfill('0') << setw(8) << hex << pair.first << ", ";
+                cout << "Second value (" << dec << secondValue << ") at: " << uppercase << setfill('0') << setw(8) << hex << pair.second << endl;
             }
         }
         else
         {
-            cout << "No second value (" << dec << secondValue << ") was found within " << dec << byteRange << " bytes of the first value (" << firstValue << ")." << endl;
+            cout << "No pairs of first value (" << dec << firstValue << ") and second value (" << dec << secondValue << ") were found within " << dec << byteRange << " bytes." << endl;
         }
-
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
