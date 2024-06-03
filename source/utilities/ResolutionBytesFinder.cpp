@@ -32,13 +32,13 @@ int main()
         if (i <= buffer.size() - 2 && *reinterpret_cast<int16_t *>(&buffer[i]) == firstValue)
         {
             std::cout << "Found first value at address: " << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << i << std::endl;
-            for (int byteRange = -15; byteRange <= 15; ++byteRange)
+            for (int j = -byteRange; j <= byteRange; ++j)
             {
-                if (i + byteRange >= 0 && i + byteRange < buffer.size() - 2)
+                if (i + j >= 0 && i + j < buffer.size() - 2)
                 {
-                    if (*reinterpret_cast<int16_t *>(&buffer[i + byteRange]) == secondValue)
+                    if (*reinterpret_cast<int16_t *>(&buffer[i + j]) == secondValue)
                     {
-                        std::cout << "Found second value within " << byteRange << " bytes of first value at address: " << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << i + byteRange << std::endl;
+                        std::cout << "Found second value within " << byteRange << " bytes of first value at address: " << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << i + j << std::endl;
                     }
                 }
             }
