@@ -1,5 +1,8 @@
 #include <iostream>
+#include <iomanip>
 #include <fstream>
+#include <cmath>
+#include <limits>
 #include <vector>
 #include <iomanip>
 #include <cstdint>
@@ -7,8 +10,10 @@
 #include <string>
 #include <algorithm>
 
+using namespace std;
+
 // Variables
-std::string executableName;
+string executableName;
 int16_t firstValue, secondValue, byteRange, number;
 int choice, tempChoice;
 bool validKeyPressed;
@@ -28,7 +33,7 @@ void HandleChoiceInput(int &choice)
         if ((ch == '1' || ch == '2') && !validKeyPressed)
         {
             tempChoice = ch - '0';  // Converts char to int and stores the input temporarily
-            std::cout << ch;        // Echoes the valid input
+            cout << ch;             // Echoes the valid input
             validKeyPressed = true; // Sets the flag as a valid key has been pressed
         }
         else if (ch == '\b' || ch == 127) // Handles backspace or delete keys
@@ -36,16 +41,16 @@ void HandleChoiceInput(int &choice)
             if (tempChoice != -1) // Checks if there is something to delete
             {
                 tempChoice = -1;         // Resets the temporary choice
-                std::cout << "\b \b";    // Erases the last character from the console
+                cout << "\b \b";         // Erases the last character from the console
                 validKeyPressed = false; // Resets the flag as the input has been deleted
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
         else if (ch == '\r' && validKeyPressed)
         {
-            choice = tempChoice;    // Assigns the temporary input to the choice variable
-            std::cout << std::endl; // Moves to a new line
-            break;                  // Exits the loop since we have a confirmed input
+            choice = tempChoice; // Assigns the temporary input to the choice variable
+            cout << endl;        // Moves to a new line
+            break;               // Exits the loop since we have a confirmed input
         }
     }
 }
@@ -55,7 +60,7 @@ int16_t HandleNumberInput()
 {
     do
     {
-        std::cin >> number;
+        cin >> number;
 
         cin.clear();                                         // Clears error flags
         cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
@@ -64,11 +69,11 @@ int16_t HandleNumberInput()
         {
             cin.clear();                                         // Clears error flags
             cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-            std::cout << "Invalid input. Please enter a numeric value." << std::endl;
+            cout << "Invalid input. Please enter a numeric value." << endl;
         }
         else if (number <= 0 || number >= 65535)
         {
-            std::cout << "Please enter a valid number." << std::endl;
+            cout << "Please enter a valid number." << endl;
         }
     } while (number <= 0 || number > 65535);
 
@@ -79,36 +84,36 @@ int main()
 {
     do
     {
-        std::cout << "- Enter the executable name: ";
-        std::getline(std::cin, executableName);
+        cout << "- Enter the executable name: ";
+        getline(cin, executableName);
 
-        std::ifstream file(executableName, std::ios::binary);
+        ifstream file(executableName, ios::binary);
         if (!file)
         {
-            std::cerr << "\nCould not open the file." << std::endl;
+            cerr << "\nCould not open the file." << endl;
             return 1;
         }
 
-        std::cout << "\n- Enter the first 2-byte integer value: ";
+        cout << "\n- Enter the first 2-byte integer value: ";
         firstValue = HandleNumberInput();
-        std::cout << "\n- Enter the second 2-byte integer value: ";
+        cout << "\n- Enter the second 2-byte integer value: ";
         secondValue = HandleNumberInput();
-        std::cout << "\n- Enter the byte search range: ";
+        cout << "\n- Enter the byte search range: ";
         byteRange = HandleNumberInput();
+        cout << "\n";
 
-        std::vector<char> buffer(std::istreambuf_iterator<char>(file), {});
+        vector<char> buffer(istreambuf_iterator<char>(file), {});
         for (size_t i = 0; i < buffer.size(); ++i)
         {
             if (i <= buffer.size() - 2 && *reinterpret_cast<int16_t *>(&buffer[i]) == firstValue)
             {
-                std::cout << "Found first value at address: " << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << i << std::endl;
                 for (int j = -byteRange; j <= byteRange; ++j)
                 {
                     if (i + j >= 0 && i + j < buffer.size() - 2)
                     {
                         if (*reinterpret_cast<int16_t *>(&buffer[i + j]) == secondValue)
                         {
-                            std::cout << "Found second value within " << byteRange << " bytes of first value at address: " << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << i + j << std::endl;
+                            cout << "Found second value (" << dec << secondValue << ") within " << dec << byteRange << " bytes of first value at address: " << uppercase << setfill('0') << setw(8) << hex << i + j << endl;
                         }
                     }
                 }
@@ -117,12 +122,12 @@ int main()
 
         file.close();
 
-        std::cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
+        cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
         HandleChoiceInput(choice);
 
         if (choice == 1)
         {
-            std::cout << "\nPress enter to exit the program...";
+            cout << "\nPress enter to exit the program...";
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -130,6 +135,6 @@ int main()
             return 0;
         }
 
-        std::cout << "\n";
+        cout << "\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }
