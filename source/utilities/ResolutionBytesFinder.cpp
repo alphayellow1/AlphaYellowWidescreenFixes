@@ -82,6 +82,7 @@ int16_t HandleNumberInput()
 
 int main()
 {
+    cout << "\nResolution Bytes Finder by AlphaYellow, 2024\n\n----------------" << endl;
     cout << "\n- Enter the file name: ";
     getline(cin, fileName);
 
