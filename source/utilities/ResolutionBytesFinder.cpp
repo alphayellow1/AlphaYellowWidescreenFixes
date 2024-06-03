@@ -102,7 +102,7 @@ int main()
         byteRange = HandleNumberInput();
         cout << "\n";
 
-        cout << "Found second value (" << dec << secondValue << ") within " << dec << byteRange << " bytes of first value (" << firstValue << ") at the following addresses:" << endl;
+        cout << "Found second value (" << dec << secondValue << ") within " << dec << byteRange << " bytes of the first value (" << firstValue << ") at the following addresses:" << endl;
 
         vector<char> buffer(istreambuf_iterator<char>(file), {});
         for (size_t i = 0; i < buffer.size(); ++i)
