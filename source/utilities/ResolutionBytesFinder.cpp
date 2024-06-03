@@ -38,7 +38,7 @@ int main()
                 {
                     if (*reinterpret_cast<int16_t *>(&buffer[i + byteRange]) == secondValue)
                     {
-                        std::cout << "Found second value within 15 bytes of first value at address: " << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << i + byteRange << std::endl;
+                        std::cout << "Found second value within " << byteRange << " bytes of first value at address: " << std::uppercase << std::setfill('0') << std::setw(8) << std::hex << i + byteRange << std::endl;
                     }
                 }
             }
