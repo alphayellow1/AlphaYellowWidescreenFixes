@@ -82,7 +82,7 @@ int16_t HandleNumberInput()
 
 int main()
 {
-    cout << "- Enter the executable name: ";
+    cout << "\n- Enter the executable name: ";
     getline(cin, executableName);
 
     do
@@ -136,7 +136,5 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
-
-        cout << "\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }
