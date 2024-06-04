@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <windows.h>
 #include <conio.h>
