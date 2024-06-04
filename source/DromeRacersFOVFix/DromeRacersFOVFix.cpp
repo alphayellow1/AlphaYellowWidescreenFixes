@@ -175,7 +175,7 @@ int main()
 
         cout << "\nThe current FOV is " << currentFOV << "\u00B0" << endl;
 
-        cout << "\n- Do you want to set FOV automatically based on the desired resolution (1) or set a custom FOV value (2)?: ";
+        cout << "\n- Do you want to set FOV automatically based on a desired resolution (1) or set a custom FOV value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
