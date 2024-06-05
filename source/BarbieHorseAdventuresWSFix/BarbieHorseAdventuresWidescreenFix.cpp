@@ -11,18 +11,23 @@
 using namespace std;
 
 // Constants
-const streampos kResolutionWidthOffset = 0x000ADAC1;
-const streampos kResolutionHeightOffset = 0x000ADAD1;
-const streampos kAspectRatioOffset = 0x00036251;
-const streampos kFOVOffset = 0x000ADB10;
+const streampos kResolutionWidthOffset = 0x0014002C;
+const streampos kResolutionHeightOffset = 0x00140035;
+const streampos kAspectRatioOffset1 = 0x0012E0F7;
+const streampos kAspectRatioOffset2 = 0x001226A6;
+const streampos kAspectRatioOffset3 = 0x0013A06C;
+const streampos kFOVOffset1 = 0x0012E0FC;
+const streampos kFOVOffset2 = 0x001226AB;
+const streampos kFOVOffset3 = 0x0013A071;
 
 // Variables
-int choice, fileOpened, tempChoice;
 int16_t newWidth, newHeight;
-bool fileNotFound, validKeyPressed;
-float desiredFOV, desiredAspectRatio;
-double newCustomResolutionValue;
+string input;
 fstream file;
+int choice1, choice2, fileOpened, tempChoice;
+bool fileNotFound, validKeyPressed;
+float newFOV, newAspectRatio, customFOV;
+double newCustomResolutionValue;
 char ch;
 
 // Function to handle user input in choices
@@ -52,13 +57,41 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
             break;               // Exits the loop since we have a confirmed input
         }
     }
+}
+
+float HandleFOVInput()
+{
+    do
+    {
+        // Reads the input as a string
+        cin >> input;
+
+        // Replaces all commas with dots
+        replace(input.begin(), input.end(), ',', '.');
+
+        // Parses the string to a float
+        customFOV = stof(input);
+
+        if (cin.fail())
+        {
+            cin.clear();                                         // Clears error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+            cout << "Invalid input. Please enter a numeric value." << endl;
+        }
+        else if (customFOV <= 0)
+        {
+            cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
+        }
+    } while (customFOV <= 0);
+
+    return customFOV;
 }
 
 // Function to handle user input in resolution
@@ -92,7 +125,7 @@ void OpenFile(fstream &file)
     fileNotFound = false;
     fileOpened = 0; // Initializes fileOpened to 0
 
-    file.open("GreatQuest.exe", ios::in | ios::out | ios::binary);
+    file.open("Barbie Horse.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -105,11 +138,11 @@ void OpenFile(fstream &file)
     {
 
         // Tries to open the file again
-        file.open("GreatQuest.exe", ios::in | ios::out | ios::binary);
+        file.open("Barbie Horse.exe", ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open GreatQuest.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open Barbie Horse.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -117,7 +150,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nGreatQuest.exe opened successfully!" << endl;
+            cout << "\nBarbie Horse.exe opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -125,27 +158,31 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Frogger: The Great Quest (2002) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Barbie Horse Adventures: Mystery Ride (2003) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        OpenFile(file);
-
-        cout << "\nEnter the desired width: ";
+        cout << "\n- Enter the desired width: ";
         newWidth = HandleResolutionInput();
 
-        cout << "\nEnter the desired height: ";
+        cout << "\n- Enter the desired height: ";
         newHeight = HandleResolutionInput();
 
-        desiredAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        if (desiredAspectRatio > 3.555f)
+        cout << "\n- Do you want to set FOV automatically based on the resolution set above (1) or set a custom FOV value (2)?: ";
+        HandleChoiceInput(choice1);
+
+        switch (choice1)
         {
-            desiredFOV = ((desiredAspectRatio * 0.5f) / 2.37037037037f) * 0.83198f;
-        }
-        else
-        {
-            desiredFOV = 0.5f;
+        case 1:
+            newFOV = ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f)) * 0.5f;
+            break;
+
+        case 2:
+            cout << "\n- Enter the desired FOV multiplier (default value for 4:3 aspect ratio is 0.5): ";
+            newFOV = HandleFOVInput();
+            break;
         }
 
         file.seekp(kResolutionWidthOffset);
@@ -154,11 +191,23 @@ int main()
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        file.seekp(kAspectRatioOffset);
-        file.write(reinterpret_cast<const char *>(&desiredAspectRatio), sizeof(desiredAspectRatio));
+        file.seekp(kAspectRatioOffset1);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
+        file.seekp(kAspectRatioOffset2);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset3);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kFOVOffset1);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset2);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset3);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
 
         cout << "\nSuccessfully changed the resolution and field of view." << endl;
 
@@ -166,9 +215,9 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleChoiceInput(choice);
+        HandleChoiceInput(choice2);
 
-        if (choice == 1)
+        if (choice2 == 1)
         {
             cout << "\nPress enter to exit the program...";
             do
@@ -177,5 +226,5 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
-    } while (choice != 1); // Checks the flag in the loop condition
+    } while (choice2 != 1); // Checks the flag in the loop condition
 }
