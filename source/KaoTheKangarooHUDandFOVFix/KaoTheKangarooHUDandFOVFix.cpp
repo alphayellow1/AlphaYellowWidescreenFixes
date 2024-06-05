@@ -10,24 +10,25 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVOffset1 = 0x0001AC16;
-const streampos kHFOVOffset2 = 0x0001AC8E;
-const streampos kHFOVOffset3 = 0x0001AD19;
-const streampos kHFOVOffset4 = 0x0001ADA4;
-const streampos kHUDOffset1 = 0x0001AC60;
-const streampos kHUDOffset2 = 0x0001ACDB;
-const streampos kHUDOffset3 = 0x000AEA6F;
-const streampos kHUDOffset4 = 0x000AE9EB;
-const streampos kHUDOffset5 = 0x000AE96A;
-const streampos kHUDOffset6 = 0x000AE8E6;
-const streampos kHUDOffset7 = 0x000AE88B;
+const streampos kHFOVOffset = 0x0002D121;
+const streampos kHUDOffset1 = 0x0001AC16;
+const streampos kHUDOffset2 = 0x0001AC8E;
+const streampos kHUDOffset3 = 0x0001AD19;
+const streampos kHUDOffset4 = 0x0001ADA4;
+const streampos kHUDOffset5 = 0x0001AC60;
+const streampos kHUDOffset6 = 0x0001ACDB;
+const streampos kHUDOffset7 = 0x000AEA6F;
+const streampos kHUDOffset8 = 0x000AE9EB;
+const streampos kHUDOffset9 = 0x000AE96A;
+const streampos kHUDOffset10 = 0x000AE8E6;
+const streampos kHUDOffset11 = 0x000AE88B;
 
 // Variables
 int choice, fileOpened, tempChoice;
 int16_t newWidth, newHeight;
 fstream file;
 bool fileNotFound, validKeyPressed;
-float newHFOV, hudPosition1, hudPosition2;
+float newHFOV, hudPosition1, hudPosition2, hudPosition3;
 double newCustomResolutionValue;
 char ch;
 
@@ -143,22 +144,15 @@ int main()
         cout << "\nEnter the desired height: ";
         newHeight = HandleResolutionInput();
 
-        newHFOV = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
+        newHFOV = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
 
-        hudPosition1 = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight))) * 1.1f;
+        hudPosition1 = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
 
-        hudPosition2 = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight))) * 1.2f;
+        hudPosition2 = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight))) * 1.1f;
 
-        file.seekp(kHFOVOffset1);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
+        hudPosition3 = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight))) * 1.2f;
 
-        file.seekp(kHFOVOffset2);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
-
-        file.seekp(kHFOVOffset3);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
-
-        file.seekp(kHFOVOffset4);
+        file.seekp(kHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
 
         file.seekp(kHUDOffset1);
@@ -168,10 +162,10 @@ int main()
         file.write(reinterpret_cast<const char *>(&hudPosition1), sizeof(hudPosition1));
 
         file.seekp(kHUDOffset3);
-        file.write(reinterpret_cast<const char *>(&hudPosition2), sizeof(hudPosition2));
+        file.write(reinterpret_cast<const char *>(&hudPosition1), sizeof(hudPosition1));
 
         file.seekp(kHUDOffset4);
-        file.write(reinterpret_cast<const char *>(&hudPosition2), sizeof(hudPosition2));
+        file.write(reinterpret_cast<const char *>(&hudPosition1), sizeof(hudPosition1));
 
         file.seekp(kHUDOffset5);
         file.write(reinterpret_cast<const char *>(&hudPosition2), sizeof(hudPosition2));
@@ -180,7 +174,19 @@ int main()
         file.write(reinterpret_cast<const char *>(&hudPosition2), sizeof(hudPosition2));
 
         file.seekp(kHUDOffset7);
-        file.write(reinterpret_cast<const char *>(&hudPosition2), sizeof(hudPosition2));
+        file.write(reinterpret_cast<const char *>(&hudPosition3), sizeof(hudPosition3));
+
+        file.seekp(kHUDOffset8);
+        file.write(reinterpret_cast<const char *>(&hudPosition3), sizeof(hudPosition3));
+
+        file.seekp(kHUDOffset9);
+        file.write(reinterpret_cast<const char *>(&hudPosition3), sizeof(hudPosition3));
+
+        file.seekp(kHUDOffset10);
+        file.write(reinterpret_cast<const char *>(&hudPosition3), sizeof(hudPosition3));
+
+        file.seekp(kHUDOffset11);
+        file.write(reinterpret_cast<const char *>(&hudPosition3), sizeof(hudPosition3));
 
         cout << "\nSuccessfully changed the field of view." << endl;
 
