@@ -21,7 +21,7 @@ const streampos kFOVOffset2 = 0x001226AB;
 const streampos kFOVOffset3 = 0x0013A071;
 
 // Variables
-int16_t newWidth, newHeight;
+int16_t currentWidth, currentHeight, newWidth, newHeight;
 string input;
 fstream file;
 int choice1, choice2, fileOpened, tempChoice;
@@ -162,6 +162,16 @@ int main()
 
     do
     {
+        OpenFile(file);
+
+        file.seekg(kResolutionWidthOffset);
+        file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
+
+        file.seekg(kResolutionHeightOffset);
+        file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
+
+        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << endl;
+
         cout << "\n- Enter the desired width: ";
         newWidth = HandleResolutionInput();
 
@@ -180,7 +190,7 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Enter the desired FOV multiplier (default value for 4:3 aspect ratio is 0.5): ";
+            cout << "\n- Enter the desired FOV multiplier (default value for the 4:3 aspect ratio is 0.5): ";
             newFOV = HandleFOVInput();
             break;
         }
