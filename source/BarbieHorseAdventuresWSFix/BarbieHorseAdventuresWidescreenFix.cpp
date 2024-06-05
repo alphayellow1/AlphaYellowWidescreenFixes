@@ -212,7 +212,7 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Enter the desired FOV multiplier (default value for the 4:3 aspect ratio is 0.5): ";
+            cout << "\n- Enter the desired FOV multiplier (default value for the 4:3 aspect ratio is 0.5, beware that changing this value beyond the automatic value for the aspect ratio also increases FOV in cutscenes): ";
             newFOV = HandleFOVInput();
             break;
         }
@@ -235,6 +235,36 @@ int main()
         file.seekp(kAspectRatioOffset4);
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
+        file.seekp(kAspectRatioOffset5);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset6);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset7);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset8);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset9);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset10);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset11);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset12);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset13);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
+        file.seekp(kAspectRatioOffset14);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
         file.seekp(kFOVOffset1);
         file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
 
@@ -246,6 +276,36 @@ int main()
 
         file.seekp(kFOVOffset4);
         file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset5);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset6);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset7);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset8);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset9);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset10);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset11);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset12);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset13);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset14);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));      
 
         cout << "\nSuccessfully changed the resolution and field of view." << endl;
 
