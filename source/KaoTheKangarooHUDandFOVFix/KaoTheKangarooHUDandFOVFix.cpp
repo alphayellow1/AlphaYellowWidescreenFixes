@@ -10,7 +10,8 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVOffset = 0x0002D121;
+const streampos kHFOVGameplayOffset = 0x0002D121;
+const streampos kHFOVMenuOffset = 0x000CEE64;
 const streampos kHUDOffset1 = 0x0001AC16;
 const streampos kHUDOffset2 = 0x0001AC8E;
 const streampos kHUDOffset3 = 0x0001AD19;
@@ -28,7 +29,7 @@ int choice, fileOpened, tempChoice;
 int16_t newWidth, newHeight;
 fstream file;
 bool fileNotFound, validKeyPressed;
-float newHFOV, hudPosition1, hudPosition2, hudPosition3;
+float newHFOVMenu, newHFOVGameplay, hudPosition1, hudPosition2, hudPosition3;
 double newCustomResolutionValue;
 char ch;
 
@@ -144,7 +145,9 @@ int main()
         cout << "\nEnter the desired height: ";
         newHeight = HandleResolutionInput();
 
-        newHFOV = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+        newHFOVMenu = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
+
+        newHFOVGameplay = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
 
         hudPosition1 = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
 
@@ -152,8 +155,11 @@ int main()
 
         hudPosition3 = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight))) * 1.2f;
 
-        file.seekp(kHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
+        file.seekp(kHFOVMenuOffset);
+        file.write(reinterpret_cast<const char *>(&newHFOVMenu), sizeof(newHFOVMenu));
+
+        file.seekp(kHFOVGameplayOffset);
+        file.write(reinterpret_cast<const char *>(&newHFOVGameplay), sizeof(newHFOVGameplay));
 
         file.seekp(kHUDOffset1);
         file.write(reinterpret_cast<const char *>(&hudPosition1), sizeof(hudPosition1));
