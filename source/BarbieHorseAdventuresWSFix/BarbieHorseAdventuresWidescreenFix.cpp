@@ -180,7 +180,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Barbie Horse Adventures: Mystery Ride (2003) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Barbie Horse Adventures: Mystery Ride (2003) Widescreen Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
