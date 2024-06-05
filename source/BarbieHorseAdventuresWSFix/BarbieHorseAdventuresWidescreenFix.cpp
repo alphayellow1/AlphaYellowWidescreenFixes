@@ -13,12 +13,34 @@ using namespace std;
 // Constants
 const streampos kResolutionWidthOffset = 0x0014002C;
 const streampos kResolutionHeightOffset = 0x00140035;
-const streampos kAspectRatioOffset1 = 0x0012E0F7;
-const streampos kAspectRatioOffset2 = 0x001226A6;
-const streampos kAspectRatioOffset3 = 0x0013A06C;
-const streampos kFOVOffset1 = 0x0012E0FC;
-const streampos kFOVOffset2 = 0x001226AB;
-const streampos kFOVOffset3 = 0x0013A071;
+const streampos kAspectRatioOffset1 = 0x000F5151;
+const streampos kAspectRatioOffset2 = 0x0010DCC0;
+const streampos kAspectRatioOffset3 = 0x00113FF6;
+const streampos kAspectRatioOffset4 = 0x001226A6;
+const streampos kAspectRatioOffset5 = 0x0012E0F7;
+const streampos kAspectRatioOffset6 = 0x0012E8EA;
+const streampos kAspectRatioOffset7 = 0x00134299;
+const streampos kAspectRatioOffset8 = 0x0013A06C;
+const streampos kAspectRatioOffset9 = 0x00145F4B;
+const streampos kAspectRatioOffset10 = 0x001473DE;
+const streampos kAspectRatioOffset11 = 0x00149067;
+const streampos kAspectRatioOffset12 = 0x0014B1A3;
+const streampos kAspectRatioOffset13 = 0x0015030A;
+const streampos kAspectRatioOffset14 = 0x00150A5A;
+const streampos kFOVOffset1 = 0x000F5156;
+const streampos kFOVOffset2 = 0x0010DCC5;
+const streampos kFOVOffset3 = 0x00113FFB;
+const streampos kFOVOffset4 = 0x001226AB;
+const streampos kFOVOffset5 = 0x0012E0FC;
+const streampos kFOVOffset6 = 0x0012E8EF;
+const streampos kFOVOffset7 = 0x0013429E;
+const streampos kFOVOffset8 = 0x0013A071;
+const streampos kFOVOffset9 = 0x00145F50;
+const streampos kFOVOffset10 = 0x001473E3;
+const streampos kFOVOffset11 = 0x0014906C;
+const streampos kFOVOffset12 = 0x0014B1A8;
+const streampos kFOVOffset13 = 0x0015030F;
+const streampos kFOVOffset14 = 0x00150A5F;
 
 // Variables
 int16_t currentWidth, currentHeight, newWidth, newHeight;
@@ -210,6 +232,9 @@ int main()
         file.seekp(kAspectRatioOffset3);
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
+        file.seekp(kAspectRatioOffset4);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+
         file.seekp(kFOVOffset1);
         file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
 
@@ -217,6 +242,9 @@ int main()
         file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
 
         file.seekp(kFOVOffset3);
+        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+
+        file.seekp(kFOVOffset4);
         file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
 
         cout << "\nSuccessfully changed the resolution and field of view." << endl;
