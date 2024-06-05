@@ -10,17 +10,17 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVOffset1 = 0x0001ABE6;
-const streampos kHFOVOffset2 = 0x0001AC5E;
-const streampos kHFOVOffset3 = 0x0001ACE9;
-const streampos kHFOVOffset4 = 0x0001AD74;
-const streampos kHUDOffset1 = 0x0001AD3A;
-const streampos kHUDOffset2 = 0x0001ADC4;
-const streampos kHUDOffset3 = 0x000AE51F;
-const streampos kHUDOffset4 = 0x000AE49B;
-const streampos kHUDOffset5 = 0x000AE41A;
-const streampos kHUDOffset6 = 0x000AE396;
-const streampos kHUDOffset7 = 0x000AE33B;
+const streampos kHFOVOffset1 = 0x0001AC16;
+const streampos kHFOVOffset2 = 0x0001AC8E;
+const streampos kHFOVOffset3 = 0x0001AD19;
+const streampos kHFOVOffset4 = 0x0001ADA4;
+const streampos kHUDOffset1 = 0x0001AC60;
+const streampos kHUDOffset2 = 0x0001ACDB;
+const streampos kHUDOffset3 = 0x000AEA6F;
+const streampos kHUDOffset4 = 0x000AE9EB;
+const streampos kHUDOffset5 = 0x000AE96A;
+const streampos kHUDOffset6 = 0x000AE8E6;
+const streampos kHUDOffset7 = 0x000AE88B;
 
 // Variables
 int choice, fileOpened, tempChoice;
