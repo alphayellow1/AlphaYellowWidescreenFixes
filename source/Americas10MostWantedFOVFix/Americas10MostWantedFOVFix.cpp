@@ -156,10 +156,10 @@ int main()
     {
         OpenFile(file);
 
-        cout << "\nEnter the desired width: ";
+        cout << "\n- Enter the desired width: ";
         newWidth = HandleResolutionInput();
 
-        cout << "\nEnter the desired height: ";
+        cout << "\n- Enter the desired height: ";
         newHeight = HandleResolutionInput();
 
         newHFOV = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
