@@ -127,7 +127,7 @@ int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "SWAT 3: Close Quarters Battle (1999) FOV Changer v1.0 by AlphaYellow, 2024\n\n----------------\n\n";
+    cout << "SWAT 3: Close Quarters Battle (1999) FOV Changer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
