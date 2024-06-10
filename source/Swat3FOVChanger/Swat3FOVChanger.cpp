@@ -3,6 +3,8 @@
 #include <fstream>
 #include <conio.h> // For getch()
 #include <cstdint> // For uint8_t
+#include <windows.h>
+#include <cmath>
 #include <limits>
 #include <string>
 #include <algorithm>
@@ -123,6 +125,8 @@ void OpenFile(fstream &file)
 
 int main()
 {
+    SetConsoleOutputCP(CP_UTF8);
+
     cout << "SWAT 3: Close Quarters Battle (1999) FOV Changer v1.0 by AlphaYellow, 2024\n\n----------------\n\n";
 
     do
@@ -134,9 +138,9 @@ int main()
 
         currentFOVInDegrees = (currentFOVInMultiplier * 80.0f) * 2.0f;
 
-        cout << "\n- The current FOV is " << currentFOVInDegrees << "." << endl;
+        cout << "\n- The current FOV is " << currentFOVInDegrees << "\u00B0." << endl;
 
-        cout << "\n- Enter the FOV value (default is 80º): ";
+        cout << "\n- Enter the FOV value (default is 80\u00B0): ";
         newFOVInDegrees = HandleFOVInput();
 
         newFOVInMultiplier = (newFOVInDegrees * 0.5f) / 80.0f;
@@ -145,7 +149,7 @@ int main()
         file.write(reinterpret_cast<const char *>(&newFOVInMultiplier), sizeof(newFOVInMultiplier));
 
         // Confirmation message
-        cout << "\nSuccessfully changed the field of view." << endl;
+        cout << "\nSuccessfully changed the field of view to " << newFOVInDegrees << "\u00B0." << endl;
 
         // Closes the file
         file.close();
