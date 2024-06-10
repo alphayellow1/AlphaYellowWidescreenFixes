@@ -130,7 +130,7 @@ int main()
         OpenFile(file);
 
         file.seekg(kFOVOffset);
-        file.read(reinterpret_cast<const char *>(&currentFOVInMultiplier), sizeof(currentFOVInMultiplier));
+        file.read(reinterpret_cast<char *>(&currentFOVInMultiplier), sizeof(currentFOVInMultiplier));
 
         currentFOVInDegrees = (currentFOVInMultiplier * 80.0f) * 2.0f;
 
