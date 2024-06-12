@@ -8,11 +8,13 @@
 #include <limits>
 #include <string>
 #include <algorithm>
+#include <windows.h>
 
 using namespace std;
 
 // Constants
 const streampos kFOVOffset = 0x0025CB90;
+const float kDefaultFOV = 0.5f;
 
 // Variables
 fstream file;
@@ -123,6 +125,43 @@ void OpenFile(fstream &file)
     }
 }
 
+// Function to search and replace a byte pattern
+void SearchAndReplacePattern(fstream &file)
+{
+    // Defines the original and new patterns
+    const char originalPattern[] = "\xD8\x0D\x94\xE2\x65\x00\x8B\x54\x24\x08\xD9\xF2\xDD\xD8\xD9\x5C";
+    const char newPattern[] = "\xD8\x0D\x90\xCB\x65\x00\x8B\x54\x24\x08\xD9\xF2\xDD\xD8\xD9\x5C";
+    const size_t patternSize = sizeof(originalPattern) - 1; // -1 to exclude the null terminator
+
+    // Reads the entire file content into memory
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    // Searches for the pattern
+    char *patternLocation = search(buffer, buffer + fileSize, originalPattern, originalPattern + patternSize);
+
+    // If the pattern is found, replace it
+    if (patternLocation != buffer + fileSize)
+    {
+        memcpy(patternLocation, newPattern, patternSize);
+
+        // Writes the modified content back to the file
+        file.seekp(patternLocation - buffer);
+        file.write(newPattern, patternSize);
+
+        file.seekp(kFOVOffset);
+        file.write(reinterpret_cast<const char *>(&kDefaultFOV), sizeof(kDefaultFOV));
+
+        file.flush();
+    }
+
+    // Cleans it up
+    delete[] buffer;
+}
+
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
@@ -132,6 +171,9 @@ int main()
     do
     {
         OpenFile(file);
+
+        // Calls the search and replaces function after opening the file
+        SearchAndReplacePattern(file);
 
         file.seekg(kFOVOffset);
         file.read(reinterpret_cast<char *>(&currentFOVInMultiplier), sizeof(currentFOVInMultiplier));
