@@ -57,13 +57,13 @@ int main()
 		binaryFile.seekp(0x001448AF);
 		binaryFile << char(newHeightBig);
 		fov = (static_cast<float>(newWidth) / static_cast<float>(newHeight) * 0.375 - 0.5) / 2 + 0.5;
-		//cout << float(multiplier) << "\n";
-		const unsigned char * pf = reinterpret_cast<const unsigned char*>(&fov);
+		// cout << float(multiplier) << "\n";
+		const unsigned char *pf = reinterpret_cast<const unsigned char *>(&fov);
 		for (size_t i = 0; i != sizeof(float); ++i)
 		{
-			binaryFile.seekp(0x001448C0+i);
+			binaryFile.seekp(0x001448C0 + i);
 			binaryFile << char(pf[i]);
-			//printf("%X ", pf[i]);
+			// printf("%X ", pf[i]);
 		}
 		cout << "Resolution changed.";
 		getch();
