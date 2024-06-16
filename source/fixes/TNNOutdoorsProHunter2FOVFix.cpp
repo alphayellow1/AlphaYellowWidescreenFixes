@@ -186,7 +186,7 @@ int main()
         // Checks if the FOV values correspond to exactly 90 (horizontal), and exactly or approximately 75 (vertical) degrees
         fovDescriptor = "";
         if (abs(currentHFOVInDegrees - 90.0) < numeric_limits<float>::epsilon() &&
-            abs(currentVFOVInDegrees - 67.65) < kTolerance)
+            abs(currentVFOVInDegrees - 75.0) < kTolerance)
         {
             fovDescriptor = "[Default for 4:3 aspect ratio]";
         }
