@@ -14,7 +14,7 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kFOVOffset = 0x0027FB00;
+const streampos kFOVOffset = 0x0027FB06;
 
 // Variables
 int choice1, choice2, tempChoice;
