@@ -177,7 +177,7 @@ int main()
         // Converts the FOV value from radians to degrees
         currentFOVInDegrees = RadToDeg(currentFOVInRadians);
 
-        // Checks if the FOV value correspond to exactly 90 (horizontal) degrees
+        // Checks if the FOV value corresponds to exactly 90 (horizontal) degrees
         fovDescriptor = "";
         if (abs(currentFOVInDegrees - 90.0) < numeric_limits<float>::epsilon())
         {
