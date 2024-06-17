@@ -184,7 +184,7 @@ int main()
             fovDescriptor = "[Default for 4:3 aspect ratio]";
         }
 
-        cout << "\nYour current FOV is" << currentFOVInDegrees << "\u00B0" << endl;
+        cout << "\nYour current FOV is " << currentFOVInDegrees << "\u00B0" << endl;
 
         cout << "\n- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values (2)?: ";
         HandleChoiceInput(choice1);
