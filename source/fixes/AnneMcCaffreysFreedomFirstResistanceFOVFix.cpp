@@ -21,7 +21,7 @@ int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentFOVInDegrees, newFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
 float currentFOVInRadians, newFOVInRadians;
-string descriptor, fovDescriptor, input;
+string descriptor, input;
 fstream file;
 char ch;
 
@@ -176,13 +176,6 @@ int main()
 
         // Converts the FOV value from radians to degrees
         currentFOVInDegrees = RadToDeg(currentFOVInRadians);
-
-        // Checks if the FOV value corresponds to exactly 90 (horizontal) degrees
-        fovDescriptor = "";
-        if (abs(currentFOVInDegrees - 90.0) < numeric_limits<float>::epsilon())
-        {
-            fovDescriptor = "[Default for 4:3 aspect ratio]";
-        }
 
         cout << "\nYour current FOV is " << currentFOVInDegrees << "\u00B0" << endl;
 
