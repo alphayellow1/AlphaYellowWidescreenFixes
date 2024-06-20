@@ -196,7 +196,11 @@ int main()
             // Calculates the new FOV
             newFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
 
-            newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees)); // Converts degrees to radians
+            if (newAspectRatio > 2.4f) {
+                newFOVInRadians = (static_cast<float>(DegToRad(newFOVInDegrees)) * 1.12f) / 2.2415263583f;
+            } else {
+                newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees));
+            }
 
             descriptor = "automatically";
 
