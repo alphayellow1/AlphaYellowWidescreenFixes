@@ -149,6 +149,7 @@ int main()
 
         newWidthSmall = newWidth % 256;
         newWidthBig = (newWidth - newWidthSmall) / 256;
+
         newHeightSmall = newHeight % 256;
         newHeightBig = (newHeight - newHeightSmall) / 256;
 
