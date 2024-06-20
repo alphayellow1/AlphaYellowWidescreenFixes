@@ -221,7 +221,7 @@ int main()
         file.write(reinterpret_cast<const char *>(&newFOVInRadians), sizeof(newFOVInRadians));
 
         // Confirmation message
-        cout << "\nSuccessfully changed " << descriptor << " the field of view to " << newFOVInDegrees << "\u00B0."
+        cout << "\nSuccessfully changed " << descriptor << " the field of view to " << RadToDeg(static_cast<double>(newFOVInRadians)) << "\u00B0."
              << endl;
 
         // Closes the file
