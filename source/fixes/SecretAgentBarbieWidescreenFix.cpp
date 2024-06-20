@@ -152,17 +152,20 @@ int main()
         newHeightSmall = newHeight % 256;
         newHeightBig = (newHeight - newHeightSmall) / 256;
 
+        newFOV = (static_cast<float>(newWidth) / static_cast<float>(newHeight) * 0.375f - 0.5f) / 2.0f + 0.5f;
+
         file.seekp(kWidthSmallOffset);
         file.write(reinterpret_cast<char *>(&newWidthSmall), sizeof(newWidthSmall));
+        
         file.seekp(kWidthBigOffset);
         file.write(reinterpret_cast<char *>(&newWidthBig), sizeof(newWidthBig));
+        
         file.seekp(kHeightSmallOffset);
         file.write(reinterpret_cast<char *>(&newHeightSmall), sizeof(newHeightSmall));
+        
         file.seekp(kHeightBigOffset);
         file.write(reinterpret_cast<char *>(&newHeightBig), sizeof(newHeightBig));
-
-        newFOV = (static_cast<float>(newWidth) / static_cast<float>(newHeight) * 0.375 - 0.5) / 2 + 0.5;
-
+        
         file.seekp(kFOVOffset);
         file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
 
