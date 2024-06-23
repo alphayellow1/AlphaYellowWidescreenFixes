@@ -14,7 +14,8 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kFOVOffset = 0x003E5E17;
+const streampos kAliveFOVOffset = 0x003E5E17;
+const streampos kDeathFOVOffset = 0x003E5E2D;
 
 // Variables
 int choice1, choice2, tempChoice;
@@ -171,7 +172,7 @@ int main()
     {
         OpenFile(file);
 
-        file.seekg(kFOVOffset);
+        file.seekg(kAliveFOVOffset);
         file.read(reinterpret_cast<char *>(&currentFOVInRadians), sizeof(currentFOVInRadians));
 
         // Converts the FOV value from radians to degrees
@@ -213,7 +214,10 @@ int main()
             break;
         }
 
-        file.seekp(kFOVOffset);
+        file.seekp(kAliveFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newFOVInRadians), sizeof(newFOVInRadians));
+
+        file.seekp(kDeathFOVOffset);
         file.write(reinterpret_cast<const char *>(&newFOVInRadians), sizeof(newFOVInRadians));
 
         // Confirmation message
