@@ -166,7 +166,7 @@ int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "The Sum of All Fears (2002) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "The Sum of All Fears (2002) FOV Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
