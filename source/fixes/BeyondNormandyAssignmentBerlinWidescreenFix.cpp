@@ -318,13 +318,13 @@ int main()
 			return 0;
 		}
 
-		newWidthSmall = newWidth % 256; // 128 (1920x1080)
+		newWidthSmall = newWidth % 256;
 
-		newWidthBig = (newWidth - newWidthSmall) / 256; // 7 (1920x1080)
+		newWidthBig = (newWidth - newWidthSmall) / 256;
 
-		newHeightSmall = newHeight % 256; // 56 (1920x1080)
+		newHeightSmall = newHeight % 256;
 
-		newHeightBig = (newHeight - newHeightSmall) / 256; // 4 (1920x1080)
+		newHeightBig = (newHeight - newHeightSmall) / 256;
 
 		aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
