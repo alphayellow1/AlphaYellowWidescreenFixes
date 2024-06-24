@@ -2,56 +2,228 @@
 #include <direct.h>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <locale.h>
+#include <cstdint>
 #include <stdint.h>
 #include <windows.h>
+#include <limits>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
+// Constants
+const streampos kCheck1Offset = 0x000568B2;
+const streampos kCheck2Offset = 0x000568B3;
+const streampos kCompassNeedleWidthOffset = 0x0019D0F8;
+const streampos kFOVOffset = 0x0019D0FC;
+const streampos kLoadingBarXOffset = 0x001A707C;
+const streampos kRedCrossAndMenuTextWidthOffset = 0x001A7084;
+const streampos kHUDLeftMarginOffset = 0x001A7128;
+const streampos kCompassNeedleXOffset = 0x001A8200;
+const streampos kObjectiveDirectionWidthOffset = 0x001A8220;
+const streampos kCompassXOffset = 0x001A822C;
+const streampos kCompassWidthOffset = 0x001A8234;
+const streampos kWeaponsListWidthOffset = 0x001A8244;
+const streampos kHUDTextWidthOffset = 0x001A8328;
+const streampos kAmmoXOffset = 0x001A8354;
+const streampos kAmmoWidthOffset = 0x001A835C;
+const streampos kNewWidthSmall1Offset = 0x0009345A;
+const streampos kNewWidthBig1Offset = 0x0009345B;
+const streampos kNewHeightSmall1Offset = 0x00093462;
+const streampos kNewHeightBig1Offset = 0x00093463;
+const streampos kNewWidthSmall2Offset = 0x00013D70;
+const streampos kNewWidthBig2Offset = 0x00013D71;
+const streampos kNewHeightSmall2Offset = 0x00013D78;
+const streampos kNewHeightBig2Offset = 0x00013D79;
+
+// Variables
+uint8_t newWidthSmall, newWidthBig, newHeightSmall, newHeightBig, check1, check2;
+bool isFileCorrect, fileNotFound, validKeyPressed, openedSuccessfullyMessage;
+int newWidth, newHeight, tempChoice, language, choice, incorrectCount;
+float aspectRatio, hudWidth, hudMargin, fov, fovMultiplier, flt, newCustomFOVMultiplier;
+double dbl;
+char ch;
+fstream file;
+string input;
+
+// Function to handle user input in choices
+void HandleChoiceInput(int &choice)
+{
+	tempChoice = -1;		 // Temporary variable to store the input
+	validKeyPressed = false; // Flag to track if a valid key was pressed
+
+	while (true)
+	{
+		ch = _getch(); // Waits for user to press a key
+
+		// Checks if the key is '1' or '2'
+		if ((ch == '1' || ch == '2') && !validKeyPressed)
+		{
+			tempChoice = ch - '0';	// Converts char to int and stores the input temporarily
+			cout << ch;				// Echoes the valid input
+			validKeyPressed = true; // Sets the flag as a valid key has been pressed
+		}
+		else if (ch == '\b' || ch == 127) // Handles backspace or delete keys
+		{
+			if (tempChoice != -1) // Checks if there is something to delete
+			{
+				tempChoice = -1;		 // Resets the temporary choice
+				cout << "\b \b";		 // Erases the last character from the console
+				validKeyPressed = false; // Resets the flag as the input has been deleted
+			}
+		}
+		// If 'Enter' is pressed and a valid key has been pressed prior
+		else if (ch == '\r' && validKeyPressed)
+		{
+			choice = tempChoice; // Assigns the temporary input to the choice variable
+			cout << endl;		 // Moves to a new line
+			break;				 // Exits the loop since we have a confirmed input
+		}
+	}
+}
+
+float HandleFOVInput()
+{
+	do
+	{
+		// Reads the input as a string
+		cin >> input;
+
+		// Replaces all commas with dots
+		replace(input.begin(), input.end(), ',', '.');
+
+		// Parses the string to a float
+		newCustomFOVMultiplier = stof(input);
+
+		if (cin.fail())
+		{
+			cin.clear();										 // Clears error flags
+			cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+			cout << "Invalid input. Please enter a numeric value." << endl;
+		}
+		else if (newCustomFOVMultiplier <= 0 || newCustomFOVMultiplier >= 180)
+		{
+			cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
+		}
+	} while (newCustomFOVMultiplier <= 0 || newCustomFOVMultiplier >= 180);
+
+	return newCustomFOVMultiplier;
+}
+
+// Function to open the file
+void OpenFile(fstream &file)
+{
+	fileNotFound = false;
+
+	file.open("AssignmentBerlin-V1.05.exe", ios::in | ios::out | ios::binary);
+
+	// If the file is not open, sets fileNotFound to true
+	if (!file.is_open())
+	{
+		fileNotFound = true;
+	}
+
+	// Loops until the file is found and opened
+	while (fileNotFound)
+	{
+
+		// Tries to open the file again
+		file.open("AssignmentBerlin-V1.05.exe", ios::in | ios::out | ios::binary);
+
+		if (!file.is_open())
+		{
+			cout << "\nFailed to open AssignmentBerlin-V1.05.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+			do
+			{
+				ch = _getch(); // Waits for user to press a key
+			} while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+		}
+		else
+		{
+			cout << "\nAssignmentBerlin-V1.05.exe opened successfully!" << endl;
+			fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
+		}
+	}
+}
+
 int main()
 {
-	int language;
-	cout << "Beyond Normandy: Assignment Berlin widescreen patch by AuToMaNiAk005, 2024\n\n----------------\n\n";
+	cout << "Beyond Normandy: Assignment Berlin Widescreen Fixer v1.1 by AuToMaNiAk005 and AlphaYellow, 2024\n\n----------------\n\n";
 	cout << "1: English\n";
 	cout << "2: Polski\n";
 	cout << "\n----------------\n\n";
-	cin >> language;
-	cout << "\n----------------\n\n";
-	uint8_t check1;
-	uint8_t check2;
-	bool isFileCorrect;
-	int newWidth;
-	int newHeight;
-	uint8_t newWidthSmall;
-	uint8_t newWidthBig;
-	uint8_t newHeightSmall;
-	uint8_t newHeightBig;
-	float aspectRatio;
-	float hudWidth;
-	float hudMargin;
-	float fov;
-	float fovMultiplier;
-	float flt;
-	double dbl;
-	fstream binaryFile("AssignmentBerlin-V1.05.exe", ios::in | ios::out | ios::binary);
-	binaryFile.seekg(0x000568B2);
-	binaryFile >> check1;
-	binaryFile.seekg(0x000568B3);
-	binaryFile >> check2;
-	if (check1 == 0xF8 && check2 == 0xD0)
+	HandleChoiceInput(language);
+	cout << "\n----------------\n";
+
+	do
 	{
-		isFileCorrect = true;
-	}
-	else
-	{
-		isFileCorrect = false;
-	}
-	if (isFileCorrect == true)
-	{
+		incorrectCount = 0;
+
+		do
+		{
+			OpenFile(file);
+
+			file.seekg(kCheck1Offset);
+			file.read(reinterpret_cast<char *>(&check1), sizeof(check1));
+
+			file.seekg(kCheck2Offset);
+			file.read(reinterpret_cast<char *>(&check2), sizeof(check2));
+
+			if (check1 == 0xF8 && check2 == 0xD0)
+			{
+				isFileCorrect = true;
+			}
+			else
+			{
+				isFileCorrect = false;
+			}
+
+			if (!isFileCorrect)
+			{
+				incorrectCount++; // Increment counter if file is incorrect
+
+				file.close();
+
+				if (language == 1)
+				{
+					cout << "\nUnsupported .exe file.\nMake sure you've put the included AssignmentBerlin-V1.05.exe file in the game directory, press Enter to try again." << endl;
+					do
+					{
+						ch = _getch(); // Waits for user to press a key
+					} while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+				}
+				else if (language == 2)
+				{
+					setlocale(LC_CTYPE, "Polish");
+					cout << "\nNieobs�ugiwany plik .exe.\nUpewnij si�, �e umie�ci�e� za��czony plik AssignmentBerlin-V1.05.exe w folderze z gr�, naciśnij Enter, aby spróbować ponownie." << endl;
+					do
+					{
+						ch = _getch(); // Waits for user to press a key
+					} while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+				}
+			}
+		} while (!isFileCorrect);
+
+		if (incorrectCount > 0)
+		{
+			if (language == 1)
+			{
+				cout << "\nAssignmentBerlin-V1.05.exe opened successfully!" << endl;
+			}
+			else if (language == 2)
+			{
+				setlocale(LC_CTYPE, "Polish");
+				cout << "\nAssignmentBerlin-V1.05.exe został pomyślnie otwarty." << endl;
+			}
+		}
+
 		if (language == 1)
 		{
-			cout << "Type your resolution width: ";
+			cout << "\n- Type your resolution width: ";
 			cin >> newWidth;
+
 			if (newWidth == 0)
 			{
 				cout << "Are you kidding me?";
@@ -70,8 +242,10 @@ int main()
 				getch();
 				return 0;
 			}
-			cout << "Type your resolution height: ";
+
+			cout << "\n- Type your resolution height: ";
 			cin >> newHeight;
+
 			if (newHeight == 0)
 			{
 				cout << "No.";
@@ -94,8 +268,10 @@ int main()
 		else if (language == 2)
 		{
 			setlocale(LC_CTYPE, "Polish");
-			cout << "Wpisz szeroko�� rozdzielczo�ci: ";
+
+			cout << "- Wpisz szeroko�� rozdzielczo�ci: ";
 			cin >> newWidth;
+
 			if (newWidth == 0)
 			{
 				cout << "Jaja sobie robisz?";
@@ -114,8 +290,10 @@ int main()
 				getch();
 				return 0;
 			}
-			cout << "Wpisz wysoko�� rozdzielczo�ci: ";
+
+			cout << "- Wpisz wysoko�� rozdzielczo�ci: ";
 			cin >> newHeight;
+
 			if (newHeight == 0)
 			{
 				cout << "Nie.";
@@ -139,171 +317,165 @@ int main()
 		{
 			return 0;
 		}
-		cout << "\n----------------\n\n";
-		newWidthSmall = newWidth % 256;
-		newWidthBig = (newWidth - newWidthSmall) / 256;
-		newHeightSmall = newHeight % 256;
-		newHeightBig = (newHeight - newHeightSmall) / 256;
-		binaryFile.seekp(0x0009345A);
-		binaryFile << char(newWidthSmall);
-		binaryFile.seekp(0x0009345B);
-		binaryFile << char(newWidthBig);
-		binaryFile.seekp(0x00093462);
-		binaryFile << char(newHeightSmall);
-		binaryFile.seekp(0x00093463);
-		binaryFile << char(newHeightBig);
-		binaryFile.seekp(0x00013D70);
-		binaryFile << char(newWidthSmall);
-		binaryFile.seekp(0x00013D71);
-		binaryFile << char(newWidthBig);
-		binaryFile.seekp(0x00013D78);
-		binaryFile << char(newHeightSmall);
-		binaryFile.seekp(0x00013D79);
-		binaryFile << char(newHeightBig);
+
+		newWidthSmall = newWidth % 256; // 128 (1920x1080)
+
+		newWidthBig = (newWidth - newWidthSmall) / 256; // 7 (1920x1080)
+
+		newHeightSmall = newHeight % 256; // 56 (1920x1080)
+
+		newHeightBig = (newHeight - newHeightSmall) / 256; // 4 (1920x1080)
+
 		aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
-		hudWidth = 600 * aspectRatio;
+
+		hudWidth = 600.0f * aspectRatio;
+
 		if (language == 1)
 		{
-			cout << "Type your FOV multiplier\n(use dot as a separator; 1 = default; at high values, the character's hands may appear unfinished):\n";
-			cin >> fovMultiplier;
-			cout << "Type your HUD margin (0 = default, " << hudWidth / 2 - 400 << " = centered to 4:3):\n";
+			cout << "\n- Type your FOV multiplier (1 = default; at high values, the character's hands may appear unfinished): ";
+			fovMultiplier = HandleFOVInput();
+
+			cout << "\n- Type your HUD margin (0 = default, " << hudWidth / 2 - 400 << " = centered to 4:3): ";
 			cin >> hudMargin;
 		}
 		else if (language == 2)
 		{
-			cout << "Wpisz mno�nik pola widzenia\n(u�yj kropki jako separator, 1 = domy�lny, przy wysokich warto�ciach r�ce postaci mog� wygl�da� na niekompletne):\n";
-			cin >> fovMultiplier;
-			cout << "Wpisz margines dla interfejsu (0 = domy�lny, " << hudWidth / 2 - 400 << " = wy�rodkowany do 4:3):\n";
+			cout << "\n- Wpisz mno�nik pola widzenia (1 = domy�lny, przy wysokich warto�ciach r�ce postaci mog� wygl�da� na niekompletne): ";
+			fovMultiplier = HandleFOVInput();
+
+			cout << "\n- Wpisz margines dla interfejsu (0 = domy�lny, " << hudWidth / 2 - 400 << " = wy�rodkowany do 4:3): ";
 			cin >> hudMargin;
 		}
-		cout << "\n----------------\n\n";
+
+		file.seekp(kNewWidthSmall1Offset);
+		file.write(reinterpret_cast<const char *>(&newWidthSmall), sizeof(newWidthSmall));
+
+		file.seekp(kNewWidthBig1Offset);
+		file.write(reinterpret_cast<const char *>(&newWidthBig), sizeof(newWidthBig));
+
+		file.seekp(kNewHeightSmall1Offset);
+		file.write(reinterpret_cast<const char *>(&newHeightSmall), sizeof(newHeightSmall));
+
+		file.seekp(kNewHeightBig1Offset);
+		file.write(reinterpret_cast<const char *>(&newHeightBig), sizeof(newHeightBig));
+
+		file.seekp(kNewWidthSmall2Offset);
+		file.write(reinterpret_cast<const char *>(&newWidthSmall), sizeof(newWidthSmall));
+
+		file.seekp(kNewWidthBig2Offset);
+		file.write(reinterpret_cast<const char *>(&newWidthBig), sizeof(newWidthBig));
+
+		file.seekp(kNewHeightSmall2Offset);
+		file.write(reinterpret_cast<const char *>(&newHeightSmall), sizeof(newHeightSmall));
+
+		file.seekp(kNewHeightBig2Offset);
+		file.write(reinterpret_cast<const char *>(&newHeightBig), sizeof(newHeightBig));
+
 		// Compass needle width
 		flt = 0.0333333 / aspectRatio;
-		const unsigned char *pf = reinterpret_cast<const unsigned char *>(&flt);
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x0019D0F8 + i);
-			binaryFile << char(pf[i]);
-		}
-		// FOV
+		file.seekp(kCompassNeedleWidthOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
+		// Field of view
 		flt = 0.75 * aspectRatio * fovMultiplier;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x0019D0FC + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kFOVOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
 		// Loading bar X
 		flt = 222 + (hudWidth - 800) / 2;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A707C + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kLoadingBarXOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
 		// Red cross and menu text width
 		flt = 0.001666 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A7084 + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kRedCrossAndMenuTextWidthOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
 		// HUD left margin
 		flt = 0.0333333 / aspectRatio + hudMargin / hudWidth;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A7128 + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kHUDLeftMarginOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
 		// Compass needle X
 		flt = (hudWidth - 79 - hudMargin) / hudWidth;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A8200 + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kCompassNeedleXOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
 		// Objective direction width
 		dbl = 0.001666 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char *>(&dbl);
-		for (size_t i = 0; i != sizeof(double); ++i)
-		{
-			binaryFile.seekp(0x001A8220 + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kObjectiveDirectionWidthOffset);
+		file.write(reinterpret_cast<const char *>(&dbl), sizeof(dbl));
+
 		// Compass X
 		flt = (hudWidth - 118 - hudMargin) / hudWidth;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A822C + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kCompassXOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
 		// Compass width
 		flt = 0.163333 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A8234 + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kCompassWidthOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
 		// Weapons list width
 		flt = 0.17 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A8244 + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kWeaponsListWidthOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
 		// HUD text width
 		dbl = 0.0006666666666 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char *>(&dbl);
-		for (size_t i = 0; i != sizeof(double); ++i)
-		{
-			binaryFile.seekp(0x001A8328 + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kHUDTextWidthOffset);
+		file.write(reinterpret_cast<const char *>(&dbl), sizeof(dbl));
+
 		// Ammo X
 		flt = (hudWidth - 74 - hudMargin) / hudWidth;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A8354 + i);
-			binaryFile << char(pf[i]);
-		}
-		// Ammo Width
+		file.seekp(kAmmoXOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
+		// Ammo width
 		flt = 0.116666 / aspectRatio;
-		pf = reinterpret_cast<const unsigned char *>(&flt);
-		for (size_t i = 0; i != sizeof(float); ++i)
-		{
-			binaryFile.seekp(0x001A835C + i);
-			binaryFile << char(pf[i]);
-		}
+		file.seekp(kAmmoWidthOffset);
+		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
+
+		file.close();
+
 		if (language == 1)
 		{
-			cout << "AssignmentBerlin-V1.05.exe file has been patched.\nYou can set your new resolution in the game options.";
+			cout << "\nAssignmentBerlin-V1.05.exe has been patched." << endl;
 		}
 		else if (language == 2)
 		{
-			cout << "Plik AssignmentBerlin-V1.05.exe zosta� zaktualizowany.\nMo�esz ustawi� swoj� now� rozdzielczo�� w opcjach gry.";
+			cout << "\nAssignmentBerlin-V1.05.exe zosta� zaktualizowany." << endl;
 		}
-		getch();
-	}
-	else
-	{
+
 		if (language == 1)
 		{
-			cout << "Unsupported .exe file.\nMake sure you've put the included AssignmentBerlin-V1.05.exe file in the game directory.";
+			cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
 		}
 		else if (language == 2)
 		{
-			setlocale(LC_CTYPE, "Polish");
-			cout << "Nieobs�ugiwany plik .exe.\nUpewnij si�, �e umie�ci�e� za��czony plik AssignmentBerlin-V1.05.exe w folderze z gr�.";
+			cout << "\n- Czy chcesz wyjść z programu (1) czy wypróbować inną wartość (2)?: ";
 		}
-		getch();
-	}
-	return 0;
+		
+		HandleChoiceInput(choice);
+
+		if (choice == 1)
+		{
+			if (language == 1)
+			{
+				cout << "\nPress Enter to exit the program...";
+			}
+			else if (language == 2)
+			{
+				cout << "\nNaciśnij Enter, aby wyjść z programu...";
+			}
+
+			do
+			{
+				ch = _getch(); // Waits for user to press a key
+			} while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+			return 0;
+		}
+
+		cout << "\n----------------\n";
+	} while (choice == 2); // Checks the flag in the loop condition
 }
