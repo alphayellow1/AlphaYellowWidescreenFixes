@@ -12,7 +12,7 @@ using namespace std;
 const streampos kHFOVOffset = 0x00017291;
 
 // Variables
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
 float width, height, desiredFOV;
 double newCustomResolutionValue, newWidth, newHeight;
@@ -84,7 +84,6 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
 
     file.open("beetle.exe", ios::in | ios::out | ios::binary);
 
