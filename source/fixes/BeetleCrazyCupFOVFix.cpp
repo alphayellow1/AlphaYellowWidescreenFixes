@@ -119,7 +119,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Beetle Crazy Cup (20000) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Beetle Crazy Cup (2000) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
