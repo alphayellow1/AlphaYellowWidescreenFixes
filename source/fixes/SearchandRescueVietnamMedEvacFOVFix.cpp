@@ -14,13 +14,16 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kFOVOffset = 0x00001AB2;
+const streampos kOutsideCameraFOVOffset = 0x00001AB2;
+const streampos kCockpitCameraFOVOffset = 0x00001A2A;
+const streampos kHoistCameraFOVOffset = 0x00001B3D;
+const streampos kFlyByCameraFOVOffset = 0x00114300;
 
 // Variables
 int choice1, choice2, tempChoice, digitLengthWidth, digitLengthHeight;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 75.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentFOVInDegrees, newFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
-float currentFOVInRadians, newFOVInRadians;
+double oldWidth = 4.0, oldHeight = 3.0, oldHFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentOutsideCameraFOVInDegrees, currentCockpitCameraFOVInDegrees, currentHoistCameraFOVInDegrees, currentFlyByCameraFOVInDegrees, newOutsideCameraFOVInDegrees, newCockpitCameraFOVInDegrees, newHoistCameraFOVInDegrees, newFlyByCameraFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
+float currentOutsideCameraFOVInRadians, currentCockpitCameraFOVInRadians, currentHoistCameraFOVInRadians, currentFlyByCameraFOVInRadians, newOutsideCameraFOVInRadians, newCockpitCameraFOVInRadians, newHoistCameraFOVInRadians, newFlyByCameraFOVInRadians;
 string descriptor, input, newResolutionWidthAsString, newResolutionHeightAsString, r;
 fstream file;
 char ch;
@@ -73,7 +76,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+double HandleFOVInput()
 {
     do
     {
@@ -171,13 +174,29 @@ int main()
     {
         OpenFile(file);
 
-        file.seekg(kFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentFOVInRadians), sizeof(currentFOVInRadians));
+        file.seekg(kOutsideCameraFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentOutsideCameraFOVInRadians), sizeof(currentOutsideCameraFOVInRadians));
+        
+        file.seekg(kCockpitCameraFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCockpitCameraFOVInRadians), sizeof(currentCockpitCameraFOVInRadians));
+
+        file.seekg(kHoistCameraFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentHoistCameraFOVInRadians), sizeof(currentHoistCameraFOVInRadians));
+
+        file.seekg(kFlyByCameraFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentFlyByCameraFOVInRadians), sizeof(currentFlyByCameraFOVInRadians));
 
         // Converts the FOV value from radians to degrees
-        currentFOVInDegrees = RadToDeg(currentFOVInRadians);
+        currentOutsideCameraFOVInDegrees = RadToDeg(currentOutsideCameraFOVInRadians);
+        currentCockpitCameraFOVInDegrees = RadToDeg(currentCockpitCameraFOVInRadians);
+        currentHoistCameraFOVInDegrees = RadToDeg(currentHoistCameraFOVInRadians);
+        currentFlyByCameraFOVInDegrees = RadToDeg(currentFlyByCameraFOVInRadians);
 
-        cout << "\nYour current FOV is " << currentFOVInDegrees << "\u00B0" << endl;
+        cout << "\n====== Your current FOVs ======" << endl;
+        cout << "\nOutside Camera FOV: " << currentOutsideCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "New Cockpit Camera FOV: " << currentCockpitCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "New Hoist Camera FOV: " << currentHoistCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "New Fly-By Camera FOV: " << currentFlyByCameraFOVInDegrees << "\u00B0" << endl;
 
         cout << "\n- Do you want to set FOV automatically based on the desired resolution (1) or set a custom FOV value (2)?: ";
         HandleChoiceInput(choice1);
@@ -193,32 +212,70 @@ int main()
 
             newAspectRatio = newWidth / newHeight;
 
-            // Calculates the new FOV
-            newFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
+            // Calculates the new FOV for the outside camera
+            oldHFOV = 75.0;
+            newOutsideCameraFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
 
-            newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees)); // Converts degrees to radians
+            // Calculates the new FOV for the cockpit camera
+            oldHFOV = 90.0;
+            newCockpitCameraFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));         
+
+            // Calculates the new FOV for the hoist camera
+            oldHFOV = 90.0;
+            newHoistCameraFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
+
+            // Calculates the new FOV for the fly-by camera
+            oldHFOV = 1.0;
+            newFlyByCameraFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
 
             descriptor = "automatically";
 
             break;
 
         case 2:
-            cout << "\n- Enter the desired FOV (in degrees, default for 4:3 is 75\u00B0): ";
-            newFOVInDegrees = HandleFOVInput();
+            cout << "\n- Enter the desired outside camera FOV (in degrees, default for 4:3 is 75\u00B0): ";
+            newOutsideCameraFOVInDegrees = HandleFOVInput();
 
-            newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees)); // Converts degrees to radians
+            cout << "\n- Enter the desired cockpit camera FOV (in degrees, default for 4:3 is 90\u00B0): ";
+            newCockpitCameraFOVInDegrees = HandleFOVInput();
+
+            cout << "\n- Enter the desired hoist camera FOV (in degrees, default for 4:3 is 90\u00B0): ";
+            newHoistCameraFOVInDegrees = HandleFOVInput();
+
+            cout << "\n- Enter the desired fly-by camera FOV (in degrees, default for 4:3 is 1\u00B0): ";
+            newFlyByCameraFOVInDegrees = HandleFOVInput();
 
             descriptor = "manually";
 
             break;
         }
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newFOVInRadians), sizeof(newFOVInRadians));
+        newOutsideCameraFOVInRadians = static_cast<float>(DegToRad(newOutsideCameraFOVInDegrees)); // Converts degrees to radians
+
+        newCockpitCameraFOVInRadians = static_cast<float>(DegToRad(newCockpitCameraFOVInDegrees)); // Converts degrees to radians
+
+        newHoistCameraFOVInRadians = static_cast<float>(DegToRad(newHoistCameraFOVInDegrees)); // Converts degrees to radians
+
+        newFlyByCameraFOVInRadians = static_cast<float>(DegToRad(newFlyByCameraFOVInDegrees)); // Converts degrees to radians
+
+        file.seekp(kOutsideCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newOutsideCameraFOVInRadians), sizeof(newOutsideCameraFOVInRadians));
+        
+        file.seekp(kCockpitCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCockpitCameraFOVInRadians), sizeof(newCockpitCameraFOVInRadians));
+
+        file.seekp(kHoistCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newHoistCameraFOVInRadians), sizeof(newHoistCameraFOVInRadians));
+
+        file.seekp(kFlyByCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newFlyByCameraFOVInRadians), sizeof(newFlyByCameraFOVInRadians));
 
         // Confirmation message
-        cout << "\nSuccessfully changed " << descriptor << " the field of view to " << newFOVInDegrees << "\u00B0."
-             << endl;
+        cout << "\nSuccessfully changed " << descriptor << " the field of view." << endl;
+        cout << "\nNew Outside Camera FOV: " << newOutsideCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "New Cockpit Camera FOV: " << newCockpitCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "New Hoist Camera FOV: " << newHoistCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "New Fly-By Camera FOV: " << newFlyByCameraFOVInDegrees << "\u00B0" << endl;
 
         // Closes the file
         file.close();
@@ -235,5 +292,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n----------------\n";
     } while (choice2 == 2); // Checks the flag in the loop condition
 }
