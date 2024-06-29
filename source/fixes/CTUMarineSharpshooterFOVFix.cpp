@@ -167,7 +167,7 @@ int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "CTU Marine Sharpshooter (2003) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "CTU: Marine Sharpshooter (2003) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
