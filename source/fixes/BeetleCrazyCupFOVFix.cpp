@@ -9,14 +9,15 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVOffset = 0x00017291;
+const streampos kFOVOffset = 0x000B92D0;
 
 // Variables
-int choice, tempChoice;
+int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float width, height, desiredFOV;
+float width, height, desiredFOV, customFOVMultiplier;
 double newCustomResolutionValue, newWidth, newHeight;
 fstream file;
+string input;
 char ch;
 
 // Function to handle user input in choices
@@ -46,13 +47,41 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
             break;               // Exits the loop since we have a confirmed input
         }
     }
+}
+
+float HandleFOVInput()
+{
+    do
+    {
+        // Reads the input as a string
+        cin >> input;
+
+        // Replaces all commas with dots
+        replace(input.begin(), input.end(), ',', '.');
+
+        // Parses the string to a float
+        customFOVMultiplier = stof(input);
+
+        if (cin.fail())
+        {
+            cin.clear();                                         // Clears error flags
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+            cout << "Invalid input. Please enter a numeric value." << endl;
+        }
+        else if (customFOVMultiplier <= 0)
+        {
+            cout << "Please enter a number greater than 0 for the FOV." << endl;
+        }
+    } while (customFOVMultiplier <= 0);
+
+    return customFOVMultiplier;
 }
 
 // Function to handle user input in resolution
@@ -118,21 +147,34 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Beetle Crazy Cup (2000) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Beetle Crazy Cup (2000) FOV Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        OpenFile(file);
-
         cout << "\nEnter the desired width: ";
         newWidth = HandleResolutionInput();
 
         cout << "\nEnter the desired height: ";
         newHeight = HandleResolutionInput();
 
-        desiredFOV = static_cast<float>((4.0f / 3.0f) / (newWidth / newHeight));
+        cout << "\nDo you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2)?: ";
+        HandleChoiceInput(choice1);
 
-        file.seekp(kHFOVOffset);
+        switch (choice1)
+        {
+        case 1:
+            desiredFOV = 0.35f / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
+            break;
+
+        case 2:
+            cout << "\nType a custom FOV multiplier value (default for 4:3 aspect ratio is 0.35, a lower value increases FOV and a higher one decreases it): ";
+            desiredFOV = HandleFOVInput();
+            break;
+        }
+
+        OpenFile(file);
+
+        file.seekp(kFOVOffset);
         file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
 
         // Confirmation message
@@ -142,9 +184,9 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleChoiceInput(choice);
+        HandleChoiceInput(choice2);
 
-        if (choice == 1)
+        if (choice2 == 1)
         {
             cout << "\nPress enter to exit the program...";
             do
@@ -153,5 +195,5 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
-    } while (choice != 1); // Checks the flag in the loop condition
+    } while (choice2 != 1); // Checks the flag in the loop condition
 }
