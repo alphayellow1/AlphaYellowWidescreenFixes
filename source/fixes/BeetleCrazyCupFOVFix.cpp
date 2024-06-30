@@ -164,7 +164,7 @@ int main()
             newHeight = HandleResolutionInput();
 
             desiredFOV = 0.35f / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
-            
+
             break;
 
         case 2:
@@ -196,5 +196,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice2 != 1); // Checks the flag in the loop condition
 }
