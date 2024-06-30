@@ -151,19 +151,20 @@ int main()
 
     do
     {
-        cout << "\nEnter the desired width: ";
-        newWidth = HandleResolutionInput();
-
-        cout << "\nEnter the desired height: ";
-        newHeight = HandleResolutionInput();
-
-        cout << "\nDo you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2)?: ";
+        cout << "\nDo you want to fix the FOV automatically based on a desired resolution (1) or set a custom FOV multiplier value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
+            cout << "\nEnter the desired width: ";
+            newWidth = HandleResolutionInput();
+
+            cout << "\nEnter the desired height: ";
+            newHeight = HandleResolutionInput();
+
             desiredFOV = 0.35f / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
+            
             break;
 
         case 2:
