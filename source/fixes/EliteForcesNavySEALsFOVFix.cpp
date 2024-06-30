@@ -19,7 +19,7 @@ const streampos kVFOVOffset = 0x000CC421;
 const float kDefaultVFOVInRadians = 1.1780972480773926;
 
 // Variables
-int choice1, choice2, fileOpened, tempChoice;
+int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
 float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
@@ -131,7 +131,6 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
 
     file.open("lithtech.exe", ios::in | ios::out | ios::binary);
 
