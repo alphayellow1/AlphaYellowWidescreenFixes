@@ -142,7 +142,6 @@ void OpenFile(fstream &file)
     // Loops until the file is found and opened
     while (fileNotFound)
     {
-
         // Tries to open the file again
         file.open("CShell.dll", ios::in | ios::out | ios::binary);
 

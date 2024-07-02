@@ -140,7 +140,6 @@ void OpenFile(fstream &file)
     // Loops until the file is found and opened
     while (fileNotFound)
     {
-
         // Tries to open the file again
         file.open("Base/fgamex86.dll", ios::in | ios::out | ios::binary);
 
