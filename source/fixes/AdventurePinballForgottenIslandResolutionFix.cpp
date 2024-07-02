@@ -93,7 +93,6 @@ void OpenFile(fstream &file)
 {
     fileNotFound = false;
 
-
     file.open("D3DDrv.dll", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
