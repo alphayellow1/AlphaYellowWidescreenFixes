@@ -18,7 +18,7 @@ const streampos kResolutionHeightOffset = 0x000C13E2;
 int16_t currentWidth, currentHeight, newWidth, newHeight;
 string input;
 fstream file;
-int choice1, choice2, fileOpened, tempChoice;
+int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 double newCustomResolutionValue;
 char ch;
@@ -88,8 +88,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("lbt.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

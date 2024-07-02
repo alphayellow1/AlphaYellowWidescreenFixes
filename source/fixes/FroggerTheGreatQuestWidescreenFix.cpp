@@ -17,7 +17,7 @@ const streampos kAspectRatioOffset = 0x00036251;
 const streampos kFOVOffset = 0x000ADB10;
 
 // Variables
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 int16_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
 float desiredFOV, desiredAspectRatio;
@@ -90,8 +90,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("GreatQuest.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

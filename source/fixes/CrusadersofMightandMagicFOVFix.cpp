@@ -14,7 +14,7 @@ const streampos kHFOVOffset = 0x0002F762;
 const streampos kVFOVOffset = 0x0002F799;
 
 // Variables
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
 float width, height, desiredFOV;
 double newCustomResolutionValue, newWidth, newHeight;
@@ -86,8 +86,7 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("crusaders.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

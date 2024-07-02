@@ -19,7 +19,7 @@ const float kDefaultFOV = 0.5f;
 // Variables
 fstream file;
 string input;
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
 float currentFOVInMultiplier, currentFOVInDegrees, newFOVInMultiplier, newFOVInDegrees, customFOV;
 char ch;
@@ -92,8 +92,7 @@ float HandleFOVInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("swat.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

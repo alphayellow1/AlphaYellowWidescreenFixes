@@ -13,7 +13,7 @@ using namespace std;
 const streampos kHFOVOffset = 0x00008BAA;
 
 // Variables
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 int16_t newCustomResolutionValue, newWidth, newHeight;
 fstream file;
 float newHFOV;
@@ -85,8 +85,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("pac-man.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

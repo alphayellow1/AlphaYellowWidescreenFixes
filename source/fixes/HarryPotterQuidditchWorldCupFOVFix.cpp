@@ -13,7 +13,7 @@ using namespace std;
 const streampos kHFOVOffset = 0x0009F445;
 
 // Variables
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 int16_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
 float desiredFOV, newAspectRatio;
@@ -86,8 +86,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("QWC.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

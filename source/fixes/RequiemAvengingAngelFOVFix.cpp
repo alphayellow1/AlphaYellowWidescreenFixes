@@ -13,7 +13,7 @@ const streampos kHFOVOffset = 0x000242E6;
 const streampos kVFOVOffset = 0x0002431D;
 
 // Variables
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
 float width, height, desiredFOV;
 double newCustomResolutionValue, newWidth, newHeight;
@@ -85,8 +85,7 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("D3D.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

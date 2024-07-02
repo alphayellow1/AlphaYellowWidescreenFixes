@@ -14,7 +14,7 @@ const streampos kHFOVOffset = 0x00247120;
 const streampos kOverallFOVOffset = 0x001E1640;
 
 // Variables
-int choice1, choice2, fileOpened, tempChoice;
+int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 float width, height, newHFOV, newOverallFOV, customOverallFOV;
 double newCustomResolutionValue, newWidth, newHeight;
@@ -115,8 +115,7 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("A10MW.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
