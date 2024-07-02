@@ -172,7 +172,7 @@ int main()
     {
         OpenFile(file);
 
-        // Calls the search and replaces function after opening the file
+        // Calls the search and replace function after opening the file
         SearchAndReplacePattern(file);
 
         file.seekg(kFOVOffset);
