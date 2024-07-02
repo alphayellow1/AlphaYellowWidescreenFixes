@@ -16,7 +16,7 @@ const streampos kFOVOffset1 = 0x000A558E;
 const streampos kFOVOffset2 = 0x0006CACF;
 
 // Variables
-int choice1, choice2, fileOpened, tempChoice;
+int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue, newFOV;
 float currentFOV, fovInFloat;
@@ -128,8 +128,7 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("Base/fgamex86.dll", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

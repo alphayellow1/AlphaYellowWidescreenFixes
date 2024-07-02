@@ -17,7 +17,7 @@ const streampos kFOVOffset = 0x000673E5;
 int16_t newWidth, newHeight, newCustomResolutionValue;
 fstream file;
 string input;
-int choice, choice2, fileOpened, tempChoice;
+int choice, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 float newAspectRatio, newFOV, customFOVMultiplier;
 char ch;
@@ -115,8 +115,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("MummyPC.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

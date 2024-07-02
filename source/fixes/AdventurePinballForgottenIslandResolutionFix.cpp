@@ -15,7 +15,7 @@ const double kPi = 3.14159265358979323846;
 const streampos kFOVOffset = 0x000132FB;
 
 // Variables
-int choice1, choice2, choice3, fileOpened, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
+int choice1, choice2, choice3, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
 bool fileNotFound, validKeyPressed;
 double newWidth, newHeight, aspectRatio, standardRatio, desiredWidth, desiredHeight, desiredWidth2, desiredHeight2, newCustomResolutionValue;
 string input;
@@ -92,7 +92,7 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
+
 
     file.open("D3DDrv.dll", ios::in | ios::out | ios::binary);
 

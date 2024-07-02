@@ -16,7 +16,7 @@ const streampos kFOVOffset1 = 0x001208CC;
 const streampos kFOVOffset2 = 0x00120A90;
 
 // Variables
-int choice, fileOpened, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
+int choice, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
 int16_t newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 double desiredFOV2;
@@ -95,8 +95,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("Fellowship.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

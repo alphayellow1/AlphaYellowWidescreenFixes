@@ -25,7 +25,7 @@ const streampos kHUDOffset10 = 0x000AE8E6;
 const streampos kHUDOffset11 = 0x000AE88B;
 
 // Variables
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 int16_t newWidth, newHeight;
 fstream file;
 bool fileNotFound, validKeyPressed;
@@ -98,8 +98,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("kao.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

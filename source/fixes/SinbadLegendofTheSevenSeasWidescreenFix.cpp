@@ -16,7 +16,7 @@ const streampos kResolutionWidthOffset = 0x002273B0;
 const streampos kResolutionHeightOffset = 0x002273B4;
 
 // Variables
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 int16_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 fstream file;
@@ -87,8 +87,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("sinbad.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

@@ -16,7 +16,7 @@ const streampos kFOVOffset = 0x0009C206;
 // Variables
 float newAspectRatio, FOV;
 bool fileNotFound, aspectRatioWrittenToFile, isFOVKnown, validKeyPressed;
-int choice, choice2, fileOpened, tempChoice;
+int choice, choice2, tempChoice;
 double newCustomResolutionValue, newWidth, newHeight;
 fstream file;
 string input;
@@ -87,8 +87,7 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("aladdin.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

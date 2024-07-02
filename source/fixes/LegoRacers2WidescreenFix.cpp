@@ -18,7 +18,7 @@ const streampos kResolutionWidthOffset = 0x0002A912;
 const streampos kResolutionHeightOffset = 0x0002A91A;
 
 // Variables
-int choice1, choice2, fileOpened, tempChoice;
+int choice1, choice2, tempChoice;
 int16_t currentWidth, currentHeight, newCustomResolutionValue, newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newFOV;
@@ -131,8 +131,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("LEGO Racers 2.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

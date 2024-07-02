@@ -46,7 +46,7 @@ const streampos kFOVOffset14 = 0x00150A5F;
 int16_t currentWidth, currentHeight, newWidth, newHeight;
 string input;
 fstream file;
-int choice1, choice2, fileOpened, tempChoice;
+int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 float newFOV, newAspectRatio, customFOV;
 double newCustomResolutionValue;
@@ -145,8 +145,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("Barbie Horse.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

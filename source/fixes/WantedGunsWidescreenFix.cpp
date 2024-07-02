@@ -17,7 +17,7 @@ const streampos kHFOVOffset = 0x000B8E93;
 // Variables
 int16_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 fstream file;
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
 float newHFOV;
 char ch;
@@ -87,8 +87,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("WantedGuns.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true

@@ -18,7 +18,7 @@ const streampos kClippingFixOffset = 0x0015F6E0;
 // Variables
 int16_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 fstream file;
-int choice, fileOpened, tempChoice;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
 float newHFOV, clippingFix;
 char ch;
@@ -88,8 +88,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    fileOpened = 0; // Initializes fileOpened to 0
-
+    
     file.open("KaosPC.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
