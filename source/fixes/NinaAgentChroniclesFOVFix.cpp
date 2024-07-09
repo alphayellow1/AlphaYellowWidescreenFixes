@@ -234,8 +234,8 @@ int main()
         file.seekp(kHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newHFOVInRadians), sizeof(newHFOVInRadians));
 
-        file2.seekp(kVFOVOffset);
-        file2.write(reinterpret_cast<const char *>(&newVFOVInRadians), sizeof(newVFOVInRadians));
+        file.seekp(kVFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newVFOVInRadians), sizeof(newVFOVInRadians));
 
         // Closes the file
         file.close();
