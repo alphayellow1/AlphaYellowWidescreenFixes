@@ -182,7 +182,7 @@ void OpenCSHELLFile(fstream &file2)
 
         if (!file2.is_open())
         {
-            cout << "\nFailed to open CSHELL.DLL, check if the DLL file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the DLL is currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open CSHELL.DLL inside the LOCALE folder, check if the DLL file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the DLL is currently being used. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
