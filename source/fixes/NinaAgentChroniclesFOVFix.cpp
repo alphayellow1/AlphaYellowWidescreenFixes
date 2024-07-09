@@ -14,7 +14,7 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kHFOVOffset = 0x000CAF91;
+const streampos kHFOVOffset = 0x0018CA71;
 const streampos kVFOVOffset = 0x0018CA81;
 const float kDefaultVFOVInRadians = 1.361356854;
 
@@ -25,7 +25,6 @@ double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidt
 float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
 string descriptor, fovDescriptor, input;
 fstream file;
-fstream file2;
 char ch;
 
 // Function to convert degrees to radians
@@ -128,12 +127,11 @@ double HandleResolutionInput()
     return newCustomResolutionValue;
 }
 
-// Function to open the file
-void OpenLithtechFile(fstream &file)
+void OpenCSHELLFile(fstream &file)
 {
     fileNotFound = false;
 
-    file.open("lithtech.exe", ios::in | ios::out | ios::binary);
+    file.open("LOCALE/CSHELL.DLL", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -145,43 +143,9 @@ void OpenLithtechFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("lithtech.exe", ios::in | ios::out | ios::binary);
+        file.open("LOCALE/CSHELL.DLL", ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
-        {
-            cout << "\nFailed to open lithtech.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
-            do
-            {
-                ch = _getch(); // Wait for user to press a key
-            } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
-        }
-        else
-        {
-            cout << "\nlithtech.exe opened successfully!" << endl;
-            fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
-        }
-    }
-}
-
-void OpenCSHELLFile(fstream &file2)
-{
-    fileNotFound = false;
-
-    file2.open("LOCALE/CSHELL.DLL", ios::in | ios::out | ios::binary);
-
-    // If the file is not open, sets fileNotFound to true
-    if (!file2.is_open())
-    {
-        fileNotFound = true;
-    }
-
-    // Loops until the file is found and opened
-    while (fileNotFound)
-    {
-        // Tries to open the file again
-        file2.open("LOCALE/CSHELL.DLL", ios::in | ios::out | ios::binary);
-
-        if (!file2.is_open())
         {
             cout << "\nFailed to open CSHELL.DLL inside the LOCALE folder, check if the DLL file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the directory, or if the DLL is currently being used. Press Enter when all the mentioned problems are solved." << endl;
             do
@@ -205,20 +169,16 @@ int main()
 
     do
     {
-        OpenLithtechFile(file);
+        OpenCSHELLFile(file);
 
         file.seekg(kHFOVOffset);
         file.read(reinterpret_cast<char *>(&currentHFOVInRadians), sizeof(currentHFOVInRadians));
+        
+        file.seekg(kVFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentVFOVInRadians), sizeof(currentVFOVInRadians));
 
-        OpenCSHELLFile(file2);
-
-        file2.seekg(kVFOVOffset);
-        file2.read(reinterpret_cast<char *>(&currentVFOVInRadians), sizeof(currentVFOVInRadians));
-
-        // Closes both files
+        // Closes the file
         file.close();
-
-        file2.close();
 
         // Converts the FOV values from radians to degrees
         currentHFOVInDegrees = RadToDeg(currentHFOVInRadians);
@@ -269,20 +229,16 @@ int main()
             break;
         }
 
-        OpenLithtechFile(file);
+        OpenCSHELLFile(file);
 
         file.seekp(kHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newHFOVInRadians), sizeof(newHFOVInRadians));
 
-        OpenCSHELLFile(file2);
-
         file2.seekp(kVFOVOffset);
         file2.write(reinterpret_cast<const char *>(&newVFOVInRadians), sizeof(newVFOVInRadians));
 
-        // Closes both files
+        // Closes the file
         file.close();
-
-        file2.close();
 
         // Confirmation message
         cout << "\nSuccessfully changed " << descriptor << " the horizontal FOV to " << newHFOVInDegrees << "\u00B0 and vertical FOV to " << newVFOVInDegrees << "\u00B0."
