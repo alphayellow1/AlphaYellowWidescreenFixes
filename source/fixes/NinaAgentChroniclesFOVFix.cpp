@@ -24,7 +24,8 @@ bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
 float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
 string descriptor, fovDescriptor, input;
-fstream file, file2;
+fstream file;
+fstream file2;
 char ch;
 
 // Function to convert degrees to radians
@@ -132,7 +133,7 @@ void OpenLithtechFile(fstream &file)
 {
     fileNotFound = false;
 
-    file.open("client.exe", ios::in | ios::out | ios::binary);
+    file.open("lithtech.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -268,7 +269,7 @@ int main()
             break;
         }
 
-        OpenFile(file);
+        OpenLithtechFile(file);
 
         file.seekp(kHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newHFOVInRadians), sizeof(newHFOVInRadians));
