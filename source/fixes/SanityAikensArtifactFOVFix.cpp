@@ -7,6 +7,7 @@
 #include <conio.h>
 #include <string>
 #include <algorithm>
+#include <windows.h>
 
 using namespace std;
 
@@ -15,7 +16,7 @@ const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
 const streampos kHFOVOffset = 0x0008AF74;
 const streampos kVFOVOffset = 0x0008AF97;
-const float kDefaultVFOVInRadians = 1.1806666851043701;
+const float kDefaultVFOVInRadians = 1.178097248;
 
 // Variables
 int choice1, choice2, tempChoice;
@@ -65,7 +66,7 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
@@ -130,7 +131,7 @@ double HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    
+
     file.open("client.dll", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
@@ -163,6 +164,8 @@ void OpenFile(fstream &file)
 
 int main()
 {
+    SetConsoleOutputCP(CP_UTF8);
+
     cout << "Sanity: Aiken's Artifact (2000) FOV Fixer v1.4 by AlphaYellow, 2024\n\n----------------\n";
 
     do
@@ -171,6 +174,7 @@ int main()
 
         file.seekg(kHFOVOffset);
         file.read(reinterpret_cast<char *>(&currentHFOVInRadians), sizeof(currentHFOVInRadians));
+
         file.seekg(kVFOVOffset);
         file.read(reinterpret_cast<char *>(&currentVFOVInRadians), sizeof(currentVFOVInRadians));
 
@@ -188,7 +192,7 @@ int main()
             fovDescriptor = "[Default for 4:3 aspect ratio]";
         }
 
-        cout << "\nYour current FOV: " << currentHFOVInDegrees << " degrees (Horizontal); " << currentVFOVInDegrees << " degrees (Vertical) " << fovDescriptor << "\n";
+        cout << "\nYour current FOV: " << currentHFOVInDegrees << "\u00B0 (Horizontal); " << currentVFOVInDegrees << "\u00B0 (Vertical) " << fovDescriptor << "\n";
 
         cout << "\n- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values (2)?: ";
         HandleChoiceInput(choice1);
@@ -218,10 +222,10 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Enter the desired horizontal FOV (in degrees): ";
+            cout << "\n- Enter the desired horizontal FOV (in degrees, default for 4:3 is 90\u00B0): ";
             newHFOVInDegrees = HandleFOVInput();
 
-            cout << "\n- Enter the desired vertical FOV (in degrees): ";
+            cout << "\n- Enter the desired vertical FOV (in degrees, default for 4:3 is 67.5\u00B0): ";
             newVFOVInDegrees = HandleFOVInput();
 
             newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
@@ -234,14 +238,15 @@ int main()
         }
 
         OpenFile(file);
-        
+
         file.seekp(kHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newHFOVInRadians), sizeof(newHFOVInRadians));
+
         file.seekp(kVFOVOffset);
         file.write(reinterpret_cast<const char *>(&newVFOVInRadians), sizeof(newVFOVInRadians));
 
         // Confirmation message
-        cout << "\nSuccessfully changed " << descriptor << " the horizontal FOV to " << newHFOVInDegrees << " degrees and vertical FOV to " << newVFOVInDegrees << " degrees."
+        cout << "\nSuccessfully changed " << descriptor << " the horizontal FOV to " << newHFOVInDegrees << "\u00B0 and vertical FOV to " << newVFOVInDegrees << "\u00B0."
              << endl;
 
         // Closes the file
@@ -260,4 +265,6 @@ int main()
             return 0;
         }
     } while (choice2 == 2); // Checks the flag in the loop condition
+
+    cout << "\n-----------------------------------------\n";
 }
