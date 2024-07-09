@@ -247,7 +247,7 @@ int main()
 
             newVFOVInRadians = kDefaultVFOVInRadians;
 
-            newVFOVInDegrees = RadToDeg(newVFOVInRadians);
+            newVFOVInDegrees = RadToDeg(static_cast<double>(newVFOVInRadians));
 
             descriptor = "automatically";
 
