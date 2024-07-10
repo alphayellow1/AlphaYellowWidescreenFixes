@@ -161,7 +161,7 @@ int main()
 
         WeaponModelHFOV = ((4.0f / 3.0f) / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)))) * 0.5f;
 
-        if (newAspectRatio == 1.33333)
+        if (fabs(newAspectRatio - 1.33333333333333) < kTolerance)
         {
             newCameraHFOV = 1.5707963268f;
         }
