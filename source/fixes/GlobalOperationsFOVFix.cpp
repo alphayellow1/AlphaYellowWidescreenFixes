@@ -14,8 +14,8 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kCameraHFOVOffset = 0x00517F61;
-const streampos kWeaponHFOVOffset = 0x00517F71;
+const streampos kCameraHFOVOffset = 0x00117F61;
+const streampos kWeaponHFOVOffset = 0x00117F71;
 
 // Variables
 int choice, tempChoice;
