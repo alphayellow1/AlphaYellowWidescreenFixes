@@ -19,29 +19,11 @@ const streampos kWeaponHFOVOffset = 0x00117F71;
 
 // Variables
 int choice, tempChoice;
-bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue, newHFOVInRadians;
-float WeaponModelHFOV, newCameraHFOV;
+bool fileNotFound, validKeyPressed, isFOVKnown;
+double newAspectRatio, newWidth, newHeight, newCustomResolutionValue;
+float newWeaponModelHFOV, newCameraHFOV;
 fstream file;
 char ch;
-
-// Function to calculate the new camera HFOV
-double calculateNewCameraHFOV(double x)
-{
-    return 0.761106 * sin(0.788372 * x + 1.00328) + 0.951167;
-}
-
-// Function to convert degrees to radians
-double DegToRad(double degrees)
-{
-    return degrees * (kPi / 180.0);
-}
-
-// Function to convert radians to degrees
-double RadToDeg(double radians)
-{
-    return radians * (180.0 / kPi);
-}
 
 // Function to handle user input in choices
 void HandleChoiceInput(int &choice)
@@ -154,36 +136,67 @@ int main()
 
         newAspectRatio = newWidth / newHeight;
 
-        // Calculates the new horizontal FOV
-        newHFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
-
-        newHFOVInRadians = DegToRad(newHFOVInDegrees); // Converts degrees to radians
-
-        WeaponModelHFOV = ((4.0f / 3.0f) / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)))) * 0.5f;
-
-        if (fabs(newAspectRatio - 1.33333333333333) < kTolerance)
+        if (fabs(newAspectRatio - 1.33333333) < kTolerance) // 4:3
         {
             newCameraHFOV = 1.5707963268f;
+            newWeaponModelHFOV = 0.5f;
+            isFOVKnown = true;
+        }
+        else if (newAspectRatio == 1.6) // 16:10
+        {
+            newCameraHFOV = 1.48000001907349f;
+            newWeaponModelHFOV = 0.4372f;
+            isFOVKnown = true;
+        }
+        else if (fabs(newAspectRatio - 1.77777777) < kTolerance) // 16:9
+        {
+            newCameraHFOV = 1.42750000953674f;
+            newWeaponModelHFOV = 0.4035000503f;
+            isFOVKnown = true;
+        }
+        else if (fabs(newAspectRatio - 2.370370370370) < kTolerance)  // 21:9 (2560:1080)
+        {
+            newCameraHFOV = 1.28869998455048f;
+            // newWeaponModelHFOV = 0.4035000503f;
+            isFOVKnown = true;
+        }
+        else if (fabs(newAspectRatio - 3.555555555) < kTolerance) // 32:9
+        {
+            newCameraHFOV = 1.11849999427795f;
+            // newWeaponModelHFOV = 0.4035000503f;
+            isFOVKnown = true;
+        }
+        else if (fabs(newAspectRatio - 5.333333333) < kTolerance) // 48:9
+        {
+            newCameraHFOV = 0.987540006637573f;
+            // newWeaponModelHFOV = 0.4035000503f;
+            isFOVKnown = true;
         }
         else
         {
-            newCameraHFOV = static_cast<float>(calculateNewCameraHFOV(newHFOVInRadians));
+            cout << "\nThis aspect ratio isn't yet supported by the fixer, please contact AlphaYellow on PCGamingWiki or Discord (alphayellow) to add support for it." << endl;
+            isFOVKnown = false;
         }
 
-        OpenFile(file);
+        if (isFOVKnown)
+        {
+            //Opens the file
+            OpenFile(file);
 
-        file.seekp(kCameraHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHFOV), sizeof(newCameraHFOV));
+            // Writes the new camera HFOV and weapon HFOV values into the offset addresses in globalops.exe
+            file.seekp(kCameraHFOVOffset);
+            file.write(reinterpret_cast<const char *>(&newCameraHFOV), sizeof(newCameraHFOV));
 
-        file.seekp(kWeaponHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&WeaponModelHFOV), sizeof(WeaponModelHFOV));
+            file.seekp(kWeaponHFOVOffset);
+            file.write(reinterpret_cast<const char *>(&newWeaponModelHFOV), sizeof(newWeaponModelHFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully fixed the field of view."
-             << endl;
+            // Confirmation message
+            cout << "\nSuccessfully fixed the field of view."
+                 << endl;
 
-        // Closes the file
-        file.close();
+            // Closes the file
+            file.close();
+        }
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
         HandleChoiceInput(choice);
