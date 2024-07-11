@@ -7,7 +7,6 @@
 #include <conio.h>
 #include <string>
 #include <algorithm>
-#include <windows.h>
 
 using namespace std;
 
@@ -122,8 +121,6 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    SetConsoleOutputCP(CP_UTF8);
-
     cout << "Global Operations (2002) FOV Fixer v1.1 by AlphaYellow, 2024\n\n----------------" << endl;
 
     do
