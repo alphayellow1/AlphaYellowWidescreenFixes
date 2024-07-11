@@ -150,7 +150,7 @@ int main()
 
     do
     {
-        cout << "\nDo you want to fix the FOV automatically based on a desired resolution (1) or set a custom FOV multiplier value (2)?: ";
+        cout << "\n- Do you want to fix the FOV automatically based on a desired resolution (1) or set a custom FOV multiplier value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
@@ -167,7 +167,7 @@ int main()
             break;
 
         case 2:
-            cout << "\nType a custom FOV multiplier value (default for 4:3 aspect ratio is 0.42, a lower value increases FOV and a higher one decreases it): ";
+            cout << "\n- Type a custom FOV multiplier value (default for 4:3 aspect ratio is 0.42, a lower value increases FOV and a higher one decreases it): ";
             desiredFOV = HandleFOVInput();
             break;
         }
