@@ -136,7 +136,13 @@ int main()
 
         newAspectRatio = newWidth / newHeight;
 
-        if (fabs(newAspectRatio - 1.33333333) < kTolerance) // 4:3
+        if (newAspectRatio == 1.25) // 5:4
+        {
+            newCameraHFOV = 1.60239994525909f;
+            newWeaponModelHFOV = 0.5f;
+            isFOVKnown = true;
+        }
+        else if (fabs(newAspectRatio - 1.33333333) < kTolerance) // 4:3
         {
             newCameraHFOV = 1.5707963268f;
             newWeaponModelHFOV = 0.5f;
@@ -154,22 +160,22 @@ int main()
             newWeaponModelHFOV = 0.4035000503f;
             isFOVKnown = true;
         }
-        else if (fabs(newAspectRatio - 2.370370370370) < kTolerance)  // 21:9 (2560:1080)
+        else if (fabs(newAspectRatio - 2.370370370370) < kTolerance) // 21:9 (2560:1080)
         {
             newCameraHFOV = 1.28869998455048f;
-            // newWeaponModelHFOV = 0.4035000503f;
+            newWeaponModelHFOV = 0.3205520213f;
             isFOVKnown = true;
         }
         else if (fabs(newAspectRatio - 3.555555555) < kTolerance) // 32:9
         {
-            newCameraHFOV = 1.11849999427795f;
-            // newWeaponModelHFOV = 0.4035000503f;
+            newCameraHFOV = 1.118420005f;
+            newWeaponModelHFOV = 0.2479600161f;
             isFOVKnown = true;
         }
         else if (fabs(newAspectRatio - 5.333333333) < kTolerance) // 48:9
         {
-            newCameraHFOV = 0.987540006637573f;
-            // newWeaponModelHFOV = 0.4035000503f;
+            newCameraHFOV = 0.9877000451f;
+            newWeaponModelHFOV = 0.183000043f;
             isFOVKnown = true;
         }
         else
@@ -180,7 +186,7 @@ int main()
 
         if (isFOVKnown)
         {
-            //Opens the file
+            // Opens the file
             OpenFile(file);
 
             // Writes the new camera HFOV and weapon HFOV values into the offset addresses in globalops.exe
