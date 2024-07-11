@@ -139,7 +139,7 @@ int main()
         if (newAspectRatio == 1.25) // 5:4
         {
             newCameraHFOV = 1.60239994525909f;
-            newWeaponModelHFOV = 0.5f;
+            newWeaponModelHFOV = 0.5235001445f;
             isFOVKnown = true;
         }
         else if (fabs(newAspectRatio - 1.33333333) < kTolerance) // 4:3
