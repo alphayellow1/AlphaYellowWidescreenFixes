@@ -246,7 +246,7 @@ int main()
         // Confirmation message
         cout << "\nSuccessfully changed " << descriptor << " the field of view." << endl;
         cout << "\nNew Camera FOV: " << newCameraFOVInDegrees << "\u00B0" << endl;
-        cout << "New Weapon Camera FOV: " << newWeaponFOVInDegrees << "\u00B0" << endl;
+        cout << "New Weapon FOV: " << newWeaponFOVInDegrees << "\u00B0" << endl;
 
         // Closes the file
         file.close();
