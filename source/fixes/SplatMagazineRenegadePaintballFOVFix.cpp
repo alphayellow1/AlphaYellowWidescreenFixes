@@ -185,7 +185,7 @@ int main()
 
         cout << "\n====== Your current FOVs ======" << endl;
         cout << "\nCamera FOV: " << currentCameraFOVInDegrees << "\u00B0" << endl;
-        cout << "Weapon Camera FOV: " << currentWeaponFOVInDegrees << "\u00B0" << endl;
+        cout << "Weapon FOV: " << currentWeaponFOVInDegrees << "\u00B0" << endl;
 
         cout << "\n- Enter the desired width: ";
         newWidth = HandleResolutionInput();
