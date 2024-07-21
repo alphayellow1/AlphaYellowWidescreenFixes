@@ -17,7 +17,17 @@ const double kTolerance = 0.01;
 const streampos kCameraFOV1Offset = 0x0046B927;
 const streampos kCameraFOV2Offset = 0x0046B93C;
 const streampos kWeaponFOVOffset = 0x0046B94E;
-const streampos kAspectRatioOffset = 0x0006C65C;
+const streampos kAspectRatioOffset1 = 0x00011F9C;
+const streampos kAspectRatioOffset2 = 0x0001236B;
+const streampos kAspectRatioOffset3 = 0x00012640;
+const streampos kAspectRatioOffset4 = 0x0006C65C;
+const streampos kAspectRatioOffset5 = 0x0027B9F1;
+const streampos kAspectRatioOffset6 = 0x002BC5B2;
+const streampos kAspectRatioOffset7 = 0x0033D9F6;
+const streampos kAspectRatioOffset8 = 0x0033DF54;
+const streampos kAspectRatioOffset9 = 0x0034BD35;
+const streampos kAspectRatioOffset10 = 0x0035083D;
+const streampos kAspectRatioOffset11 = 0x005D7C40;
 
 // Variables
 int choice1, choice2, tempChoice, digitLengthWidth, digitLengthHeight;
@@ -240,7 +250,37 @@ int main()
         file.seekp(kWeaponFOVOffset);
         file.write(reinterpret_cast<const char *>(&newWeaponFOVInRadians), sizeof(newWeaponFOVInRadians));
 
-        file.seekp(kAspectRatioOffset);
+        file.seekp(kAspectRatioOffset1);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset2);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset3);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset4);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset5);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset6);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset7);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset8);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset9);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset10);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+
+        file.seekp(kAspectRatioOffset11);
         file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
 
         // Confirmation message
