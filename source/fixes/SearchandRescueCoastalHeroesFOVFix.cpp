@@ -193,11 +193,11 @@ int main()
 
         cout << "\n====== Your current FOVs ======" << endl;
         cout << "\nOutside Camera FOV: " << currentOutsideCameraFOVInDegrees << "\u00B0" << endl;
-        cout << "New Cockpit Camera FOV: " << currentCockpitCameraFOVInDegrees << "\u00B0" << endl;
-        cout << "New Hoist Camera FOV: " << currentHoistCameraFOVInDegrees << "\u00B0" << endl;
-        cout << "New Fly-By Camera FOV: " << currentFlyByCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "Cockpit Camera FOV: " << currentCockpitCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "Hoist Camera FOV: " << currentHoistCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "Fly-By Camera FOV: " << currentFlyByCameraFOVInDegrees << "\u00B0" << endl;
 
-        cout << "\n- Do you want to set FOV automatically based on the desired resolution (1) or set a custom FOV value (2)?: ";
+        cout << "\n- Do you want to set FOV automatically based on a desired resolution (1) or set a custom FOV value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
