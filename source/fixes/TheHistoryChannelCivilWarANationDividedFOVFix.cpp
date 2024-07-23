@@ -166,7 +166,7 @@ int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "History Civil War: Secret Missions (2008) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "History Civil War: A Nation Divided (2006) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
