@@ -183,12 +183,6 @@ int main()
         switch (choice1)
         {
         case 1:
-            cout << "\n- Enter the desired width: ";
-            newWidth = HandleResolutionInput();
-
-            cout << "\n- Enter the desired height: ";
-            newHeight = HandleResolutionInput();
-
             newAspectRatio = newWidth / newHeight;
 
             // Calculates the new FOV
