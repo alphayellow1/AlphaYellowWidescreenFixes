@@ -14,15 +14,15 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kCameraFOV1Offset = 0x00213F87;
-const streampos kCameraFOV2Offset = 0x00213FA3;
+const streampos kHipfireFOV1Offset = 0x00213F87;
+const streampos kHipfireFOV2Offset = 0x00213FA3;
 const streampos kAimDownSightsFOVOffset = 0x00213F8E;
 
 // Variables
 int choice1, choice2, tempChoice, digitLengthWidth, digitLengthHeight;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentCameraFOVInDegrees, currentAimDownSightsFOVInDegrees, newCameraFOVInDegrees, newAimDownSightsFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
-float currentCameraFOVInRadians, currentAimDownSightsFOVInRadians, newCameraFOVInRadians, newAimDownSightsFOVInRadians;
+double oldWidth = 4.0, oldHeight = 3.0, oldHFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHipfireFOVInDegrees, currentAimDownSightsFOVInDegrees, newHipfireFOVInDegrees, newAimDownSightsFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
+float currentHipfireFOVInRadians, currentAimDownSightsFOVInRadians, newHipfireFOVInRadians, newAimDownSightsFOVInRadians;
 string descriptor, input, newResolutionWidthAsString, newResolutionHeightAsString;
 fstream file;
 char ch;
@@ -172,21 +172,21 @@ int main()
     {
         OpenFile(file);
 
-        file.seekg(kCameraFOV1Offset);
-        file.read(reinterpret_cast<char *>(&currentCameraFOVInRadians), sizeof(currentCameraFOVInRadians));
+        file.seekg(kHipfireFOV1Offset);
+        file.read(reinterpret_cast<char *>(&currentHipfireFOVInRadians), sizeof(currentHipfireFOVInRadians));
 
         file.seekg(kAimDownSightsFOVOffset);
         file.read(reinterpret_cast<char *>(&currentAimDownSightsFOVInRadians), sizeof(currentAimDownSightsFOVInRadians));
 
         // Converts the FOV values from radians to degrees
-        currentCameraFOVInDegrees = RadToDeg(static_cast<double>(currentCameraFOVInRadians));
+        currentHipfireFOVInDegrees = RadToDeg(static_cast<double>(currentHipfireFOVInRadians));
         currentAimDownSightsFOVInDegrees = RadToDeg(static_cast<double>(currentAimDownSightsFOVInRadians));
 
         cout << "\n====== Your current FOVs ======" << endl;
-        cout << "\nCamera FOV: " << currentCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "\nHipfire FOV: " << currentHipfireFOVInDegrees << "\u00B0" << endl;
         cout << "Aim Down Sights FOV: " << currentAimDownSightsFOVInDegrees << "\u00B0" << endl;
 
-        cout << "\n- Do you want to set FOV automatically based on a desired resolution (1) or set custom values for camera and aim down sights FOV (2)?: ";
+        cout << "\n- Do you want to set FOV automatically based on a desired resolution (1) or set custom values for hipfire and aim down sights FOV (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
@@ -200,9 +200,9 @@ int main()
 
             newAspectRatio = newWidth / newHeight;
 
-            // Calculates the new camera FOV
+            // Calculates the new hipfire FOV
             oldHFOV = 70.000007;
-            newCameraFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
+            newHipfireFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
 
             // Calculates the new aim down sights FOV
             oldHFOV = 50.000004;
@@ -213,8 +213,8 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Enter the desired camera FOV (in degrees, default for 4:3 is 70\u00B0): ";
-            newCameraFOVInDegrees = HandleFOVInput();
+            cout << "\n- Enter the desired hipfire FOV (in degrees, default for 4:3 is 70\u00B0): ";
+            newHipfireFOVInDegrees = HandleFOVInput();
 
             cout << "\n- Enter the desired aim down sights FOV (in degrees, default for 4:3 is 50\u00B0): ";
             newAimDownSightsFOVInDegrees = HandleFOVInput();
@@ -224,22 +224,22 @@ int main()
             break;
         }
 
-        newCameraFOVInRadians = static_cast<float>(DegToRad(newCameraFOVInDegrees)); // Converts degrees to radians
+        newHipfireFOVInRadians = static_cast<float>(DegToRad(newHipfireFOVInDegrees)); // Converts degrees to radians
 
         newAimDownSightsFOVInRadians = static_cast<float>(DegToRad(newAimDownSightsFOVInDegrees)); // Converts degrees to radians
 
-        file.seekp(kCameraFOV1Offset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOVInRadians), sizeof(newCameraFOVInRadians));
+        file.seekp(kHipfireFOV1Offset);
+        file.write(reinterpret_cast<const char *>(&newHipfireFOVInRadians), sizeof(newHipfireFOVInRadians));
 
-        file.seekp(kCameraFOV2Offset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOVInRadians), sizeof(newCameraFOVInRadians));
+        file.seekp(kHipfireFOV2Offset);
+        file.write(reinterpret_cast<const char *>(&newHipfireFOVInRadians), sizeof(newHipfireFOVInRadians));
 
         file.seekp(kAimDownSightsFOVOffset);
         file.write(reinterpret_cast<const char *>(&newAimDownSightsFOVInRadians), sizeof(newAimDownSightsFOVInRadians));
 
         // Confirmation message
         cout << "\nSuccessfully changed " << descriptor << " the field of view." << endl;
-        cout << "\nNew Camera FOV: " << newCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "\nNew Hipfire FOV: " << newHipfireFOVInDegrees << "\u00B0" << endl;
         cout << "New Aim Down Sights FOV: " << newAimDownSightsFOVInDegrees << "\u00B0" << endl;
 
         // Closes the file
