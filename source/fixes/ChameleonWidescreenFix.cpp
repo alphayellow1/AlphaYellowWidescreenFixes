@@ -21,7 +21,7 @@ const streampos kAspectRatioOffset = 0x0009811C;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 74.999999, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentFOVInDegrees, newFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
-float currentFOVInRadians, newFOVInRadians;
+float currentFOVInRadians, newFOVInRadians, AspectRatioInFile;
 string descriptor, input;
 fstream file;
 char ch;
@@ -188,8 +188,6 @@ int main()
             // Calculates the new FOV
             newFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
 
-            newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees));
-
             descriptor = "automatically";
 
             break;
@@ -198,17 +196,22 @@ int main()
             cout << "\n- Enter the desired FOV (in degrees, default for 4:3 is 75\u00B0): ";
             newFOVInDegrees = HandleFOVInput();
 
-            newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees)); // Converts degrees to radians
-
             descriptor = "manually";
 
             break;
         }
 
+        newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees)); // Converts degrees to radians
+
+        AspectRatioInFile = static_cast<float>(newAspectRatio);
+
         OpenFile(file);
 
         file.seekp(kFOVOffset);
         file.write(reinterpret_cast<const char *>(&newFOVInRadians), sizeof(newFOVInRadians));
+
+        file.seekp(kAspectRatioOffset);
+        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
 
         // Confirmation message
         cout << "\nSuccessfully fixed the aspect ratio and changed " << descriptor << " the field of view to " << RadToDeg(static_cast<double>(newFOVInRadians)) << "\u00B0."
