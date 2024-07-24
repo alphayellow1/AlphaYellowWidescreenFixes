@@ -14,7 +14,7 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kFOVOffset = 0x000CE5C6;
+const streampos kFOVOffset = 0x00097FED;
 
 // Variables
 int choice1, choice2, tempChoice;
@@ -130,7 +130,7 @@ void OpenFile(fstream &file)
 {
     fileNotFound = false;
 
-    file.open("wow.exe", ios::in | ios::out | ios::binary);
+    file.open("LS3DF.dll", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -142,11 +142,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("wow.exe", ios::in | ios::out | ios::binary);
+        file.open("LS3DF.dll", ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open wow.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open LS3DF.dll, check if the DLL has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently being used. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
@@ -154,7 +154,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nwow.exe opened successfully!" << endl;
+            cout << "\nLS3DF.dll opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -195,12 +195,6 @@ int main()
             // Calculates the new FOV
             newFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
 
-            if (newAspectRatio > 2.4) {
-                newFOVInRadians = (static_cast<float>(DegToRad(newFOVInDegrees)) * 1.12f) / 2.2415263583f;
-            } else {
-                newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees));
-            }
-
             descriptor = "automatically";
 
             break;
@@ -209,18 +203,18 @@ int main()
             cout << "\n- Enter the desired FOV (in degrees): ";
             newFOVInDegrees = HandleFOVInput();
 
-            newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees)); // Converts degrees to radians
-
             descriptor = "manually";
 
             break;
         }
 
+        newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees));
+
         file.seekp(kFOVOffset);
         file.write(reinterpret_cast<const char *>(&newFOVInRadians), sizeof(newFOVInRadians));
 
         // Confirmation message
-        cout << "\nSuccessfully changed " << descriptor << " the field of view to " << RadToDeg(static_cast<double>(newFOVInRadians)) << "\u00B0."
+        cout << "\nSuccessfully changed " << descriptor << " the field of view to " << newFOVInDegrees << "\u00B0."
              << endl;
 
         // Closes the file
