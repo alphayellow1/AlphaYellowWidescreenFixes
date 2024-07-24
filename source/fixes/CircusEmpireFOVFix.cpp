@@ -19,7 +19,7 @@ const streampos kFOVOffset = 0x00098567;
 // Variables
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 72.000002, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentFOVInDegrees, newFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
+double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 70.000007, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentFOVInDegrees, newFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
 float currentFOVInRadians, newFOVInRadians;
 string descriptor, input;
 fstream file;
@@ -200,7 +200,7 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Enter the desired FOV (in degrees): ";
+            cout << "\n- Enter the desired FOV (in degrees, default for 4:3 is 70\u00B0): ";
             newFOVInDegrees = HandleFOVInput();
 
             descriptor = "manually";
