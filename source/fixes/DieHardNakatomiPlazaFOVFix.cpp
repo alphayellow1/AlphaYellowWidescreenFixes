@@ -256,7 +256,7 @@ int main()
             } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
-    } while (choice2 == 2); // Checks the flag in the loop condition
 
-    cout << "\n-----------------------------------------\n";
+        cout << "\n-----------------------------------------\n";
+    } while (choice2 == 2); // Checks the flag in the loop condition
 }
