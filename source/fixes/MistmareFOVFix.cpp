@@ -214,10 +214,10 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Enter the desired horizontal FOV (in degrees, default for 4:3 is 90\u00B0): ";
+            cout << "\n- Enter the desired horizontal FOV (in degrees, default for 4:3 is 75\u00B0): ";
             newHFOVInDegrees = HandleFOVInput();
 
-            cout << "\n- Enter the desired vertical FOV (in degrees, default for 4:3 is 67.5\u00B0): ";
+            cout << "\n- Enter the desired vertical FOV (in degrees, default for 4:3 is 56.25\u00B0): ";
             newVFOVInDegrees = HandleFOVInput();
 
             newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
