@@ -9,7 +9,7 @@ This repository is dedicated to enhancing the experience of classic PC games. It
 - **Additional Fixes:** Various other improvements and bug fixes for a better gaming experience (coming soon hopefully).
 
 ## Installation
-1. Clone the repository or download the latest release for the desired game.
+1. Download the latest release for the desired game.
 2. Locate the game directory for the game you wish to fix.
 3. Copy the corresponding fix files into the game directory.
 4. Follow any game-specific instructions provided in the release page description or inside the fixer executable.
