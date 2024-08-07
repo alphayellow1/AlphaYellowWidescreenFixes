@@ -11,7 +11,7 @@ using namespace std;
 // Constants
 const streampos kHFOVOffset = 0x001EFAE1;
 const streampos kVFOVOffset = 0x001EFAF1;
-const float kDefaultVFOVMultiplier = 0.6999999881;
+const float kDefaultVFOVMultiplier = 0.5249999762;
 
 // Variables
 int choice1, choice2, tempChoice;
