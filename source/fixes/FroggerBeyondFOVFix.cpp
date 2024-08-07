@@ -9,9 +9,8 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVOffset = 0x001EFAE1;
-const streampos kVFOVOffset = 0x001EFAF1;
-const float kDefaultVFOVMultiplier = 0.5249999762;
+const streampos kHFOVOffset = 0x00051B34;
+const streampos kVFOVOffset = 0x001F4154;
 
 // Variables
 int choice1, choice2, tempChoice;
@@ -166,7 +165,7 @@ int main()
 
             desiredHFOV = 0.6999999881f / ((4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight)));
 
-            desiredVFOV = kDefaultVFOVMultiplier;
+            desiredVFOV = 0.6999999881f / ((4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight)));
 
             break;
 
@@ -174,7 +173,7 @@ int main()
             cout << "\n- Type a custom horizontal FOV multiplier value (default for 4:3 aspect ratio is 0.7): ";
             desiredHFOV = HandleFOVInput();
 
-            cout << "\n- Type a custom vertical FOV multiplier value (default for 4:3 aspect ratio is 0.525): ";
+            cout << "\n- Type a custom vertical FOV multiplier value (default for 4:3 aspect ratio is 0.7): ";
             desiredVFOV = HandleFOVInput();
             break;
         }
