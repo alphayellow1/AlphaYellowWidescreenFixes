@@ -183,7 +183,6 @@ int main()
         file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
 
         // Confirmation message
-
         cout << "\nSuccessfully changed the aspect ratio and field of view." << endl;
 
         // Closes the file
