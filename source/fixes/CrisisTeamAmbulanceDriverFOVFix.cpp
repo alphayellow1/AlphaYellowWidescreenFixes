@@ -174,6 +174,7 @@ int main()
 
         file.seekg(kHFOVOffset);
         file.read(reinterpret_cast<char *>(&currentHFOVInRadians), sizeof(currentHFOVInRadians));
+        
         file.seekg(kVFOVOffset);
         file.read(reinterpret_cast<char *>(&currentVFOVInRadians), sizeof(currentVFOVInRadians));
 
