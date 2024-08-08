@@ -2,7 +2,7 @@
 This repository is dedicated to enhancing the experience of classic PC games. It's focused on providing fixes and improvements such as field of view (FOV) adjustments, HUD corrections, and support for widescreen, ultrawide, and multi-monitor setups, and hopefully in the future, fix long-standing bugs in games as well.
 
 ## Languages Used
-I use x86-32 Assembly to patch the game executables, DLLs or other neighbour files, and C++ for the fixer executables that change the code of the already patched files.
+I use x86 Assembly to patch the game executables, DLLs or other neighbour files, and C++ for the fixer executables that change the code of the already patched files.
 
 ## Features
 - **FOV Fixes:** Fix the field of view to prevent cropping or stretching, and improve immersion.
