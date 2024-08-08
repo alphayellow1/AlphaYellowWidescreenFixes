@@ -20,8 +20,8 @@ const streampos kWeaponFOVOffset = 0x0034762C;
 // Variables
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, newCameraFOV, newWeaponFOV, newCustomFOV, newCustomResolutionValue;
-float currentCameraFOV, currentWeaponFOV, newCameraFOVasFloat, newWeaponFOVasFloat;
+double oldWidth = 4.0, oldHeight = 3.0, oldHFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, newCustomResolutionValue;
+float currentCameraFOV, currentWeaponFOV, newCameraFOV, newWeaponFOV, newCustomFOV;
 string input, descriptor;
 fstream file;
 char ch;
@@ -74,7 +74,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-double HandleFOVInput()
+float HandleFOVInput()
 {
     do
     {
@@ -220,15 +220,11 @@ int main()
             break;
         }
 
-        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
-
-        newCameraFOVasFloat = static_cast<float>(newWeaponFOV);
-
         file.seekp(kCameraFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kWeaponFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         // Confirmation message
         cout << "\nSuccessfully changed " << descriptor << " the field of view." << endl;
