@@ -224,7 +224,7 @@ int main()
         file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kWeaponFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newWeaponFOV), sizeof(newWeaponFOV));
 
         // Confirmation message
         cout << "\nSuccessfully changed " << descriptor << " the field of view." << endl;
