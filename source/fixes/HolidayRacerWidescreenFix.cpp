@@ -162,7 +162,7 @@ int main()
         file.seekp(kResolutionHeight3Offset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        cout << "\nSuccessfully changed the resolution." << endl;
+        cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << "." << endl;
 
         // Closes the file
         file.close();
