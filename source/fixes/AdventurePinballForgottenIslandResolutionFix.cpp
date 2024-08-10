@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cmath>
 #include <cstdint> // For uint8_t
 #include <limits>
 #include <windows.h>
@@ -200,34 +201,34 @@ int main()
         OpenFile(file);
 
         file.seekp(k640ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
         file.seekp(k480ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
+        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
         
         file.seekp(k800ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
         file.seekp(k600ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
+        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(k1024ResolutionOffset1);
-        file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
         file.seekp(k768ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
+        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(k1280ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
         file.seekp(k1024ResolutionOffset2);
-        file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
+        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(k1600ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
         file.seekp(k1200ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
+        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         cout << "\nSuccessfully changed the resolution. Now open PB.ini inside " << buffer << "\\ and set FullscreenViewportX=" << desiredWidth << " and FullscreenViewportY=" << desiredHeight << " under the [WinDrv.WindowsClient] section." << endl;
 
