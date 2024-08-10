@@ -16,10 +16,10 @@ const streampos k640ResolutionOffset = 0x000063C9;
 const streampos k480ResolutionOffset = 0x000063D4;
 const streampos k800ResolutionOffset = 0x000063DB;
 const streampos k600ResolutionOffset = 0x000063E4;
-const streampos k1024ResolutionOffset = 0x000063EB;
+const streampos k1024ResolutionOffset1 = 0x000063EB;
 const streampos k768ResolutionOffset = 0x000063F4;
 const streampos k1280ResolutionOffset = 0x000063FB;
-const streampos k1024ResolutionOffset = 0x00006404;
+const streampos k1024ResolutionOffset2 = 0x00006404;
 const streampos k1600ResolutionOffset = 0x0000640B;
 const streampos k1200ResolutionOffset = 0x00006414;
 
@@ -211,7 +211,7 @@ int main()
         file.seekp(k600ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
 
-        file.seekp(k1024ResolutionOffset);
+        file.seekp(k1024ResolutionOffset1);
         file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
 
         file.seekp(k768ResolutionOffset);
@@ -220,7 +220,7 @@ int main()
         file.seekp(k1280ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
 
-        file.seekp(k1024ResolutionOffset);
+        file.seekp(k1024ResolutionOffset2);
         file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
 
         file.seekp(k1600ResolutionOffset);
