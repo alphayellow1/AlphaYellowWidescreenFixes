@@ -26,9 +26,9 @@ const streampos k1200ResolutionOffset = 0x00006414;
 
 // Variables
 int choice1, choice2, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
-int32_t newWidth, newHeight, newCustomResolutionValue;
+uint32_t newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
-double aspectRatio, standardRatio, newWidthInDouble, newHeightInDouble;
+double newAspectRatio, standardRatio, newWidthInDouble, newHeightInDouble;
 string input;
 fstream file;
 char ch;
@@ -183,17 +183,17 @@ int main()
 
             newHeightInDouble = static_cast<double>(newHeight);
 
-            aspectRatio = newWidthInDouble / newHeightInDouble;
+            newAspectRatio = newWidthInDouble / newHeightInDouble;
 
             standardRatio = 16.0 / 9.0; // 16:9 aspect ratio
 
-            // Initializes choice2 to 1 to allow exiting the loop if aspect ratio is not wider
+            // Initializes choice1 to 1 to allow exiting the loop if aspect ratio is not wider than 16:9
             choice1 = 1;
 
             // Checks if the calculated aspect ratio is wider than 16:9
-            if (aspectRatio > standardRatio)
+            if (newAspectRatio > standardRatio)
             {
-                cout << "\nWarning: The aspect ratio of " << newWidth << "x" << newHeight << ", which is " << simplifiedWidth << ":" << simplifiedHeight << ", is wider than 16:9, menus will be too cropped and become unusable! Are you sure you want to proceed (1) or want to insert a less wider resolution closer to 16:9 (2)?: " << endl;
+                cout << "\nWarning: The aspect ratio of " << newWidth << "x" << newHeight << ", which is " << simplifiedWidth << ":" << simplifiedHeight << ", is wider than 16:9, menus will be too cropped and become unusable! Are you sure you want to proceed (1) or want to insert a less wider resolution closer to 16:9 (2)?: ";
                 HandleChoiceInput(choice1);
             }
         } while (choice1 != 1);
@@ -230,7 +230,7 @@ int main()
         file.seekp(k1200ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        cout << "\nSuccessfully changed the resolution. Now open PB.ini inside " << buffer << "\\ and set FullscreenViewportX=" << newHeight << " and FullscreenViewportY=" << newWidth << " under the [WinDrv.WindowsClient] section." << endl;
+        cout << "\nSuccessfully changed the resolution. Now open PB.ini inside " << buffer << "\\ and set FullscreenViewportX=" << newWidth << " and FullscreenViewportY=" << newHeight << " under the [WinDrv.WindowsClient] section." << endl;
 
         // Closes the file
         file.close();
