@@ -230,7 +230,7 @@ int main()
         file.seekp(k1200ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        cout << "\nSuccessfully changed the resolution. Now open PB.ini inside " << buffer << "\\ and set FullscreenViewportX=" << newHeight << " and FullscreenViewportY=" << newHeight << " under the [WinDrv.WindowsClient] section." << endl;
+        cout << "\nSuccessfully changed the resolution. Now open PB.ini inside " << buffer << "\\ and set FullscreenViewportX=" << newHeight << " and FullscreenViewportY=" << newWidth << " under the [WinDrv.WindowsClient] section." << endl;
 
         // Closes the file
         file.close();
