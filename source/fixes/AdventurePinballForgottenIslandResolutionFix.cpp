@@ -12,12 +12,22 @@ using namespace std;
 
 // Constants
 const double kPi = 3.14159265358979323846;
-const streampos kFOVOffset = 0x000132FB;
+const streampos k640ResolutionOffset = 0x000063C9;
+const streampos k480ResolutionOffset = 0x000063D4;
+const streampos k800ResolutionOffset = 0x000063DB;
+const streampos k600ResolutionOffset = 0x000063E4;
+const streampos k1024ResolutionOffset = 0x000063EB;
+const streampos k768ResolutionOffset = 0x000063F4;
+const streampos k1280ResolutionOffset = 0x000063FB;
+const streampos k1024ResolutionOffset = 0x00006404;
+const streampos k1600ResolutionOffset = 0x0000640B;
+const streampos k1200ResolutionOffset = 0x00006414;
 
 // Variables
-int choice1, choice2, choice3, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
+int choice1, choice2, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
+int32_t newWidth, newHeight, desiredWidth, desiredHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
-double newWidth, newHeight, aspectRatio, standardRatio, desiredWidth, desiredHeight, desiredWidth2, desiredHeight2, newCustomResolutionValue;
+double aspectRatio, standardRatio, newWidthInDouble, newHeightInDouble;
 string input;
 fstream file;
 char ch;
@@ -55,7 +65,7 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
@@ -64,7 +74,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-double HandleResolutionInput()
+int32_t HandleResolutionInput()
 {
     do
     {
@@ -132,76 +142,91 @@ int main()
         TCHAR buffer[MAX_PATH];
         GetCurrentDirectory(MAX_PATH, buffer);
 
-        cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
-
-        cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
-
-        // Calculates the greatest common divisor of the width and height
-        aspectRatioGCD = gcd(static_cast<int>(newWidth), static_cast<int>(newHeight));
-
-        // Simplifies the width and height by dividing by the greatest common divisor
-        simplifiedWidth = static_cast<int>(newWidth) / aspectRatioGCD;
-        simplifiedHeight = static_cast<int>(newHeight) / aspectRatioGCD;
-
-        if (simplifiedWidth == 16 && simplifiedHeight == 3)
+        do
         {
-            simplifiedWidth = 48;
-            simplifiedHeight = 9;
-        }
-        else if (simplifiedWidth == 8 && simplifiedHeight == 5)
-        {
-            simplifiedWidth = 16;
-            simplifiedHeight = 10;
-        }
-        else if (simplifiedWidth == 7 && simplifiedHeight == 3)
-        {
-            simplifiedWidth = 21;
-            simplifiedHeight = 9;
-        }
-        else if (simplifiedWidth == 5 && simplifiedHeight == 1)
-        {
-            simplifiedWidth = 45;
-            simplifiedHeight = 9;
-        }
+            cout << "\n- Enter the desired width: ";
+            newWidth = HandleResolutionInput();
 
-        desiredWidth2 = static_cast<double>(desiredWidth);
-        desiredHeight2 = static_cast<double>(desiredHeight);
-        aspectRatio = desiredWidth2 / desiredHeight2;
-        standardRatio = 16.0 / 9.0; // 16:9 aspect ratio
+            cout << "\n- Enter the desired height: ";
+            newHeight = HandleResolutionInput();
 
-        // Initializes choice2 to 1 to allow exiting the loop if aspect ratio is not wider
-        choice2 = 1;
+            // Calculates the greatest common divisor of the width and height
+            aspectRatioGCD = gcd(static_cast<int>(newWidth), static_cast<int>(newHeight));
 
-        // Checks if the calculated aspect ratio is wider than 16:9
-        if (aspectRatio > standardRatio)
-        {
-            cout << "\nWarning: The aspect ratio of " << desiredWidth << "x" << desiredHeight << ", which is " << simplifiedWidth << ":" << simplifiedHeight << ", is wider than 16:9, menus will be too cropped and become unusable! Are you sure you want to proceed (1) or want to insert a less wider resolution closer to 16:9 (2)?: " << endl;
-            HandleChoiceInput(choice2);
-        }
+            // Simplifies the width and height by dividing by the greatest common divisor
+            simplifiedWidth = static_cast<int>(newWidth) / aspectRatioGCD;
+            simplifiedHeight = static_cast<int>(newHeight) / aspectRatioGCD;
+
+            if (simplifiedWidth == 16 && simplifiedHeight == 3)
+            {
+                simplifiedWidth = 48;
+                simplifiedHeight = 9;
+            }
+            else if (simplifiedWidth == 8 && simplifiedHeight == 5)
+            {
+                simplifiedWidth = 16;
+                simplifiedHeight = 10;
+            }
+            else if (simplifiedWidth == 7 && simplifiedHeight == 3)
+            {
+                simplifiedWidth = 21;
+                simplifiedHeight = 9;
+            }
+            else if (simplifiedWidth == 5 && simplifiedHeight == 1)
+            {
+                simplifiedWidth = 45;
+                simplifiedHeight = 9;
+            }
+
+            newWidthInDouble = static_cast<double>(newWidth);
+
+            newHeightInDouble = static_cast<double>(newHeight);
+
+            aspectRatio = newWidthInDouble / newHeightInDouble;
+
+            standardRatio = 16.0 / 9.0; // 16:9 aspect ratio
+
+            // Initializes choice2 to 1 to allow exiting the loop if aspect ratio is not wider
+            choice1 = 1;
+
+            // Checks if the calculated aspect ratio is wider than 16:9
+            if (aspectRatio > standardRatio)
+            {
+                cout << "\nWarning: The aspect ratio of " << newWidth << "x" << newHeight << ", which is " << simplifiedWidth << ":" << simplifiedHeight << ", is wider than 16:9, menus will be too cropped and become unusable! Are you sure you want to proceed (1) or want to insert a less wider resolution closer to 16:9 (2)?: " << endl;
+                HandleChoiceInput(choice1);
+            }
+        } while (choice1 != 1);
 
         OpenFile(file);
 
-        file.seekp(0x000063C9); // 640
+        file.seekp(k640ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
-        file.seekp(0x000063D4); // 480
+
+        file.seekp(k480ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
-        file.seekp(0x000063DB); // 800
+        
+        file.seekp(k800ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
-        file.seekp(0x000063E4); // 600
+
+        file.seekp(k600ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
-        file.seekp(0x000063EB); // 1024
+
+        file.seekp(k1024ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
-        file.seekp(0x000063F4); // 768
+
+        file.seekp(k768ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
-        file.seekp(0x000063FB); // 1280
+
+        file.seekp(k1280ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
-        file.seekp(0x00006404); // 1024
+
+        file.seekp(k1024ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
-        file.seekp(0x0000640B); // 1600
+
+        file.seekp(k1600ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredWidth), sizeof(desiredWidth));
-        file.seekp(0x00006414); // 1200
+
+        file.seekp(k1200ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&desiredHeight), sizeof(desiredHeight));
 
         cout << "\nSuccessfully changed the resolution. Now open PB.ini inside " << buffer << "\\ and set FullscreenViewportX=" << desiredWidth << " and FullscreenViewportY=" << desiredHeight << " under the [WinDrv.WindowsClient] section." << endl;
@@ -210,9 +235,9 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleChoiceInput(choice3);
+        HandleChoiceInput(choice2);
 
-        if (choice3 == 1)
+        if (choice2 == 1)
         {
             cout << "\nPress enter to exit the program...";
             do
@@ -221,5 +246,5 @@ int main()
             } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
-    } while (choice3 != 1); // Checks the flag in the loop condition
+    } while (choice2 != 1); // Checks the flag in the loop condition
 }
