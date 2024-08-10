@@ -12,7 +12,7 @@
 using namespace std;
 
 // Constants
-const streampos kFOVOffset = 0x00130D60;
+const streampos kFOVOffset = 0x000D5030;
 
 // Variables
 fstream file;
@@ -91,7 +91,7 @@ void OpenFile(fstream &file)
 {
     fileNotFound = false;
     
-    file.open("SIEGE.exe", ios::in | ios::out | ios::binary);
+    file.open("SOE.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -103,11 +103,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("SIEGE.exe", ios::in | ios::out | ios::binary);
+        file.open("SOE.exe", ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open SIEGE.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open SOE.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -115,7 +115,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nSIEGE.exe opened successfully!" << endl;
+            cout << "\nSOE.exe opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -125,7 +125,7 @@ int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "SAS Anti-Terror Force (2005) FOV Changer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "S.O.E.: Operation Avalanche (2005) FOV Changer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
