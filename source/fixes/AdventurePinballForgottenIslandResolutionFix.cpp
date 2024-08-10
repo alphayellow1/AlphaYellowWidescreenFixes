@@ -26,7 +26,7 @@ const streampos k1200ResolutionOffset = 0x00006414;
 
 // Variables
 int choice1, choice2, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
-int32_t newWidth, newHeight, desiredWidth, desiredHeight, newCustomResolutionValue;
+int32_t newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 double aspectRatio, standardRatio, newWidthInDouble, newHeightInDouble;
 string input;
@@ -201,36 +201,36 @@ int main()
         OpenFile(file);
 
         file.seekp(k640ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth)); // 640x480
 
         file.seekp(k480ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
         
         file.seekp(k800ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth)); // 800x600
 
         file.seekp(k600ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(k1024ResolutionOffset1);
-        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth)); // 1024x768
 
         file.seekp(k768ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(k1280ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth)); // 1280x1024
 
         file.seekp(k1024ResolutionOffset2);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(k1600ResolutionOffset);
-        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth)); // 1600x1200
 
         file.seekp(k1200ResolutionOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        cout << "\nSuccessfully changed the resolution. Now open PB.ini inside " << buffer << "\\ and set FullscreenViewportX=" << desiredWidth << " and FullscreenViewportY=" << desiredHeight << " under the [WinDrv.WindowsClient] section." << endl;
+        cout << "\nSuccessfully changed the resolution. Now open PB.ini inside " << buffer << "\\ and set FullscreenViewportX=" << newHeight << " and FullscreenViewportY=" << newHeight << " under the [WinDrv.WindowsClient] section." << endl;
 
         // Closes the file
         file.close();
