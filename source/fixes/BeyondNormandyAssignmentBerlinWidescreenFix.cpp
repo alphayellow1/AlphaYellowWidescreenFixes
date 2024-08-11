@@ -133,33 +133,33 @@ uint32_t HandleResolutionWidthInput()
 		{
 			if (language == 1)
 			{
-				cout << "Did you really type a negative number?";
+				cout << "Did you really type a negative number?" << endl;
 			}
 			else
 			{
-				cout << "Naprawd� wpisa�e� liczb� ujemn�?";
+				cout << "Naprawd� wpisa�e� liczb� ujemn�?" << endl;
 			}
 		}
 		else if (newCustomResolutionWidthValue == 0)
 		{
 			if (language == 1)
 			{
-				cout << "Are you kidding me?";
+				cout << "Are you kidding me?" << endl;
 			}
 			else
 			{
-				cout << "Jaja sobie robisz?";
+				cout << "Jaja sobie robisz?" << endl;
 			}
 		}
 		else if (newCustomResolutionWidthValue > 65535)
 		{
 			if (language == 1)
 			{
-				cout << "Back in 2024, we weren't using screens with such high resolutions and I was too lazy to add support for such high values. Please type a lower resolution (less than 65536 of width and height) which matches your target aspect ratio and put your values with a hex editor at 0009345A (width) and 00093462 (height) offsets.";
+				cout << "Back in 2024, we weren't using screens with such high resolutions and I was too lazy to add support for such high values. Please type a lower resolution (less than 65536 of width and height) which matches your target aspect ratio and put your values with a hex editor at 0009345A (width) and 00093462 (height) offsets." << endl;
 			}
 			else
 			{
-				cout << "W 2024 roku, nie korzystali�my z ekran�w o tak wysokiej rozdzielczo�ci, a ja by�em zbyt leniwy, by doda� wsparcie dla tak wysokich warto�ci. Prosz� poda� ni�sz� rozdzielczo�� (mniejsza od 65536 w szeroko�ci i wysoko�ci) kt�ra jest zgodna w proporcjami Twojego ekranu i umie�ci� swoje warto�ci za pomoc� edytora szesnastkowego w offsetach 0009345A (szeroko��) i 00093462 (wysoko��).";
+				cout << "W 2024 roku, nie korzystali�my z ekran�w o tak wysokiej rozdzielczo�ci, a ja by�em zbyt leniwy, by doda� wsparcie dla tak wysokich warto�ci. Prosz� poda� ni�sz� rozdzielczo�� (mniejsza od 65536 w szeroko�ci i wysoko�ci) kt�ra jest zgodna w proporcjami Twojego ekranu i umie�ci� swoje warto�ci za pomoc� edytora szesnastkowego w offsetach 0009345A (szeroko��) i 00093462 (wysoko��)." << endl;
 			}
 		}
 	} while (newCustomResolutionWidthValue <= 0 || newCustomResolutionWidthValue > 65535);
@@ -186,33 +186,33 @@ uint32_t HandleResolutionHeightInput()
 		{
 			if (language == 1)
 			{
-				cout << "Why don't you just flip your screen upside down?";
+				cout << "Why don't you just flip your screen upside down?" << endl;
 			}
 			else
 			{
-				cout << "Dlaczego po prostu nie odwr�cisz swojego ekranu do g�ry nogami?";
+				cout << "Dlaczego po prostu nie odwr�cisz swojego ekranu do g�ry nogami?" << endl;
 			}
 		}
 		else if (newCustomResolutionHeightValue == 0)
 		{
 			if (language == 1)
 			{
-				cout << "No.";
+				cout << "No." << endl;
 			}
 			else
 			{
-				cout << "Nie.";
+				cout << "Nie." << endl;
 			}
 		}
 		else if (newCustomResolutionHeightValue > 65535)
 		{
 			if (language == 1)
 			{
-				cout << "Back in 2024, we weren't using screens with such high resolutions and I was too lazy to add support for such high values. Please type a lower resolution (less than 65536 of width and height) which matches your target aspect ratio and put your values with a hex editor at 0009345A (width) and 00093462 (height) offsets.";
+				cout << "Back in 2024, we weren't using screens with such high resolutions and I was too lazy to add support for such high values. Please type a lower resolution (less than 65536 of width and height) which matches your target aspect ratio and put your values with a hex editor at 0009345A (width) and 00093462 (height) offsets." << endl;
 			}
 			else
 			{
-				cout << "W 2024 roku, nie korzystali�my z ekran�w o tak wysokiej rozdzielczo�ci, a ja by�em zbyt leniwy, by doda� wsparcie dla tak wysokich warto�ci. Prosz� poda� ni�sz� rozdzielczo�� (mniejsza od 65536 w szeroko�ci i wysoko�ci) kt�ra jest zgodna w proporcjami Twojego ekranu i umie�ci� swoje warto�ci za pomoc� edytora szesnastkowego w offsetach 0009345A (szeroko��) i 00093462 (wysoko��).";
+				cout << "W 2024 roku, nie korzystali�my z ekran�w o tak wysokiej rozdzielczo�ci, a ja by�em zbyt leniwy, by doda� wsparcie dla tak wysokich warto�ci. Prosz� poda� ni�sz� rozdzielczo�� (mniejsza od 65536 w szeroko�ci i wysoko�ci) kt�ra jest zgodna w proporcjami Twojego ekranu i umie�ci� swoje warto�ci za pomoc� edytora szesnastkowego w offsetach 0009345A (szeroko��) i 00093462 (wysoko��)." << endl;
 			}
 		}
 	} while (newCustomResolutionHeightValue <= 0 || newCustomResolutionHeightValue > 65535);
