@@ -43,13 +43,12 @@ const streampos kFOVOffset13 = 0x0015030F;
 const streampos kFOVOffset14 = 0x00150A5F;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight;
+uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 string input;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 float newFOV, newAspectRatio, customFOV;
-double newCustomResolutionValue;
 char ch;
 
 // Function to handle user input in choices
