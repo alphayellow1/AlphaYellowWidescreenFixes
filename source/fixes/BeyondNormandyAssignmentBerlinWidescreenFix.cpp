@@ -39,9 +39,10 @@ const streampos kNewHeightSmall2Offset = 0x00013D78;
 const streampos kNewHeightBig2Offset = 0x00013D79;
 
 // Variables
-uint8_t newWidthSmall, newWidthBig, newHeightSmall, newHeightBig, check1, check2;
 bool isFileCorrect, fileNotFound, validKeyPressed, openedSuccessfullyMessage;
-int newWidth, newHeight, tempChoice, language, choice, incorrectCount;
+int tempChoice, language, choice, incorrectCount;
+uint8_t newWidthSmall, newWidthBig, newHeightSmall, newHeightBig, check1, check2;
+uint32_t newWidth, newHeight, newCustomResolutionWidthValue, newCustomResolutionHeightValue;
 float aspectRatio, hudWidth, hudMargin, fov, fovMultiplier, flt, newCustomFOVMultiplier;
 double dbl;
 char ch;
@@ -112,6 +113,113 @@ float HandleFOVInput()
 	return newCustomFOVMultiplier;
 }
 
+// Function to handle user input in resolution
+uint32_t HandleResolutionWidthInput()
+{
+	do
+	{
+		cin >> newCustomResolutionWidthValue;
+
+		cin.clear();										 // Clears error flags
+		cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+
+		if (cin.fail())
+		{
+			cin.clear();										 // Clears error flags
+			cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+			cout << "Invalid input. Please enter a numeric value." << endl;
+		}
+		else if (newCustomResolutionWidthValue < 0)
+		{
+			if (language == 1)
+			{
+				cout << "Did you really type a negative number?";
+			}
+			else
+			{
+				cout << "Naprawd� wpisa�e� liczb� ujemn�?";
+			}
+		}
+		else if (newCustomResolutionWidthValue == 0)
+		{
+			if (language == 1)
+			{
+				cout << "Are you kidding me?";
+			}
+			else
+			{
+				cout << "Jaja sobie robisz?";
+			}
+		}
+		else if (newCustomResolutionWidthValue > 65535)
+		{
+			if (language == 1)
+			{
+				cout << "Back in 2024, we weren't using screens with such high resolutions and I was too lazy to add support for such high values. Please type a lower resolution (less than 65536 of width and height) which matches your target aspect ratio and put your values with a hex editor at 0009345A (width) and 00093462 (height) offsets.";
+			}
+			else
+			{
+				cout << "W 2024 roku, nie korzystali�my z ekran�w o tak wysokiej rozdzielczo�ci, a ja by�em zbyt leniwy, by doda� wsparcie dla tak wysokich warto�ci. Prosz� poda� ni�sz� rozdzielczo�� (mniejsza od 65536 w szeroko�ci i wysoko�ci) kt�ra jest zgodna w proporcjami Twojego ekranu i umie�ci� swoje warto�ci za pomoc� edytora szesnastkowego w offsetach 0009345A (szeroko��) i 00093462 (wysoko��).";
+			}
+		}
+	} while (newCustomResolutionWidthValue <= 0 || newCustomResolutionWidthValue > 65535);
+
+	return newCustomResolutionWidthValue;
+}
+
+uint32_t HandleResolutionHeightInput()
+{
+	do
+	{
+		cin >> newCustomResolutionHeightValue;
+
+		cin.clear();										 // Clears error flags
+		cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+
+		if (cin.fail())
+		{
+			cin.clear();										 // Clears error flags
+			cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
+			cout << "Invalid input. Please enter a numeric value." << endl;
+		}
+		else if (newCustomResolutionHeightValue < 0)
+		{
+			if (language == 1)
+			{
+				cout << "Why don't you just flip your screen upside down?";
+			}
+			else
+			{
+				cout << "Dlaczego po prostu nie odwr�cisz swojego ekranu do g�ry nogami?";
+			}
+		}
+		else if (newCustomResolutionHeightValue == 0)
+		{
+			if (language == 1)
+			{
+				cout << "No.";
+			}
+			else
+			{
+				cout << "Nie.";
+			}
+		}
+		else if (newCustomResolutionHeightValue > 65535)
+		{
+			if (language == 1)
+			{
+				cout << "Back in 2024, we weren't using screens with such high resolutions and I was too lazy to add support for such high values. Please type a lower resolution (less than 65536 of width and height) which matches your target aspect ratio and put your values with a hex editor at 0009345A (width) and 00093462 (height) offsets.";
+			}
+			else
+			{
+				cout << "W 2024 roku, nie korzystali�my z ekran�w o tak wysokiej rozdzielczo�ci, a ja by�em zbyt leniwy, by doda� wsparcie dla tak wysokich warto�ci. Prosz� poda� ni�sz� rozdzielczo�� (mniejsza od 65536 w szeroko�ci i wysoko�ci) kt�ra jest zgodna w proporcjami Twojego ekranu i umie�ci� swoje warto�ci za pomoc� edytora szesnastkowego w offsetach 0009345A (szeroko��) i 00093462 (wysoko��).";
+			}
+		}
+	} while (newCustomResolutionHeightValue <= 0 || newCustomResolutionHeightValue > 65535);
+
+	return newCustomResolutionHeightValue;
+}
+
 // Function to open the file
 void OpenFile(fstream &file)
 {
@@ -150,10 +258,15 @@ void OpenFile(fstream &file)
 int main()
 {
 	cout << "Beyond Normandy: Assignment Berlin Widescreen Fixer v1.1 by AuToMaNiAk005 and AlphaYellow, 2024\n\n----------------\n\n";
+
 	cout << "1: English\n";
+
 	cout << "2: Polski\n";
+
 	cout << "\n----------------\n\n";
+
 	HandleChoiceInput(language);
+
 	cout << "\n----------------\n";
 
 	do
@@ -221,100 +334,20 @@ int main()
 		if (language == 1)
 		{
 			cout << "\n- Type your resolution width: ";
-			cin >> newWidth;
-
-			if (newWidth == 0)
-			{
-				cout << "Are you kidding me?";
-				getch();
-				return 0;
-			}
-			if (newWidth < 0)
-			{
-				cout << "Did you really type a negative number?";
-				getch();
-				return 0;
-			}
-			if (newWidth > 65535)
-			{
-				cout << "Back in 2024, we weren't using screens with such high resolutions and I was too lazy to add support for such high values. Please type a lower resolution (less than 65536 of width and height) which matches your target aspect ratio and put your values with a hex editor at 0009345A (width) and 00093462 (height) offsets.";
-				getch();
-				return 0;
-			}
+			newWidth = HandleResolutionWidthInput();
 
 			cout << "\n- Type your resolution height: ";
-			cin >> newHeight;
-
-			if (newHeight == 0)
-			{
-				cout << "No.";
-				getch();
-				return 0;
-			}
-			if (newHeight < 0)
-			{
-				cout << "Why don't you just flip your screen upside down?";
-				getch();
-				return 0;
-			}
-			if (newHeight > 65535)
-			{
-				cout << "Back in 2024, we weren't using screens with such high resolutions and I was too lazy to add support for such high values. Please type a lower resolution (less than 65536 of width and height) which matches your target aspect ratio and put your values with a hex editor at 0009345A (width) and 00093462 (height) offsets.";
-				getch();
-				return 0;
-			}
+			newHeight = HandleResolutionHeightInput();
 		}
 		else if (language == 2)
 		{
 			setlocale(LC_CTYPE, "Polish");
 
 			cout << "- Wpisz szeroko�� rozdzielczo�ci: ";
-			cin >> newWidth;
-
-			if (newWidth == 0)
-			{
-				cout << "Jaja sobie robisz?";
-				getch();
-				return 0;
-			}
-			if (newWidth < 0)
-			{
-				cout << "Naprawd� wpisa�e� liczb� ujemn�?";
-				getch();
-				return 0;
-			}
-			if (newWidth > 65535)
-			{
-				cout << "W 2024 roku, nie korzystali�my z ekran�w o tak wysokiej rozdzielczo�ci, a ja by�em zbyt leniwy, by doda� wsparcie dla tak wysokich warto�ci. Prosz� poda� ni�sz� rozdzielczo�� (mniejsza od 65536 w szeroko�ci i wysoko�ci) kt�ra jest zgodna w proporcjami Twojego ekranu i umie�ci� swoje warto�ci za pomoc� edytora szesnastkowego w offsetach 0009345A (szeroko��) i 00093462 (wysoko��).";
-				getch();
-				return 0;
-			}
+			newWidth = HandleResolutionWidthInput();
 
 			cout << "- Wpisz wysoko�� rozdzielczo�ci: ";
-			cin >> newHeight;
-
-			if (newHeight == 0)
-			{
-				cout << "Nie.";
-				getch();
-				return 0;
-			}
-			if (newHeight < 0)
-			{
-				cout << "Dlaczego po prostu nie odwr�cisz swojego ekranu do g�ry nogami?";
-				getch();
-				return 0;
-			}
-			if (newHeight > 65535)
-			{
-				cout << "W 2024 roku, nie korzystali�my z ekran�w o tak wysokiej rozdzielczo�ci, a ja by�em zbyt leniwy, by doda� wsparcie dla tak wysokich warto�ci. Prosz� poda� ni�sz� rozdzielczo�� (mniejsza od 65536 w szeroko�ci i wysoko�ci) kt�ra jest zgodna w proporcjami Twojego ekranu i umie�ci� swoje warto�ci za pomoc� edytora szesnastkowego w offsetach 0009345A (szeroko��) i 00093462 (wysoko��).";
-				getch();
-				return 0;
-			}
-		}
-		else
-		{
-			return 0;
+			newHeight = HandleResolutionHeightInput();
 		}
 
 		newWidthSmall = newWidth % 256;
@@ -339,6 +372,8 @@ int main()
 		}
 		else if (language == 2)
 		{
+			setlocale(LC_CTYPE, "Polish");
+
 			cout << "\n- Wpisz mno�nik pola widzenia (1 = domy�lny, przy wysokich warto�ciach r�ce postaci mog� wygl�da� na niekompletne): ";
 			fovMultiplier = HandleFOVInput();
 
@@ -371,67 +406,67 @@ int main()
 		file.write(reinterpret_cast<const char *>(&newHeightBig), sizeof(newHeightBig));
 
 		// Compass needle width
-		flt = 0.0333333 / aspectRatio;
+		flt = 0.0333333f / aspectRatio;
 		file.seekp(kCompassNeedleWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Field of view
-		flt = 0.75 * aspectRatio * fovMultiplier;
+		flt = 0.75f * aspectRatio * fovMultiplier;
 		file.seekp(kFOVOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Loading bar X
-		flt = 222 + (hudWidth - 800) / 2;
+		flt = 222.0f + (hudWidth - 800.0f) / 2.0f;
 		file.seekp(kLoadingBarXOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Red cross and menu text width
-		flt = 0.001666 / aspectRatio;
+		flt = 0.001666f / aspectRatio;
 		file.seekp(kRedCrossAndMenuTextWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// HUD left margin
-		flt = 0.0333333 / aspectRatio + hudMargin / hudWidth;
+		flt = 0.0333333f / aspectRatio + hudMargin / hudWidth;
 		file.seekp(kHUDLeftMarginOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Compass needle X
-		flt = (hudWidth - 79 - hudMargin) / hudWidth;
+		flt = (hudWidth - 79.0f - hudMargin) / hudWidth;
 		file.seekp(kCompassNeedleXOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Objective direction width
-		dbl = 0.001666 / aspectRatio;
+		dbl = 0.001666 / static_cast<double>(aspectRatio);
 		file.seekp(kObjectiveDirectionWidthOffset);
 		file.write(reinterpret_cast<const char *>(&dbl), sizeof(dbl));
 
 		// Compass X
-		flt = (hudWidth - 118 - hudMargin) / hudWidth;
+		flt = (hudWidth - 118.0f - hudMargin) / hudWidth;
 		file.seekp(kCompassXOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Compass width
-		flt = 0.163333 / aspectRatio;
+		flt = 0.163333f / aspectRatio;
 		file.seekp(kCompassWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Weapons list width
-		flt = 0.17 / aspectRatio;
+		flt = 0.17f / aspectRatio;
 		file.seekp(kWeaponsListWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// HUD text width
-		dbl = 0.0006666666666 / aspectRatio;
+		dbl = 0.0006666666666 / static_cast<double>(aspectRatio);
 		file.seekp(kHUDTextWidthOffset);
 		file.write(reinterpret_cast<const char *>(&dbl), sizeof(dbl));
 
 		// Ammo X
-		flt = (hudWidth - 74 - hudMargin) / hudWidth;
+		flt = (hudWidth - 74.0f - hudMargin) / hudWidth;
 		file.seekp(kAmmoXOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Ammo width
-		flt = 0.116666 / aspectRatio;
+		flt = 0.116666f / aspectRatio;
 		file.seekp(kAmmoWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
@@ -454,7 +489,7 @@ int main()
 		{
 			cout << "\n- Czy chcesz wyjść z programu (1) czy wypróbować inną wartość (2)?: ";
 		}
-		
+
 		HandleChoiceInput(choice);
 
 		if (choice == 1)

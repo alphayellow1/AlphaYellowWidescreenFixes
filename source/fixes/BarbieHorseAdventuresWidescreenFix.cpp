@@ -43,7 +43,7 @@ const streampos kFOVOffset13 = 0x0015030F;
 const streampos kFOVOffset14 = 0x00150A5F;
 
 // Variables
-int16_t currentWidth, currentHeight, newWidth, newHeight;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 string input;
 fstream file;
 int choice1, choice2, tempChoice;
@@ -117,7 +117,7 @@ float HandleFOVInput()
 }
 
 // Function to handle user input in resolution
-int16_t HandleResolutionInput()
+uint32_t HandleResolutionInput()
 {
     do
     {
