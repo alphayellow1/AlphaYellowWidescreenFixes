@@ -18,10 +18,9 @@ const streampos kFOVOffset = 0x000ADB10;
 
 // Variables
 int choice, tempChoice;
-int16_t newWidth, newHeight;
+uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 float desiredFOV, desiredAspectRatio;
-double newCustomResolutionValue;
 fstream file;
 char ch;
 
@@ -62,7 +61,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-int16_t HandleResolutionInput()
+uint32_t HandleResolutionInput()
 {
     do
     {
@@ -129,6 +128,14 @@ int main()
     {
         OpenFile(file);
 
+        file.seekg(kResolutionWidthOffset);
+        file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
+
+        file.seekg(kResolutionHeightOffset);
+        file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
+
+        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << "." << endl;
+
         cout << "\nEnter the desired width: ";
         newWidth = HandleResolutionInput();
 
@@ -175,5 +182,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n----------------\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }
