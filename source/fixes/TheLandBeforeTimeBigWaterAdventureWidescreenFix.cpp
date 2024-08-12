@@ -18,7 +18,7 @@ const streampos kResolutionHeightOffset = 0x000C13E2;
 uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 string input;
 fstream file;
-int choice1, choice2, tempChoice;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
 char ch;
 
@@ -146,15 +146,15 @@ int main()
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));    
 
-        cout << "\nSuccessfully changed the resolution and field of view." << endl;
+        cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << "." << endl;
 
         // Closes the file
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleChoiceInput(choice2);
+        HandleChoiceInput(choice);
 
-        if (choice2 == 1)
+        if (choice == 1)
         {
             cout << "\nPress enter to exit the program...";
             do
@@ -165,5 +165,5 @@ int main()
         }
 
         cout << "\n----------------\n";
-    } while (choice2 != 1); // Checks the flag in the loop condition
+    } while (choice != 1); // Checks the flag in the loop condition
 }
