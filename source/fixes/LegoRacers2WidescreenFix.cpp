@@ -19,7 +19,7 @@ const streampos kResolutionHeightOffset = 0x0002A91A;
 
 // Variables
 int choice1, choice2, tempChoice;
-int16_t currentWidth, currentHeight, newCustomResolutionValue, newWidth, newHeight;
+uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newFOV;
 float currentFOV, fovInFloat;
@@ -103,7 +103,7 @@ float HandleFOVInput()
     return newCustomFOVInDegrees;
 }
 
-int16_t HandleResolutionInput()
+uint32_t HandleResolutionInput()
 {
     do
     {
@@ -131,7 +131,7 @@ int16_t HandleResolutionInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    
+
     file.open("LEGO Racers 2.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
@@ -174,8 +174,10 @@ int main()
 
         file.seekg(kFOVOffset1);
         file.read(reinterpret_cast<char *>(&currentFOV), sizeof(currentFOV));
+
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
+
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
 
@@ -202,7 +204,7 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Enter the desired FOV value (from 1\u00B0 to 180\u00B0, default FOV for 4:3 aspect ratio is 90.0\u00B0): ";
+            cout << "\n- Enter the desired FOV value (from 1\u00B0 to 180\u00B0, default FOV for 4:3 aspect ratio is 90\u00B0): ";
             newFOV = HandleFOVInput();
 
             break;
@@ -237,5 +239,7 @@ int main()
             } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n----------------\n";
     } while (choice2 != 1); // Checks the flag in the loop condition
 }

@@ -18,11 +18,12 @@ const streampos kHeightSmallOffset = 0x001448AE;
 const streampos kHeightBigOffset = 0x001448AF;
 
 // Variables
-int oldWidth, oldHeight, newWidth, newHeight, choice, tempChoice, newCustomResolutionValue;
+int choice, tempChoice;
+uint8_t currentWidthSmall, currentWidthBig, currentHeightSmall, currentHeightBig, newWidthSmall, newWidthBig, newHeightSmall, newHeightBig;
+uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+fstream file;
 bool fileFound, validKeyPressed;
 float newFOV;
-uint8_t oldWidthSmall, oldWidthBig, oldHeightSmall, oldHeightBig, newWidthSmall, newWidthBig, newHeightSmall, newHeightBig;
-fstream file;
 char ch;
 
 // Function to handle user input in choices
@@ -61,7 +62,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-int HandleResolutionInput()
+uint32_t HandleResolutionInput()
 {
     do
     {
@@ -129,28 +130,35 @@ int main()
         OpenFile(file);
 
         file.seekg(kWidthSmallOffset);
-        file.read(reinterpret_cast<char *>(&oldWidthSmall), sizeof(oldWidthSmall));
+        file.read(reinterpret_cast<char *>(&currentWidthSmall), sizeof(currentWidthSmall));
+
         file.seekg(kWidthBigOffset);
-        file.read(reinterpret_cast<char *>(&oldWidthBig), sizeof(oldWidthBig));
+        file.read(reinterpret_cast<char *>(&currentWidthBig), sizeof(currentWidthBig));
+
         file.seekg(kHeightSmallOffset);
-        file.read(reinterpret_cast<char *>(&oldHeightSmall), sizeof(oldHeightSmall));
+        file.read(reinterpret_cast<char *>(&currentHeightSmall), sizeof(currentHeightSmall));
+
         file.seekg(kHeightBigOffset);
-        file.read(reinterpret_cast<char *>(&oldHeightBig), sizeof(oldHeightBig));
+        file.read(reinterpret_cast<char *>(&currentHeightBig), sizeof(currentHeightBig));
 
-        oldWidth = oldWidthSmall + oldWidthBig * 256;
-        oldHeight = oldHeightSmall + oldHeightBig * 256;
+        currentWidth = currentWidthSmall + currentWidthBig * 256;
 
-        cout << "\nYour current resolution: " << int(oldWidth) << "x" << int(oldHeight) << "\n";
+        currentHeight = currentHeightSmall + currentHeightBig * 256;
+
+        cout << "\nYour current resolution: " << currentWidth << "x" << currentHeight << "\n";
 
         cout << "\n- Type your new resolution width: ";
         newWidth = HandleResolutionInput();
+
         cout << "\n- Type your new resolution height: ";
         newHeight = HandleResolutionInput();
 
         newWidthSmall = newWidth % 256;
+
         newWidthBig = (newWidth - newWidthSmall) / 256;
 
         newHeightSmall = newHeight % 256;
+
         newHeightBig = (newHeight - newHeightSmall) / 256;
 
         newFOV = (static_cast<float>(newWidth) / static_cast<float>(newHeight) * 0.375f - 0.5f) / 2.0f + 0.5f;
@@ -187,5 +195,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n----------------\n";
     } while (choice == 2); // Checks the flag in the loop condition
 }

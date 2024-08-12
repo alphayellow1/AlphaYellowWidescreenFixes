@@ -17,7 +17,7 @@ const streampos kResolutionHeightOffset = 0x002273B4;
 
 // Variables
 int choice, tempChoice;
-int16_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 fstream file;
 char ch;
@@ -59,7 +59,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-int16_t HandleResolutionInput()
+uint32_t HandleResolutionInput()
 {
     do
     {
@@ -163,5 +163,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n----------------\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }
