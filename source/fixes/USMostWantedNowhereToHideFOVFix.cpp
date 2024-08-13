@@ -188,7 +188,7 @@ int main()
             cout << "\n- Enter the desired height: ";
             newHeight = HandleResolutionInput();
 
-            newAspectRatio = newWidth / newHeight;
+            newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
             // Calculates the new FOV
             newFOV = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
