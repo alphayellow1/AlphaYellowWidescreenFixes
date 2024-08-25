@@ -158,8 +158,6 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    SetConsoleOutputCP(CP_UTF8);
-
     cout << "Project IGI 1 (2000) Widescreen Fixer v1.0 by AlphaYellow, 2024\n";
 
     OpenFile(file);
@@ -167,15 +165,15 @@ int main()
     file.seekg(kGameVersionCheckValue_Offset);
     file.read(reinterpret_cast<char *>(&GameVersionCheck), sizeof(GameVersionCheck));
 
-    if (GameVersionCheck == 29894) // CHINA / EU VERSIONS
+    if (GameVersionCheck == 29894)
     {
         cout << "\nChinese / European version detected.";
     }
-    else if (GameVersionCheck == 19290) // USA VERSION
+    else if (GameVersionCheck == 19290)
     {
         cout << "\nAmerican version detected.";
     }
-    else if (GameVersionCheck == 1571) // JAPAN VERSION
+    else if (GameVersionCheck == 1571)
     {
         cout << "\nJapanese version detected.";
     }
@@ -203,12 +201,12 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Enter the desired camera FOV (default for 4:3 aspect ratio is 1.0\u00B0): ";
+            cout << "\n- Enter the desired camera FOV (default for 4:3 aspect ratio is 1.0): ";
             newCameraFOV = HandleFOVInput();
             break;
         }
 
-        cout << "\n- Enter the desired weapon FOV (default for 4:3 aspect ratio is 1.7559\u00B0): ";
+        cout << "\n- Enter the desired weapon FOV (default for 4:3 aspect ratio is 1.7559): ";
         newWeaponModelFOV = HandleFOVInput();
 
         if (GameVersionCheck == 29894) // CHINA / EU VERSIONS
@@ -264,6 +262,6 @@ int main()
             return 0;
         }
 
-        cout << "\n----------------\n";
+        cout << "\n-------------------\n";
     } while (choice2 == 2); // Checks the flag in the loop condition
 }
