@@ -160,7 +160,7 @@ int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "Project IGI 1 (2000) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Project IGI 1 (2000) Widescreen Fixer v1.0 by AlphaYellow, 2024\n";
 
     OpenFile(file);
 
@@ -179,6 +179,8 @@ int main()
     {
         cout << "Japanese version detected.";
     }
+
+    cout << "\n----------------\n";
 
     do
     {
