@@ -158,7 +158,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Project IGI 1 (2000) Widescreen Fixer v1.2 by AlphaYellow, 2024\n";
+    cout << "Project IGI 1 (2000) Widescreen Fixer v1.2 by AlphaYellow and AuToMaNiAk005, 2024\n";
 
     OpenFile(file);
 
