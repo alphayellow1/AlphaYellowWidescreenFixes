@@ -23,12 +23,11 @@ const streampos kWeaponModelFOV_EU_CHINA_Offset = 0x001339C4;
 const streampos kWeaponModelFOV_JP_Offset = 0x001339EC;
 
 // Variables
-int choice1, choice2, tempChoice, digitLengthWidth, digitLengthHeight;
-int16_t GameVersionCheck;
+int choice1, choice2, tempChoice, GameVersionCheck;
 uint32_t newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 float newAspectRatio, newCameraFOV, newWeaponModelFOV, newCustomFOV;
-string descriptor, input, newResolutionWidthAsString, newResolutionHeightAsString;
+string descriptor, input;
 fstream file;
 char ch;
 
