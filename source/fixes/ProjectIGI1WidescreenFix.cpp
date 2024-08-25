@@ -29,7 +29,7 @@ int16_t GameVersionCheck;
 uint32_t newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 float newAspectRatio, newCameraFOV, newWeaponModelFOV, newCustomFOV;
-string descriptor, input;
+string input;
 fstream file;
 char ch;
 
