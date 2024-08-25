@@ -178,10 +178,17 @@ int main()
         cout << "\nJapanese version detected.";
     }
 
+    file.close();
+
     cout << "\n----------------\n";
 
     do
     {
+        OpenFile(file);
+        
+        file.seekg(kGameVersionCheckValue_Offset);
+        file.read(reinterpret_cast<char *>(&GameVersionCheck), sizeof(GameVersionCheck));
+
         cout << "\n- Enter the desired width: ";
         newWidth = HandleResolutionInput();
 
