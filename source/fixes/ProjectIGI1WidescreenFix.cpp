@@ -21,9 +21,11 @@ const streampos kAspectRatio_JP_Offset = 0x001335BC;
 const streampos kWeaponModelFOV_USA_Offset = 0x001339BC;
 const streampos kWeaponModelFOV_EU_CHINA_Offset = 0x001339C4;
 const streampos kWeaponModelFOV_JP_Offset = 0x001339EC;
+const streampos kGameVersionCheckValue_Offset = 0x00000108;
 
 // Variables
-int choice1, choice2, tempChoice, GameVersionCheck;
+int choice1, choice2, tempChoice;
+int16_t GameVersionCheck;
 uint32_t newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 float newAspectRatio, newCameraFOV, newWeaponModelFOV, newCustomFOV;
@@ -160,6 +162,11 @@ int main()
 
     cout << "Project IGI 1 (2000) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
+    OpenFile(file);
+
+    file.seekg(kGameVersionCheckValue_Offset);
+    file.read(reinterpret_cast<char *>(&GameVersionCheck), sizeof(GameVersionCheck));
+
     if (GameVersionCheck == 29894) // CHINA / EU VERSIONS
     {
         cout << "Chinese / European version detected.";
@@ -201,8 +208,6 @@ int main()
 
         cout << "\n- Enter the desired weapon FOV (default for 4:3 aspect ratio is 1.7559\u00B0): ";
         newWeaponModelFOV = HandleFOVInput();
-
-        OpenFile(file);
 
         if (GameVersionCheck == 29894) // CHINA / EU VERSIONS
         {
