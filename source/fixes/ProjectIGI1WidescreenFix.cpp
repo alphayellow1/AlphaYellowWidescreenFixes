@@ -169,15 +169,15 @@ int main()
 
     if (GameVersionCheck == 29894) // CHINA / EU VERSIONS
     {
-        cout << "Chinese / European version detected.";
+        cout << "\nChinese / European version detected.";
     }
     else if (GameVersionCheck == 19290) // USA VERSION
     {
-        cout << "American version detected.";
+        cout << "\nAmerican version detected.";
     }
     else if (GameVersionCheck == 1571) // JAPAN VERSION
     {
-        cout << "Japanese version detected.";
+        cout << "\nJapanese version detected.";
     }
 
     cout << "\n----------------\n";
