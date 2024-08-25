@@ -158,7 +158,7 @@ void OpenFile(fstream &file)
 
 int main()
 {
-    cout << "Project IGI 1 (2000) Widescreen Fixer v1.0 by AlphaYellow, 2024\n";
+    cout << "Project IGI 1 (2000) Widescreen Fixer v1.2 by AlphaYellow, 2024\n";
 
     OpenFile(file);
 
@@ -185,7 +185,7 @@ int main()
     do
     {
         OpenFile(file);
-        
+
         file.seekg(kGameVersionCheckValue_Offset);
         file.read(reinterpret_cast<char *>(&GameVersionCheck), sizeof(GameVersionCheck));
 
