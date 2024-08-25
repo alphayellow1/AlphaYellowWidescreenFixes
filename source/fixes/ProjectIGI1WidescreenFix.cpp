@@ -12,6 +12,7 @@
 using namespace std;
 
 // Constants
+const streampos kGameVersionCheckValue_Offset = 0x00000108;
 const streampos kCameraFOV_USA_Offset = 0x00085321;
 const streampos kCameraFOV_EU_CHINA_Offset = 0x00085271;
 const streampos kCameraFOV_JP_Offset = 0x00084EB1;
@@ -21,7 +22,6 @@ const streampos kAspectRatio_JP_Offset = 0x001335BC;
 const streampos kWeaponModelFOV_USA_Offset = 0x001339BC;
 const streampos kWeaponModelFOV_EU_CHINA_Offset = 0x001339C4;
 const streampos kWeaponModelFOV_JP_Offset = 0x001339EC;
-const streampos kGameVersionCheckValue_Offset = 0x00000108;
 
 // Variables
 int choice1, choice2, tempChoice;
