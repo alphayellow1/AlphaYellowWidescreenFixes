@@ -181,7 +181,7 @@ int main()
             }
             else
             {
-                cout << "This aspect ratio is not yet supported by the fixer, try a less wide one." << endl;
+                cout << "\nThis aspect ratio is not yet supported by the fixer, try a less wide one." << endl;
                 isAspectRatioKnown = false;
             }
         } while (!isAspectRatioKnown);
