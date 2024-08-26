@@ -184,7 +184,7 @@ int main()
         file.seekp(kFOVOffset);
         file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
 
-        cout << "\nSuccessfully fixed/changed the field of view." << endl;
+        cout << "\nSuccessfully fixed the aspect ratio and field of view." << endl;
 
         // Closes the file
         file.close();
