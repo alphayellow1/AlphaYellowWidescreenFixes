@@ -168,8 +168,7 @@ int main()
         switch (choice1)
         {
         case 1:
-            newFOV = ((static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight)) / (4.0f / 3.0f)) * 0.5f;
-            // newFOV = (static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight) * 0.375f - 0.5f) / 2.0f + 0.5f;
+            newFOV = (static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight) * 0.375f - 0.5f) / 2.0f + 0.5f;
             break;
 
         case 2:
