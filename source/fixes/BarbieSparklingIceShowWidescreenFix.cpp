@@ -19,7 +19,7 @@ int choice1, choice2, tempChoice;
 uint32_t desiredWidth, desiredHeight, newCustomResolutionValue;
 fstream file;
 string input;
-bool fileFound, validKeyPressed;
+bool fileFound, validKeyPressed, isAspectRatioKnown;
 float customFOV, newFOV, newAspectRatio;
 char ch;
 
@@ -154,28 +154,37 @@ int main()
     {
         OpenFile(file);
 
-        cout << "\n- Type the desired resolution width: ";
-        desiredWidth = HandleResolutionInput();
-
-        cout << "\n- Type the desired resolution height: ";
-        desiredHeight = HandleResolutionInput();
-
-        newAspectRatio = static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight);
-
-        cout << "\n- Do you want to set FOV automatically based on the resolution typed above (1) or set a custom FOV value (2)?: ";
-        HandleChoiceInput(choice1);
-
-        switch (choice1)
+        do
         {
-        case 1:
-            newFOV = 0.5f / ((4.0f / 3.0f) / (static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight)));
-            break;
+            cout << "\n- Type the desired resolution width: ";
+            desiredWidth = HandleResolutionInput();
 
-        case 2:
-            cout << "\n- Enter the desired FOV multiplier (default value for the 4:3 aspect ratio is 0.5): ";
-            newFOV = HandleFOVInput();
-            break;
-        }
+            cout << "\n- Type the desired resolution height: ";
+            desiredHeight = HandleResolutionInput();
+
+            newAspectRatio = static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight);
+
+            if (newAspectRatio == 4.0f / 3.0f)
+            {
+                newFOV = 0.5f;
+                isAspectRatioKnown = true;
+            }
+            else if (newAspectRatio == 16.0f / 10.0f)
+            {
+                newFOV = 0.5875f;
+                isAspectRatioKnown = true;
+            }
+            else if (newAspectRatio == 16.0f / 9.0f)
+            {
+                newFOV = 0.6427778006f;
+                isAspectRatioKnown = true;
+            }
+            else
+            {
+                cout << "This aspect ratio is not yet supported by the fixer, try a less wide one." << endl;
+                isAspectRatioKnown = false;
+            }
+        } while (!isAspectRatioKnown);
 
         file.seekp(kAspectRatioOffset);
         file.write(reinterpret_cast<char *>(&newAspectRatio), sizeof(newAspectRatio));
