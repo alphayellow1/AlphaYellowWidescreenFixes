@@ -25,7 +25,7 @@ const streampos kWeaponModelFOV_JP_Offset = 0x001339EC;
 
 // Variables
 int choice1, choice2, tempChoice;
-int16_t GameVersionCheck;
+int16_t GameVersionCheckValue;
 uint32_t newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 float newAspectRatio, newCameraFOV, newWeaponModelFOV, newCustomFOV;
@@ -156,38 +156,57 @@ void OpenFile(fstream &file)
     }
 }
 
-int main()
+void GameVersionCheck()
 {
-    cout << "Project IGI 1 (2000) Widescreen Fixer v1.2 by AlphaYellow and AuToMaNiAk005, 2024\n";
-
-    OpenFile(file);
-
-    file.seekg(kGameVersionCheckValue_Offset);
-    file.read(reinterpret_cast<char *>(&GameVersionCheck), sizeof(GameVersionCheck));
-
-    if (GameVersionCheck == 29894)
-    {
-        cout << "\nChinese / European version detected.";
-    }
-    else if (GameVersionCheck == 19290)
-    {
-        cout << "\nAmerican version detected.";
-    }
-    else if (GameVersionCheck == 1571)
-    {
-        cout << "\nJapanese version detected.";
-    }
-
-    file.close();
-
-    cout << "\n----------------\n";
-
     do
     {
         OpenFile(file);
 
         file.seekg(kGameVersionCheckValue_Offset);
-        file.read(reinterpret_cast<char *>(&GameVersionCheck), sizeof(GameVersionCheck));
+        file.read(reinterpret_cast<char *>(&GameVersionCheckValue), sizeof(GameVersionCheckValue));
+
+        if (GameVersionCheckValue == 29894)
+        {
+            cout << "\nChinese / European version detected." << endl;
+        }
+        else if (GameVersionCheckValue == 19290)
+        {
+            cout << "\nAmerican version detected." << endl;
+        }
+        else if (GameVersionCheckValue == 1571)
+        {
+            cout << "\nJapanese version detected." << endl;
+        }
+        else
+        {
+            cout << "\nUnknown version detected. Please make sure to have either the Chinese/European, Japanese or American version present. Press Enter when the right version is present." << endl;
+
+            file.close();
+
+            do
+            {
+                ch = _getch(); // Waits for user to press a key
+            } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+        }
+
+        file.close();
+
+    } while (GameVersionCheckValue != 29894 && GameVersionCheckValue != 19290 && GameVersionCheckValue != 1571);
+}
+
+int main()
+{
+    cout << "Project IGI 1 (2000) Widescreen Fixer v1.2 by AlphaYellow and AuToMaNiAk005, 2024\n";
+
+    cout << "\n--------------------\n";
+
+    GameVersionCheck();
+
+    cout << "\n--------------------\n";
+
+    do
+    {
+        OpenFile(file);
 
         cout << "\n- Enter the desired width: ";
         newWidth = HandleResolutionInput();
@@ -216,7 +235,7 @@ int main()
         cout << "\n- Enter the desired weapon FOV (default for 4:3 aspect ratio is 1.7559): ";
         newWeaponModelFOV = HandleFOVInput();
 
-        if (GameVersionCheck == 29894) // CHINA / EU VERSIONS
+        if (GameVersionCheckValue == 29894) // CHINA/EU VERSIONS
         {
             file.seekp(kAspectRatio_EU_CHINA_Offset);
             file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
@@ -227,7 +246,7 @@ int main()
             file.seekp(kWeaponModelFOV_EU_CHINA_Offset);
             file.write(reinterpret_cast<const char *>(&newWeaponModelFOV), sizeof(newWeaponModelFOV));
         }
-        else if (GameVersionCheck == 19290) // USA VERSION
+        else if (GameVersionCheckValue == 19290) // USA VERSION
         {
             file.seekp(kAspectRatio_USA_Offset);
             file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
@@ -238,7 +257,7 @@ int main()
             file.seekp(kWeaponModelFOV_USA_Offset);
             file.write(reinterpret_cast<const char *>(&newWeaponModelFOV), sizeof(newWeaponModelFOV));
         }
-        else if (GameVersionCheck == 1571) // JAPAN VERSION
+        else if (GameVersionCheckValue == 1571) // JAPAN VERSION
         {
             file.seekp(kAspectRatio_JP_Offset);
             file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
