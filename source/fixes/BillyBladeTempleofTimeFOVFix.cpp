@@ -63,7 +63,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput(float &newCustomFOV)
+void HandleFOVInput(float &newCustomFOV)
 {
     do
     {
