@@ -18,7 +18,7 @@ const streampos kResolutionWidth2Offset = 0x001FCB3C;
 const streampos kResolutionHeight2Offset = 0x00F1CB4C;
 
 // Variables
-uint32_t newWidth, newHeight;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 string input, descriptor;
 int choice1, choice2, tempChoice;
@@ -158,6 +158,16 @@ int main()
 
     do
     {
+        OpenFile(file, "IMM.exe");
+
+        file.seekg(kResolutionWidth1Offset);
+        file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
+
+        file.seekg(kResolutionHeight1Offset);
+        file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
+
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
+
         cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
 
@@ -165,8 +175,6 @@ int main()
         HandleResolutionInput(newHeight);
 
         newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
-
-        OpenFile(file, "IMM.exe");
 
         file.seekp(kResolutionWidth1Offset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
