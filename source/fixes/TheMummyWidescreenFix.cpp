@@ -1,8 +1,8 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
+#include <conio.h> // For getch() function
+#include <cstdint> // For uint32_t variable type
 #include <limits>
 #include <string>
 #include <algorithm>
@@ -14,7 +14,7 @@ const streampos kAspectRatioOffset = 0x00082F5C;
 const streampos kCameraFOVOffset = 0x000673E5;
 
 // Variables
-int16_t newWidth, newHeight;
+uint32_t newWidth, newHeight;
 fstream file;
 string input, descriptor;
 int choice1, choice2, tempChoice;
