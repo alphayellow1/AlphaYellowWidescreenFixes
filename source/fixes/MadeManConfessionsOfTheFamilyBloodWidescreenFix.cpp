@@ -10,8 +10,12 @@
 using namespace std;
 
 // Constants
-const streampos kAspectRatioOffset = 0x00082F5C;
-const streampos kCameraFOVOffset = 0x000673E5;
+const streampos kAspectRatioOffset = 0x00237BE8;
+const streampos kCameraFOVOffset = 0x001FCB31;
+const streampos kResolutionWidth1Offset = 0x001FCB71;
+const streampos kResolutionHeight1Offset = 0x00F1CB61;
+const streampos kResolutionWidth2Offset = 0x001FCB3C;
+const streampos kResolutionHeight2Offset = 0x00F1CB4C;
 
 // Variables
 uint32_t newWidth, newHeight;
@@ -144,13 +148,13 @@ void OpenFile(fstream &file, const string &filename)
 
 float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    newCameraFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
     return newCameraFOVValue;
 }
 
 int main()
 {
-    cout << "The Mummy (2000) Widescreen Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n\n";
+    cout << "Made Man: Confessions of the Family Blood (2006) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n\n";
 
     do
     {
@@ -162,12 +166,24 @@ int main()
 
         newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        OpenFile(file, "MummyPC.exe");
+        OpenFile(file, "IMM.exe");
+
+        file.seekp(kResolutionWidth1Offset);
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+
+        file.seekp(kResolutionHeight1Offset);
+        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
+
+        file.seekp(kResolutionWidth2Offset);
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+
+        file.seekp(kResolutionHeight2Offset);
+        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(kAspectRatioOffset);
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2) ?: ";
+        cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
@@ -180,7 +196,7 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Type a custom FOV multiplier value (default value for 4:3 aspect ratio is 1.0): ";
+            cout << "\nType a custom FOV multiplier value (default value for 4:3 aspect ratio is 1.0, a lower value increases FOV and a higher one decreases it): ";
             HandleFOVInput(newCameraFOV);
 
             descriptor = "changed the ";
@@ -195,7 +211,7 @@ int main()
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully fixed the aspect ratio and " << descriptor << "field of view." << endl;
+            cout << "\nSuccessfully fixed the resolution, aspect ratio and " << descriptor << "field of view." << endl;
         }
         else
         {
