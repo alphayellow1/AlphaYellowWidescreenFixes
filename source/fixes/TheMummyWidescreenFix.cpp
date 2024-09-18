@@ -150,7 +150,7 @@ float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 
 int main()
 {
-    cout << "The Mummy (2000) Widescreen Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n\n";
+    cout << "The Mummy (2000) Widescreen Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
