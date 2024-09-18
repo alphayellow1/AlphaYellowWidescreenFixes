@@ -154,7 +154,7 @@ float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 
 int main()
 {
-    cout << "Made Man: Confessions of the Family Blood (2006) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n\n";
+    cout << "Made Man: Confessions of the Family Blood (2006) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
