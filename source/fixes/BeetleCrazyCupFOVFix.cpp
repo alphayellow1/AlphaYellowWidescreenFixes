@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstdint> // for uint32_t variable type
 #include <conio.h> // For getch()
 #include <limits>
 #include <string>
@@ -9,15 +10,15 @@
 using namespace std;
 
 // Constants
-const streampos kFOVOffset = 0x000B92D0;
+const streampos kCameraFOVOffset = 0x000B92D0;
 
 // Variables
 int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float width, height, desiredFOV, customFOVMultiplier;
-double newCustomResolutionValue, newWidth, newHeight;
+float newCameraFOV, newCameraFOVValue;
 fstream file;
-string input;
+string input, descriptor;
 char ch;
 
 // Function to handle user input in choices
@@ -56,7 +57,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOVMultiplier)
 {
     do
     {
@@ -80,12 +81,10 @@ float HandleFOVInput()
             cout << "Please enter a number greater than 0 for the FOV." << endl;
         }
     } while (customFOVMultiplier <= 0);
-
-    return customFOVMultiplier;
 }
 
 // Function to handle user input in resolution
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -105,16 +104,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
 
-    file.open("beetle.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -126,11 +123,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("beetle.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open beetle.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -138,10 +135,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nbeetle.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = 0.35f / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
+    return newCameraFOVValue;
 }
 
 int main()
@@ -150,35 +153,48 @@ int main()
 
     do
     {
-        cout << "\n- Do you want to fix the FOV automatically based on a desired resolution (1) or set a custom FOV multiplier value (2)?: ";
+        cout << "\n- Do you want to fix the camera FOV automatically based on a desired resolution (1) or set a custom camera FOV multiplier value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
             cout << "\nEnter the desired width: ";
-            newWidth = HandleResolutionInput();
+            HandleResolutionInput(newWidth);
 
             cout << "\nEnter the desired height: ";
-            newHeight = HandleResolutionInput();
+            HandleResolutionInput(newHeight);
 
-            desiredFOV = 0.35f / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
+
+            descriptor = "fixed";
 
             break;
 
         case 2:
-            cout << "\n- Type a custom FOV multiplier value (default for 4:3 aspect ratio is 0.35, a lower value increases FOV and a higher one decreases it): ";
-            desiredFOV = HandleFOVInput();
+            cout << "\n- Type a custom camera FOV multiplier value (default for 4:3 aspect ratio is 0.35, a lower value increases FOV and a higher one decreases it): ";
+            HandleFOVInput(newCameraFOV);
+
+            descriptor = "changed";
+            
             break;
         }
 
-        OpenFile(file);
+        OpenFile(file, "beetle.exe");
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully " << descriptor << " the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -188,7 +204,7 @@ int main()
 
         if (choice2 == 1)
         {
-            cout << "\nPress enter to exit the program...";
+            cout << "\nPress Enter to exit the program...";
             do
             {
                 ch = _getch(); // Waits for user to press a key

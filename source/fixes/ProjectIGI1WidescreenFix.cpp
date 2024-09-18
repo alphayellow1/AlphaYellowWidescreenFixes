@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <cmath>
 #include <limits>
-#include <windows.h>
 #include <conio.h>
 #include <string>
 #include <algorithm>
@@ -26,9 +25,9 @@ const streampos kWeaponModelFOV_JP_Offset = 0x001339EC;
 // Variables
 int choice1, choice2, tempChoice;
 int16_t GameVersionCheckValue;
-uint32_t newWidth, newHeight, newCustomResolutionValue;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newAspectRatio, newCameraFOV, newWeaponModelFOV, newCustomFOV;
+float newAspectRatio, newAspectRatioValue, newCameraFOV, newCameraFOVValue, newWeaponModelFOV;
 string input;
 fstream file;
 char ch;
@@ -69,7 +68,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &newCustomFOV)
 {
     do
     {
@@ -88,16 +87,14 @@ float HandleFOVInput()
             cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
             cout << "Invalid input. Please enter a numeric value." << endl;
         }
-        else if (newCustomFOV <= 0 || newCustomFOV >= 180)
+        else if (newCustomFOV <= 0)
         {
-            cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
+            cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
         }
-    } while (newCustomFOV <= 0 || newCustomFOV >= 180);
-
-    return newCustomFOV;
+    } while (newCustomFOV <= 0);
 }
 
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -117,16 +114,14 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
 
-    file.open("IGI.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -138,11 +133,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("IGI.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open IGI.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
@@ -150,7 +145,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nIGI.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -160,7 +155,7 @@ void GameVersionCheck()
 {
     do
     {
-        OpenFile(file);
+        OpenFile(file, "IGI.exe");
 
         file.seekg(kGameVersionCheckValue_Offset);
         file.read(reinterpret_cast<char *>(&GameVersionCheckValue), sizeof(GameVersionCheckValue));
@@ -194,6 +189,18 @@ void GameVersionCheck()
     } while (GameVersionCheckValue != 29894 && GameVersionCheckValue != 19290 && GameVersionCheckValue != 1571);
 }
 
+float NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newAspectRatioValue = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) * 0.75f * 4.0f;
+    return newAspectRatioValue;
+}
+
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) * 0.75f;
+    return newCameraFOVValue;
+}
+
 int main()
 {
     cout << "Project IGI 1 (2000) Widescreen Fixer v1.2 by AlphaYellow and AuToMaNiAk005, 2024\n";
@@ -209,12 +216,12 @@ int main()
         OpenFile(file);
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newAspectRatio = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) * 0.75f * 4.0f;
+        newAspectRatio = NewAspectRatioCalculation(newWidth, newHeight);
 
         cout << "\n- Do you want to set camera FOV automatically based on the resolution typed above (1) or set a custom multiplier value for camera FOV (2)?: ";
         HandleChoiceInput(choice1);
@@ -223,17 +230,17 @@ int main()
         {
         case 1:
             // Calculates the new camera FOV
-            newCameraFOV = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) * 0.75f;
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
             break;
 
         case 2:
             cout << "\n- Enter the desired camera FOV (default for 4:3 aspect ratio is 1.0): ";
-            newCameraFOV = HandleFOVInput();
+            HandleFOVInput(newCameraFOV);
             break;
         }
 
         cout << "\n- Enter the desired weapon FOV (default for 4:3 aspect ratio is 1.7559): ";
-        newWeaponModelFOV = HandleFOVInput();
+        HandleFOVInput(newWeaponModelFOV);
 
         if (GameVersionCheckValue == 29894) // CHINA/EU VERSIONS
         {
@@ -269,8 +276,16 @@ int main()
             file.write(reinterpret_cast<const char *>(&newWeaponModelFOV), sizeof(newWeaponModelFOV));
         }
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the aspect ratio and field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the aspect ratio and field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -288,6 +303,6 @@ int main()
             return 0;
         }
 
-        cout << "\n-------------------\n";
+        cout << "\n-----------------------------------------\n";
     } while (choice2 == 2); // Checks the flag in the loop condition
 }

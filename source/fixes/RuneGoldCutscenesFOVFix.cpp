@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstdint>
 #include <cmath>
 #include <limits>
 #include <windows.h>
@@ -11,28 +12,28 @@
 using namespace std;
 
 // Constants
-const double kPi = 3.14159265358979323846;
-const streampos kFOVOffset = 0x000132FB;
+const float kPi = 3.14159265358979323846f;
+const streampos kCutscenesFOVOffset = 0x000132FB;
 
 // Variables
 int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 75.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue, newFOV;
-float currentFOV, fovInFloat;
-string descriptor, fovDescriptor, input;
+float currentCutscenesFOV, newCutscenesFOV, newCutscenesFOVValue, oldWidth = 4.0f, oldHeight = 3.0f, oldHFOV = 75.0f, oldAspectRatio = oldWidth / oldHeight;
+string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-double degToRad(double degrees)
+float degToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
-double radToDeg(double radians)
+float radToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -62,7 +63,7 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
@@ -71,7 +72,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &newCustomFOVInDegrees)
 {
     do
     {
@@ -95,11 +96,9 @@ float HandleFOVInput()
             cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
         }
     } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
-
-    return newCustomFOVInDegrees;
 }
 
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -119,16 +118,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("Engine.u", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -140,11 +137,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("Engine.u", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open Engine.u, check if the file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently being used. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
@@ -152,10 +149,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nEngine.u opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewCutscenesFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCutscenesFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0f)));
+    return newCutscenesFOVValue;
 }
 
 int main()
@@ -166,12 +169,12 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "Engine.u");
 
-        file.seekg(kFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentFOV), sizeof(currentFOV));
+        file.seekg(kCutscenesFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCutscenesFOV), sizeof(currentCutscenesFOV));
 
-        cout << "\nThe current cutscenes FOV is " << currentFOV << "\u00B0" << endl;
+        cout << "\nCurrent cutscenes FOV is " << currentCutscenesFOV << "\u00B0" << endl;
 
         cout << "\n- Do you want to set cutscenes FOV automatically based on the desired resolution (1) or set a custom cutscenes FOV value (2)?: ";
         HandleChoiceInput(choice1);
@@ -180,34 +183,37 @@ int main()
         {
         case 1:
             cout << "\n- Enter the desired width: ";
-            newWidth = HandleResolutionInput();
+            HandleResolutionInput(newWidth);
 
             cout << "\n- Enter the desired height: ";
-            newHeight = HandleResolutionInput();
-
-            newAspectRatio = newWidth / newHeight;
+            HandleResolutionInput(newHeight);
 
             // Calculates the new FOV
-            newFOV = 2.0 * radToDeg(atan((newAspectRatio / oldAspectRatio) * tan(degToRad(oldHFOV / 2.0))));
+            newCutscenesFOV = NewCutscenesFOVCalculation(newWidth, newHeight);
 
             break;
 
         case 2:
             cout << "\n- Enter the desired cutscenes FOV value (from 1\u00B0 to 180\u00B0, default FOV for 4:3 aspect ratio is 75.0\u00B0): ";
-            newFOV = HandleFOVInput();
+            HandleFOVInput(newCutscenesFOV);
 
             break;
         }
 
-        fovInFloat = static_cast<float>(newFOV);
+        // Searches for the 000132FB hexadecimal memory address in Engine.u and writes the new FOV value (4-byte floating point number) into it
+        file.seekp(kCutscenesFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCutscenesFOV), sizeof(newCutscenesFOV));
 
-        // Searches for the 000132FB hexadecimal address in Engine.u and writes the new FOV value (4-bytes floating point number) into it
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&fovInFloat), sizeof(fovInFloat));
-
-        // Confirmation message
-        cout << "\nSuccessfully changed the cutscenes FOV to " << fovInFloat << "\u00B0" << "."
-             << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the cutscenes FOV to " << newCutscenesFOV << "\u00B0." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -224,5 +230,7 @@ int main()
             } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice2 != 1); // Checks the flag in the loop condition
 }

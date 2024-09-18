@@ -4,7 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
+#include <cstdint> // For uint32_t
 #include <limits>
 #include <string>
 #include <algorithm>
@@ -21,7 +21,7 @@ const streampos kResolutionHeight3Offset = 0x0010AAFC;
 
 // Variables
 int choice, tempChoice;
-int32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
 bool fileNotFound, validKeyPressed;
 fstream file;
 char ch;
@@ -53,7 +53,7 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
@@ -63,7 +63,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-int16_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -83,16 +83,14 @@ int16_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("spel.dat", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -104,11 +102,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("spel.dat", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open spel.dat, check if the DAT file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the file is currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the DAT file has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the file is currently being used. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -116,7 +114,8 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nspel.dat opened successfully!" << endl;
+            cout << "\n"
+                 << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -128,7 +127,7 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "spel.dat");
 
         file.seekg(kResolutionWidth1Offset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
@@ -136,13 +135,13 @@ int main()
         file.seekg(kResolutionHeight1Offset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
 
-        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << "." << endl;
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
         file.seekp(kResolutionWidth1Offset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
@@ -162,7 +161,16 @@ int main()
         file.seekp(kResolutionHeight3Offset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << "." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << "." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -179,5 +187,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }

@@ -11,15 +11,15 @@ using namespace std;
 
 // Constants
 const streampos kAspectRatioOffset = 0x00082F5C;
-const streampos kFOVOffset = 0x000673E5;
+const streampos kCameraFOVOffset = 0x000673E5;
 
 // Variables
-int16_t newWidth, newHeight, newCustomResolutionValue;
+int16_t newWidth, newHeight;
 fstream file;
-string input;
-int choice, choice2, tempChoice;
+string input, descriptor;
+int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newAspectRatio, newFOV, customFOVMultiplier;
+float newAspectRatio, newCameraFOV, newCameraFOVValue;
 char ch;
 
 // Function to handle user input in choices
@@ -58,7 +58,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOVMultiplier)
 {
     do
     {
@@ -82,12 +82,10 @@ float HandleFOVInput()
             cout << "Please enter a number greater than 0 for the FOV." << endl;
         }
     } while (customFOVMultiplier <= 0);
-
-    return customFOVMultiplier;
 }
 
 // Function to handle user input in resolution
-int16_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -107,16 +105,14 @@ int16_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("MummyPC.exe", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -128,11 +124,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("MummyPC.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open MummyPC.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -140,10 +136,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nMummyPC.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    return newCameraFOVValue;
 }
 
 int main()
@@ -153,38 +155,52 @@ int main()
     do
     {
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
         newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        OpenFile(file);
+        OpenFile(file, "MummyPC.exe");
 
         file.seekp(kAspectRatioOffset);
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         cout << "\nDo you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2) ?: ";
-        HandleChoiceInput(choice);
+        HandleChoiceInput(choice1);
 
-        switch (choice)
+        switch (choice1)
         {
         case 1:
-            newFOV = newAspectRatio / (4.0f / 3.0f);
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
+
+            descriptor = "";
+
             break;
 
         case 2:
-            cout << "\nType a custom FOV multiplier value (default for 4:3 aspect ratio is 1,0): ";
-            newFOV = HandleFOVInput();
+            cout << "\nType a custom FOV multiplier value (default value for 4:3 aspect ratio is 1.0): ";
+            HandleFOVInput(newCameraFOV);
+
+            descriptor = "changed the ";
+
             break;
         }
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the aspect ratio and field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully fixed the aspect ratio and " << descriptor << "field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -201,5 +217,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice2 == 2); // Checks the flag in the loop condition
 }

@@ -1,8 +1,8 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstdint> // For uint32_t variable type
 #include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
 #include <limits>
 #include <string>
 #include <algorithm>
@@ -10,14 +10,14 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVOffset = 0x000A4780;
+const streampos kHorizontalFOVOffset = 0x000A4780;
 
 // Variables
-int16_t newWidth, newHeight, newCustomResolutionValue;
+uint32_t newWidth, newHeight;
 fstream file;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newHFOV;
+float newCameraHorizontalFOV;
 char ch;
 
 // Function to handle user input in choices
@@ -57,7 +57,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-int16_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -77,16 +77,14 @@ int16_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
     
-    file.open("Croc2.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -98,11 +96,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("Croc2.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open Croc2.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -110,10 +108,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nCroc2.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewGameplayCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraHorizontalFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+    return newCameraHorizontalFOVValue;
 }
 
 int main()
@@ -122,20 +126,29 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "Croc2.exe");
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newHFOV = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+        newCameraHorizontalFOV = NewGameplayCameraHorizontalFOVCalculation(newWidth, newHeight);
 
-        file.seekp(kHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
+        file.seekp(kHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
 
-        cout << "\nSuccessfully changed the field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully fixed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Close the file
         file.close();
@@ -152,5 +165,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }

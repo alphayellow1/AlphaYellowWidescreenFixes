@@ -1,6 +1,8 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstdint> // For uint32_t variable type
+#include <cmath>
 #include <conio.h> // For getch()
 #include <limits>
 #include <string>
@@ -13,11 +15,11 @@ const streampos kFOVOffset = 0x000A2828;
 
 // Variables
 int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float width, height, desiredFOV, customFOVMultiplier;
-double newCustomResolutionValue, newWidth, newHeight;
+float newCameraFOV, newCameraFOVValue;
 fstream file;
-string input;
+string input, descriptor;
 char ch;
 
 // Function to handle user input in choices
@@ -56,7 +58,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOVMultiplier)
 {
     do
     {
@@ -80,12 +82,10 @@ float HandleFOVInput()
             cout << "Please enter a number greater than 0 for the FOV." << endl;
         }
     } while (customFOVMultiplier <= 0);
-
-    return customFOVMultiplier;
 }
 
 // Function to handle user input in resolution
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -105,16 +105,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
 
-    file.open("4x4.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -126,11 +124,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("4x4.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open 4x4.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -138,10 +136,17 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\n4x4.exe opened successfully!" << endl;
+            cout << "\n"
+                 << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = 0.42f / ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    return newCameraFOVValue;
 }
 
 int main()
@@ -157,28 +162,41 @@ int main()
         {
         case 1:
             cout << "\nEnter the desired width: ";
-            newWidth = HandleResolutionInput();
+            HandleResolutionInput(newWidth);
 
             cout << "\nEnter the desired height: ";
-            newHeight = HandleResolutionInput();
+            HandleResolutionInput(newHeight);
 
-            desiredFOV = 0.42f / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
+
+            descriptor = "fixed";
 
             break;
 
         case 2:
             cout << "\n- Type a custom FOV multiplier value (default for 4:3 aspect ratio is 0.42, a lower value increases FOV and a higher one decreases it): ";
-            desiredFOV = HandleFOVInput();
+            HandleFOVInput(newCameraFOV);
+
+            descriptor = "changed";
+
             break;
         }
 
-        OpenFile(file);
+        OpenFile(file, "4x4.exe");
 
         file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully " << descriptor << " the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();

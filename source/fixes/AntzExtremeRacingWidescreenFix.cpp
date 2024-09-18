@@ -3,7 +3,7 @@
 #include <fstream>
 #include <cmath>
 #include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
+#include <cstdint> // For uint32_t
 #include <limits>
 #include <vector>
 #include <cstring>
@@ -14,7 +14,7 @@ using namespace std;
 
 // Constants
 const float kPi = 3.14159265358979323846f;
-const double kTolerance = 0.01;
+const float kTolerance = 0.01f;
 const streampos kCameraHorizontalFOVOffset = 0x001427C3;
 const streampos kCameraVerticalFOVOffset = 0x001427D5;
 const streampos kHUD_and_Character_Selection_AspectRatio_Offset = 0x000AD771;
@@ -23,24 +23,24 @@ const streampos kAspectRatio2Offset = 0x000AD4A6;
 const streampos kFOV2Offset = 0x000AD4AB;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 string input;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float customFOV, newAspectRatio, newGameplayCameraHorizontalFOV, newGameplayCameraVerticalFOV, newHUDAndCharacterSelectionFOV, newFOV2;
+float newAspectRatio, newGameplayCameraHorizontalFOV, newGameplayCameraHorizontalFOVValue, newGameplayCameraVerticalFOV, newHUDAndCharacterSelectionFOV, newHUDAndCharacterSelectionFOVValue, newFOV2;
 char ch;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
 float RadToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -79,7 +79,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOV)
 {
     do
     {
@@ -103,12 +103,10 @@ float HandleFOVInput()
             cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
         }
     } while (customFOV <= 0);
-
-    return customFOV;
 }
 
 // Function to handle user input in resolution
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -128,8 +126,6 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
@@ -161,7 +157,7 @@ void OpenFile(fstream &file, const string &filename)
         }
         else
         {
-            cout << filename << " opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -241,6 +237,18 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
+float NewHUDAndCharacterSelectionFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newHUDAndCharacterSelectionFOVValue = 0.5f * ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    return newHUDAndCharacterSelectionFOVValue;
+}
+
+float NewGameplayCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newGameplayCameraHorizontalFOVValue = 0.5f * ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    return newGameplayCameraHorizontalFOVValue;
+}
+
 int main()
 {
     cout << "Antz Extreme Racing (2002) Widescreen Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
@@ -248,33 +256,31 @@ int main()
     do
     {
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newHUDAndCharacterSelectionFOV = NewHUDAndCharacterSelectionFOVCalculation(newWidth, newHeight);
 
-        newHUDAndCharacterSelectionFOV = 0.5f * ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
-
-        cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set custom multiplier values for horizontal and vertical FOV (2)?: ";
+        cout << "\n- Do you want to fix the field of view automatically based on the resolution typed above (1) or set custom multiplier values for horizontal and vertical field of view (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            newGameplayCameraHorizontalFOV = 0.5f * ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
+            newGameplayCameraHorizontalFOV = NewGameplayCameraHorizontalFOVCalculation(newWidth, newHeight);
 
             newGameplayCameraVerticalFOV = 0.375f;
 
             break;
 
         case 2:
-            cout << "\n- Type a custom horizontal FOV multiplier value (default for 4:3 aspect ratio is 0.5): ";
-            newGameplayCameraHorizontalFOV = HandleFOVInput();
+            cout << "\n- Type a custom horizontal field of view multiplier value (default for 4:3 aspect ratio is 0.5): ";
+            HandleFOVInput(newGameplayCameraHorizontalFOV);
 
-            cout << "\n- Type a custom vertical FOV multiplier value (default for 4:3 aspect ratio is 0.375): ";
-            newGameplayCameraVerticalFOV = HandleFOVInput();
+            cout << "\n- Type a custom vertical field of view multiplier value (default for 4:3 aspect ratio is 0.375): ";
+            HandleFOVInput(newGameplayCameraVerticalFOV);
             break;
         }
 

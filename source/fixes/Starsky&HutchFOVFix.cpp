@@ -19,23 +19,23 @@ const streampos kCameraFOVOffset = 0x0020FBA1;
 
 // Variables
 int choice1, choice2, tempChoice;
-uint32_t newWidth, newHeight, newCustomResolutionValue;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOV, newCameraFOV, oldWidth = 4.0f, oldHeight = 3.0f, oldHFOV = 85.0f, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees;
-string input;
+float currentCameraFOV, newCameraFOV, newCameraFOVValue, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV = 85.0f, oldAspectRatio = oldWidth / oldHeight, newAspectRatio;
+string input, descriptor;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
 float degToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
 float radToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -74,7 +74,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &newCustomFOVInDegrees)
 {
     do
     {
@@ -98,11 +98,9 @@ float HandleFOVInput()
             cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
         }
     } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
-
-    return newCustomFOVInDegrees;
 }
 
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -122,8 +120,6 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
@@ -168,15 +164,13 @@ void SearchAndReplacePatterns(fstream &file)
         {"\xD8\x0D\xCC\x88\x65\x00", 6},
         // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
         // 004BA929 | D8 0D CC 88 65 00 | fmul dword ptr [006588CC]
-        {"\x07\x8A\x10\x40\x84\xD2\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 36}
-    };
+        {"\x07\x8A\x10\x40\x84\xD2\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 36}};
 
     vector<pair<const char *, size_t>> replacements = {
         {"\xD8\x0D\xA1\xFB\x60\x00", 6},
         // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
         // 004BA929 | D8 0D A1 FB 60 00 | fmul dword ptr [0060FBA1]
-        {"\x07\x8A\x10\x40\x84\xD2\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xAA\x42", 36}
-    };
+        {"\x07\x8A\x10\x40\x84\xD2\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xAA\x42", 36}};
 
     // Reads the entire file content into memory
     file.seekg(0, ios::end);
@@ -212,6 +206,12 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, float &oldCameraHorizontalFOVValue)
+{
+    newCameraFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0f)));
+    return newCameraFOVValue;
+}
+
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
@@ -227,7 +227,7 @@ int main()
         file.seekg(kCameraFOVOffset);
         file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
 
-        cout << "\nThe current FOV is " << currentCameraFOV << "\u00B0" << endl;
+        cout << "\nCurrent FOV is " << currentCameraFOV << "\u00B0" << endl;
 
         cout << "\n- Do you want to set FOV automatically based on a desired resolution (1) or set a custom FOV value (2)?: ";
         HandleChoiceInput(choice1);
@@ -236,29 +236,41 @@ int main()
         {
         case 1:
             cout << "\n- Enter the desired width: ";
-            newWidth = HandleResolutionInput();
+            HandleResolutionInput(newWidth);
 
             cout << "\n- Enter the desired height: ";
-            newHeight = HandleResolutionInput();
-
-            newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+            HandleResolutionInput(newHeight);
 
             // Calculates the new camera FOV
-            newCameraFOV = 2.0f * radToDeg(atan((newAspectRatio / oldAspectRatio) * tan(degToRad(oldHFOV / 2.0f))));
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight, oldCameraHorizontalFOV);
+
+            descriptor = "fixed";
 
             break;
 
         case 2:
             cout << "\n- Enter the desired FOV value (from 1\u00B0 to 180\u00B0, default FOV for 4:3 aspect ratio is 85\u00B0): ";
-            newCameraFOV = HandleFOVInput();
+
+            HandleFOVInput(newCameraFOV);
+
+            descriptor = "changed";
+
             break;
         }
 
         file.seekp(kCameraFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the field of view to " << newCameraFOV << "\u00B0." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully " << descriptor << " the field of view to " << newCameraFOV << "\u00B0." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -276,6 +288,6 @@ int main()
             return 0;
         }
 
-        cout << "\n---------------------------\n";
+        cout << "\n-----------------------------------------\n";
     } while (choice2 != 1); // Checks the flag in the loop condition
 }

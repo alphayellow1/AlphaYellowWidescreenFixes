@@ -12,14 +12,14 @@
 using namespace std;
 
 // Constants
-const streampos kFOVOffset = 0x00130D60;
+const streampos kCameraFOVOffset = 0x00130D60;
 
 // Variables
 fstream file;
 string input;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float currentFOV, newFOV, customFOV;
+float currentCameraFOV, newCameraFOV;
 char ch;
 
 // Function to handle user input in choices
@@ -90,7 +90,7 @@ float HandleFOVInput()
 void OpenFile(fstream &file)
 {
     fileNotFound = false;
-    
+
     file.open("SIEGE.exe", ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
@@ -131,19 +131,27 @@ int main()
     {
         OpenFile(file);
 
-        file.seekg(kFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentFOV), sizeof(currentFOV));
+        file.seekg(kCameraFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
 
-        cout << "\n- The current FOV is " << currentFOV << "\u00B0." << endl;
+        cout << "\n- Current FOV is " << currentCameraFOV << "\u00B0." << endl;
 
         cout << "\n- Enter the desired FOV value (default is 60\u00B0): ";
-        newFOV = HandleFOVInput();
+        HandleFOVInput(newCameraFOV);
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the field of view to " << newFOV << "\u00B0." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the field of view to " << newCameraFOV << "\u00B0." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -160,5 +168,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice == 2); // Checks the flag in the loop condition
 }

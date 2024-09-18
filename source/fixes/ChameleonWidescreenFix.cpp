@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <cstdint>
+#include <cstdint> // For uin32_t variable type
 #include <cmath>
 #include <limits>
 #include <windows.h>
@@ -12,30 +12,30 @@
 using namespace std;
 
 // Constants
-const double kPi = 3.14159265358979323846;
-const double kTolerance = 0.01;
-const streampos kFOVOffset = 0x00098107;
+const float kPi = 3.14159265358979323846f;
+const float kTolerance = 0.01f;
+const streampos kCameraFOVOffset = 0x00098107;
 const streampos kAspectRatioOffset = 0x0009811C;
 
 // Variables
 int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 74.999999, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentFOVInDegrees, newFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
-float currentFOVInRadians, newFOVInRadians, AspectRatioInFile;
+float currentCameraFOVInRadians, currentCameraFOVInDegrees, newCameraFOVInRadians, newCameraFOVInDegrees, newCameraFOVInDegreesValue, oldWidth = 4.0f, oldHeight = 3.0f, oldHorizontalFOV = 74.999999f, oldAspectRatio = oldWidth / oldHeight, newAspectRatio;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-double DegToRad(double degrees)
+float DegToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
-double RadToDeg(double radians)
+float RadToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -74,7 +74,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &newCustomFOVInDegrees)
 {
     do
     {
@@ -98,11 +98,9 @@ float HandleFOVInput()
             cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
         }
     } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
-
-    return newCustomFOVInDegrees;
 }
 
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -122,16 +120,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
 
-    file.open("LS3DF.dll", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -143,11 +139,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("LS3DF.dll", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open LS3DF.dll, check if the DLL has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the DLL has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently being used. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
@@ -155,10 +151,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nLS3DF.dll opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVInDegreesValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldHorizontalFOV / 2.0f)));
+    return newCameraFOVInDegreesValue;
 }
 
 int main()
@@ -170,52 +172,56 @@ int main()
     do
     {
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newAspectRatio = newWidth / newHeight;
+        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        cout << "\n- Do you want to set FOV automatically based on the typed resolution above (1) or set a custom FOV value (2)?: ";
+        cout << "\n- Do you want to set the camera FOV automatically based on the typed resolution above (1) or set a custom camera FOV value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            newAspectRatio = newWidth / newHeight;
-
             // Calculates the new FOV
-            newFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
+            newCameraFOVInDegrees = NewFOVInDegreesCalculation(newWidth, newHeight);
 
-            descriptor = "automatically";
+            descriptor = "fixed";
 
             break;
 
         case 2:
-            cout << "\n- Enter the desired FOV (in degrees, default for 4:3 is 75\u00B0): ";
-            newFOVInDegrees = HandleFOVInput();
+            cout << "\n- Enter the desired camera FOV (in degrees, default for 4:3 aspect ratio is 75\u00B0): ";
+            HandleFOVInput(newCameraFOVInDegrees);
 
-            descriptor = "manually";
+            descriptor = "changed";
 
             break;
         }
 
-        newFOVInRadians = static_cast<float>(DegToRad(newFOVInDegrees)); // Converts degrees to radians
+        newCameraFOVInRadians = DegToRad(newCameraFOVInDegrees); // Converts degrees to radians
 
-        AspectRatioInFile = static_cast<float>(newAspectRatio);
+        OpenFile(file, "LS3DF.dll");
 
-        OpenFile(file);
-
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newFOVInRadians), sizeof(newFOVInRadians));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOVInRadians), sizeof(newCameraFOVInRadians));
 
         file.seekp(kAspectRatioOffset);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        // Confirmation message
-        cout << "\nSuccessfully fixed the aspect ratio and changed " << descriptor << " the field of view to " << RadToDeg(static_cast<double>(newFOVInRadians)) << "\u00B0."
-             << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully fixed the aspect ratio and " << descriptor << " the field of view to " << newCameraFOVInDegrees << "\u00B0."
+                 << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -232,5 +238,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n---------------------------\n";
     } while (choice2 == 2); // Checks the flag in the loop condition
 }

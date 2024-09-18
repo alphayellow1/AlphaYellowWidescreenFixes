@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <cstdint>
+#include <cstdint> // For uint32_t variable type
 #include <cmath>
 #include <limits>
 #include <conio.h>
@@ -11,16 +11,16 @@
 using namespace std;
 
 // Constants
-const streampos kFOVOffset = 0x00084FC1;
+const streampos kCameraFOVOffset = 0x00084FC1;
 const streampos kAspectRatioOffset = 0x00084FC5;
 
 // Variables
-int choice1, choice2, tempChoice;
-uint32_t desiredWidth, desiredHeight, newCustomResolutionValue;
+int choice, tempChoice;
+uint32_t newWidth, newHeight;
 fstream file;
 string input;
 bool fileFound, validKeyPressed, isAspectRatioKnown;
-float customFOV, newFOV, newAspectRatio;
+float newCameraFOV, newAspectRatio;
 char ch;
 
 // Function to handle user input in choices
@@ -59,7 +59,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOV)
 {
     do
     {
@@ -83,11 +83,9 @@ float HandleFOVInput()
             cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
         }
     } while (customFOV <= 0);
-
-    return customFOV;
 }
 
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -107,16 +105,14 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileFound = true;
 
-    file.open("IceSkating.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileFound to false
     if (!file.is_open())
@@ -128,11 +124,11 @@ void OpenFile(fstream &file)
     while (!fileFound)
     {
         // Tries to open the file again
-        file.open("IceSkating.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open IceSkating.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -140,7 +136,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nIceSkating.exe opened successfully!";
+            cout << "\n" << filename << " opened successfully!";
             fileFound = true; // Sets fileFound to true as the file is found and opened
         }
     }
@@ -152,31 +148,31 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "IceSkating.exe");
 
         do
         {
             cout << "\n- Type the desired resolution width: ";
-            desiredWidth = HandleResolutionInput();
+            HandleResolutionInput(newWidth);
 
             cout << "\n- Type the desired resolution height: ";
-            desiredHeight = HandleResolutionInput();
+            HandleResolutionInput(newHeight);
 
-            newAspectRatio = static_cast<float>(desiredWidth) / static_cast<float>(desiredHeight);
+            newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
             if (newAspectRatio == 4.0f / 3.0f)
             {
-                newFOV = 0.5f;
+                newCameraFOV = 0.5f;
                 isAspectRatioKnown = true;
             }
             else if (newAspectRatio == 16.0f / 10.0f)
             {
-                newFOV = 0.5875f;
+                newCameraFOV = 0.5875f;
                 isAspectRatioKnown = true;
             }
             else if (newAspectRatio == 16.0f / 9.0f)
             {
-                newFOV = 0.6427778006f;
+                newCameraFOV = 0.6427778006f;
                 isAspectRatioKnown = true;
             }
             else
@@ -189,20 +185,29 @@ int main()
         file.seekp(kAspectRatioOffset);
         file.write(reinterpret_cast<char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        cout << "\nSuccessfully fixed the aspect ratio and field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully fixed the aspect ratio and field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleChoiceInput(choice2);
+        HandleChoiceInput(choice);
 
-        if (choice2 == 1)
+        if (choice == 1)
         {
-            cout << "\nPress enter to exit the program...";
+            cout << "\nPress Enter to exit the program...";
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -211,5 +216,5 @@ int main()
         }
 
         cout << "\n--------------------------------------\n";
-    } while (choice2 == 2); // Checks the flag in the loop condition
+    } while (choice == 2); // Checks the flag in the loop condition
 }

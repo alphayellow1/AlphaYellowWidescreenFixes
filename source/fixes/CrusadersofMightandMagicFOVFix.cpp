@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
+#include <cstdint> // For uint32_t
 #include <limits>
 #include <string>
 #include <algorithm>
@@ -10,14 +10,14 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVOffset = 0x0002F762;
-const streampos kVFOVOffset = 0x0002F799;
+const streampos kCameraHorizontalFOVOffset = 0x0002F762;
+const streampos kCameraVerticalFOVOffset = 0x0002F799;
 
 // Variables
 int choice, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float width, height, desiredFOV;
-double newCustomResolutionValue, newWidth, newHeight;
+float newCameraFOV, newCameraFOVValue;
 fstream file;
 char ch;
 
@@ -58,7 +58,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -78,16 +78,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
     
-    file.open("crusaders.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -99,11 +97,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("crusaders.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open crusaders.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -111,10 +109,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\ncrusaders.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
+    return newCameraFOVValue;
 }
 
 int main()
@@ -123,23 +127,32 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "crusaders.exe");
 
         cout << "\nEnter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\nEnter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        desiredFOV = static_cast<float>((4.0f / 3.0f) / (newWidth / newHeight));
+        newCameraFOV = NewCameraHorizontalFOVCalculation(newWidth, newHeight);
 
-        file.seekp(kHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
-        file.seekp(kVFOVOffset);
-        file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
+        file.seekp(kCameraHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the field of view." << endl;
+        file.seekp(kCameraVerticalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully fixed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -156,5 +169,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }

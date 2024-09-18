@@ -12,8 +12,8 @@
 using namespace std;
 
 // Constants
-const double kPi = 3.14159265358979323846;
-const double kTolerance = 0.01;
+const float kPi = 3.14159265358979323846f;
+const float kTolerance = 0.01f;
 const streampos kCameraFOV1Offset = 0x0046B927;
 const streampos kCameraFOV2Offset = 0x0046B93C;
 const streampos kWeaponFOVOffset = 0x0046B94E;
@@ -30,24 +30,24 @@ const streampos kAspectRatioOffset10 = 0x0035083D;
 const streampos kAspectRatioOffset11 = 0x005D7C40;
 
 // Variables
-int choice1, choice2, tempChoice, digitLengthWidth, digitLengthHeight;
+int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentCameraFOVInDegrees, currentWeaponFOVInDegrees, newCameraFOVInDegrees, newWeaponFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
-float currentCameraFOVInRadians, currentWeaponFOVInRadians, newCameraFOVInRadians, newWeaponFOVInRadians, AspectRatioInFile;
-string descriptor, input, newResolutionWidthAsString, newResolutionHeightAsString;
+float currentCameraFOVInRadians, currentWeaponFOVInRadians, currentCameraFOVInDegrees, currentWeaponFOVInDegrees, newCameraFOVInRadians, newWeaponFOVInRadians, newCameraFOVInDegrees, newFOVValue, newWeaponFOVInDegrees, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio;
+string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-double DegToRad(double degrees)
+float DegToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
-double RadToDeg(double radians)
+float RadToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -86,7 +86,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-double HandleFOVInput()
+void HandleFOVInput(float &newCustomFOVInDegrees)
 {
     do
     {
@@ -110,11 +110,9 @@ double HandleFOVInput()
             cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
         }
     } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
-
-    return newCustomFOVInDegrees;
 }
 
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -134,16 +132,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
 
-    file.open("PaintballGame.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -155,11 +151,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("PaintballGame.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open PaintballGame.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
@@ -167,10 +163,17 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nPaintballGame.exe opened successfully!" << endl;
+            cout << "\n"
+                 << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, float &oldCameraHorizontalFOVValue)
+{
+    newFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0f)));
+    return newFOVValue;
 }
 
 int main()
@@ -181,7 +184,7 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "PaintballGame.exe");
 
         file.seekg(kCameraFOV1Offset);
         file.read(reinterpret_cast<char *>(&currentCameraFOVInRadians), sizeof(currentCameraFOVInRadians));
@@ -190,20 +193,20 @@ int main()
         file.read(reinterpret_cast<char *>(&currentWeaponFOVInRadians), sizeof(currentWeaponFOVInRadians));
 
         // Converts the FOV values from radians to degrees
-        currentCameraFOVInDegrees = RadToDeg(static_cast<double>(currentCameraFOVInRadians));
-        currentWeaponFOVInDegrees = RadToDeg(static_cast<double>(currentWeaponFOVInRadians));
+        currentCameraFOVInDegrees = RadToDeg(currentCameraFOVInRadians);
+        currentWeaponFOVInDegrees = RadToDeg(currentWeaponFOVInRadians);
 
-        cout << "\n====== Your current FOVs ======" << endl;
+        cout << "\n====== Current FOVs ======" << endl;
         cout << "\nCamera FOV: " << currentCameraFOVInDegrees << "\u00B0" << endl;
         cout << "Weapon FOV: " << currentWeaponFOVInDegrees << "\u00B0" << endl;
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newAspectRatio = newWidth / newHeight;
+        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
         cout << "\n- Do you want to set FOV automatically based on the resolution typed above (1) or set custom values for camera and weapon FOV (2)?: ";
         HandleChoiceInput(choice1);
@@ -212,12 +215,10 @@ int main()
         {
         case 1:
             // Calculates the new camera FOV
-            oldHFOV = 90.0;
-            newCameraFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
+            newCameraFOVInDegrees = NewFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0F);
 
             // Calculates the new weapon FOV
-            oldHFOV = 70.0;
-            newWeaponFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
+            newWeaponFOVInDegrees = NewFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 70.0F);
 
             descriptor = "automatically";
 
@@ -225,21 +226,19 @@ int main()
 
         case 2:
             cout << "\n- Enter the desired camera FOV (in degrees, default for 4:3 is 90\u00B0): ";
-            newCameraFOVInDegrees = HandleFOVInput();
+            HandleFOVInput(newCameraFOVInDegrees);
 
             cout << "\n- Enter the desired weapon FOV (in degrees, default for 4:3 is 70\u00B0): ";
-            newWeaponFOVInDegrees = HandleFOVInput();
+            HandleFOVInput(newWeaponFOVInDegrees);
 
             descriptor = "manually";
 
             break;
         }
 
-        newCameraFOVInRadians = static_cast<float>(DegToRad(newCameraFOVInDegrees)); // Converts degrees to radians
+        newCameraFOVInRadians = DegToRad(newCameraFOVInDegrees); // Converts degrees to radians
 
-        newWeaponFOVInRadians = static_cast<float>(DegToRad(newWeaponFOVInDegrees)); // Converts degrees to radians
-
-        AspectRatioInFile = static_cast<float>(newAspectRatio);
+        newWeaponFOVInRadians = DegToRad(newWeaponFOVInDegrees); // Converts degrees to radians
 
         file.seekp(kCameraFOV1Offset);
         file.write(reinterpret_cast<const char *>(&newCameraFOVInRadians), sizeof(newCameraFOVInRadians));
@@ -251,42 +250,50 @@ int main()
         file.write(reinterpret_cast<const char *>(&newWeaponFOVInRadians), sizeof(newWeaponFOVInRadians));
 
         file.seekp(kAspectRatioOffset1);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset2);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset3);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset4);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset5);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset6);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset7);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset8);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset9);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset10);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kAspectRatioOffset11);
-        file.write(reinterpret_cast<const char *>(&AspectRatioInFile), sizeof(AspectRatioInFile));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed " << descriptor << " the field of view." << endl;
-        cout << "\nNew Camera FOV: " << newCameraFOVInDegrees << "\u00B0" << endl;
-        cout << "New Weapon FOV: " << newWeaponFOVInDegrees << "\u00B0" << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed " << descriptor << " the field of view." << endl;
+            cout << "\nNew Camera FOV: " << newCameraFOVInDegrees << "\u00B0" << endl;
+            cout << "New Weapon FOV: " << newWeaponFOVInDegrees << "\u00B0" << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -304,6 +311,6 @@ int main()
             return 0;
         }
 
-        cout << "\n----------------\n";
+        cout << "\n-----------------------------------------\n";
     } while (choice2 == 2); // Checks the flag in the loop condition
 }

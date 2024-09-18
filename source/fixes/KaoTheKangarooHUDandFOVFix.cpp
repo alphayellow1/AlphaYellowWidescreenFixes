@@ -10,8 +10,8 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVGameplayOffset = 0x0002D121;
-const streampos kHFOVMenuOffset = 0x000CEE64;
+const streampos kGameplayHorizontalFOVOffset = 0x0002D121;
+const streampos kMenuHorizontalFOVOffset = 0x000CEE64;
 const streampos kHUDOffset1 = 0x0001AC16;
 const streampos kHUDOffset2 = 0x0001AC8E;
 const streampos kHUDOffset3 = 0x0001AD19;
@@ -26,11 +26,10 @@ const streampos kHUDOffset11 = 0x000AE88B;
 
 // Variables
 int choice, tempChoice;
-int16_t newWidth, newHeight;
+uint32_t newWidth, newHeight;
 fstream file;
 bool fileNotFound, validKeyPressed;
-float newHFOVMenu, newHFOVGameplay, hudPosition1, hudPosition2, hudPosition3;
-double newCustomResolutionValue;
+float newMenuHorizontalFOV, newGameplayHorizontalFOV, hudPosition1, hudPosition2, hudPosition3, newMenuHorizontalFOVValue, newGameplayHorizontalFOVValue, newHudPosition1Value, newHudPosition2Value, newHudPosition3Value;
 char ch;
 
 // Function to handle user input in choices
@@ -70,7 +69,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-int16_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -90,16 +89,14 @@ int16_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
     
-    file.open("kao.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -111,11 +108,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("kao.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open kao.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -123,10 +120,40 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nkao.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewMenuHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newMenuHorizontalFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    return newMenuHorizontalFOVValue;
+}
+
+float NewGameplayHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newGameplayHorizontalFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
+    return newGameplayHorizontalFOVValue;
+}
+
+float HudPosition1Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newHudPosition1Value = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    return newHudPosition1Value;
+}
+
+float HudPosition2Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newHudPosition2Value = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue))) * 1.1f;
+    return newHudPosition2Value;
+}
+
+float HudPosition3Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newHudPosition3Value = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue))) * 1.2f;
+    return newHudPosition3Value;
 }
 
 int main()
@@ -135,29 +162,29 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "kao.exe");
 
         cout << "\nEnter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\nEnter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newHFOVMenu = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
+        newMenuHorizontalFOV = NewMenuHorizontalFOVCalculation(newWidth, newHeight);
 
-        newHFOVGameplay = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+        newGameplayHorizontalFOV = NewGameplayHorizontalFOVCalculation(newWidth, newHeight);
 
-        hudPosition1 = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
+        hudPosition1 = HudPosition1Calculation(newWidth, newHeight);
 
-        hudPosition2 = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight))) * 1.1f;
+        hudPosition2 = HudPosition2Calculation(newWidth, newHeight);
 
-        hudPosition3 = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight))) * 1.2f;
+        hudPosition3 = HudPosition3Calculation(newWidth, newHeight);
 
-        file.seekp(kHFOVMenuOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOVMenu), sizeof(newHFOVMenu));
+        file.seekp(kMenuHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newMenuHorizontalFOV), sizeof(newMenuHorizontalFOV));
 
-        file.seekp(kHFOVGameplayOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOVGameplay), sizeof(newHFOVGameplay));
+        file.seekp(kGameplayHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newGameplayHorizontalFOV), sizeof(newGameplayHorizontalFOV));
 
         file.seekp(kHUDOffset1);
         file.write(reinterpret_cast<const char *>(&hudPosition1), sizeof(hudPosition1));
@@ -192,7 +219,16 @@ int main()
         file.seekp(kHUDOffset11);
         file.write(reinterpret_cast<const char *>(&hudPosition3), sizeof(hudPosition3));
 
-        cout << "\nSuccessfully changed the field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully fixed the field of view and HUD." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -209,5 +245,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n---------------------------\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }

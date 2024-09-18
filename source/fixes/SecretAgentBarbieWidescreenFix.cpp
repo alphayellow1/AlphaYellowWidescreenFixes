@@ -11,7 +11,7 @@
 using namespace std;
 
 // Constants
-const streampos kFOVOffset = 0x001448C0;
+const streampos kCameraFOVOffset = 0x001448C0;
 const streampos kWidthSmallOffset = 0x001448A3;
 const streampos kWidthBigOffset = 0x001448A4;
 const streampos kHeightSmallOffset = 0x001448AE;
@@ -20,10 +20,10 @@ const streampos kHeightBigOffset = 0x001448AF;
 // Variables
 int choice, tempChoice;
 uint8_t currentWidthSmall, currentWidthBig, currentHeightSmall, currentHeightBig, newWidthSmall, newWidthBig, newHeightSmall, newHeightBig;
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 bool fileFound, validKeyPressed;
-float newFOV;
+float newCameraFOV, newCameraFOVValue;
 char ch;
 
 // Function to handle user input in choices
@@ -62,7 +62,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -82,16 +82,14 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileFound = true;
 
-    file.open("SecretAgent.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileFound to false
     if (!file.is_open())
@@ -103,11 +101,11 @@ void OpenFile(fstream &file)
     while (!fileFound)
     {
         // Tries to open the file again
-        file.open("SecretAgent.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open SecretAgent.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -115,10 +113,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nSecretAgent.exe opened successfully!";
+            cout << "\n" << filename << " opened successfully!";
             fileFound = true; // Sets fileFound to true as the file is found and opened
         }
     }
+}
+
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue) * 0.375f - 0.5f) / 2.0f + 0.5f;
+    return newCameraFOVValue;
 }
 
 int main()
@@ -127,7 +131,7 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "SecretAgent.exe");
 
         file.seekg(kWidthSmallOffset);
         file.read(reinterpret_cast<char *>(&currentWidthSmall), sizeof(currentWidthSmall));
@@ -145,13 +149,13 @@ int main()
 
         currentHeight = currentHeightSmall + currentHeightBig * 256;
 
-        cout << "\nYour current resolution: " << currentWidth << "x" << currentHeight << "\n";
+        cout << "\nCurrent resolution: " << currentWidth << "x" << currentHeight << "\n";
 
         cout << "\n- Type your new resolution width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Type your new resolution height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
         newWidthSmall = newWidth % 256;
 
@@ -161,7 +165,7 @@ int main()
 
         newHeightBig = (newHeight - newHeightSmall) / 256;
 
-        newFOV = (static_cast<float>(newWidth) / static_cast<float>(newHeight) * 0.375f - 0.5f) / 2.0f + 0.5f;
+        newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
 
         file.seekp(kWidthSmallOffset);
         file.write(reinterpret_cast<char *>(&newWidthSmall), sizeof(newWidthSmall));
@@ -175,10 +179,19 @@ int main()
         file.seekp(kHeightBigOffset);
         file.write(reinterpret_cast<char *>(&newHeightBig), sizeof(newHeightBig));
         
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        cout << "\nSuccessfully changed the resolution and field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the resolution and fixed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -196,6 +209,6 @@ int main()
             return 0;
         }
 
-        cout << "\n----------------\n";
+        cout << "\n-----------------------------------------\n";
     } while (choice == 2); // Checks the flag in the loop condition
 }

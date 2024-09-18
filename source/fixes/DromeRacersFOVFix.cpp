@@ -171,7 +171,7 @@ int main()
         file.seekg(kFOVOffset);
         file.read(reinterpret_cast<char *>(&currentFOV), sizeof(currentFOV));
 
-        cout << "\nThe current FOV is " << currentFOV << "\u00B0" << endl;
+        cout << "\nCurrent FOV is " << currentFOV << "\u00B0" << endl;
 
         cout << "\n- Do you want to set FOV automatically based on a desired resolution (1) or set a custom FOV value (2)?: ";
         HandleChoiceInput(choice1);
