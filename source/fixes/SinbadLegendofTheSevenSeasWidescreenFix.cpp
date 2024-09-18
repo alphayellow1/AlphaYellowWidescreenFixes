@@ -17,7 +17,7 @@ const streampos kResolutionHeightOffset = 0x002273B4;
 
 // Variables
 int choice, tempChoice;
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
 fstream file;
 char ch;
@@ -59,7 +59,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -79,16 +79,14 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
     
-    file.open("sinbad.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -100,11 +98,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("sinbad.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open sinbad.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -112,7 +110,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nsinbad.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -124,7 +122,7 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "sinbad.exe");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
@@ -132,13 +130,13 @@ int main()
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
 
-        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << "." << endl;
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
@@ -146,7 +144,16 @@ int main()
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        cout << "\nSuccessfully changed the resolution." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << "." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -164,6 +171,6 @@ int main()
             return 0;
         }
 
-        cout << "\n----------------\n";
+        cout << "\n-----------------------------------------\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }

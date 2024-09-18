@@ -10,14 +10,14 @@
 using namespace std;
 
 // Constants
-const streampos kHFOVOffset = 0x00247120;
-const streampos kOverallFOVOffset = 0x001E1640;
+const streampos kHorizontalFOVOffset = 0x00247120;
+const streampos kFOVOffset = 0x001E1640;
 
 // Variables
 int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float width, height, newHFOV, newOverallFOV, customOverallFOV;
-double newCustomResolutionValue, newWidth, newHeight;
+float newCameraHorizontalFOV, newCameraHorizontalFOVValue;
 fstream file;
 string input;
 char ch;
@@ -58,7 +58,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOV)
 {
     do
     {
@@ -69,7 +69,7 @@ float HandleFOVInput()
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a float
-        customOverallFOV = stof(input);
+        customFOV = stof(input);
 
         if (cin.fail())
         {
@@ -77,17 +77,15 @@ float HandleFOVInput()
             cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
             cout << "Invalid input. Please enter a numeric value." << endl;
         }
-        else if (customOverallFOV <= 0 || customOverallFOV >= 180)
+        else if (customFOV <= 0 || customFOV >= 180)
         {
             cout << "Please enter a valid number for the FOV (greater than 0)." << endl;
         }
-    } while (customOverallFOV <= 0);
-
-    return customOverallFOV;
+    } while (customFOV <= 0);
 }
 
 // Function to handle user input in resolution
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -107,16 +105,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("A10MW.exe", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -128,11 +124,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("A10MW.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open A10MW.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -140,10 +136,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nA10MW.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float HandleHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraHorizontalFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    return newCameraHorizontalFOVValue;
 }
 
 int main()
@@ -152,40 +154,48 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "A10MW.exe");
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newHFOV = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
+        newCameraHorizontalFOV = HandleHorizontalFOVCalculation(newWidth, newHeight);
 
-        cout << "\n- Do you want to keep the same FOV value of the automatic one for the aspect ratio (1) or extend it (2)?: ";
+        cout << "\n- Do you want to keep the same field of view value of the automatic one for the aspect ratio (1) or extend it (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            newOverallFOV = 1.0f;
+            newCameraHorizontalFOV = 1.0f;
             break;
 
         case 2:
-            cout << "\n- Enter the custom FOV value (default for the 4:3 aspect ratio is 1.0): ";
-            newOverallFOV = HandleFOVInput();
+            cout << "\n- Type a custom field of view multiplier value (default for the 4:3 aspect ratio is 1.0): ";
+            HandleFOVInput(newCameraHorizontalFOV);
             break;
         }
 
-        file.seekp(kHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
+        file.seekp(kHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
 
-        file.seekp(kOverallFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newOverallFOV), sizeof(newOverallFOV));
+        file.seekp(kFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the field of view." << endl;
-
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
+        
         // Closes the file
         file.close();
 
@@ -194,12 +204,14 @@ int main()
 
         if (choice2 == 1)
         {
-            cout << "\nPress enter to exit the program...";
+            cout << "\nPress Enter to exit the program...";
             do
             {
                 ch = _getch(); // Waits for user to press a key
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n---------------------------\n";
     } while (choice2 != 1); // Checks the flag in the loop condition
 }

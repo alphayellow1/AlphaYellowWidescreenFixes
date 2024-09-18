@@ -14,13 +14,13 @@
 using namespace std;
 
 // Constants
-const double kPi = 3.14159265358979323846;
+const float kPi = 3.14159265358979323846f;
 const streampos kAspectRatioOffset = 0x000A5AE4;
 const streampos kCameraFOVOffset = 0x000A5AF3;
 
 // Variables
 int choice1, choice2, tempChoice;
-uint32_t newWidth, newHeight, newCustomResolutionValue;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
 float newCameraFOV, newAspectRatio;
 string input;
@@ -89,7 +89,7 @@ void HandleFOVInput(float &newCustomFOV)
     } while (newCustomFOV <= 0);
 }
 
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -109,8 +109,6 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
@@ -224,10 +222,10 @@ int main()
     do
     {
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
         newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
@@ -238,11 +236,14 @@ int main()
         {
         case 1:
             cout << "\n- Enter the desired FOV multiplier value (default value for 4:3 aspect ratio is 0,6108652949): ";
+
             HandleFOVInput(newCameraFOV);
+
             break;
 
         case 2:
             newCameraFOV = 0.6108652949f;
+            
             break;
         }
 

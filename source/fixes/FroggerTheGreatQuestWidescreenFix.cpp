@@ -14,13 +14,13 @@ using namespace std;
 const streampos kResolutionWidthOffset = 0x000ADAC1;
 const streampos kResolutionHeightOffset = 0x000ADAD1;
 const streampos kAspectRatioOffset = 0x00036251;
-const streampos kFOVOffset = 0x000ADB10;
+const streampos kCameraFOVOffset = 0x000ADB10;
 
 // Variables
 int choice, tempChoice;
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float desiredFOV, desiredAspectRatio;
+float newCameraFOV, newCameraFOVValue, newAspectRatio;
 fstream file;
 char ch;
 
@@ -61,7 +61,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -81,16 +81,14 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
     
-    file.open("GreatQuest.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -102,11 +100,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("GreatQuest.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open GreatQuest.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -114,10 +112,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nGreatQuest.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = (((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) * 0.5f) / 2.37037037037f) * 0.83198f;
+    return newCameraFOVValue;
 }
 
 int main()
@@ -126,7 +130,7 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "GreatQuest.exe");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
@@ -134,23 +138,23 @@ int main()
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
 
-        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << "." << endl;
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
         cout << "\nEnter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\nEnter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        desiredAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        if (desiredAspectRatio > 3.555f)
+        if (newAspectRatio > 3.555f)
         {
-            desiredFOV = ((desiredAspectRatio * 0.5f) / 2.37037037037f) * 0.83198f;
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
         }
         else
         {
-            desiredFOV = 0.5f;
+            newCameraFOV = 0.5f;
         }
 
         file.seekp(kResolutionWidthOffset);
@@ -160,12 +164,21 @@ int main()
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(kAspectRatioOffset);
-        file.write(reinterpret_cast<const char *>(&desiredAspectRatio), sizeof(desiredAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        cout << "\nSuccessfully changed the resolution and field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -183,6 +196,6 @@ int main()
             return 0;
         }
 
-        cout << "\n----------------\n";
+        cout << "\n-----------------------------------------\n";
     } while (choice != 1); // Checks the flag in the loop condition
 }

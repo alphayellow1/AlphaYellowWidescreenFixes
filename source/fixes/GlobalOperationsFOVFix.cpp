@@ -1,9 +1,10 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <cstdint>
+#include <cstdint> // For uint32_t variable type
 #include <cmath>
 #include <limits>
+#include <windows.h>
 #include <conio.h>
 #include <string>
 #include <algorithm>
@@ -13,14 +14,14 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kCameraHFOVOffset = 0x00117F61;
-const streampos kWeaponHFOVOffset = 0x00117F71;
+const streampos kCameraHorizontalFOVOffset = 0x00117F61;
+const streampos kWeaponHorizontalFOVOffset = 0x00117F71;
 
 // Variables
 int choice, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed, isFOVKnown;
-double newAspectRatio, newWidth, newHeight, newCustomResolutionValue;
-float newWeaponModelHFOV, newCameraHFOV;
+float newWeaponModelHorizontalFOV, newCameraHorizontalFOV, newAspectRatio;
 fstream file;
 char ch;
 
@@ -60,7 +61,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -80,12 +81,10 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
 
@@ -125,81 +124,88 @@ int main()
 
     do
     {
-        cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        do
+        {
+            cout << "\n- Enter the desired width: ";
+            HandleResolutionInput(newWidth);
 
-        cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+            cout << "\n- Enter the desired height: ";
+            HandleResolutionInput(newHeight);
 
-        newAspectRatio = newWidth / newHeight;
+            newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        if (newAspectRatio == 1.25) // 5:4
+            if (newAspectRatio == 1.25) // 5:4
+            {
+                newCameraHorizontalFOV = 1.60239994525909f;
+                newWeaponModelHorizontalFOV = 0.5235001445f;
+                isFOVKnown = true;
+            }
+            else if (fabs(newAspectRatio - 1.33333333) < kTolerance) // 4:3
+            {
+                newCameraHorizontalFOV = 1.5707963268f;
+                newWeaponModelHorizontalFOV = 0.5f;
+                isFOVKnown = true;
+            }
+            else if (newAspectRatio == 1.6) // 16:10
+            {
+                newCameraHorizontalFOV = 1.48000001907349f;
+                newWeaponModelHorizontalFOV = 0.4372f;
+                isFOVKnown = true;
+            }
+            else if (fabs(newAspectRatio - 1.77777777) < kTolerance) // 16:9
+            {
+                newCameraHorizontalFOV = 1.42750000953674f;
+                newWeaponModelHorizontalFOV = 0.4035000503f;
+                isFOVKnown = true;
+            }
+            else if (fabs(newAspectRatio - 2.370370370370) < kTolerance) // 21:9 (2560x1080)
+            {
+                newCameraHorizontalFOV = 1.28869998455048f;
+                newWeaponModelHorizontalFOV = 0.3205520213f;
+                isFOVKnown = true;
+            }
+            else if (fabs(newAspectRatio - 3.555555555) < kTolerance) // 32:9
+            {
+                newCameraHorizontalFOV = 1.118420005f;
+                newWeaponModelHorizontalFOV = 0.2479600161f;
+                isFOVKnown = true;
+            }
+            else if (fabs(newAspectRatio - 5.333333333) < kTolerance) // 48:9
+            {
+                newCameraHorizontalFOV = 0.9877000451f;
+                newWeaponModelHorizontalFOV = 0.183000043f;
+                isFOVKnown = true;
+            }
+            else
+            {
+                cout << "\nThis aspect ratio isn't yet supported by the fixer, please contact AlphaYellow on PCGamingWiki or Discord (alphayellow) to add support for it." << endl;
+                isFOVKnown = false;
+            }
+        } while (!isFOVKnown);
+
+        // Opens the file
+        OpenFile(file, "globalops.exe");
+
+        // Writes the new camera HorizontalFOV and weapon HorizontalFOV values into pre-defined offset addresses in globalops.exe
+        file.seekp(kCameraHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
+
+        file.seekp(kWeaponHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newWeaponModelHorizontalFOV), sizeof(newWeaponModelHorizontalFOV));
+
+        // Checks if any errors occurred during the file operations
+        if (file.good())
         {
-            newCameraHFOV = 1.60239994525909f;
-            newWeaponModelHFOV = 0.5235001445f;
-            isFOVKnown = true;
-        }
-        else if (fabs(newAspectRatio - 1.33333333) < kTolerance) // 4:3
-        {
-            newCameraHFOV = 1.5707963268f;
-            newWeaponModelHFOV = 0.5f;
-            isFOVKnown = true;
-        }
-        else if (newAspectRatio == 1.6) // 16:10
-        {
-            newCameraHFOV = 1.48000001907349f;
-            newWeaponModelHFOV = 0.4372f;
-            isFOVKnown = true;
-        }
-        else if (fabs(newAspectRatio - 1.77777777) < kTolerance) // 16:9
-        {
-            newCameraHFOV = 1.42750000953674f;
-            newWeaponModelHFOV = 0.4035000503f;
-            isFOVKnown = true;
-        }
-        else if (fabs(newAspectRatio - 2.370370370370) < kTolerance) // 21:9 (2560:1080)
-        {
-            newCameraHFOV = 1.28869998455048f;
-            newWeaponModelHFOV = 0.3205520213f;
-            isFOVKnown = true;
-        }
-        else if (fabs(newAspectRatio - 3.555555555) < kTolerance) // 32:9
-        {
-            newCameraHFOV = 1.118420005f;
-            newWeaponModelHFOV = 0.2479600161f;
-            isFOVKnown = true;
-        }
-        else if (fabs(newAspectRatio - 5.333333333) < kTolerance) // 48:9
-        {
-            newCameraHFOV = 0.9877000451f;
-            newWeaponModelHFOV = 0.183000043f;
-            isFOVKnown = true;
+            // Confirmation message
+            cout << "\nSuccessfully fixed the field of view." << endl;
         }
         else
         {
-            cout << "\nThis aspect ratio isn't yet supported by the fixer, please contact AlphaYellow on PCGamingWiki or Discord (alphayellow) to add support for it." << endl;
-            isFOVKnown = false;
+            cout << "\nError(s) occurred during the file operations." << endl;
         }
 
-        if (isFOVKnown)
-        {
-            // Opens the file
-            OpenFile(file);
-
-            // Writes the new camera HFOV and weapon HFOV values into the offset addresses in globalops.exe
-            file.seekp(kCameraHFOVOffset);
-            file.write(reinterpret_cast<const char *>(&newCameraHFOV), sizeof(newCameraHFOV));
-
-            file.seekp(kWeaponHFOVOffset);
-            file.write(reinterpret_cast<const char *>(&newWeaponModelHFOV), sizeof(newWeaponModelHFOV));
-
-            // Confirmation message
-            cout << "\nSuccessfully fixed the field of view."
-                 << endl;
-
-            // Closes the file
-            file.close();
-        }
+        // Closes the file
+        file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
         HandleChoiceInput(choice);
@@ -213,7 +219,7 @@ int main()
             } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
-    } while (choice == 2); // Checks the flag in the loop condition
 
-    cout << "\n-----------------------------------------\n";
+        cout << "\n-----------------------------------------\n";
+    } while (choice == 2); // Checks the flag in the loop condition
 }

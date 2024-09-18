@@ -11,12 +11,12 @@
 using namespace std;
 
 // Constants
-const streampos kFOVOffset = 0x0011DF20;
+const streampos kCameraFOVOffset = 0x0011DF20;
 
 // Variables
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newFOV, customFOV;
+float newCameraFOV;
 char ch;
 fstream file;
 string input;
@@ -57,7 +57,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOV)
 {
     // Reads the input as a string
     cin >> input;
@@ -74,16 +74,14 @@ float HandleFOVInput()
         cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
         cout << "Invalid input. Please enter a numeric value." << endl;
     }
-
-    return customFOV;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
 
-    file.open("MiamiVice.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -95,11 +93,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("MiamiVice.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open MiamiVice.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -107,7 +105,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nMiamiVice.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -120,15 +118,26 @@ int main()
     do
     {
         cout << "\n- Enter the desired FOV multiplier value (default is 0.5): ";
-        newFOV = HandleFOVInput();
+        HandleFOVInput(newCameraFOV);
 
-        OpenFile(file);
+        OpenFile(file, "MiamiVice.exe");
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the field of view." << endl;
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -145,5 +154,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice == 2); // Checks the flag in the loop condition
 }

@@ -12,14 +12,14 @@ using namespace std;
 // Constants
 const streampos kResolutionWidthOffset = 0x0000FBE7;
 const streampos kResolutionHeightOffset = 0x0000FBF1;
-const streampos kHFOVOffset = 0x000B8E93;
+const streampos kAspectRatioOffset = 0x000B8E93;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newHFOV;
+float newAspectRatio;
 char ch;
 
 // Function to handle user input in choices
@@ -49,7 +49,7 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
@@ -84,11 +84,11 @@ uint32_t HandleResolutionInput()
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("WantedGuns.exe", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -100,11 +100,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("WantedGuns.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open WantedGuns.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -112,7 +112,8 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nWantedGuns.exe opened successfully!" << endl;
+            cout << "\n"
+                 << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -124,7 +125,7 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "WantedGuns.exe");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
@@ -132,15 +133,15 @@ int main()
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
 
-        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << "." << endl;
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newHFOV = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
@@ -148,11 +149,19 @@ int main()
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        file.seekp(kHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
+        file.seekp(kAspectRatioOffset);
+        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -170,6 +179,6 @@ int main()
             return 0;
         }
 
-        cout << "\n----------------\n";
+        cout << "\n-----------------------------------------\n";
     } while (choice == 2); // Checks the flag in the loop condition
 }

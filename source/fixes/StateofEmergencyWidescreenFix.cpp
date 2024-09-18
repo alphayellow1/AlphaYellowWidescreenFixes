@@ -12,15 +12,15 @@ using namespace std;
 // Constants
 const streampos kResolutionWidthOffset = 0x000B77C1;
 const streampos kResolutionHeightOffset = 0x000B77D1;
-const streampos kHFOVOffset = 0x00086057;
-const streampos kClippingFixOffset = 0x0015F6E0;
+const streampos kCameraHorizontalFOVOffset = 0x00086057;
+const streampos kClippingFixValueOffset = 0x0015F6E0;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newHFOV, clippingFix;
+float newCameraHorizontalFOV, newClippingFixValue, newClippingFixValue2;
 char ch;
 
 // Function to handle user input in choices
@@ -50,7 +50,7 @@ void HandleChoiceInput(int &choice)
             }
         }
         // If 'Enter' is pressed and a valid key has been pressed prior
-        else if (ch == '\r' && validKeyPressed) 
+        else if (ch == '\r' && validKeyPressed)
         {
             choice = tempChoice; // Assigns the temporary input to the choice variable
             cout << endl;        // Moves to a new line
@@ -60,7 +60,7 @@ void HandleChoiceInput(int &choice)
 }
 
 // Function to handle user input in resolution
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -80,16 +80,14 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("KaosPC.exe", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -101,7 +99,7 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("KaosPC.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
@@ -119,13 +117,19 @@ void OpenFile(fstream &file)
     }
 }
 
+float NewCameraClippingFixValueCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newClippingFixValue2 = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
+    return newClippingFixValue2;
+}
+
 int main()
 {
     cout << "State of Emergency (2003) Widescreen Fixer v1.3 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "KaosPC.exe");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
@@ -133,17 +137,17 @@ int main()
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
 
-        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << "." << endl;
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
-        newHFOV = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newCameraHorizontalFOV = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        clippingFix = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+        newClippingFixValue = NewCameraClippingFixValueCalculation(newWidth, newHeight);
 
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
@@ -151,14 +155,22 @@ int main()
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        file.seekp(kHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
+        file.seekp(kCameraHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
 
-        file.seekp(kClippingFixOffset);
-        file.write(reinterpret_cast<const char *>(&clippingFix), sizeof(clippingFix));
+        file.seekp(kClippingFixValueOffset);
+        file.write(reinterpret_cast<const char *>(&newClippingFixValue), sizeof(newClippingFixValue));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -176,6 +188,6 @@ int main()
             return 0;
         }
 
-        cout << "\n----------------\n";
+        cout << "\n-----------------------------------------\n";
     } while (choice == 2); // Checks the flag in the loop condition
 }

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <cstdint>
+#include <cstdint> // For uint32_t variable type
 #include <cmath>
 #include <limits>
 #include <windows.h>
@@ -12,31 +12,31 @@
 using namespace std;
 
 // Constants
-const double kPi = 3.14159265358979323846;
-const double kTolerance = 0.01;
-const streampos kHFOVOffset = 0x0014BBD7;
-const streampos kVFOVOffset = 0x0014BBEC;
-const float kDefaultVFOVInRadians = 0.7853981634;
+const float kPi = 3.14159265358979323846f;
+const float kTolerance = 0.01f;
+const float kDefaultCameraVerticalFOVInRadians = 0.7853981634f;
+const streampos kCameraHorizontalFOVOffset = 0x0014BBD7;
+const streampos kCameraVerticalFOVOffset = 0x0014BBEC;
 
 // Variables
 int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 60.000002, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue;
-float currentHFOVInRadians, currentVFOVInRadians, newHFOVInRadians, newVFOVInRadians;
+float currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraHorizontalFOVInDegreesValue, newCameraVerticalFOVInDegrees, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV = 60.000002f, oldAspectRatio = oldWidth / oldHeight;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-double DegToRad(double degrees)
+float DegToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
-double RadToDeg(double radians)
+float RadToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -75,7 +75,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-double HandleFOVInput()
+void HandleFOVInput(float &newCustomFOVInDegrees)
 {
     do
     {
@@ -99,11 +99,9 @@ double HandleFOVInput()
             cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
         }
     } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
-
-    return newCustomFOVInDegrees;
 }
 
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -123,16 +121,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
 
-    file.open("Lithtech.exe", ios::in | ios::out | ios::binary);
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -144,11 +140,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("Lithtech.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open Lithtech.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it isn't currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it isn't currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
@@ -156,10 +152,16 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nLithtech.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewHorizontalCameraFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraHorizontalFOVInDegreesValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0f)));
+    return newCameraHorizontalFOVInDegreesValue;
 }
 
 int main()
@@ -170,21 +172,21 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "Lithtech.exe");
 
-        file.seekg(kHFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentHFOVInRadians), sizeof(currentHFOVInRadians));
+        file.seekg(kCameraHorizontalFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCameraHorizontalFOVInRadians), sizeof(currentCameraHorizontalFOVInRadians));
         
-        file.seekg(kVFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentVFOVInRadians), sizeof(currentVFOVInRadians));
+        file.seekg(kCameraVerticalFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCameraVerticalFOVInRadians), sizeof(currentCameraVerticalFOVInRadians));
 
         file.close();
 
         // Converts the FOV values from radians to degrees
-        currentHFOVInDegrees = RadToDeg(static_cast<double>(currentHFOVInRadians));
-        currentVFOVInDegrees = RadToDeg(static_cast<double>(currentVFOVInRadians));
+        currentCameraHorizontalFOVInDegrees = RadToDeg(currentCameraHorizontalFOVInRadians);
+        currentCameraVerticalFOVInDegrees = RadToDeg(currentCameraVerticalFOVInRadians);
 
-        cout << "\nYour current FOV: " << currentHFOVInDegrees << "\u00B0 (Horizontal); " << currentVFOVInDegrees << "\u00B0 (Vertical) " << "\n";
+        cout << "\nCurrent FOV: " << currentCameraHorizontalFOVInDegrees << "\u00B0 (Horizontal); " << currentCameraVerticalFOVInDegrees << "\u00B0 (Vertical) " << "\n";
 
         cout << "\n- Do you want to set FOV automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values (2)?: ";
         HandleChoiceInput(choice1);
@@ -193,21 +195,18 @@ int main()
         {
         case 1:
             cout << "\n- Enter the desired width: ";
-            newWidth = HandleResolutionInput();
+            HandleResolutionInput(newWidth);
 
             cout << "\n- Enter the desired height: ";
-            newHeight = HandleResolutionInput();
+            HandleResolutionInput(newHeight);
 
-            newAspectRatio = newWidth / newHeight;
+            newCameraHorizontalFOVInDegrees = NewHorizontalCameraFOVInDegreesCalculation(newHeight, newWidth);
 
-            // Calculates the new horizontal FOV
-            newHFOVInDegrees = 2.0 * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0))));
+            newCameraHorizontalFOVInRadians = DegToRad(newCameraHorizontalFOVInDegrees); // Converts degrees to radians
 
-            newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
+            newCameraVerticalFOVInRadians = kDefaultCameraVerticalFOVInRadians;
 
-            newVFOVInRadians = kDefaultVFOVInRadians;
-
-            newVFOVInDegrees = RadToDeg(static_cast<double>(newVFOVInRadians));
+            newCameraVerticalFOVInDegrees = RadToDeg(newCameraVerticalFOVInRadians);
 
             descriptor = "automatically";
 
@@ -215,31 +214,39 @@ int main()
 
         case 2:
             cout << "\n- Enter the desired horizontal FOV (in degrees, default for 4:3 is 60\u00B0): ";
-            newHFOVInDegrees = HandleFOVInput();
+            HandleFOVInput(newCameraHorizontalFOVInDegrees);
 
             cout << "\n- Enter the desired vertical FOV (in degrees, default for 4:3 is 45\u00B0): ";
-            newVFOVInDegrees = HandleFOVInput();
+            HandleFOVInput(newCameraVerticalFOVInDegrees);
 
-            newHFOVInRadians = static_cast<float>(DegToRad(newHFOVInDegrees)); // Converts degrees to radians
+            newCameraHorizontalFOVInRadians = DegToRad(newCameraHorizontalFOVInDegrees); // Converts degrees to radians
 
-            newVFOVInRadians = static_cast<float>(DegToRad(newVFOVInDegrees)); // Converts degrees to radians
+            newCameraVerticalFOVInRadians = DegToRad(newCameraVerticalFOVInDegrees); // Converts degrees to radians
 
             descriptor = "manually";
 
             break;
         }
 
-        OpenFile(file);
+        OpenFile(file, "Lithtech.exe");
 
-        file.seekp(kHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOVInRadians), sizeof(newHFOVInRadians));
+        file.seekp(kCameraHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVInRadians), sizeof(newCameraHorizontalFOVInRadians));
 
-        file.seekp(kVFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newVFOVInRadians), sizeof(newVFOVInRadians));
+        file.seekp(kCameraVerticalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVInRadians), sizeof(newCameraVerticalFOVInRadians));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed " << descriptor << " the horizontal FOV to " << newHFOVInDegrees << "\u00B0 and vertical FOV to " << newVFOVInDegrees << "\u00B0."
-             << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed " << descriptor << " the horizontal field of view to " << newCameraHorizontalFOVInDegrees << "\u00B0 and vertical field of view to " << newCameraVerticalFOVInDegrees << "\u00B0."
+                 << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();

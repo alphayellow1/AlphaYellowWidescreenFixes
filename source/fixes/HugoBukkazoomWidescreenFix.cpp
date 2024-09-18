@@ -3,7 +3,7 @@
 #include <fstream>
 #include <cmath>
 #include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
+#include <cstdint> // For uint32_t
 #include <limits>
 #include <windows.h>
 #include <vector>
@@ -15,7 +15,7 @@ using namespace std;
 
 // Constants
 const float kPi = 3.14159265358979323846f;
-const double kTolerance = 0.01;
+const float kTolerance = 0.01f;
 const streampos kResolutionWidthOffset = 0x00021B81;
 const streampos kResolutionHeightOffset = 0x00021B88;
 const streampos kMainMenuAspectRatioOffset = 0x00004A23;
@@ -25,25 +25,24 @@ const streampos kFOV2Offset = 0x0000DA61;
 const streampos kGameplayHFOVOffset = 0x0013D3E8;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
 string input;
 fstream file, file2;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed, isGameplayHFOVKnown;
-float newAspectRatio, customFOV, oldWidth = 4.0f, oldHeight = 3.0f, oldHFOV, oldAspectRatio = oldWidth / oldHeight,
-                                 currentFOVInDegrees, newMainMenuFOV, newFOV2, newGameplayHFOV;
+float newAspectRatio, customFOV, oldWidth = 4.0f, oldHeight = 3.0f, oldHFOV, oldAspectRatio = oldWidth / oldHeight, currentFOVInDegrees, newMainMenuFOV, newFOV2, newGameplayHFOV, newCameraFOVValue;
 char ch;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
 float RadToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -82,7 +81,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOV)
 {
     do
     {
@@ -106,12 +105,10 @@ float HandleFOVInput()
             cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
         }
     } while (customFOV <= 0);
-
-    return customFOV;
 }
 
 // Function to handle user input in resolution
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -131,8 +128,6 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
@@ -164,8 +159,7 @@ void OpenFile(fstream &file, const string &filename)
         }
         else
         {
-            cout << "\n"
-                 << filename << " opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -176,11 +170,13 @@ void SearchAndReplacePatterns(fstream &file)
     // Defines the original and new patterns with their sizes
     vector<pair<const char *, size_t>> patterns = {
         {"\x89\x10\x89\x70\x04", 5},
-        {"\x51\x6B\xFF\xFF\xB8\xA8\x75\x42\x00\xE9\x85\x7F\xFE\xFF\xCC\xCC\x8D\x4D\xE0\xE9\x68\x24\xFF\xFF\xB8\x10\x76\x42\x00\xE9\x71\x7F\xFE\xFF\xCC\xCC\x8B\x4D\xF0\xE9\x29\x6B\xFF\xFF\xB8\x38\x76\x42\x00\xE9\x5D\x7F\xFE\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 100}};
+        {"\x51\x6B\xFF\xFF\xB8\xA8\x75\x42\x00\xE9\x85\x7F\xFE\xFF\xCC\xCC\x8D\x4D\xE0\xE9\x68\x24\xFF\xFF\xB8\x10\x76\x42\x00\xE9\x71\x7F\xFE\xFF\xCC\xCC\x8B\x4D\xF0\xE9\x29\x6B\xFF\xFF\xB8\x38\x76\x42\x00\xE9\x5D\x7F\xFE\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 100}
+    };
 
     vector<pair<const char *, size_t>> replacements = {
         {"\xE9\xE7\x88\x01\x00", 5},
-        {"\x51\x6B\xFF\xFF\xB8\xA8\x75\x42\x00\xE9\x85\x7F\xFE\xFF\xCC\xCC\x8D\x4D\xE0\xE9\x68\x24\xFF\xFF\xB8\x10\x76\x42\x00\xE9\x71\x7F\xFE\xFF\xCC\xCC\x8B\x4D\xF0\xE9\x29\x6B\xFF\xFF\xB8\x38\x76\x42\x00\xE9\x5D\x7F\xFE\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xBA\x20\x03\x00\x00\x89\x10\xBE\x58\x02\x00\x00\x89\x70\x04\xE9\x05\x77\xFE\xFF", 100}};
+        {"\x51\x6B\xFF\xFF\xB8\xA8\x75\x42\x00\xE9\x85\x7F\xFE\xFF\xCC\xCC\x8D\x4D\xE0\xE9\x68\x24\xFF\xFF\xB8\x10\x76\x42\x00\xE9\x71\x7F\xFE\xFF\xCC\xCC\x8B\x4D\xF0\xE9\x29\x6B\xFF\xFF\xB8\x38\x76\x42\x00\xE9\x5D\x7F\xFE\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xBA\x20\x03\x00\x00\x89\x10\xBE\x58\x02\x00\x00\x89\x70\x04\xE9\x05\x77\xFE\xFF", 100}
+    };
 
     // Reads the entire file content into memory
     file.seekg(0, ios::end);
@@ -216,6 +212,12 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
+float NewCameraFOVCalculation(float &oldHorizontalCameraFOV)
+{
+    newCameraFOVValue = 2.0f * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHorizontalCameraFOV / 2.0f))));
+    return newCameraFOVValue;
+}
+
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
@@ -227,54 +229,54 @@ int main()
         do
         {
             cout << "\n- Enter the desired width: ";
-            newWidth = HandleResolutionInput();
+            HandleResolutionInput(newWidth);
 
             cout << "\n- Enter the desired height: ";
-            newHeight = HandleResolutionInput();
+            HandleResolutionInput(newHeight);
 
             newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-            if (newAspectRatio == 1.25) // 5:4
+            if (newAspectRatio == 1.25f) // 5:4
             {
                 newGameplayHFOV = 0.65f;
                 isGameplayHFOVKnown = true;
             }
-            else if (fabs(newAspectRatio - 1.33333333) < kTolerance) // 4:3
+            else if (fabs(newAspectRatio - 1.33333333f) < kTolerance) // 4:3
             {
                 newGameplayHFOV = 0.75f;
                 isGameplayHFOVKnown = true;
             }
-            else if (newAspectRatio == 1.5625) // 25:16
+            else if (newAspectRatio == 1.5625f) // 25:16
             {
                 newGameplayHFOV = 1.0f;
                 isGameplayHFOVKnown = true;
             }
             else if (newAspectRatio == 1.6) // 16:10
             {
-                newGameplayHFOV = 1.05000005245209f;
+                newGameplayHFOV = 1.05000005245209ff;
                 isGameplayHFOVKnown = true;
             }
-            else if (fabs(newAspectRatio - 1.66666666) < kTolerance) // 15:9
+            else if (fabs(newAspectRatio - 1.66666666f) < kTolerance) // 15:9
             {
                 newGameplayHFOV = 1.125f;
                 isGameplayHFOVKnown = true;
             }
-            else if (fabs(newAspectRatio - 1.77777777) < kTolerance) // 16:9
+            else if (fabs(newAspectRatio - 1.77777777f) < kTolerance) // 16:9
             {
                 newGameplayHFOV = 1.25f;
                 isGameplayHFOVKnown = true;
             }
-            else if (fabs(newAspectRatio - 2.370370370370) < kTolerance) // 21:9 (2560x1080)
+            else if (fabs(newAspectRatio - 2.370370370370f) < kTolerance) // 21:9 (2560x1080)
             {
                 newGameplayHFOV = 1.91650009155273f;
                 isGameplayHFOVKnown = true;
             }
-            else if (fabs(newAspectRatio - 3.555555555) < kTolerance) // 32:9
+            else if (fabs(newAspectRatio - 3.555555555f) < kTolerance) // 32:9
             {
                 newGameplayHFOV = 3.25f;
                 isGameplayHFOVKnown = true;
             }
-            else if (fabs(newAspectRatio - 5.333333333) < kTolerance) // 48:9
+            else if (fabs(newAspectRatio - 5.333333333f) < kTolerance) // 48:9
             {
                 newGameplayHFOV = 5.25f;
                 isGameplayHFOVKnown = true;
@@ -287,10 +289,10 @@ int main()
         } while (!isGameplayHFOVKnown);
 
         oldHFOV = 45.0f;
-        newMainMenuFOV = 2.0f * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0f))));
+        newMainMenuFOV = NewCameraFOVCalculation(oldHFOV);
 
         oldHFOV = 75.0f;
-        newFOV2 = 2.0f * RadToDeg(atan((newAspectRatio / oldAspectRatio) * tan(DegToRad(oldHFOV / 2.0f))));
+        newFOV2 = NewCameraFOVCalculation(oldHFOV);
 
         OpenFile(file, "Config.exe");
 
@@ -321,7 +323,16 @@ int main()
         file.seekp(kGameplayHFOVOffset);
         file.write(reinterpret_cast<const char *>(&newGameplayHFOV), sizeof(newGameplayHFOV));
 
-        cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();

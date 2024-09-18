@@ -42,8 +42,8 @@ const streampos kNewHeightBig2Offset = 0x00013D79;
 bool isFileCorrect, fileNotFound, validKeyPressed, openedSuccessfullyMessage;
 int tempChoice, language, choice, incorrectCount;
 uint8_t newWidthSmall, newWidthBig, newHeightSmall, newHeightBig, check1, check2;
-uint32_t newWidth, newHeight, newCustomResolutionWidthValue, newCustomResolutionHeightValue;
-float aspectRatio, hudWidth, hudMargin, fov, fovMultiplier, flt, newCustomFOVMultiplier;
+uint32_t newWidth, newHeight;
+float newAspectRatio, hudWidth, hudMargin, fov, fovMultiplier, flt;
 double dbl;
 char ch;
 fstream file;
@@ -85,7 +85,7 @@ void HandleChoiceInput(int &choice)
 	}
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &newCustomFOVMultiplier)
 {
 	do
 	{
@@ -109,12 +109,10 @@ float HandleFOVInput()
 			cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
 		}
 	} while (newCustomFOVMultiplier <= 0 || newCustomFOVMultiplier >= 180);
-
-	return newCustomFOVMultiplier;
 }
 
 // Function to handle user input in resolution
-uint32_t HandleResolutionWidthInput()
+void HandleResolutionWidthInput(uint32_t &newCustomResolutionWidthValue)
 {
 	do
 	{
@@ -163,11 +161,9 @@ uint32_t HandleResolutionWidthInput()
 			}
 		}
 	} while (newCustomResolutionWidthValue <= 0 || newCustomResolutionWidthValue > 65535);
-
-	return newCustomResolutionWidthValue;
 }
 
-uint32_t HandleResolutionHeightInput()
+void HandleResolutionHeightInput(uint32_t &newCustomResolutionHeightValue)
 {
 	do
 	{
@@ -216,16 +212,14 @@ uint32_t HandleResolutionHeightInput()
 			}
 		}
 	} while (newCustomResolutionHeightValue <= 0 || newCustomResolutionHeightValue > 65535);
-
-	return newCustomResolutionHeightValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
 	fileNotFound = false;
 
-	file.open("AssignmentBerlin-V1.05.exe", ios::in | ios::out | ios::binary);
+	file.open(filename, ios::in | ios::out | ios::binary);
 
 	// If the file is not open, sets fileNotFound to true
 	if (!file.is_open())
@@ -237,11 +231,11 @@ void OpenFile(fstream &file)
 	while (fileNotFound)
 	{
 		// Tries to open the file again
-		file.open("AssignmentBerlin-V1.05.exe", ios::in | ios::out | ios::binary);
+		file.open(filename, ios::in | ios::out | ios::binary);
 
 		if (!file.is_open())
 		{
-			cout << "\nFailed to open AssignmentBerlin-V1.05.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+			cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
 			do
 			{
 				ch = _getch(); // Waits for user to press a key
@@ -249,7 +243,8 @@ void OpenFile(fstream &file)
 		}
 		else
 		{
-			cout << "\nAssignmentBerlin-V1.05.exe opened successfully!" << endl;
+			cout << "\n"
+				 << filename << " opened successfully!" << endl;
 			fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
 		}
 	}
@@ -275,7 +270,7 @@ int main()
 
 		do
 		{
-			OpenFile(file);
+			OpenFile(file, "AssignmentBerlin-V1.05.exe");
 
 			file.seekg(kCheck1Offset);
 			file.read(reinterpret_cast<char *>(&check1), sizeof(check1));
@@ -334,20 +329,20 @@ int main()
 		if (language == 1)
 		{
 			cout << "\n- Type your resolution width: ";
-			newWidth = HandleResolutionWidthInput();
+			HandleResolutionWidthInput(newWidth);
 
 			cout << "\n- Type your resolution height: ";
-			newHeight = HandleResolutionHeightInput();
+			HandleResolutionHeightInput(newHeight);
 		}
 		else if (language == 2)
 		{
 			setlocale(LC_CTYPE, "Polish");
 
 			cout << "- Wpisz szeroko�� rozdzielczo�ci: ";
-			newWidth = HandleResolutionWidthInput();
+			HandleResolutionWidthInput(newWidth);
 
 			cout << "- Wpisz wysoko�� rozdzielczo�ci: ";
-			newHeight = HandleResolutionHeightInput();
+			HandleResolutionHeightInput(newHeight);
 		}
 
 		newWidthSmall = newWidth % 256;
@@ -358,14 +353,14 @@ int main()
 
 		newHeightBig = (newHeight - newHeightSmall) / 256;
 
-		aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+		newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-		hudWidth = 600.0f * aspectRatio;
+		hudWidth = 600.0f * newAspectRatio;
 
 		if (language == 1)
 		{
 			cout << "\n- Type your FOV multiplier (1 = default; at high values, the character's hands may appear unfinished): ";
-			fovMultiplier = HandleFOVInput();
+			HandleFOVInput(fovMultiplier);
 
 			cout << "\n- Type your HUD margin (0 = default, " << hudWidth / 2 - 400 << " = centered to 4:3): ";
 			cin >> hudMargin;
@@ -375,7 +370,7 @@ int main()
 			setlocale(LC_CTYPE, "Polish");
 
 			cout << "\n- Wpisz mno�nik pola widzenia (1 = domy�lny, przy wysokich warto�ciach r�ce postaci mog� wygl�da� na niekompletne): ";
-			fovMultiplier = HandleFOVInput();
+			HandleFOVInput(fovMultiplier);
 
 			cout << "\n- Wpisz margines dla interfejsu (0 = domy�lny, " << hudWidth / 2 - 400 << " = wy�rodkowany do 4:3): ";
 			cin >> hudMargin;
@@ -406,12 +401,12 @@ int main()
 		file.write(reinterpret_cast<const char *>(&newHeightBig), sizeof(newHeightBig));
 
 		// Compass needle width
-		flt = 0.0333333f / aspectRatio;
+		flt = 0.0333333f / newAspectRatio;
 		file.seekp(kCompassNeedleWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Field of view
-		flt = 0.75f * aspectRatio * fovMultiplier;
+		flt = 0.75f * newAspectRatio * fovMultiplier;
 		file.seekp(kFOVOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
@@ -421,12 +416,12 @@ int main()
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Red cross and menu text width
-		flt = 0.001666f / aspectRatio;
+		flt = 0.001666f / newAspectRatio;
 		file.seekp(kRedCrossAndMenuTextWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// HUD left margin
-		flt = 0.0333333f / aspectRatio + hudMargin / hudWidth;
+		flt = 0.0333333f / newAspectRatio + hudMargin / hudWidth;
 		file.seekp(kHUDLeftMarginOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
@@ -436,7 +431,7 @@ int main()
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Objective direction width
-		dbl = 0.001666 / static_cast<double>(aspectRatio);
+		dbl = 0.001666 / static_cast<double>(newAspectRatio);
 		file.seekp(kObjectiveDirectionWidthOffset);
 		file.write(reinterpret_cast<const char *>(&dbl), sizeof(dbl));
 
@@ -446,17 +441,17 @@ int main()
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Compass width
-		flt = 0.163333f / aspectRatio;
+		flt = 0.163333f / newAspectRatio;
 		file.seekp(kCompassWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Weapons list width
-		flt = 0.17f / aspectRatio;
+		flt = 0.17f / newAspectRatio;
 		file.seekp(kWeaponsListWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// HUD text width
-		dbl = 0.0006666666666 / static_cast<double>(aspectRatio);
+		dbl = 0.0006666666666 / static_cast<double>(newAspectRatio);
 		file.seekp(kHUDTextWidthOffset);
 		file.write(reinterpret_cast<const char *>(&dbl), sizeof(dbl));
 
@@ -466,20 +461,36 @@ int main()
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Ammo width
-		flt = 0.116666f / aspectRatio;
+		flt = 0.116666f / newAspectRatio;
 		file.seekp(kAmmoWidthOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
-		file.close();
+		// Checks if any errors occurred during the file operations
+		if (file.good())
+		{
+			if (language == 1)
+			{
+				cout << "\nAssignmentBerlin-V1.05.exe has been patched." << endl;
+			}
+			else if (language == 2)
+			{
+				cout << "\nAssignmentBerlin-V1.05.exe zosta� zaktualizowany." << endl;
+			}
+		}
+		else
+		{
+			if (language == 1)
+			{
+				cout << "\nError(s) occurred during the file operations." << endl;
+			}
+			else if (language == 2)
+			{
+				cout << "\nWystąpił(y) błąd podczas operacji na plikach." << endl;
+			}
+			
+		}
 
-		if (language == 1)
-		{
-			cout << "\nAssignmentBerlin-V1.05.exe has been patched." << endl;
-		}
-		else if (language == 2)
-		{
-			cout << "\nAssignmentBerlin-V1.05.exe zosta� zaktualizowany." << endl;
-		}
+		file.close();
 
 		if (language == 1)
 		{
@@ -510,6 +521,6 @@ int main()
 			return 0;
 		}
 
-		cout << "\n----------------\n";
+		cout << "\n----------------------------\n";
 	} while (choice == 2); // Checks the flag in the loop condition
 }

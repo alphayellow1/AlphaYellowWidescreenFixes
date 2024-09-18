@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstdint> // For uint32_t variable type
 #include <cmath>
 #include <limits>
 #include <windows.h>
@@ -11,28 +12,28 @@
 using namespace std;
 
 // Constants
-const double kPi = 3.14159265358979323846;
-const streampos kFOVOffset = 0x002706E7;
+const float kPi = 3.14159265358979323846f;
+const streampos kCameraFOVOffset = 0x002706E7;
 
 // Variables
 int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 60.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue, newFOV;
-float currentFOV, fovInFloat;
+float currentCameraFOV, newCameraFOV, newCameraFOVValue, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV = 60.0f, oldAspectRatio = oldWidth / oldHeight;
 string input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-double degToRad(double degrees)
+float degToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
-double radToDeg(double radians)
+float radToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -71,7 +72,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &newCustomFOV)
 {
     do
     {
@@ -82,7 +83,7 @@ float HandleFOVInput()
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a float
-        newCustomFOVInDegrees = stof(input);
+        newCustomFOV = stof(input);
 
         if (cin.fail())
         {
@@ -90,16 +91,14 @@ float HandleFOVInput()
             cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
             cout << "Invalid input. Please enter a numeric value." << endl;
         }
-        else if (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180)
+        else if (newCustomFOV <= 0 || newCustomFOV >= 180)
         {
             cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
         }
-    } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
-
-    return newCustomFOVInDegrees;
+    } while (newCustomFOV <= 0 || newCustomFOV >= 180);
 }
 
-double HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -119,16 +118,14 @@ double HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("Engine.dll", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -140,11 +137,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("Engine.dll", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open Engine.dll, check if the DLL has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the DLL has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently being used. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
@@ -152,10 +149,17 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nEngine.dll opened successfully!" << endl;
+            cout << "\n"
+                 << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, float &oldCameraHorizontalFOVValue)
+{
+    newCameraFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0f)));
+    return newCameraFOVValue;
 }
 
 int main()
@@ -166,12 +170,12 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "Engine.dll");
 
-        file.seekg(kFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentFOV), sizeof(currentFOV));
+        file.seekg(kCameraFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
 
-        cout << "\nThe current FOV is " << currentFOV << "\u00B0" << endl;
+        cout << "\nCurrent camera FOV is " << currentCameraFOV << "\u00B0" << endl;
 
         cout << "\n- Do you want to set FOV automatically based on a desired resolution (1) or set a custom FOV value (2)?: ";
         HandleChoiceInput(choice1);
@@ -180,32 +184,36 @@ int main()
         {
         case 1:
             cout << "\n- Enter the desired width: ";
-            newWidth = HandleResolutionInput();
+            HandleResolutionInput(newWidth);
 
             cout << "\n- Enter the desired height: ";
-            newHeight = HandleResolutionInput();
-
-            newAspectRatio = newWidth / newHeight;
+            HandleResolutionInput(newHeight);
 
             // Calculates the new FOV
-            newFOV = 2.0 * radToDeg(atan((newAspectRatio / oldAspectRatio) * tan(degToRad(oldHFOV / 2.0))));
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 60.0f);
 
             break;
 
         case 2:
             cout << "\n- Enter the desired FOV value (from 1\u00B0 to 180\u00B0, default FOV for 4:3 aspect ratio is 60\u00B0): ";
-            newFOV = HandleFOVInput();
+            HandleFOVInput(newCameraFOV);
 
             break;
         }
 
-        fovInFloat = static_cast<float>(newFOV);
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&fovInFloat), sizeof(fovInFloat));
-
-        // Confirmation message
-        cout << "\nSuccessfully changed the FOV to " << fovInFloat << "\u00B0." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the FOV to " << newCameraFOV << "\u00B0." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();

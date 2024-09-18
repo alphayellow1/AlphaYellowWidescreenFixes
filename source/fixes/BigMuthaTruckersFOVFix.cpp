@@ -3,7 +3,7 @@
 #include <fstream>
 #include <cmath>
 #include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
+#include <cstdint> // For uint32_t
 #include <limits>
 #include <vector>
 #include <cstring>
@@ -14,29 +14,29 @@ using namespace std;
 
 // Constants
 const float kPi = 3.14159265358979323846f;
-const double kTolerance = 0.01;
+const float kTolerance = 0.01f;
 const streampos kAspectRatioOffset = 0x001B42E3;
 const streampos kCameraFOVOffset = 0x001B42F2;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
-string input;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
+string input, descriptor;
 fstream file;
 int choice1, choice2, tempChoice;
+float newAspectRatio, newCameraFOV, newCameraFOVValue;
 bool fileNotFound, validKeyPressed;
-float customFOV, newAspectRatio, newCameraFOV;
 char ch;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
 {
-    return degrees * (kPi / 180.0);
+    return degrees * (kPi / 180.0f);
 }
 
 // Function to convert radians to degrees
 float RadToDeg(float radians)
 {
-    return radians * (180.0 / kPi);
+    return radians * (180.0f / kPi);
 }
 
 // Function to handle user input in choices
@@ -75,7 +75,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOV)
 {
     do
     {
@@ -104,7 +104,7 @@ float HandleFOVInput()
 }
 
 // Function to handle user input in resolution
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -124,8 +124,6 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
@@ -167,7 +165,6 @@ void SearchAndReplacePatterns(fstream &file)
 {
     // Defines the original and new patterns with their sizes
     vector<pair<const char *, size_t>> patterns = {
-
         {"\xD8\x3D\x9C\x55\x5B\x00\xD9\x42\x44\xD9\x42\x3C", 12},
         // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
         // 004DE7B7 | D8 3D 9C 55 5B 00 | fdivr dword ptr [005B559C]
@@ -177,7 +174,6 @@ void SearchAndReplacePatterns(fstream &file)
     };
 
     vector<pair<const char *, size_t>> replacements = {
-
         {"\xD8\x3D\xF2\x42\x5B\x00\xE9\x1E\x5B\x0D\x00\x90", 12},
         // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
         // 004DE7B7 | D8 3D F2 42 5B 00 | fdivr dword ptr [005B42F2]
@@ -226,6 +222,12 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
+float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+    return newCameraFOVValue;
+}
+
 int main()
 {
     cout << "Big Mutha Truckers (2003) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
@@ -233,25 +235,32 @@ int main()
     do
     {
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
         newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom multiplier value for camera FOV (2)?: ";
+        cout << "\n- Do you want to fix the camera FOV automatically based on the resolution typed above (1) or set a custom multiplier value for camera FOV (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            newCameraFOV = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
+
+            descriptor = "fixed";
+            
             break;
 
         case 2:
             cout << "\n- Type a custom camera FOV multiplier value (default for 4:3 aspect ratio is 1.0): ";
-            newCameraFOV = HandleFOVInput();
+
+            HandleFOVInput(newCameraFOV);
+
+            descriptor = "changed";
+
             break;
         }
 
@@ -268,7 +277,7 @@ int main()
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
-            cout << "\nSuccessfully fixed/changed the field of view." << endl;
+            cout << "\nSuccessfully " << descriptor << " the field of view." << endl;
         }
         else
         {

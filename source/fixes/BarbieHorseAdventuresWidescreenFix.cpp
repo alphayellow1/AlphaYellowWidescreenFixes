@@ -43,12 +43,12 @@ const streampos kFOVOffset13 = 0x0015030F;
 const streampos kFOVOffset14 = 0x00150A5F;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight, newCustomResolutionValue;
-string input;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
+string input, descriptor;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newFOV, newAspectRatio, customFOV;
+float newCameraFOV, newCameraFOVValue, newAspectRatio;
 char ch;
 
 // Function to handle user input in choices
@@ -87,7 +87,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOV)
 {
     do
     {
@@ -111,12 +111,10 @@ float HandleFOVInput()
             cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
         }
     } while (customFOV <= 0);
-
-    return customFOV;
 }
 
 // Function to handle user input in resolution
-uint32_t HandleResolutionInput()
+void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
     {
@@ -136,16 +134,14 @@ uint32_t HandleResolutionInput()
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
-
-    return newCustomResolutionValue;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("Barbie Horse.exe", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -157,11 +153,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("Barbie Horse.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open Barbie Horse.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -169,10 +165,17 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nBarbie Horse.exe opened successfully!" << endl;
+            cout << "\n"
+                 << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
+}
+
+float NewFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f)) * 0.5f;
+    return newCameraFOVValue;
 }
 
 int main()
@@ -181,7 +184,7 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "Barbie Horse.exe");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
@@ -189,28 +192,30 @@ int main()
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
 
-        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << endl;
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << endl;
 
         cout << "\n- Enter the desired width: ";
-        newWidth = HandleResolutionInput();
+        HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
-        newHeight = HandleResolutionInput();
+        HandleResolutionInput(newHeight);
 
         newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        cout << "\n- Do you want to set FOV automatically based on the resolution set above (1) or set a custom FOV value (2)?: ";
+        cout << "\n- Do you want to set the field of view automatically based on the resolution set above (1) or set a custom field of view value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            newFOV = ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f)) * 0.5f;
+            newCameraFOV = NewFOVCalculation(newWidth, newHeight);
+            descriptor = "fixed";
             break;
 
         case 2:
-            cout << "\n- Enter the desired FOV multiplier (default value for the 4:3 aspect ratio is 0.5, beware that changing this value beyond the automatic value for the aspect ratio also increases FOV in cutscenes): ";
-            newFOV = HandleFOVInput();
+            cout << "\n- Enter the desired field of view multiplier (default value for the 4:3 aspect ratio is 0.5, beware that changing this value beyond the automatic value for the aspect ratio also increases field of view in cutscenes): ";
+            HandleFOVInput(newCameraFOV);
+            descriptor = "changed";
             break;
         }
 
@@ -263,48 +268,57 @@ int main()
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
         file.seekp(kFOVOffset1);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset2);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset3);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset4);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset5);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset6);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset7);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset8);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset9);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset10);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset11);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset12);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset13);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
         file.seekp(kFOVOffset14);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));      
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        cout << "\nSuccessfully changed the resolution and field of view." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and " << descriptor << " the field of view." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -314,12 +328,14 @@ int main()
 
         if (choice2 == 1)
         {
-            cout << "\nPress enter to exit the program...";
+            cout << "\nPress Enter to exit the program...";
             do
             {
                 ch = _getch(); // Waits for user to press a key
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice2 != 1); // Checks the flag in the loop condition
 }

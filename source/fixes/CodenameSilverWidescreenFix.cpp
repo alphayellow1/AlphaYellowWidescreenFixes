@@ -22,7 +22,7 @@ const streampos kResolutionHeightOffset = 0x00000014;
 // Variables
 int choice, tempChoice;
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
-float newHFOV;
+float CameraHorizontalFOVValue, CameraHorizontalFOV;
 bool fileNotFound, validKeyPressed;
 string input;
 fstream file;
@@ -185,9 +185,9 @@ void SearchAndReplacePatterns(fstream &file)
 
 float HandleHFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newHFOV = 0.75f / ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    CameraHorizontalFOVValue = 0.75f / ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
 
-    return newHFOV;
+    return CameraHorizontalFOVValue;
 }
 
 int main()
@@ -208,7 +208,7 @@ int main()
 
         file.close();
 
-        cout << "\nYour current resolution is " << currentWidth << "x" << currentHeight << "." << endl;
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
         cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
@@ -216,14 +216,14 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        HandleHFOVCalculation(newWidth, newHeight);
+        CameraHorizontalFOV = HandleHFOVCalculation(newWidth, newHeight);
 
         OpenFile(file, "Silver.exe");
 
         SearchAndReplacePatterns(file);
 
         file.seekp(kHFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newHFOV), sizeof(newHFOV));
+        file.write(reinterpret_cast<const char *>(&CameraHorizontalFOV), sizeof(CameraHorizontalFOV));
 
         file.close();
 
@@ -252,7 +252,7 @@ int main()
 
         if (choice == 1)
         {
-            cout << "\nPress enter to exit the program...";
+            cout << "\nPress Enter to exit the program...";
             do
             {
                 ch = _getch(); // Wait for user to press a key

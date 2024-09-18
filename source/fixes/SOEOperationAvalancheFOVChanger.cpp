@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
+#include <cstdint> // For uint32_t variable type
 #include <windows.h>
 #include <cmath>
 #include <limits>
@@ -12,14 +12,14 @@
 using namespace std;
 
 // Constants
-const streampos kFOVOffset = 0x000D5030;
+const streampos kCameraFOVOffset = 0x000D5030;
 
 // Variables
 fstream file;
 string input;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float currentFOV, newFOV, customFOV;
+float currentCameraFOV, newCameraFOV;
 char ch;
 
 // Function to handle user input in choices
@@ -58,7 +58,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+void HandleFOVInput(float &customFOV)
 {
     do
     {
@@ -82,16 +82,14 @@ float HandleFOVInput()
             cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
         }
     } while (customFOV <= 0 || customFOV >= 180);
-
-    return customFOV;
 }
 
 // Function to open the file
-void OpenFile(fstream &file)
+void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
-    file.open("SOE.exe", ios::in | ios::out | ios::binary);
+
+    file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
     if (!file.is_open())
@@ -103,11 +101,11 @@ void OpenFile(fstream &file)
     while (fileNotFound)
     {
         // Tries to open the file again
-        file.open("SOE.exe", ios::in | ios::out | ios::binary);
+        file.open(filename, ios::in | ios::out | ios::binary);
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open SOE.exe, check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -115,7 +113,7 @@ void OpenFile(fstream &file)
         }
         else
         {
-            cout << "\nSOE.exe opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -129,21 +127,29 @@ int main()
 
     do
     {
-        OpenFile(file);
+        OpenFile(file, "SOE.exe");
 
-        file.seekg(kFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentFOV), sizeof(currentFOV));
+        file.seekg(kCameraFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
 
-        cout << "\n- The current FOV is " << currentFOV << "\u00B0." << endl;
+        cout << "\nCurrent FOV is " << currentCameraFOV << "\u00B0." << endl;
 
         cout << "\n- Enter the desired FOV value (default is 60\u00B0): ";
-        newFOV = HandleFOVInput();
+        HandleFOVInput(newCameraFOV);
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newFOV), sizeof(newFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
 
-        // Confirmation message
-        cout << "\nSuccessfully changed the field of view to " << newFOV << "\u00B0." << endl;
+        // Checks if any errors occurred during the file operations
+        if (file.good())
+        {
+            // Confirmation message
+            cout << "\nSuccessfully changed the field of view to " << newCameraFOV << "\u00B0." << endl;
+        }
+        else
+        {
+            cout << "\nError(s) occurred during the file operations." << endl;
+        }
 
         // Closes the file
         file.close();
@@ -160,5 +166,7 @@ int main()
             } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
             return 0;
         }
+
+        cout << "\n-----------------------------------------\n";
     } while (choice == 2); // Checks the flag in the loop condition
 }
