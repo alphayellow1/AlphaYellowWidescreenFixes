@@ -13,9 +13,9 @@ using namespace std;
 const streampos kAspectRatioOffset = 0x00237BE8;
 const streampos kCameraFOVOffset = 0x001FCB31;
 const streampos kResolutionWidth1Offset = 0x001FCB71;
-const streampos kResolutionHeight1Offset = 0x00F1CB61;
+const streampos kResolutionHeight1Offset = 0x001FCB61;
 const streampos kResolutionWidth2Offset = 0x001FCB3C;
-const streampos kResolutionHeight2Offset = 0x00F1CB4C;
+const streampos kResolutionHeight2Offset = 0x001FCB4C;
 
 // Variables
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
