@@ -196,7 +196,7 @@ int main()
             break;
 
         case 2:
-            cout << "\nType a custom FOV multiplier value (default value for 4:3 aspect ratio is 1.0, a lower value increases FOV and a higher one decreases it): ";
+            cout << "\n- Type a custom FOV multiplier value (default value for 4:3 aspect ratio is 1.0, a lower value increases FOV and a higher one decreases it): ";
             HandleFOVInput(newCameraFOV);
 
             descriptor = "changed the ";
