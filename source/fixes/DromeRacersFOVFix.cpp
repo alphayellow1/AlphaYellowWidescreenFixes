@@ -4,7 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <windows.h>
-#include <conio.h>
+#include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
 

@@ -2,12 +2,12 @@
 #include <iomanip>
 #include <fstream>
 #include <cmath>
-#include <cstdint> // For uint32_t
+#include <cstdint> // For uint32_t variable type
 #include <limits>
 #include <windows.h>
 #include <vector>
 #include <cstring>
-#include <conio.h>
+#include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
 

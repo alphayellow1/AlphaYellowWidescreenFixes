@@ -1,10 +1,10 @@
-#include <conio.h>
+#include <conio.h> // For getch() function [get character]
 #include <direct.h>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
 #include <locale.h>
-#include <cstdint>
+#include <cstdint> // For uint8_t and uint32_t variable types
 #include <stdint.h>
 #include <windows.h>
 #include <limits>

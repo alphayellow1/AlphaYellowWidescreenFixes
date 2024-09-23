@@ -3,8 +3,8 @@
 #include <fstream>
 #include <limits>
 #include <cmath>
-#include <conio.h> // For getch()
-#include <cstdint> // For uint32_t
+#include <conio.h> // For getch() function [get character]
+#include <cstdint> // For uint32_t variable type
 #include <string>
 #include <algorithm>
 
