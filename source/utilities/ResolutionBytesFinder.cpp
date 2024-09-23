@@ -14,7 +14,7 @@ using namespace std;
 
 // Variables
 string fileName;
-int16_t firstValue, secondValue, byteRange, number, currentValue;
+uint32_t firstValue, secondValue, byteRange, number, currentValue;
 size_t i, searchIndex;
 int choice, tempChoice, j;
 bool validKeyPressed, foundSecondValue;
@@ -56,8 +56,8 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-// Function to handle user input in resolution
-int16_t HandleNumberInput()
+// Function to handle user input in resolution and byte search range
+uint32_t HandleNumberInput()
 {
     do
     {
@@ -96,11 +96,11 @@ int main()
             return 1;
         }
 
-        cout << "\n- Enter the first 2-byte integer value: ";
+        cout << "\n- Enter the first 4-byte integer value: ";
         firstValue = HandleNumberInput();
-        cout << "\n- Enter the second 2-byte integer value: ";
+        cout << "\n- Enter the second 4-byte integer value: ";
         secondValue = HandleNumberInput();
-        cout << "\n- Enter the byte search range: ";
+        cout << "\n- Enter the search range in bytes: ";
         byteRange = HandleNumberInput();
         cout << "\n";
 
@@ -111,7 +111,7 @@ int main()
         {
             if (i <= buffer.size() - 2)
             {
-                currentValue = *reinterpret_cast<int16_t *>(&buffer[i]);
+                currentValue = *reinterpret_cast<uint32_t *>(&buffer[i]);
                 if (currentValue == firstValue)
                 {
                     // Searches for the second value within the byte range of the first value
@@ -120,7 +120,7 @@ int main()
                         searchIndex = i + j;
                         if (searchIndex >= 0 && searchIndex < buffer.size() - 2)
                         {
-                            if (*reinterpret_cast<int16_t *>(&buffer[searchIndex]) == secondValue)
+                            if (*reinterpret_cast<uint32_t *>(&buffer[searchIndex]) == secondValue)
                             {
                                 foundPairs.push_back(make_pair(i, searchIndex)); // Stores the pair of addresses
                             }
