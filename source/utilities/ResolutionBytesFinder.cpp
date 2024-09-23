@@ -5,8 +5,8 @@
 #include <limits>
 #include <vector>
 #include <iomanip>
-#include <cstdint>
-#include <conio.h>
+#include <cstdint> // For uint32_t variable type
+#include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
 

@@ -1,10 +1,10 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <cstdint>
+#include <cstdint> // For uint8_t and uint32_t variable types
 #include <cmath>
 #include <limits>
-#include <conio.h>
+#include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
 

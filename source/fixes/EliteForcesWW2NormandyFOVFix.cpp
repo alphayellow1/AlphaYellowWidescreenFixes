@@ -1,11 +1,11 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <cstdint> // For uint32_t variable type
+#include <cstdint> // For uint32_t variable type 
 #include <cmath>
 #include <windows.h>
 #include <limits>
-#include <conio.h>
+#include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
 

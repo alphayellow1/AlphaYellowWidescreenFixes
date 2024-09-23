@@ -1,8 +1,8 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <conio.h> // For getch()
-#include <cstdint> // For uint8_t
+#include <conio.h> // For getch() function [get character]
+#include <cstdint> // For uint32_t variable type
 #include <windows.h>
 #include <cmath>
 #include <limits>
