@@ -111,8 +111,7 @@ void OpenFile(fstream &file, const string &filename)
         }
         else
         {
-            cout << "\n"
-                 << filename << " opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
