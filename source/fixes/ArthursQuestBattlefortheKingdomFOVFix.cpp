@@ -5,7 +5,6 @@
 #include <cmath>
 #include <limits>
 #include <conio.h> // For getch() function [get character]
-#include <cstdint> // For uint32_t variable type
 #include <string>
 #include <algorithm>
 #include <windows.h>
