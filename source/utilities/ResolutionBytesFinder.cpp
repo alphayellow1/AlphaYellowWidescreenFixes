@@ -4,7 +4,6 @@
 #include <cmath>
 #include <limits>
 #include <vector>
-#include <iomanip>
 #include <cstdint> // For uint32_t variable type
 #include <conio.h> // For getch() function [get character]
 #include <string>
@@ -17,7 +16,7 @@ string fileName;
 uint32_t firstValue, secondValue, byteRange, number, currentValue;
 size_t i, searchIndex;
 int choice, tempChoice, j;
-bool validKeyPressed, foundSecondValue;
+bool validKeyPressed;
 char ch;
 
 // Function to handle user input in choices
@@ -107,23 +106,21 @@ int main()
         vector<pair<size_t, size_t>> foundPairs; // Vector to store pairs of addresses for the first and second values
 
         vector<char> buffer(istreambuf_iterator<char>(file), {});
-        for (i = 0; i < buffer.size(); ++i)
+        for (i = 0; i <= buffer.size() - 4; ++i)
         {
-            if (i <= buffer.size() - 2)
+            memcpy(&currentValue, &buffer[i], sizeof(uint32_t));
+            if (currentValue == firstValue)
             {
-                currentValue = *reinterpret_cast<uint32_t *>(&buffer[i]);
-                if (currentValue == firstValue)
+                for (j = -byteRange; j <= byteRange; ++j)
                 {
-                    // Searches for the second value within the byte range of the first value
-                    for (j = -byteRange; j <= byteRange; ++j)
+                    searchIndex = i + j;
+                    if (searchIndex >= 0 && searchIndex <= buffer.size() - 4)
                     {
-                        searchIndex = i + j;
-                        if (searchIndex >= 0 && searchIndex < buffer.size() - 2)
+                        uint32_t tempValue;
+                        memcpy(&tempValue, &buffer[searchIndex], sizeof(uint32_t));
+                        if (tempValue == secondValue)
                         {
-                            if (*reinterpret_cast<uint32_t *>(&buffer[searchIndex]) == secondValue)
-                            {
-                                foundPairs.push_back(make_pair(i, searchIndex)); // Stores the pair of addresses
-                            }
+                            foundPairs.push_back(make_pair(i, searchIndex));
                         }
                     }
                 }
