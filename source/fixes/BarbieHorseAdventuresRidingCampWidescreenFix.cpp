@@ -158,14 +158,14 @@ void SearchAndReplacePatterns(fstream &file)
     vector<pair<const char *, size_t>> patterns = {
         {"\xD9\x40\xA4\xD8\x4C\x24\x28\xD9\x5C\x24\x28\xD9\x44\x24\x28\xD9\x5C\x24\x04\xD9\x40\xA0\xD9\x1C\x24", 25},
         // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
-        // 00445372 | D9 40 A4    | fld dword ptr ds:[eax-5C] <-- ASPECT RATIO INSTRUCTION
+        // 00445372 | D9 40 A4    | fld dword ptr [eax-5C] <-- ASPECT RATIO INSTRUCTION
         // 00445375 | D8 4C 24 28 | fmul dword ptr [esp+28]
         // 00445379 | D9 5C 24 28 | fstp dword ptr [esp+28]
         // 0044537D | D9 44 24 28 | fld dword ptr [esp+28]
         // 00445381 | D9 5C 24 04 | fstp dword ptr [esp+4]
         // 00445385 | D9 40 A0    | fld dword ptr [eax-60] <-- FIELD OF VIEW INSTRUCTION
         // 00445388 | D9 1C 24    | fstp dword ptr [esp]
-        {"\xFD\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 60}
+        {"\xFD\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 67}
     };
 
     vector<pair<const char *, size_t>> replacements = {
@@ -177,17 +177,19 @@ void SearchAndReplacePatterns(fstream &file)
         // 00445379 | D9 5C 24 28    | fstp dword ptr [esp+28]
         // 0044537D | D9 44 24 28    | fld dword ptr [esp+28]
         // 00445381 | D9 5C 24 04    | fstp dword ptr [esp+4]
-        // 00445385 | E9 56 F5 16 00 | jmp 005B48E0
+        // 00445385 | E9 5A F5 16 00 | jmp 005B48E4
         // 0044538A | 90             | nop
-        {"\xFD\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x40\xA4\x39\x8E\xE3\x3F\xD9\x40\xA4\xE9\x99\x0A\xE9\xFF\xC7\x40\xA0\xEF\xAD\x95\x3F\xD9\x40\xA0\xE9\x9C\x0A\xE9\xFF", 60}
+        {"\xFD\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x40\xA4\x39\x8E\xE3\x3F\xD9\x40\xA4\xD8\x4C\x24\x28\xE9\x95\x0A\xE9\xFF\xC7\x40\xA0\xEF\xAD\x95\x3F\xD9\x40\xA0\xD9\x1C\x24\xE9\x95\x0A\xE9\xFF", 67}
         // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
         // CODECAVE ENTRYPOINT AT 005B48D1 (x32dbg)
         // 005B48D1 | C7 40 A4 39 8E E3 3F | mov dword ptr [eax-5C],3FE38E39
         // 005B48D8 | D9 40 A4             | fld dword ptr [eax-5C]
-        // 005B48DB | E9 99 0A E9 FF       | jmp 00445379
-        // 005B48E0 | C7 40 A0 EF AD 95 3F | mov dword ptr [eax-60],3F95ADEF
-        // 005B48E7 | D9 40 A0             | fld dword ptr [eax-60]
-        // 005B48EA | E9 9C 0A E9 FF       | jmp 0044538B
+        // 005B48DB | D8 4C 24 28          | fmul dword ptr [esp+28]
+        // 005B48DF | E9 99 0A E9 FF       | jmp 00445379
+        // 005B48E4 | C7 40 A0 EF AD 95 3F | mov dword ptr [eax-60],3F95ADEF
+        // 005B48EB | D9 40 A0             | fld dword ptr [eax-60]
+        // 005B48EE | D9 1C 24             | fstp dword ptr [esp]
+        // 005B48F1 | E9 95 0A E9 FF       | jmp 0044538B
     };
 
     // Reads the entire file content into memory
