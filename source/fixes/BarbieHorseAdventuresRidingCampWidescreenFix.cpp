@@ -15,7 +15,7 @@ using namespace std;
 const streampos kResolutionWidthOffset = 0x0004CF10;
 const streampos kResolutionHeightOffset = 0x0004CF15;
 const streampos kAspectRatioOffset = 0x001B48D4;
-const streampos kCameraFOVOffset = 0x001B48E3;
+const streampos kCameraFOVOffset = 0x001B48E7;
 
 // Variables
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
@@ -217,7 +217,7 @@ void SearchAndReplacePatterns(fstream &file)
 
             // Writes the modified content back to the file
             file.seekp(patternLocation - buffer);
-            file.write(newPattern, newPatternSize);
+            file.write(newPattern, newPatternSize);     
         }
     }
 
