@@ -8,12 +8,13 @@
 #include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
+#include <cstring> // For memcpy
 
 using namespace std;
 
 // Variables
 string fileName;
-uint32_t firstValue, secondValue, byteRange, number, currentValue;
+uint32_t firstValue, secondValue, byteRange, number, currentValue, tempValue;
 size_t i, searchIndex;
 int choice, tempChoice, j;
 bool validKeyPressed;
@@ -111,7 +112,8 @@ int main()
             memcpy(&currentValue, &buffer[i], sizeof(uint32_t));
             if (currentValue == firstValue)
             {
-                for (j = -byteRange; j <= byteRange; ++j)
+                // Searches for the second value within the byte range of the first value
+                for (j = -static_cast<int>(byteRange); j <= static_cast<int>(byteRange); ++j)
                 {
                     searchIndex = i + j;
                     if (searchIndex >= 0 && searchIndex <= buffer.size() - 4)
@@ -120,7 +122,7 @@ int main()
                         memcpy(&tempValue, &buffer[searchIndex], sizeof(uint32_t));
                         if (tempValue == secondValue)
                         {
-                            foundPairs.push_back(make_pair(i, searchIndex));
+                            foundPairs.push_back(make_pair(i, searchIndex)); // Stores the pair of addresses
                         }
                     }
                 }
@@ -140,6 +142,7 @@ int main()
         {
             cout << "No pairs of first value (" << dec << firstValue << ") and second value (" << dec << secondValue << ") were found within " << dec << byteRange << " bytes." << endl;
         }
+        
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
