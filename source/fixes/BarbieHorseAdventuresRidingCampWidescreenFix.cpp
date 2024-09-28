@@ -169,7 +169,7 @@ void SearchAndReplacePatterns(fstream &file)
     };
 
     vector<pair<const char *, size_t>> replacements = {
-        {"\xE9\x5A\xF5\x16\x00\x90\x90\xD9\x5C\x24\x28\xD9\x44\x24\x28\xD9\x5C\x24\x04\xE9\x56\xF5\x16\x00\x90", 25},
+        {"\xE9\x5A\xF5\x16\x00\x90\x90\xD9\x5C\x24\x28\xD9\x44\x24\x28\xD9\x5C\x24\x04\xE9\x5A\xF5\x16\x00\x90", 25},
         // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
         // 00445372 | E9 5A F5 16 00 | jmp 005B48D1
         // 00445377 | 90             | nop
