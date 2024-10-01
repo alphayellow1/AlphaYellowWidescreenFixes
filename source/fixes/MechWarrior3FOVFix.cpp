@@ -13,29 +13,30 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kCameraHorizontalFOVOffset = 0x001CCF3C;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight;
+uint32_t newWidth, newHeight;
 string input;
 fstream file, file2;
 int choice, tempChoice;
-bool fileNotFound, validKeyPressed, isGameplayHFOVKnown;
-float newCameraHorizontalFOV, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV, oldHorizontalCameraFOVValue, oldAspectRatio = oldWidth / oldHeight, currentFOVInDegrees, newGameplayHFOV, newCameraHorizontalFOVValue;
+bool fileNotFound, validKeyPressed;
+float newCameraHorizontalFOV;
+double oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV, tanValue, newCameraHorizontalInDegrees, newAspectRatio, oldAspectRatio = oldWidth / oldHeight, newCameraHorizontalFOVValue;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -126,7 +127,8 @@ void OpenFile(fstream &file, const string &filename)
         }
         else
         {
-            cout << "\n" << filename << " opened successfully!" << endl;
+            cout << "\n"
+                 << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
@@ -214,7 +216,7 @@ void SearchAndReplacePatterns(fstream &file)
 
             // Writes the modified content back to the file
             file.seekp(patternLocation - buffer);
-            file.write(newPattern, newPatternSize);     
+            file.write(newPattern, newPatternSize);
         }
     }
 
@@ -223,9 +225,12 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
-float NewCameraHorizontalFOVCalculation(float &oldHorizontalCameraFOVValue, uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraHorizontalFOVCalculation(double &oldHorizontalCameraFOVValue, uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraHorizontalFOVValue = (2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldHorizontalCameraFOVValue / 2.0f)))) / 160.0f;
+    newAspectRatio = static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue);
+    tanValue = tan(DegToRad(oldHorizontalCameraFOVValue / 2.0));
+    newCameraHorizontalFOVValue = (2.0 * RadToDeg(atan(newAspectRatio / oldAspectRatio * tanValue))) / 160.0;
+
     return newCameraHorizontalFOVValue;
 }
 
@@ -242,11 +247,11 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newCameraHorizontalFOV = NewCameraHorizontalFOVCalculation(oldCameraHorizontalFOV = 80.0f, newWidth, newHeight);
-
         OpenFile(file, "Mech3.exe");
 
         SearchAndReplacePatterns(file);
+
+        newCameraHorizontalFOV = static_cast<float>(NewCameraHorizontalFOVCalculation(oldCameraHorizontalFOV = 80.0, newWidth, newHeight));
 
         file.seekp(kCameraHorizontalFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
