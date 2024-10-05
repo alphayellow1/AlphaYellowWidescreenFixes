@@ -6,17 +6,16 @@
 #include <limits>
 #include <string>
 #include <algorithm>
+#include <cstring>
 
 using namespace std;
-
-// Constants
-const streampos kCameraHorizontalFOVOffset = 0x00008BAA;
 
 // Variables
 int choice, tempChoice;
 uint32_t newWidth, newHeight;
 fstream file;
-float newCameraHorizontalFOV, newCameraHorizontalFOVValue;
+float newCameraHorizontalFOVasFloat;
+double newCameraHorizontalFOV, newCameraHorizontalFOVValue;
 bool fileNotFound, validKeyPressed;
 char ch;
 
@@ -114,9 +113,49 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCameraHorizontalFOVValue = ((4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue))) * 0.75f;
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Finds the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Returns -1 if the pattern is not found
+}
+
+double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraHorizontalFOVValue = ((4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue))) * 0.75;
     return newCameraHorizontalFOVValue;
 }
 
@@ -136,8 +175,12 @@ int main()
 
         newCameraHorizontalFOV = NewCameraHorizontalFOVCalculation(newWidth, newHeight);
 
+        newCameraHorizontalFOVasFloat = static_cast<float>(newCameraHorizontalFOV);
+
+        streampos kCameraHorizontalFOVOffset = FindAddress("\xC7\x44\x24\x34\x00\x00\x40\x3F\x8B\x0D\x84\x3E", "xxxx????xxxx");
+
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVasFloat), sizeof(newCameraHorizontalFOVasFloat));
 
         cout << "\nSuccessfully changed the field of view." << endl;
 

@@ -8,32 +8,34 @@
 #include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
+#include <cstring>
 
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
+const double kPi = 3.14159265358979323846;
 const streampos kCutscenesFOVOffset = 0x000132FB;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCutscenesFOV, newCutscenesFOV, newCutscenesFOVValue, oldWidth = 4.0f, oldHeight = 3.0f, oldHFOV = 75.0f, oldAspectRatio = oldWidth / oldHeight;
+float currentCutscenesFOV, newCutscenesFOVasFloat;
+double newCutscenesFOV, newCutscenesFOVValue, oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 75.0, oldAspectRatio = oldWidth / oldHeight;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float degToRad(float degrees)
+double degToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float radToDeg(float radians)
+double radToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -72,7 +74,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOVInDegrees)
+void HandleFOVInput(double &newCustomFOVInDegrees)
 {
     do
     {
@@ -82,7 +84,7 @@ void HandleFOVInput(float &newCustomFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -155,9 +157,49 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCutscenesFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCutscenesFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0f)));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Finds the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Returns -1 if the pattern is not found
+}
+
+double NewCutscenesFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCutscenesFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0)));
     return newCutscenesFOVValue;
 }
 
@@ -170,6 +212,8 @@ int main()
     do
     {
         OpenFile(file, "Engine.u");
+
+        streampos kCutscenesFOVOffset = FindAddress("\x1A\x24\x00\x00\x96\x42\x7E\x1A", "xx????xx");
 
         file.seekg(kCutscenesFOVOffset);
         file.read(reinterpret_cast<char *>(&currentCutscenesFOV), sizeof(currentCutscenesFOV));
@@ -200,9 +244,10 @@ int main()
             break;
         }
 
-        // Searches for the 000132FB hexadecimal memory address in Engine.u and writes the new FOV value (4-byte floating point number) into it
+        newCutscenesFOVasFloat = static_cast<float>(newCutscenesFOV);
+    
         file.seekp(kCutscenesFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCutscenesFOV), sizeof(newCutscenesFOV));
+        file.write(reinterpret_cast<const char *>(&newCutscenesFOVasFloat), sizeof(newCutscenesFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

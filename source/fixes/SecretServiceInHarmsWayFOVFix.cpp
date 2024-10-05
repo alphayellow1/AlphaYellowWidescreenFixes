@@ -12,8 +12,8 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kCameraFOVOffset = 0x00347628;
 const streampos kWeaponFOVOffset = 0x0034762C;
 
@@ -21,21 +21,21 @@ const streampos kWeaponFOVOffset = 0x0034762C;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOV, currentWeaponFOV, newCameraFOV, newWeaponFOV, newCameraFOVValue, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight;
+double currentCameraFOV, currentWeaponFOV, newCameraFOV, newWeaponFOV, newCameraFOVValue, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight;
 string input, descriptor;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -74,7 +74,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOV)
+void HandleFOVInput(double &newCustomFOV)
 {
     do
     {
@@ -84,7 +84,7 @@ void HandleFOVInput(float &newCustomFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOV = stof(input);
 
         if (cin.fail())
@@ -157,9 +157,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, float &oldCameraHorizontalFOVValue)
+double NewFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, double &oldCameraHorizontalFOVValue)
 {
-    newCameraFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0f)));
+    newCameraFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0)));
     return newCameraFOVValue;
 }
 
@@ -196,10 +196,10 @@ int main()
             HandleResolutionInput(newHeight);
 
             // Calculates the new camera FOV
-            newCameraFOV = NewFOVCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0f);
+            newCameraFOV = NewFOVCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0);
 
             // Calculates the new weapon FOV
-            newWeaponFOV = NewFOVCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 60.0f);
+            newWeaponFOV = NewFOVCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 60.0);
 
             descriptor = "automatically";
 

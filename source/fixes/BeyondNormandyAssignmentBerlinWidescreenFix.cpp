@@ -43,7 +43,7 @@ bool isFileCorrect, fileNotFound, validKeyPressed, openedSuccessfullyMessage;
 int tempChoice, language, choice, incorrectCount;
 uint8_t newWidthSmall, newWidthBig, newHeightSmall, newHeightBig, check1, check2;
 uint32_t newWidth, newHeight;
-float newAspectRatio, hudWidth, hudMargin, fov, fovMultiplier, flt;
+double newAspectRatio, hudWidth, hudMargin, fov, fovMultiplier, flt;
 double dbl;
 char ch;
 fstream file;
@@ -85,7 +85,7 @@ void HandleChoiceInput(int &choice)
 	}
 }
 
-void HandleFOVInput(float &newCustomFOVMultiplier)
+void HandleFOVInput(double &newCustomFOVMultiplier)
 {
 	do
 	{
@@ -95,7 +95,7 @@ void HandleFOVInput(float &newCustomFOVMultiplier)
 		// Replaces all commas with dots
 		replace(input.begin(), input.end(), ',', '.');
 
-		// Parses the string to a float
+		// Parses the string to a double
 		newCustomFOVMultiplier = stof(input);
 
 		if (cin.fail())
@@ -353,9 +353,9 @@ int main()
 
 		newHeightBig = (newHeight - newHeightSmall) / 256;
 
-		newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+		newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
-		hudWidth = 600.0f * newAspectRatio;
+		hudWidth = 600.0 * newAspectRatio;
 
 		if (language == 1)
 		{
@@ -411,7 +411,7 @@ int main()
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Loading bar X
-		flt = 222.0f + (hudWidth - 800.0f) / 2.0f;
+		flt = 222.0 + (hudWidth - 800.0) / 2.0;
 		file.seekp(kLoadingBarXOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
@@ -426,7 +426,7 @@ int main()
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
 		// Compass needle X
-		flt = (hudWidth - 79.0f - hudMargin) / hudWidth;
+		flt = (hudWidth - 79.0 - hudMargin) / hudWidth;
 		file.seekp(kCompassNeedleXOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
@@ -436,7 +436,7 @@ int main()
 		file.write(reinterpret_cast<const char *>(&dbl), sizeof(dbl));
 
 		// Compass X
-		flt = (hudWidth - 118.0f - hudMargin) / hudWidth;
+		flt = (hudWidth - 118.0 - hudMargin) / hudWidth;
 		file.seekp(kCompassXOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 
@@ -456,7 +456,7 @@ int main()
 		file.write(reinterpret_cast<const char *>(&dbl), sizeof(dbl));
 
 		// Ammo X
-		flt = (hudWidth - 74.0f - hudMargin) / hudWidth;
+		flt = (hudWidth - 74.0 - hudMargin) / hudWidth;
 		file.seekp(kAmmoXOffset);
 		file.write(reinterpret_cast<const char *>(&flt), sizeof(flt));
 

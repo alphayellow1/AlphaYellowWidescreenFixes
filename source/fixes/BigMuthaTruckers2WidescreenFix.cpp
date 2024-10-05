@@ -13,8 +13,8 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kAspectRatioOffset = 0x002A3243;
 const streampos kCameraFOVOffset = 0x002A3251;
 
@@ -24,19 +24,19 @@ string input, descriptor;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newAspectRatio, newCameraFOV, newCameraFOVValue;
+double newAspectRatio, newCameraFOV, newCameraFOVValue;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -75,7 +75,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -85,7 +85,7 @@ void HandleFOVInput(float &customFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOV = stof(input);
 
         if (cin.fail())
@@ -219,9 +219,9 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidth) / static_cast<float>(newHeight));
+    newCameraFOVValue = (4.0 / 3.0) / (static_cast<double>(newWidth) / static_cast<double>(newHeight));
     return newCameraFOVValue;
 }
 
@@ -237,7 +237,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
         cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom multiplier value for camera FOV (2)?: ";
         HandleChoiceInput(choice1);

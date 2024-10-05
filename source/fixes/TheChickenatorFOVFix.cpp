@@ -19,7 +19,7 @@ uint32_t newWidth, newHeight;
 fstream file;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newCameraHorizontalFOV, newCameraHorizontalFOVValue;
+double newCameraHorizontalFOV, newCameraHorizontalFOVValue;
 char ch;
 
 // Function to handle user input in choices
@@ -116,9 +116,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraHorizontalFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
+    newCameraHorizontalFOVValue = (4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue));
     return newCameraHorizontalFOVValue;
 }
 

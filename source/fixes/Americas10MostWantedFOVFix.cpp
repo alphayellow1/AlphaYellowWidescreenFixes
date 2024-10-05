@@ -10,14 +10,14 @@
 using namespace std;
 
 // Constants
-const streampos kHorizontalFOVOffset = 0x00247120;
-const streampos kFOVOffset = 0x001E1640;
+const streampos kCameraHorizontalFOVOffset = 0x00247120;
+const streampos kCameraFOVOffset = 0x001E1640;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraHorizontalFOV, newCameraHorizontalFOVValue;
+double newCameraHorizontalFOV, newCameraHorizontalFOVValue, newCameraFOV;
 fstream file;
 string input;
 char ch;
@@ -58,7 +58,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -68,7 +68,7 @@ void HandleFOVInput(float &customFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOV = stof(input);
 
         if (cin.fail())
@@ -142,9 +142,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float HandleHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double HandleCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraHorizontalFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    newCameraHorizontalFOVValue = (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
     return newCameraHorizontalFOVValue;
 }
 
@@ -162,7 +162,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newCameraHorizontalFOV = HandleHorizontalFOVCalculation(newWidth, newHeight);
+        newCameraHorizontalFOV = HandleCameraHorizontalFOVCalculation(newWidth, newHeight);
 
         cout << "\n- Do you want to keep the same field of view value of the automatic one for the aspect ratio (1) or extend it (2)?: ";
         HandleChoiceInput(choice1);
@@ -170,20 +170,20 @@ int main()
         switch (choice1)
         {
         case 1:
-            newCameraHorizontalFOV = 1.0f;
+            newCameraFOV = 1.0;
             break;
 
         case 2:
             cout << "\n- Type a custom field of view multiplier value (default for the 4:3 aspect ratio is 1.0): ";
-            HandleFOVInput(newCameraHorizontalFOV);
+            HandleFOVInput(newCameraFOV);
             break;
         }
 
-        file.seekp(kHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
+        file.seekp(kCameraHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraHorizontalFOV)), sizeof(float));
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraFOV)), sizeof(float));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

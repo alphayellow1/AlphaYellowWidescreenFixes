@@ -21,7 +21,7 @@ const streampos kWeaponHorizontalFOVOffset = 0x00117F71;
 int choice, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed, isFOVKnown;
-float newWeaponModelHorizontalFOV, newCameraHorizontalFOV, newAspectRatio;
+double newWeaponModelHorizontalFOV, newCameraHorizontalFOV, newAspectRatio;
 fstream file;
 char ch;
 
@@ -132,48 +132,48 @@ int main()
             cout << "\n- Enter the desired height: ";
             HandleResolutionInput(newHeight);
 
-            newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+            newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
             if (newAspectRatio == 1.25) // 5:4
             {
-                newCameraHorizontalFOV = 1.60239994525909f;
-                newWeaponModelHorizontalFOV = 0.5235001445f;
+                newCameraHorizontalFOV = 1.60239994525909;
+                newWeaponModelHorizontalFOV = 0.5235001445;
                 isFOVKnown = true;
             }
             else if (fabs(newAspectRatio - 1.33333333) < kTolerance) // 4:3
             {
-                newCameraHorizontalFOV = 1.5707963268f;
-                newWeaponModelHorizontalFOV = 0.5f;
+                newCameraHorizontalFOV = 1.5707963268;
+                newWeaponModelHorizontalFOV = 0.5;
                 isFOVKnown = true;
             }
             else if (newAspectRatio == 1.6) // 16:10
             {
-                newCameraHorizontalFOV = 1.48000001907349f;
-                newWeaponModelHorizontalFOV = 0.4372f;
+                newCameraHorizontalFOV = 1.48000001907349;
+                newWeaponModelHorizontalFOV = 0.4372;
                 isFOVKnown = true;
             }
             else if (fabs(newAspectRatio - 1.77777777) < kTolerance) // 16:9
             {
-                newCameraHorizontalFOV = 1.42750000953674f;
-                newWeaponModelHorizontalFOV = 0.4035000503f;
+                newCameraHorizontalFOV = 1.42750000953674;
+                newWeaponModelHorizontalFOV = 0.4035000503;
                 isFOVKnown = true;
             }
             else if (fabs(newAspectRatio - 2.370370370370) < kTolerance) // 21:9 (2560x1080)
             {
-                newCameraHorizontalFOV = 1.28869998455048f;
-                newWeaponModelHorizontalFOV = 0.3205520213f;
+                newCameraHorizontalFOV = 1.28869998455048;
+                newWeaponModelHorizontalFOV = 0.3205520213;
                 isFOVKnown = true;
             }
             else if (fabs(newAspectRatio - 3.555555555) < kTolerance) // 32:9
             {
-                newCameraHorizontalFOV = 1.118420005f;
-                newWeaponModelHorizontalFOV = 0.2479600161f;
+                newCameraHorizontalFOV = 1.118420005;
+                newWeaponModelHorizontalFOV = 0.2479600161;
                 isFOVKnown = true;
             }
             else if (fabs(newAspectRatio - 5.333333333) < kTolerance) // 48:9
             {
-                newCameraHorizontalFOV = 0.9877000451f;
-                newWeaponModelHorizontalFOV = 0.183000043f;
+                newCameraHorizontalFOV = 0.9877000451;
+                newWeaponModelHorizontalFOV = 0.183000043;
                 isFOVKnown = true;
             }
             else

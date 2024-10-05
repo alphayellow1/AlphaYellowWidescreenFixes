@@ -23,8 +23,7 @@ string input;
 fstream file, file2;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newCameraHorizontalFOV;
-double oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV, tanValue, newCameraHorizontalInDegrees, newAspectRatio, oldAspectRatio = oldWidth / oldHeight, newCameraHorizontalFOVValue;
+double oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV, tanValue, newCameraHorizontalInDegrees, newAspectRatio, oldAspectRatio = oldWidth / oldHeight, newCameraHorizontalFOVValue, newCameraHorizontalFOV;
 char ch;
 
 // Function to convert degrees to radians
@@ -251,10 +250,10 @@ int main()
 
         SearchAndReplacePatterns(file);
 
-        newCameraHorizontalFOV = static_cast<float>(NewCameraHorizontalFOVCalculation(oldCameraHorizontalFOV = 80.0, newWidth, newHeight));
+        newCameraHorizontalFOV = NewCameraHorizontalFOVCalculation(oldCameraHorizontalFOV = 80.0, newWidth, newHeight);
 
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraHorizontalFOV)), sizeof(float));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

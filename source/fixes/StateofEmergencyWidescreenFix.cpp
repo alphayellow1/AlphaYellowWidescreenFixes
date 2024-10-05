@@ -20,7 +20,7 @@ uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newCameraHorizontalFOV, newClippingFixValue, newClippingFixValue2;
+double newCameraHorizontalFOV, newClippingFixValue, newClippingFixValue2;
 char ch;
 
 // Function to handle user input in choices
@@ -117,9 +117,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraClippingFixValueCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraClippingFixValueCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newClippingFixValue2 = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
+    newClippingFixValue2 = (4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue));
     return newClippingFixValue2;
 }
 
@@ -145,7 +145,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newCameraHorizontalFOV = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newCameraHorizontalFOV = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
         newClippingFixValue = NewCameraClippingFixValueCalculation(newWidth, newHeight);
 

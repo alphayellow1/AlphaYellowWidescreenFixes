@@ -18,7 +18,7 @@ const streampos kHUDOffset3 = 0x0001AD19;
 const streampos kHUDOffset4 = 0x0001ADA4;
 const streampos kHUDOffset5 = 0x0001AC60;
 const streampos kHUDOffset6 = 0x0001ACDB;
-const streampos kHUDOffset7 = 0x000AEA6F;
+const streampos kHUDOffset7 = 0x000AEA6;
 const streampos kHUDOffset8 = 0x000AE9EB;
 const streampos kHUDOffset9 = 0x000AE96A;
 const streampos kHUDOffset10 = 0x000AE8E6;
@@ -29,7 +29,7 @@ int choice, tempChoice;
 uint32_t newWidth, newHeight;
 fstream file;
 bool fileNotFound, validKeyPressed;
-float newMenuHorizontalFOV, newGameplayHorizontalFOV, hudPosition1, hudPosition2, hudPosition3, newMenuHorizontalFOVValue, newGameplayHorizontalFOVValue, newHudPosition1Value, newHudPosition2Value, newHudPosition3Value;
+double newMenuHorizontalFOV, newGameplayHorizontalFOV, hudPosition1, hudPosition2, hudPosition3, newMenuHorizontalFOVValue, newGameplayHorizontalFOVValue, newHudPosition1Value, newHudPosition2Value, newHudPosition3Value;
 char ch;
 
 // Function to handle user input in choices
@@ -126,33 +126,33 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewMenuHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewMenuHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newMenuHorizontalFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    newMenuHorizontalFOVValue = (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
     return newMenuHorizontalFOVValue;
 }
 
-float NewGameplayHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewGameplayHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newGameplayHorizontalFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
+    newGameplayHorizontalFOVValue = (4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue));
     return newGameplayHorizontalFOVValue;
 }
 
-float HudPosition1Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double HudPosition1Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newHudPosition1Value = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    newHudPosition1Value = (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
     return newHudPosition1Value;
 }
 
-float HudPosition2Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double HudPosition2Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newHudPosition2Value = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue))) * 1.1f;
+    newHudPosition2Value = ((1.3333333333333f * 0.5f) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue))) * 1.1;
     return newHudPosition2Value;
 }
 
-float HudPosition3Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double HudPosition3Calculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newHudPosition3Value = ((1.3333333333333f * 0.5f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue))) * 1.2f;
+    newHudPosition3Value = ((1.3333333333333f * 0.5f) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue))) * 1.2;
     return newHudPosition3Value;
 }
 

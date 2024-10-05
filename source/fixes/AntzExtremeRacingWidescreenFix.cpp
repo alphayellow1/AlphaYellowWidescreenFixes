@@ -13,8 +13,8 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kCameraHorizontalFOVOffset = 0x001427C3;
 const streampos kCameraVerticalFOVOffset = 0x001427D5;
 const streampos kHUD_and_Character_Selection_AspectRatio_Offset = 0x000AD771;
@@ -28,19 +28,19 @@ string input;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newAspectRatio, newGameplayCameraHorizontalFOV, newGameplayCameraHorizontalFOVValue, newGameplayCameraVerticalFOV, newHUDAndCharacterSelectionFOV, newHUDAndCharacterSelectionFOVValue, newFOV2;
+double newAspectRatio, newGameplayCameraHorizontalFOV, newGameplayCameraHorizontalFOVValue, newGameplayCameraVerticalFOV, newHUDAndCharacterSelectionFOV, newHUDAndCharacterSelectionFOVValue, newFOV2;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -79,7 +79,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -89,7 +89,7 @@ void HandleFOVInput(float &customFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOV = stof(input);
 
         if (cin.fail())
@@ -176,6 +176,7 @@ void SearchAndReplacePatterns(fstream &file)
         // 00436A80 | 8B45 08 | mov eax,[ebp+8]
         // 00436A83 | D942 40 | fld dword ptr [edx+40]
         // 00436A86 | D848 28 | fmul dword ptr [eax+28]
+
         {"\x14\x51\xE8\x59\x85\xFB\xFF\x83\xC4\x08\x5E\x33\xC0\x5B\x83\xC4\x2C\xC3\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 84}
     };
 
@@ -189,6 +190,7 @@ void SearchAndReplacePatterns(fstream &file)
         // 00436A80 | 8B45 08     | mov eax,[ebp+8]
         // 00436A83 | E9 4ABD1000 | jmp 005427D2
         // 00436A88 | 90          | nop
+
         {"\x14\x51\xE8\x59\x85\xFB\xFF\x83\xC4\x08\x5E\x33\xC0\x5B\x83\xC4\x2C\xC3\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x40\x3C\x00\x00\x00\x40\xD9\x40\x3C\xD8\x49\x28\xE9\xA8\x42\xEF\xFF\xC7\x42\x40\x00\x00\x00\x40\xD9\x42\x40\xD8\x48\x28\xE9\xA5\x42\xEF\xFF", 84}
         // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
         // CODECAVE ENTRYPOINT AT 005427C0 (x32dbg)
@@ -236,15 +238,15 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
-float NewHUDAndCharacterSelectionFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewHUDAndCharacterSelectionFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newHUDAndCharacterSelectionFOVValue = 0.5f * ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    newHUDAndCharacterSelectionFOVValue = 0.5f * ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0));
     return newHUDAndCharacterSelectionFOVValue;
 }
 
-float NewGameplayCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewGameplayCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newGameplayCameraHorizontalFOVValue = 0.5f * ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    newGameplayCameraHorizontalFOVValue = 0.5f * ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0));
     return newGameplayCameraHorizontalFOVValue;
 }
 
@@ -270,7 +272,7 @@ int main()
         case 1:
             newGameplayCameraHorizontalFOV = NewGameplayCameraHorizontalFOVCalculation(newWidth, newHeight);
 
-            newGameplayCameraVerticalFOV = 0.375f;
+            newGameplayCameraVerticalFOV = 0.375;
 
             break;
 
@@ -288,22 +290,22 @@ int main()
         SearchAndReplacePatterns(file);
 
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newGameplayCameraHorizontalFOV), sizeof(newGameplayCameraHorizontalFOV));
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newGameplayCameraHorizontalFOV)), sizeof(float));
 
         file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newGameplayCameraVerticalFOV), sizeof(newGameplayCameraVerticalFOV));
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newGameplayCameraVerticalFOV)), sizeof(float));
 
         file.seekp(kHUD_and_Character_Selection_AspectRatio_Offset);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newAspectRatio)), sizeof(float));
 
         file.seekp(kHUD_and_Character_Selection_FOV_Offset);
-        file.write(reinterpret_cast<const char *>(&newHUDAndCharacterSelectionFOV), sizeof(newHUDAndCharacterSelectionFOV));
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newHUDAndCharacterSelectionFOV)), sizeof(float));
 
         file.seekp(kAspectRatio2Offset);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newAspectRatio)), sizeof(float));
 
         file.seekp(kFOV2Offset);
-        file.write(reinterpret_cast<const char *>(&newFOV2), sizeof(newFOV2));
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newFOV2)), sizeof(float));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

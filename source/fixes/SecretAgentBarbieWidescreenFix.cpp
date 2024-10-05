@@ -15,7 +15,7 @@ const streampos kCameraFOVOffset = 0x001448C0;
 const streampos kWidthSmallOffset = 0x001448A3;
 const streampos kWidthBigOffset = 0x001448A4;
 const streampos kHeightSmallOffset = 0x001448AE;
-const streampos kHeightBigOffset = 0x001448AF;
+const streampos kHeightBigOffset = 0x001448A;
 
 // Variables
 int choice, tempChoice;
@@ -23,7 +23,7 @@ uint8_t currentWidthSmall, currentWidthBig, currentHeightSmall, currentHeightBig
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 bool fileFound, validKeyPressed;
-float newCameraFOV, newCameraFOVValue;
+double newCameraFOV, newCameraFOVValue;
 char ch;
 
 // Function to handle user input in choices
@@ -119,9 +119,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue) * 0.375f - 0.5f) / 2.0f + 0.5f;
+    newCameraFOVValue = (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue) * 0.375f - 0.5f) / 2.0 + 0.5;
     return newCameraFOVValue;
 }
 

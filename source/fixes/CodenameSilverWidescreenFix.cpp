@@ -22,7 +22,7 @@ const streampos kResolutionHeightOffset = 0x00000014;
 // Variables
 int choice, tempChoice;
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
-float CameraHorizontalFOVValue, CameraHorizontalFOV;
+double CameraHorizontalFOVValue, CameraHorizontalFOV;
 bool fileNotFound, validKeyPressed;
 string input;
 fstream file;
@@ -182,9 +182,9 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
-float HandleHFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double HandleHFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    CameraHorizontalFOVValue = 0.75f / ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    CameraHorizontalFOVValue = 0.75f / ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0));
 
     return CameraHorizontalFOVValue;
 }

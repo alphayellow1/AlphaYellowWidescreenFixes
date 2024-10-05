@@ -14,7 +14,7 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
+const double kPi = 3.14159265358979323846;
 const streampos kAspectRatioOffset = 0x000A5AE4;
 const streampos kCameraFOVOffset = 0x000A5AF3;
 
@@ -22,7 +22,7 @@ const streampos kCameraFOVOffset = 0x000A5AF3;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV, newAspectRatio;
+double newCameraFOV, newAspectRatio;
 string input;
 fstream file;
 char ch;
@@ -63,7 +63,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOV)
+void HandleFOVInput(double &newCustomFOV)
 {
     do
     {
@@ -73,7 +73,7 @@ void HandleFOVInput(float &newCustomFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOV = stof(input);
 
         if (cin.fail())
@@ -227,7 +227,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
         cout << "\n- Do you want to set a custom FOV multiplier as well (1) or keep the original one (FOV is already fixed with the new aspect ratio) (2)?: ";
         HandleChoiceInput(choice1);
@@ -242,7 +242,7 @@ int main()
             break;
 
         case 2:
-            newCameraFOV = 0.6108652949f;
+            newCameraFOV = 0.6108652949;
             
             break;
         }

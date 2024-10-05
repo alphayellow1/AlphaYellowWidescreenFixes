@@ -12,31 +12,31 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
-const streampos kHorizontalFOVOffset = 0x000C3AF2;
-const streampos kVerticalFOVOffset = 0x000C3B07;
-const float kDefaultVerticalFOVInRadians = 1.1780972451f; // 67.5 degrees
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
+const streampos kCameraHorizontalFOVOffset = 0x000C3AF2;
+const streampos kCameraVerticalFOVOffset = 0x000C3B07;
+const double kDefaultCameraVerticalFOVInRadians = 1.1780972451; // 67.5 degrees
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentHorizontalFOVInRadians, currentVerticalFOVInRadians, newHorizontalFOVInRadians, newVerticalFOVInRadians, oldWidth = 4.0f, oldHeight = 3.0f, oldHFOV = 90.0f, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, currentHorizontalFOVInDegrees, currentVerticalFOVInDegrees, newHorizontalFOVInDegreesValue, newHorizontalFOVInDegrees, newVerticalFOVInDegrees;
+double currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegreesValue, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -75,7 +75,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOVInDegrees)
+void HandleFOVInput(double &newCustomFOVInDegrees)
 {
     do
     {
@@ -85,7 +85,7 @@ void HandleFOVInput(float &newCustomFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -158,10 +158,10 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewHorizontalFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double newCameraHorizontalFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newHorizontalFOVInDegreesValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldHorizontalFOV / 2.0f)));
-    return newHorizontalFOVInDegreesValue;
+    newCameraHorizontalFOVInDegreesValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldHorizontalFOV / 2.0)));
+    return newCameraHorizontalFOVInDegreesValue;
 }
 
 int main()
@@ -174,19 +174,19 @@ int main()
     {
         OpenFile(file, "lithtech.exe");
 
-        file.seekg(kHorizontalFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentHorizontalFOVInRadians), sizeof(currentHorizontalFOVInRadians));
+        file.seekg(kCameraHorizontalFOVOffset);
+        file.read(reinterpret_cast<char *>(static_cast<const float *>(&currentCameraHorizontalFOVInRadians)), sizeof(float));
 
-        file.seekg(kVerticalFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentVerticalFOVInRadians), sizeof(currentVerticalFOVInRadians));
+        file.seekg(kCameraVerticalFOVOffset);
+        file.read(reinterpret_cast<char *>(static_cast<const float *>(&currentCameraVerticalFOVInRadians)), sizeof(float));
 
         file.close();
 
         // Converts the field of view values from radians to degrees
-        currentHorizontalFOVInDegrees = RadToDeg(currentHorizontalFOVInRadians);
-        currentVerticalFOVInDegrees = RadToDeg(currentVerticalFOVInRadians);
+        currentCameraHorizontalFOVInDegrees = RadToDeg(currentCameraHorizontalFOVInRadians);
+        currentCameraVerticalFOVInDegrees = RadToDeg(currentCameraVerticalFOVInRadians);
 
-        cout << "\nCurrent field of view: " << currentHorizontalFOVInDegrees << "\u00B0 (Horizontal); " << currentVerticalFOVInDegrees << "\u00B0 (Vertical) " << "\n";
+        cout << "\nCurrent field of view: " << currentCameraHorizontalFOVInDegrees << "\u00B0 (Horizontal); " << currentCameraVerticalFOVInDegrees << "\u00B0 (Vertical) " << "\n";
 
         cout << "\n- Do you want to set the field of view automatically based on the desired resolution (1) or set custom horizontal and vertical FOV values (2)?: ";
         HandleChoiceInput(choice1);
@@ -201,13 +201,13 @@ int main()
             HandleResolutionInput(newHeight);
 
             // Calculates the new horizontal field of view
-            newHorizontalFOVInDegrees = NewHorizontalFOVInDegreesCalculation(newWidth, newHeight);
+            newCameraHorizontalFOVInDegrees = newCameraHorizontalFOVInDegreesCalculation(newWidth, newHeight);
 
-            newHorizontalFOVInRadians = DegToRad(newHorizontalFOVInDegrees); // Converts degrees to radians
+            newCameraHorizontalFOVInRadians = DegToRad(newCameraHorizontalFOVInDegrees); // Converts degrees to radians
 
-            newVerticalFOVInRadians = kDefaultVerticalFOVInRadians;
+            newCameraVerticalFOVInRadians = kDefaultCameraVerticalFOVInRadians;
 
-            newVerticalFOVInDegrees = RadToDeg(newVerticalFOVInRadians);
+            newCameraVerticalFOVInDegrees = RadToDeg(newCameraVerticalFOVInRadians);
 
             descriptor = "automatically";
 
@@ -215,14 +215,14 @@ int main()
 
         case 2:
             cout << "\n- Enter the desired horizontal field of view (in degrees, default for 4:3 is 90\u00B0): ";
-            HandleFOVInput(newHorizontalFOVInDegrees);
+            HandleFOVInput(newCameraHorizontalFOVInDegrees);
 
             cout << "\n- Enter the desired vertical field of view (in degrees, default for 4:3 is 67.5\u00B0): ";
-            HandleFOVInput(newVerticalFOVInDegrees);
+            HandleFOVInput(newCameraVerticalFOVInDegrees);
 
-            newHorizontalFOVInRadians = DegToRad(newHorizontalFOVInDegrees); // Converts degrees to radians
+            newCameraHorizontalFOVInRadians = DegToRad(newCameraHorizontalFOVInDegrees); // Converts degrees to radians
 
-            newVerticalFOVInRadians = DegToRad(newVerticalFOVInDegrees); // Converts degrees to radians
+            newCameraVerticalFOVInRadians = DegToRad(newCameraVerticalFOVInDegrees); // Converts degrees to radians
 
             descriptor = "manually";
 
@@ -231,17 +231,17 @@ int main()
 
         OpenFile(file, "lithtech.exe");
 
-        file.seekp(kHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newHorizontalFOVInRadians), sizeof(newHorizontalFOVInRadians));
+        file.seekp(kCameraHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraHorizontalFOVInRadians)), sizeof(float));
 
-        file.seekp(kVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newVerticalFOVInRadians), sizeof(newVerticalFOVInRadians));
+        file.seekp(kCameraVerticalFOVOffset);
+        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraVerticalFOVInRadians)), sizeof(float));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully changed " << descriptor << " the horizontal field of view to " << newHorizontalFOVInDegrees << "\u00B0 and vertical field of view to " << newVerticalFOVInDegrees << "\u00B0."
+            cout << "\nSuccessfully changed " << descriptor << " the horizontal field of view to " << newCameraHorizontalFOVInDegrees << "\u00B0 and vertical field of view to " << newCameraVerticalFOVInDegrees << "\u00B0."
                  << endl;
         }
         else

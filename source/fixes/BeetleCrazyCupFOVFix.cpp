@@ -5,18 +5,17 @@
 #include <conio.h> // For getch() function [get character]
 #include <limits>
 #include <string>
+#include <cstring>
 #include <algorithm>
 
 using namespace std;
-
-// Constants
-const streampos kCameraFOVOffset = 0x000B92D0;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV, newCameraFOVValue;
+float newCameraFOVasFloat;
+double newCameraFOV, newCameraFOVValue;
 fstream file;
 string input, descriptor;
 char ch;
@@ -57,7 +56,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOVMultiplier)
+void HandleFOVInput(double &customFOVMultiplier)
 {
     do
     {
@@ -67,7 +66,7 @@ void HandleFOVInput(float &customFOVMultiplier)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOVMultiplier = stof(input);
 
         if (cin.fail())
@@ -141,9 +140,49 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCameraFOVValue = 0.35f / ((static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Finds the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Returns -1 if the pattern is not found
+}
+
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = 0.35f / ((static_cast<double>(newWidth) / static_cast<double>(newHeight)) / (4.0 / 3.0));
     return newCameraFOVValue;
 }
 
@@ -159,10 +198,10 @@ int main()
         switch (choice1)
         {
         case 1:
-            cout << "\nEnter the desired width: ";
+            cout << "\n- Enter the desired width: ";
             HandleResolutionInput(newWidth);
 
-            cout << "\nEnter the desired height: ";
+            cout << "\n- Enter the desired height: ";
             HandleResolutionInput(newHeight);
 
             newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
@@ -180,10 +219,14 @@ int main()
             break;
         }
 
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
         OpenFile(file, "beetle.exe");
 
+        streampos kCameraFOVOffset = FindAddress("\x00\x80\x40\x33\x33\xB3\x3E\xCD\xCC\xCC", "xxx????xxx");
+
         file.seekp(kCameraFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

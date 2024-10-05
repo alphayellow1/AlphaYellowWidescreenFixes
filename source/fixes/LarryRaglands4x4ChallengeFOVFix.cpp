@@ -10,14 +10,12 @@
 
 using namespace std;
 
-// Constants
-const streampos kFOVOffset = 0x000A2828;
-
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV, newCameraFOVValue;
+float newCameraFOVasFloat;
+double newCameraFOV, newCameraFOVValue;
 fstream file;
 string input, descriptor;
 char ch;
@@ -58,7 +56,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOVMultiplier)
+void HandleFOVInput(double &customFOVMultiplier)
 {
     do
     {
@@ -68,7 +66,7 @@ void HandleFOVInput(float &customFOVMultiplier)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOVMultiplier = stof(input);
 
         if (cin.fail())
@@ -142,9 +140,49 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCameraFOVValue = 0.42f / ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Finds the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Returns -1 if the pattern is not found
+}
+
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = 0.42f / ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0));
     return newCameraFOVValue;
 }
 
@@ -181,10 +219,14 @@ int main()
             break;
         }
 
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
         OpenFile(file, "4x4.exe");
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        streampos kCameraFOVOffset = FindAddress("\x00\x08\x42\x3D\x0A\xD7\x3E\x00\x00\x00", "xxx????xxx");
+
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

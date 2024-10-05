@@ -6,19 +6,17 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include <cstring>
 #include <algorithm>
 
 using namespace std;
-
-// Constants
-const streampos kCameraHorizontalFOVOffset = 0x00051B34;
-const streampos kCameraVerticalFOVOffset = 0x001F4154;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraHorizontalFOV, newCameraVerticalFOV, newCameraFOVValue;
+float newCameraHorizontalFOVasFloat, newCameraVerticalFOVasFloat;
+double newCameraHorizontalFOV, newCameraVerticalFOV, newCameraFOVValue;
 fstream file;
 string input, descriptor;
 char ch;
@@ -59,7 +57,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOVMultiplier)
+void HandleFOVInput(double &customFOVMultiplier)
 {
     do
     {
@@ -69,7 +67,7 @@ void HandleFOVInput(float &customFOVMultiplier)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOVMultiplier = stof(input);
 
         if (cin.fail())
@@ -143,9 +141,49 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCameraFOVValue = 0.6999999881f / ((4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
+}
+
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = 0.6999999881f / ((4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)));
     return newCameraFOVValue;
 }
 
@@ -187,13 +225,21 @@ int main()
             break;
         }
 
+        newCameraHorizontalFOVasFloat = static_cast<float>(newCameraHorizontalFOV);
+
+        newCameraVerticalFOVasFloat = static_cast<float>(newCameraVerticalFOV);
+
         OpenFile(file, "Frogger Beyond.exe");
 
+        streampos kCameraHorizontalFOVOffset = FindAddress("\xC7\x45\xDC\x33\x33\x33\x3F\x83\x7D\x08", "xxx????xxx");
+
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVasFloat), sizeof(newCameraHorizontalFOVasFloat));
+
+        streampos kCameraVerticalFOVOffset = FindAddress("\xF8\x3A\x40\x00\x00\x00\x00\x00\x33\x33\x33\x3F\x00\x00\x87\x43\x00\x00\x00\x00", "xxxxxxxx????xxxxxxxx");
 
         file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOV), sizeof(newCameraVerticalFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVasFloat), sizeof(newCameraVerticalFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
