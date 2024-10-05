@@ -20,21 +20,21 @@ const streampos kCameraFOVOffset = 0x002D9DA6;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOV, newCameraFOV, newCameraFOVValue, oldWidth = 4.0f, oldHeight = 3.0f, oldHFOV = 75.0f, oldAspectRatio = oldWidth / oldHeight, newAspectRatio;
+double currentCameraFOV, newCameraFOV, newCameraFOVValue, oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 75.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -73,7 +73,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOV)
+void HandleFOVInput(double &newCustomFOV)
 {
     do
     {
@@ -83,7 +83,7 @@ void HandleFOVInput(float &newCustomFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOV = stof(input);
 
         if (cin.fail())
@@ -156,9 +156,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0f)));
+    newCameraFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0)));
     return newCameraFOVValue;
 }
 
@@ -189,7 +189,7 @@ int main()
             cout << "\n- Enter the desired height: ";
             HandleResolutionInput(newHeight);
 
-            newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+            newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
             // Calculates the new FOV
             newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);

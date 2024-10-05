@@ -12,8 +12,8 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kOutsideCameraFOVOffset = 0x00001AB2;
 const streampos kCockpitCameraFOVOffset = 0x00001A2A;
 const streampos kHoistCameraFOVOffset = 0x00001B3D;
@@ -23,9 +23,9 @@ const streampos kFlyByCameraFOVOffset = 0x0011B2F0;
 int choice1, choice2, tempChoice, digitLengthWidth, digitLengthHeight;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentOutsideCameraFOVInRadians, currentCockpitCameraFOVInRadians, currentHoistCameraFOVInRadians, currentFlyByCameraFOVInRadians, 
+double currentOutsideCameraFOVInRadians, currentCockpitCameraFOVInRadians, currentHoistCameraFOVInRadians, currentFlyByCameraFOVInRadians, 
 newOutsideCameraFOVInRadians, newCockpitCameraFOVInRadians, newHoistCameraFOVInRadians, newFlyByCameraFOVInRadians, 
-oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight, currentOutsideCameraFOVInDegrees, 
+oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight, currentOutsideCameraFOVInDegrees, 
 currentCockpitCameraFOVInDegrees, currentHoistCameraFOVInDegrees, currentFlyByCameraFOVInDegrees, newOutsideCameraFOVInDegrees, newCockpitCameraFOVInDegrees, 
 newHoistCameraFOVInDegrees, newFlyByCameraFOVInDegrees, newCameraFOVInDegreesValue;
 string descriptor, input, r;
@@ -33,15 +33,15 @@ fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -80,7 +80,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOVInDegrees)
+void HandleFOVInput(double &newCustomFOVInDegrees)
 {
     do
     {
@@ -90,7 +90,7 @@ void HandleFOVInput(float &newCustomFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -163,9 +163,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, float &oldCameraHorizontalFOVValue)
+double NewCameraFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, double &oldCameraHorizontalFOVValue)
 {
-    newCameraFOVInDegreesValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0f)));
+    newCameraFOVInDegreesValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0)));
     return newCameraFOVInDegreesValue;
 }
 
@@ -216,16 +216,16 @@ int main()
             HandleResolutionInput(newHeight);
 
             // Calculates the new FOV for the outside camera
-            newOutsideCameraFOVInDegrees = NewCameraFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 75.0f);
+            newOutsideCameraFOVInDegrees = NewCameraFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 75.0);
 
             // Calculates the new FOV for the cockpit camera
-            newCockpitCameraFOVInDegrees = NewCameraFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0f);
+            newCockpitCameraFOVInDegrees = NewCameraFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0);
 
             // Calculates the new FOV for the hoist camera
-            newHoistCameraFOVInDegrees = NewCameraFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0f);
+            newHoistCameraFOVInDegrees = NewCameraFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0);
 
             // Calculates the new FOV for the fly-by camera
-            newFlyByCameraFOVInDegrees = NewCameraFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 1.0f);
+            newFlyByCameraFOVInDegrees = NewCameraFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 1.0);
 
             descriptor = "automatically";
 

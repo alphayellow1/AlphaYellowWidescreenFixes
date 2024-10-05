@@ -10,14 +10,12 @@
 
 using namespace std;
 
-// Constants
-const streampos kCameraHorizontalFOVOffset = 0x0009F445;
-
 // Variables
 int choice, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraHorizontalFOV;
+float newCameraHorizontalFOVasFloat;
+double newCameraHorizontalFOV;
 fstream file;
 char ch;
 
@@ -115,6 +113,46 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
+streampos FindAddress(const char *pattern, const char *mask)
+{
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
+}
+
 int main()
 {
     cout << "Harry Potter: Quidditch World Cup (2003) FOV Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
@@ -129,10 +167,14 @@ int main()
         cout << "\nEnter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newCameraHorizontalFOV = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newCameraHorizontalFOV = static_cast<double>(newWidth) / static_cast<double>(newHeight);
+
+        newCameraHorizontalFOVasFloat = static_cast<float>(newCameraHorizontalFOV);
+
+        streampos kCameraHorizontalFOVOffset = FindAddress("\xC7\x47\x18\xAB\xAA\xAA\x3F\x8B\x5C\x24", "xxx????xxx");
 
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVasFloat), sizeof(newCameraHorizontalFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

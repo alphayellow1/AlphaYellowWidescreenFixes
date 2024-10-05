@@ -19,7 +19,7 @@ fstream file;
 string input;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOV, newCameraFOV;
+double currentCameraFOV, newCameraFOV;
 char ch;
 
 // Function to handle user input in choices
@@ -58,7 +58,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -68,7 +68,7 @@ void HandleFOVInput(float &customFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOV = stof(input);
 
         if (cin.fail())

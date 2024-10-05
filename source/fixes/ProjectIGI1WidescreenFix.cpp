@@ -27,7 +27,8 @@ int choice1, choice2, tempChoice;
 int16_t GameVersionCheckValue;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newAspectRatio, newAspectRatioValue, newCameraFOV, newCameraFOVValue, newWeaponModelFOV;
+float newAspectRatioAsFloat, newCameraFOVasFloat, newWeaponModelFOVasFloat;
+double newAspectRatio, newAspectRatioValue, newCameraFOV, newCameraFOVValue, newWeaponModelFOV;
 string input;
 fstream file;
 char ch;
@@ -68,7 +69,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOV)
+void HandleFOVInput(double &newCustomFOV)
 {
     do
     {
@@ -78,7 +79,7 @@ void HandleFOVInput(float &newCustomFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOV = stof(input);
 
         if (cin.fail())
@@ -189,15 +190,15 @@ void GameVersionCheck()
     } while (GameVersionCheckValue != 29894 && GameVersionCheckValue != 19290 && GameVersionCheckValue != 1571);
 }
 
-float NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newAspectRatioValue = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) * 0.75f * 4.0f;
+    newAspectRatioValue = (static_cast<double>(newWidth) / static_cast<double>(newHeight)) * 0.75f * 4.0;
     return newAspectRatioValue;
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) * 0.75f;
+    newCameraFOVValue = (static_cast<double>(newWidth) / static_cast<double>(newHeight)) * 0.75;
     return newCameraFOVValue;
 }
 
@@ -242,38 +243,44 @@ int main()
         cout << "\n- Enter the desired weapon FOV (default for 4:3 aspect ratio is 1.7559): ";
         HandleFOVInput(newWeaponModelFOV);
 
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
+
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
+        newWeaponModelFOVasFloat = static_cast<float>(newWeaponModelFOV);
+
         if (GameVersionCheckValue == 29894) // CHINA/EU VERSIONS
         {
             file.seekp(kAspectRatio_EU_CHINA_Offset);
-            file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+            file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
             file.seekp(kCameraFOV_EU_CHINA_Offset);
-            file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+            file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
             file.seekp(kWeaponModelFOV_EU_CHINA_Offset);
-            file.write(reinterpret_cast<const char *>(&newWeaponModelFOV), sizeof(newWeaponModelFOV));
+            file.write(reinterpret_cast<const char *>(&newWeaponModelFOVasFloat), sizeof(newWeaponModelFOVasFloat));
         }
         else if (GameVersionCheckValue == 19290) // USA VERSION
         {
             file.seekp(kAspectRatio_USA_Offset);
-            file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+            file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
             file.seekp(kCameraFOV_USA_Offset);
-            file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+            file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
             file.seekp(kWeaponModelFOV_USA_Offset);
-            file.write(reinterpret_cast<const char *>(&newWeaponModelFOV), sizeof(newWeaponModelFOV));
+            file.write(reinterpret_cast<const char *>(&newWeaponModelFOVasFloat), sizeof(newWeaponModelFOVasFloat));
         }
         else if (GameVersionCheckValue == 1571) // JAPAN VERSION
         {
             file.seekp(kAspectRatio_JP_Offset);
-            file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+            file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
             file.seekp(kCameraFOV_JP_Offset);
-            file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+            file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
             file.seekp(kWeaponModelFOV_JP_Offset);
-            file.write(reinterpret_cast<const char *>(&newWeaponModelFOV), sizeof(newWeaponModelFOV));
+            file.write(reinterpret_cast<const char *>(&newWeaponModelFOVasFloat), sizeof(newWeaponModelFOVasFloat));
         }
 
         // Checks if any errors occurred during the file operations

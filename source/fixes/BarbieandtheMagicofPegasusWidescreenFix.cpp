@@ -6,23 +6,10 @@
 #include <cstdint> // For uint32_t variable type
 #include <limits>
 #include <string>
+#include <cstring>
 #include <algorithm>
 
 using namespace std;
-
-// Constants
-const streampos kResolutionWidthOffset = 0x0005A291;
-const streampos kResolutionHeightOffset = 0x0005A29D;
-const streampos kAspectRatioOffset1 = 0x0002F110;
-const streampos kAspectRatioOffset2 = 0x00032EF2;
-const streampos kAspectRatioOffset3 = 0x00040A52;
-const streampos kAspectRatioOffset4 = 0x0004F82F;
-const streampos kAspectRatioOffset5 = 0x0005180A;
-const streampos kFOVOffset1 = 0x0002F115;
-const streampos kFOVOffset2 = 0x00032EF7;
-const streampos kFOVOffset3 = 0x00040A5E;
-const streampos kFOVOffset4 = 0x0004F834;
-const streampos kFOVOffset5 = 0x0005180F;
 
 // Variables
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
@@ -30,7 +17,8 @@ string input, descriptor;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV, newCameraFOVValue, newAspectRatio;
+float newAspectRatioAsFloat, newCameraFOVasFloat;
+double newCameraFOV, newCameraFOVValue, newAspectRatio;
 char ch;
 
 // Function to handle user input in choices
@@ -69,7 +57,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -79,7 +67,7 @@ void HandleFOVInput(float &customFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOV = stof(input);
 
         if (cin.fail())
@@ -153,10 +141,50 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f)) * 0.5f;
+    newCameraFOVValue = ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0)) * 0.5;
     return newCameraFOVValue;
+}
+
+streampos FindAddress(const char *pattern, const char *mask)
+{
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
 }
 
 int main()
@@ -166,6 +194,10 @@ int main()
     do
     {
         OpenFile(file, "Barbie Pegasus.exe");
+
+        streampos kResolutionWidthOffset = FindAddress("\x3C\x81\xFD\x80\x02\x00\x00\x7C\x46\x8B", "xxx????xxx");
+
+        streampos kResolutionHeightOffset = FindAddress("\x40\x81\xF9\xE0\x01\x00\x00\x7C\x3A\x8B", "xxx????xxx");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
@@ -181,7 +213,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
         cout << "\n- Do you want to set FOV automatically based on the resolution set above (1) or set a custom field of view value (2)?: ";
         HandleChoiceInput(choice1);
@@ -200,41 +232,65 @@ int main()
             break;
         }
 
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
+
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
+        streampos kAspectRatioOffset1 = FindAddress("\x68\x81\x89\x00\x68\xAB\xAA\xAA\x3F\x68", "xxxxx????x");
+
         file.seekp(kAspectRatioOffset1);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
+
+        streampos kAspectRatioOffset2 = FindAddress("\x24\x08\x8B\x15\xD4\x8A\x77\x00\x68\xAB\xAA\xAA\x3F\x68", "xxxxxxxxx????x");
 
         file.seekp(kAspectRatioOffset2);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
+
+        streampos kAspectRatioOffset3 = FindAddress("\xFC\xFF\x68\xAB\xAA\xAA\x3F\x8B\xF0\xA1", "xxx????xxx");
 
         file.seekp(kAspectRatioOffset3);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
+
+        streampos kAspectRatioOffset4 = FindAddress("\xB9\x08\x00\x8B\x0D\x68\x81\x89\x00\xA1\xD4\x8A\x77\x00\x68\xAB\xAA\xAA\x3F\x68", "xxxxxxxxxxxxxxx????x");
 
         file.seekp(kAspectRatioOffset4);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
+
+        streampos kAspectRatioOffset5 = FindAddress("\x99\x08\x00\x8B\x0D\x68\x81\x89\x00\xA1\xD4\x8A\x77\x00\x68\xAB\xAA\xAA\x3F\x68", "xxxxxxxxxxxxxxx????x");
 
         file.seekp(kAspectRatioOffset5);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
-        file.seekp(kFOVOffset1);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        streampos kCameraFOVOffset1 = FindAddress("\x68\x00\x00\x00\x3F\x51\x50\xA3\xD4", "x????xxxx");
 
-        file.seekp(kFOVOffset2);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.seekp(kCameraFOVOffset1);
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
-        file.seekp(kFOVOffset3);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        streampos kCameraFOVOffset2 = FindAddress("\x68\x00\x00\x00\x3F\x51\x52\xE8", "x????xxx");
 
-        file.seekp(kFOVOffset4);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.seekp(kCameraFOVOffset2);
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
-        file.seekp(kFOVOffset5);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV)); 
+        streampos kCameraFOVOffset3 = FindAddress("\x68\x00\x00\x00\x3F\x50\x56", "x????xx");
+
+        file.seekp(kCameraFOVOffset3);
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+
+        streampos kCameraFOVOffset4 = FindAddress("\x68\x00\x00\x00\x3F\x51\x50\xA3\x64\x81\x89\x00\xE8\x1C", "x????xxxxxxxxx");
+
+        file.seekp(kCameraFOVOffset4);
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+
+        streampos kCameraFOVOffset5 = FindAddress("\x68\x00\x00\x00\x3F\x51\x50\xA3\x64\x81\x89\x00\xE8\x41", "x????xxxxxxxxx");
+
+        file.seekp(kCameraFOVOffset5);
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

@@ -20,7 +20,7 @@ uint32_t newWidth, newHeight;
 fstream file;
 string input;
 bool fileFound, validKeyPressed, isAspectRatioKnown;
-float newCameraFOV, newAspectRatio;
+double newCameraFOV, newAspectRatio;
 char ch;
 
 // Function to handle user input in choices
@@ -59,7 +59,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -69,7 +69,7 @@ void HandleFOVInput(float &customFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOV = stof(input);
 
         if (cin.fail())
@@ -158,21 +158,21 @@ int main()
             cout << "\n- Type the desired resolution height: ";
             HandleResolutionInput(newHeight);
 
-            newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+            newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
-            if (newAspectRatio == 4.0f / 3.0f)
+            if (newAspectRatio == 4.0 / 3.0)
             {
-                newCameraFOV = 0.5f;
+                newCameraFOV = 0.5;
                 isAspectRatioKnown = true;
             }
-            else if (newAspectRatio == 16.0f / 10.0f)
+            else if (newAspectRatio == 16.0 / 10.0)
             {
-                newCameraFOV = 0.5875f;
+                newCameraFOV = 0.5875;
                 isAspectRatioKnown = true;
             }
-            else if (newAspectRatio == 16.0f / 9.0f)
+            else if (newAspectRatio == 16.0 / 9.0)
             {
-                newCameraFOV = 0.6427778006f;
+                newCameraFOV = 0.6427778006;
                 isAspectRatioKnown = true;
             }
             else

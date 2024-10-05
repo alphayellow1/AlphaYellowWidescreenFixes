@@ -8,34 +8,33 @@
 #include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
+#include <cstring>
 
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const streampos kCameraFOVOffset = 0x0004A105;
-const streampos kResolutionWidthOffset = 0x0002A912;
-const streampos kResolutionHeightOffset = 0x0002A91A;
+const double kPi = 3.14159265358979323846;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOV, newCameraFOV, newCameraFOVValue, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV = 90.0f, oldAspectRatio = oldWidth / oldHeight;
+float currentCameraFOV, newCameraFOVasFloat;
+double newCameraFOV, newCameraFOVValue, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight;
 string input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float degToRad(float degrees)
+double degToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float radToDeg(float radians)
+double radToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -74,7 +73,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOVInDegrees)
+void HandleFOVInput(double &newCustomFOVInDegrees)
 {
     do
     {
@@ -84,7 +83,7 @@ void HandleFOVInput(float &newCustomFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -157,9 +156,49 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCameraFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0f)));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Finds the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Returns -1 if the pattern is not found
+}
+
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0)));
     return newCameraFOVValue;
 }
 
@@ -173,17 +212,23 @@ int main()
     {
         OpenFile(file, "LEGO Racers 2.exe");
 
-        file.seekg(kCameraFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
+        streampos kResolutionWidthOffset = FindAddress("\x53\x3D\x20\x03\x00\x00\x75\x0A", "xx????xx");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
 
+        streampos kResolutionHeightOffset = FindAddress("\x81\xFD\x58\x02\x00\x00\x74\x44", "xx????xx");
+
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
 
-        cout << "\nCurrent FOV is " << currentCameraFOV << "\u00B0" << endl;
-        cout << "Current resolution is " << currentWidth << "x" << currentHeight << "" << endl;
+        streampos kCameraFOVOffset = FindAddress("\x83\xA4\x01\x00\x00\x00\x00\xB4\x42\x8B\x54\x24\x1C\x8D", "xxxxx????xxxxx");
+
+        file.seekg(kCameraFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
+
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << endl;
+        cout << "Current FOV is " << currentCameraFOV << "\u00B0" << endl;
 
         cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
@@ -199,30 +244,30 @@ int main()
         case 1:
             // Calculates the new FOV
             newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
-
             break;
 
         case 2:
             cout << "\n- Enter the desired FOV value (from 1\u00B0 to 180\u00B0, default FOV for 4:3 aspect ratio is 90\u00B0): ";
             HandleFOVInput(newCameraFOV);
-
             break;
         }
 
-        file.seekp(kCameraFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
 
         file.seekp(kResolutionWidthOffset);
-        file.write(reinterpret_cast<char *>(&newWidth), sizeof(newWidth));
+        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
         file.seekp(kResolutionHeightOffset);
-        file.write(reinterpret_cast<char *>(&newHeight), sizeof(newHeight));
+        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
+
+        file.seekp(kCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and field of view to " << newCameraFOV << "\u00B0." << endl;
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and field of view to " << (float)newCameraFOV << "\u00B0." << endl;
         }
         else
         {

@@ -19,7 +19,7 @@ fstream file;
 string input, descriptor;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newAspectRatio, newCameraFOV, newCameraFOVValue;
+double newAspectRatio, newCameraFOV, newCameraFOVValue;
 char ch;
 
 // Function to handle user input in choices
@@ -58,7 +58,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOVMultiplier)
+void HandleFOVInput(double &customFOVMultiplier)
 {
     do
     {
@@ -68,7 +68,7 @@ void HandleFOVInput(float &customFOVMultiplier)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOVMultiplier = stof(input);
 
         if (cin.fail())
@@ -142,9 +142,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f);
+    newCameraFOVValue = (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
     return newCameraFOVValue;
 }
 
@@ -160,7 +160,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
         OpenFile(file, "MummyPC.exe");
 

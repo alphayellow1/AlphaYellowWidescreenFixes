@@ -18,7 +18,7 @@ const streampos kFOVOffset = 0x0021F3E2;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 double oldWidth = 4.0, oldHeight = 3.0, oldHFOV = 70.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio, newWidth, newHeight, currentHFOVInDegrees, currentVFOVInDegrees, newHFOVInDegrees, newVFOVInDegrees, newCustomFOVInDegrees, newCustomResolutionValue, newFOV;
-float currentFOV, fovInFloat;
+double currentFOV, fovIndouble;
 string input;
 fstream file;
 char ch;
@@ -71,7 +71,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-float HandleFOVInput()
+double HandleFOVInput()
 {
     do
     {
@@ -81,7 +81,7 @@ float HandleFOVInput()
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -199,13 +199,13 @@ int main()
             break;
         }
 
-        fovInFloat = static_cast<float>(newFOV);
+        fovIndouble = static_cast<double>(newFOV);
 
         file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&fovInFloat), sizeof(fovInFloat));
+        file.write(reinterpret_cast<const char *>(&fovIndouble), sizeof(fovIndouble));
 
         // Confirmation message
-        cout << "\nSuccessfully changed the FOV to " << fovInFloat << "\u00B0." << endl;
+        cout << "\nSuccessfully changed the FOV to " << fovIndouble << "\u00B0." << endl;
 
         // Closes the file
         file.close();

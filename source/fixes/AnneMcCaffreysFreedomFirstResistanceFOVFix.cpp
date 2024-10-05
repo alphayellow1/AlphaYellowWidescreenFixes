@@ -12,29 +12,30 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kCameraFOVOffset = 0x0027FB06;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOVInRadians, newCameraFOVInRadians, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraFOV = 90.0f, oldAspectRatio = oldWidth / oldHeight, currentCameraFOVInDegrees, newCameraFOVInDegrees, newCameraFOVInDegreesValue;
+float currentCameraFOVInRadians, newCameraFOVInRadians;
+double oldWidth = 4.0, oldHeight = 3.0, oldCameraFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, currentCameraFOVInDegrees, newCameraFOVInDegrees, newCameraFOVInDegreesValue;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -73,7 +74,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomCameraFOVInDegrees)
+void HandleFOVInput(double &newCustomCameraFOVInDegrees)
 {
     do
     {
@@ -83,7 +84,7 @@ void HandleFOVInput(float &newCustomCameraFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomCameraFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -156,9 +157,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVInDegreesValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraFOV / 2.0f)));
+    newCameraFOVInDegreesValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraFOV / 2.0)));
     return newCameraFOVInDegreesValue;
 }
 
@@ -178,9 +179,9 @@ int main()
         // Converts the FOV value from radians to degrees
         currentCameraFOVInDegrees = RadToDeg(currentCameraFOVInRadians);
 
-        cout << "\nCurrent CameraFOV is " << currentCameraFOVInDegrees << "\u00B0" << endl;
+        cout << "\nCurrent camera field of view is " << currentCameraFOVInDegrees << "\u00B0" << endl;
 
-        cout << "\n- Do you want to set CameraFOV automatically based on the desired resolution (1) or set a custom CameraFOV value (2)?: ";
+        cout << "\n- Do you want to set the camera field of view automatically based on the desired resolution (1) or set a custom value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
@@ -207,7 +208,7 @@ int main()
             break;
         }
 
-        newCameraFOVInRadians = DegToRad(newCameraFOVInDegrees); // Converts degrees to radians
+        newCameraFOVInRadians = static_cast<float>(DegToRad(newCameraFOVInDegrees)); // Converts degrees to radians
 
         file.seekp(kCameraFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraFOVInRadians), sizeof(newCameraFOVInRadians));

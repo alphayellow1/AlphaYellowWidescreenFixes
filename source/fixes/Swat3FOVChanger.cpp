@@ -13,14 +13,14 @@ using namespace std;
 
 // Constants
 const streampos kCameraFOVOffset = 0x0025CB90;
-const float kDefaultCameraFOV = 0.5f;
+const double kDefaultCameraFOV = 0.5;
 
 // Variables
 fstream file;
 string input;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOVInMultiplier, currentCameraFOVInDegreesValue, currentCameraFOVInDegrees, newCameraFOVInMultiplier, newCameraFOVInMultiplierValue, newCameraFOVInDegrees, newCameraFOVInDegreesValue;
+double currentCameraFOVInMultiplier, currentCameraFOVInDegreesValue, currentCameraFOVInDegrees, newCameraFOVInMultiplier, newCameraFOVInMultiplierValue, newCameraFOVInDegrees, newCameraFOVInDegreesValue;
 char ch;
 
 // Function to handle user input in choices
@@ -59,7 +59,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -69,7 +69,7 @@ void HandleFOVInput(float &customFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOV = stof(input);
 
         if (cin.fail())
@@ -157,15 +157,15 @@ void SearchAndReplacePattern(fstream &file)
     delete[] buffer;
 }
 
-float CurrentCameraFOVInDegreesCalculation(float &currentCameraFOVInMultiplierValue)
+double CurrentCameraFOVInDegreesCalculation(double &currentCameraFOVInMultiplierValue)
 {
-    currentCameraFOVInDegreesValue = (currentCameraFOVInMultiplierValue * 80.0f) * 2.0f;
+    currentCameraFOVInDegreesValue = (currentCameraFOVInMultiplierValue * 80.0) * 2.0;
     return currentCameraFOVInDegreesValue;
 }
 
-float NewCameraFOVInMultiplierCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraFOVInMultiplierCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVInMultiplierValue = (newCameraFOVInDegreesValue * 0.5f) / 80.0f;;
+    newCameraFOVInMultiplierValue = (newCameraFOVInDegreesValue * 0.5f) / 80.0;;
     return newCameraFOVInMultiplierValue;
 }
 

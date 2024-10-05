@@ -6,13 +6,10 @@
 #include <cstdint> // For uint32_t variable type    
 #include <limits>
 #include <string>
+#include <cstring>
 #include <algorithm>
 
 using namespace std;
-
-// Constants
-const streampos kAspectRatioOffset1 = 0x00250C94;
-const streampos kAspectRatioOffset2 = 0x00250C98;
 
 // Variables
 uint32_t newWidth, newHeight;
@@ -20,7 +17,8 @@ string input, descriptor;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newAspectRatio, newAspectRatioValue;
+float newAspectRatioAsFloat;
+double newAspectRatio, newAspectRatioValue;
 char ch;
 
 // Function to handle user input in choices
@@ -117,10 +115,50 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newAspectRatioValue = static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue);
+    newAspectRatioValue = static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue);
     return newAspectRatioValue;
+}
+
+streampos FindAddress(const char *pattern, const char *mask)
+{
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
 }
 
 int main()
@@ -139,11 +177,17 @@ int main()
 
         newAspectRatio = NewAspectRatioCalculation(newWidth, newHeight);
 
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
+
+        streampos kAspectRatioOffset1 = FindAddress("\x20\x0B\x68\x00\xE1\x6A\x40\x00\x00\x00\x00\x00\xAB\xAA\xAA\x3F", "xxxxxxxxxxxx????");
+
         file.seekp(kAspectRatioOffset1);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
+
+        streampos kAspectRatioOffset2 = FindAddress("\xAB\xAA\xAA\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x25\x73\x3A\x25", "????xxxxxxxxxxxxxxxxxxxx");
 
         file.seekp(kAspectRatioOffset2);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

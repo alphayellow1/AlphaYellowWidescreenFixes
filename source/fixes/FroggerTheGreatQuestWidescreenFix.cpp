@@ -20,7 +20,7 @@ const streampos kCameraFOVOffset = 0x000ADB10;
 int choice, tempChoice;
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV, newCameraFOVValue, newAspectRatio;
+double newCameraFOV, newCameraFOVValue, newAspectRatio;
 fstream file;
 char ch;
 
@@ -118,9 +118,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) * 0.5f) / 2.37037037037f) * 0.83198f;
+    newCameraFOVValue = (((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) * 0.5f) / 2.37037037037f) * 0.83198;
     return newCameraFOVValue;
 }
 
@@ -146,7 +146,7 @@ int main()
         cout << "\nEnter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
         if (newAspectRatio > 3.555f)
         {
@@ -154,7 +154,7 @@ int main()
         }
         else
         {
-            newCameraFOV = 0.5f;
+            newCameraFOV = 0.5;
         }
 
         file.seekp(kResolutionWidthOffset);

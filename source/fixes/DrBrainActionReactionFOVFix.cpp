@@ -12,31 +12,28 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const streampos kCameraFOV1Offset = 0x0000C4BB;
-const streampos kCameraFOV2Offset = 0x0000E20F;
-const streampos kCameraFOV3Offset = 0x0000E216;
-const streampos kCameraFOV4Offset = 0x0003468A;
+const double kPi = 3.14159265358979323846;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOV, newCameraFOV, newCameraFOVValue, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV = 90.0f, oldAspectRatio = oldWidth / oldHeight;
+float currentCameraFOV, newCameraFOVasFloat;
+double newCameraFOV, newCameraFOVValue, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight;
 string input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float degToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float radToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -75,7 +72,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOVInDegrees)
+void HandleFOVInput(double &newCustomFOVInDegrees)
 {
     do
     {
@@ -85,7 +82,7 @@ void HandleFOVInput(float &newCustomFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -158,9 +155,49 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCameraFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0f)));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
+}
+
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0)));
     return newCameraFOVValue;
 }
 
@@ -173,6 +210,8 @@ int main()
     do
     {
         OpenFile(file, "ENGINE.U");
+
+        streampos kCameraFOV1Offset = FindAddress("\x68\x11\x24\x00\x00\xB4\x42\x6E\x11\x22", "xxx????xxx");
 
         file.seekg(kCameraFOV1Offset);
         file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
@@ -192,7 +231,7 @@ int main()
             HandleResolutionInput(newHeight);
 
             // Calculates the new field of view
-            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight)
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
 
             break;
 
@@ -203,17 +242,25 @@ int main()
             break;
         }
 
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
         file.seekp(kCameraFOV1Offset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+
+        streampos kCameraFOV2Offset = FindAddress("\x52\x16\x24\x00\x00\xB4\x42\x53\x16\x24", "xxx????xxx");
 
         file.seekp(kCameraFOV2Offset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+
+        streampos kCameraFOV3Offset = FindAddress("\x53\x16\x24\x00\x00\xB4\x42\x6B\x04\x01", "xxx????xxx");
 
         file.seekp(kCameraFOV3Offset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+
+        streampos kCameraFOV4Offset = FindAddress("\xF6\xAF\x1E\x00\x00\xB4\x42\xAB\x01\x71", "xxx????xxx");
 
         file.seekp(kCameraFOV4Offset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

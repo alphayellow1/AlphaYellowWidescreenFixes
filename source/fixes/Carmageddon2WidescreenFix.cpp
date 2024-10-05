@@ -16,7 +16,7 @@ const streampos kHorizontalCameraFOVOffset = 0x001874A3;
 // Variables
 int choice, tempChoice;
 int32_t newWidth, newHeight;
-float newCameraHorizontalFOV;
+double newCameraHorizontalFOV;
 fstream file;
 bool fileNotFound, validKeyPressed;
 char ch;
@@ -129,7 +129,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newCameraHorizontalFOV = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newCameraHorizontalFOV = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
         file.seekp(kHorizontalCameraFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));

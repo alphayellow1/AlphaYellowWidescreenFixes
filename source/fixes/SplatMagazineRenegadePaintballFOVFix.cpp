@@ -12,8 +12,8 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kCameraFOV1Offset = 0x0046B927;
 const streampos kCameraFOV2Offset = 0x0046B93C;
 const streampos kWeaponFOVOffset = 0x0046B94E;
@@ -33,21 +33,21 @@ const streampos kAspectRatioOffset11 = 0x005D7C40;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOVInRadians, currentWeaponFOVInRadians, currentCameraFOVInDegrees, currentWeaponFOVInDegrees, newCameraFOVInRadians, newWeaponFOVInRadians, newCameraFOVInDegrees, newFOVValue, newWeaponFOVInDegrees, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio;
+double currentCameraFOVInRadians, currentWeaponFOVInRadians, currentCameraFOVInDegrees, currentWeaponFOVInDegrees, newCameraFOVInRadians, newWeaponFOVInRadians, newCameraFOVInDegrees, newFOVValue, newWeaponFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight, newAspectRatio;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -86,7 +86,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOVInDegrees)
+void HandleFOVInput(double &newCustomFOVInDegrees)
 {
     do
     {
@@ -96,7 +96,7 @@ void HandleFOVInput(float &newCustomFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -169,9 +169,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, float &oldCameraHorizontalFOVValue)
+double NewFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, double &oldCameraHorizontalFOVValue)
 {
-    newFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0f)));
+    newFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0)));
     return newFOVValue;
 }
 
@@ -205,7 +205,7 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
         cout << "\n- Do you want to set FOV automatically based on the resolution typed above (1) or set custom values for camera and weapon FOV (2)?: ";
         HandleChoiceInput(choice1);
@@ -214,10 +214,10 @@ int main()
         {
         case 1:
             // Calculates the new camera FOV
-            newCameraFOVInDegrees = NewFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0F);
+            newCameraFOVInDegrees = NewFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 90.0);
 
             // Calculates the new weapon FOV
-            newWeaponFOVInDegrees = NewFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 70.0F);
+            newWeaponFOVInDegrees = NewFOVInDegreesCalculation(newWidth, newHeight, oldCameraHorizontalFOV = 70.0);
 
             descriptor = "automatically";
 

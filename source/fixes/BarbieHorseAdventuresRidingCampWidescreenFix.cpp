@@ -23,7 +23,7 @@ string input, descriptor;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV, newAspectRatio, newAspectRatioValue;
+double newCameraFOV, newAspectRatio, newAspectRatioValue;
 char ch;
 
 // Function to handle user input in choices
@@ -62,7 +62,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -72,7 +72,7 @@ void HandleFOVInput(float &customFOV)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         customFOV = stof(input);
 
         if (cin.fail())
@@ -146,9 +146,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newAspectRatioValue = static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue);
+    newAspectRatioValue = static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue);
     return newAspectRatioValue;
 }
 
@@ -261,7 +261,7 @@ int main()
             break;
 
         case 2:
-            newCameraFOV = 1.169370532f;
+            newCameraFOV = 1.169370532;
             break;
         }
 

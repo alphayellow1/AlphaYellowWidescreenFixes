@@ -4,17 +4,15 @@
 #include <conio.h> // For getch() function [get character]
 #include <cstdint> // For uint32_t variable type
 #include <limits>
+#include <cstring>
 #include <string>
 #include <algorithm>
 
 using namespace std;
 
-// Constants
-const streampos kAspectRatioOffset = 0x000115E9;
-const streampos kFOVOffset = 0x0009C206;
-
 // Variables
-float newAspectRatio, newAspectRatioValue, desiredFOV, desiredFOVValue;
+float newAspectRatioAsFloat, newCameraFOVasFloat;
+double newAspectRatio, newAspectRatioValue, newCameraFOV, newCameraFOVValue;
 bool fileNotFound, validKeyPressed;
 uint32_t newWidth, newHeight;
 int choice1, choice2, tempChoice;
@@ -142,17 +140,56 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float HandleAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newAspectRatioValue = 0.75f / ((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / (4.0f / 3.0f));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
 
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
+}
+
+double HandleAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newAspectRatioValue = 0.75f / ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0f / 3.0f));
     return newAspectRatioValue;
 }
 
-float HandleFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double HandleFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    desiredFOVValue = 0.8546222448f / ((4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)));
-    return desiredFOVValue;
+    newCameraFOVValue = 0.8546222448f / ((4.0f / 3.0f) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)));
+    return newCameraFOVValue;
 }
 
 int main()
@@ -169,10 +206,21 @@ int main()
 
         newAspectRatio = HandleAspectRatioCalculation(newWidth, newHeight);
 
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
+
         OpenFile(file, "aladdin.exe");
 
-        file.seekp(kAspectRatioOffset);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        streampos kAspectRatioOffset = FindAddress("\xFB\x4A\x00\x00\x00\x40\x3F\x0F\x94\xC2", "xxx????xxx");
+
+        if (kAspectRatioOffset != -1)
+        {
+            file.seekp(kAspectRatioOffset);
+            file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
+        }
+        else
+        {
+            cerr << "Aspect ratio pattern not found." << endl;
+        }
 
         cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2)?: ";
         HandleChoiceInput(choice1);
@@ -180,16 +228,27 @@ int main()
         switch (choice1)
         {
         case 1:
-            desiredFOV = HandleFOVCalculation(newWidth, newHeight);
+            newCameraFOV = HandleFOVCalculation(newWidth, newHeight);
             break;
         case 2:
             cout << "\n- Type a custom field of view multiplier value (default for 4:3 aspect ratio is 0.8546222448): ";
-            HandleFOVInput(desiredFOV);
+            HandleFOVInput(newCameraFOV);
             break;
         }
 
-        file.seekp(kFOVOffset);
-        file.write(reinterpret_cast<const char *>(&desiredFOV), sizeof(desiredFOV));
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
+        streampos kCameraFOVOffset = FindAddress("\xA6\x4A\x00\x86\xC8\x5A\x3F\xD8\x35\x60", "xxx????xxx");
+
+        if (kCameraFOVOffset != -1)
+        {
+            file.seekp(kCameraFOVOffset);
+            file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+        }
+        else
+        {
+            cerr << "Camera FOV pattern not found." << endl;
+        }
 
         // Checks if any errors occurred during the file operations
         if (file.good())

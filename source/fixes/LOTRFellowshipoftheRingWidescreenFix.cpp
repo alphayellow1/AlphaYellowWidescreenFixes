@@ -7,20 +7,16 @@
 #include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
+#include <cstring>
 
 using namespace std;
-
-// Constants
-const streampos kAspectRatioOffset = 0x0011D948;
-const streampos kCameraFOVOffset1 = 0x001208CC;
-const streampos kCameraFOVOffset2 = 0x00120A90;
 
 // Variables
 int choice, tempChoice, simplifiedWidth, simplifiedHeight, aspectRatioGCD;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double newCameraFOV2;
-float newCameraFOV, newAspectRatio;
+float newCameraFOVasFloat, newAspectRatioAsFloat;
+double newCameraFOVasDouble, newAspectRatio;
 fstream file;
 char ch;
 
@@ -124,6 +120,46 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
+streampos FindAddress(const char *pattern, const char *mask)
+{
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Finds the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Returns -1 if the pattern is not found
+}
+
 int main()
 {
     cout << "The Lord of the Rings: The Fellowship of the Ring (2002) Widescreen Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
@@ -166,22 +202,28 @@ int main()
             simplifiedHeight = 9;
         }
 
-        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
-        // Puts the FOV value in the FOV addresses (as float and double)
-        newCameraFOV = 64.0f / (newAspectRatio * 0.75f);
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
 
-        newCameraFOV2 = static_cast<double>(newCameraFOV);
+        newCameraFOVasFloat = static_cast<float>(64.0 / (newAspectRatio * 0.75));
 
-        // Puts the aspect ratio value in the AR address
+        newCameraFOVasDouble = static_cast<double>(newCameraFOVasFloat);        
+
+        streampos kAspectRatioOffset = FindAddress("\x4E\x00\x00\x20\x40\x00\x00\xC0\x3F\xDB\x0F\x49\x40\xA0", "xxxxx????xxxxx");
+
         file.seekp(kAspectRatioOffset);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));        
+
+        streampos kCameraFOVOffset1 = FindAddress("\x3F\x00\xFE\xFF\x46\x00\x00\x80\x42\x00\x00\x00\x20\x00", "xxxxx????xxxxx");
 
         file.seekp(kCameraFOVOffset1);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+
+        streampos kCameraFOVOffset2 = FindAddress("\x40\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x50\x40\x70\x4F\x4A\x00\xE0", "xxxxx????????xxxxx");
 
         file.seekp(kCameraFOVOffset2);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV2), sizeof(newCameraFOV2));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasDouble), sizeof(newCameraFOVasDouble));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

@@ -5,21 +5,18 @@
 #include <cstdint> // For uint32_t variable type
 #include <limits>
 #include <string>
+#include <cstring>
 #include <algorithm>
 
 using namespace std;
-
-// Constants
-const streampos kResolutionWidthOffset = 0x00055C94;
-const streampos kResolutionHeightOffset = 0x00055C9E;
-const streampos kHorizontalFOVOffset = 0x0008E5C4;
 
 // Variables
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV, newCameraFOVValue;
+float newCameraHorizontalFOVasFloat;
+double newCameraHorizontalFOV, newCameraHorizontalFOVValue;
 char ch;
 
 // Function to handle user input in choices
@@ -116,10 +113,50 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
-    return newCameraFOVValue;
+    newCameraHorizontalFOVValue = (4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue));
+    return newCameraHorizontalFOVValue;
+}
+
+streampos FindAddress(const char *pattern, const char *mask)
+{
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
 }
 
 int main()
@@ -129,6 +166,10 @@ int main()
     do
     {
         OpenFile(file, "Barbiex.exe");
+
+        streampos kResolutionWidthOffset = FindAddress("\x00\x80\x02\x00\x00\xC7", "x????x");
+
+        streampos kResolutionHeightOffset = FindAddress("\x00\xE0\x01\x00\x00\xC7", "x????x");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
@@ -144,7 +185,9 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newCameraFOV = NewFOVCalculation(newWidth, newHeight);
+        newCameraHorizontalFOV = NewCameraHorizontalFOVCalculation(newWidth, newHeight);
+
+        newCameraHorizontalFOVasFloat = static_cast<float>(newCameraHorizontalFOV);
 
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
@@ -152,8 +195,10 @@ int main()
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        file.seekp(kHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        streampos kCameraHorizontalFOVOffset = FindAddress("\x72\xDF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????");
+
+        file.seekp(kCameraHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVasFloat), sizeof(newCameraHorizontalFOVasFloat)); 
 
         // Checks if any errors occurred during the file operations
         if (file.good())

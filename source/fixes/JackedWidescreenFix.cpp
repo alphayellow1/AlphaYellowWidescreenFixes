@@ -6,13 +6,12 @@
 #include <cstdint> // For uint32_t variable type
 #include <limits>
 #include <string>
+#inclue <cstring>
 #include <algorithm>
 
 using namespace std;
 
 // Constants
-const streampos kResolutionWidthOffset = 0x0007D27D;
-const streampos kResolutionHeightOffset = 0x0007D286;
 const streampos kCameraHorizontalFOVOffset = 0x0023F26C;
 
 // Variables
@@ -20,7 +19,8 @@ uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newCameraHorizontalFOV, newCameraHorizontalFOVValue;
+float newCameraHorizontalFOVasFloat;
+double newCameraHorizontalFOV, newCameraHorizontalFOVValue;
 char ch;
 
 // Function to handle user input in choices
@@ -117,9 +117,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraHorizontalFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
+    newCameraHorizontalFOVValue = (4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue));
     return newCameraHorizontalFOVValue;
 }
 
@@ -131,8 +131,12 @@ int main()
     {
         OpenFile(file, "Jacked.exe");
 
+        streampos kResolutionWidthOffset = FindAddress("\x81\x7D\xD4\x00\x05\x00\x00\x75\x45\x81", "xxx????xxx");
+
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
+
+        streampos kResolutionHeightOffset = FindAddress("\x81\x7D\xD8\x00\x04\x00\x00\xEB\x22\x81", "xxx????xxx");
 
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
@@ -147,6 +151,8 @@ int main()
 
         newCameraHorizontalFOV = NewCameraHorizontalFOVCalculation(newWidth, newHeight);
 
+        newCameraHorizontalFOVasFloat = static_cast<float>(newCameraHorizontalFOV);
+
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
 
@@ -154,7 +160,7 @@ int main()
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVasFloat), sizeof(newCameraHorizontalFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

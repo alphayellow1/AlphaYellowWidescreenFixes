@@ -6,18 +6,16 @@
 #include <limits>
 #include <string>
 #include <algorithm>
+#include <cstring>
 
 using namespace std;
-
-// Constants
-const streampos kCameraHorizontalFOVOffset = 0x0002F762;
-const streampos kCameraVerticalFOVOffset = 0x0002F799;
 
 // Variables
 int choice, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV, newCameraFOVValue;
+float newCameraFOVasFloat;
+double newCameraFOV, newCameraFOVValue;
 fstream file;
 char ch;
 
@@ -115,9 +113,49 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCameraFOVValue = (4.0f / 3.0f) / (static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
+}
+
+double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = (4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue));
     return newCameraFOVValue;
 }
 
@@ -129,19 +167,25 @@ int main()
     {
         OpenFile(file, "crusaders.exe");
 
-        cout << "\nEnter the desired width: ";
+        cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
 
-        cout << "\nEnter the desired height: ";
+        cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
         newCameraFOV = NewCameraHorizontalFOVCalculation(newWidth, newHeight);
 
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
+        streampos kCameraHorizontalFOVOffset = FindAddress("\x4C\x02\x00\x00\x00\x00\x80\x3F\xC7\x84\x24\x50", "xxxx????xxxx");
+
+        streampos kCameraVerticalFOVOffset = FindAddress("\x60\x02\x00\x00\x00\x00\x80\x3F\xC7\x84\x24\x64", "xxxx????xxxx");
+
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

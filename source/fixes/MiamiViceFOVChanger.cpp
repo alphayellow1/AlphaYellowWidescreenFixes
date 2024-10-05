@@ -16,7 +16,7 @@ const streampos kCameraFOVOffset = 0x0011DF20;
 // Variables
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-float newCameraFOV;
+double newCameraFOV;
 char ch;
 fstream file;
 string input;
@@ -57,7 +57,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &customFOV)
+void HandleFOVInput(double &customFOV)
 {
     // Reads the input as a string
     cin >> input;
@@ -65,7 +65,7 @@ void HandleFOVInput(float &customFOV)
     // Replaces all commas with dots
     replace(input.begin(), input.end(), ',', '.');
 
-    // Parses the string to a float
+    // Parses the string to a double
     customFOV = stof(input);
 
     if (cin.fail())

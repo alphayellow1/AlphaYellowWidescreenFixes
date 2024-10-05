@@ -12,8 +12,8 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kAliveFOVOffset = 0x003E5E17;
 const streampos kDeathFOVOffset = 0x003E5E2D;
 
@@ -21,21 +21,21 @@ const streampos kDeathFOVOffset = 0x003E5E2D;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraFOVInRadians, currentCameraFOVInDegrees, newCameraFOVInRadians, newCameraFOVInDegrees, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV = 90.0f, oldAspectRatio = oldWidth / oldHeight, newCameraFOVValue;
+double currentCameraFOVInRadians, currentCameraFOVInDegrees, newCameraFOVInRadians, newCameraFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newCameraFOVValue;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -74,7 +74,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOVInDegrees)
+void HandleFOVInput(double &newCustomFOVInDegrees)
 {
     do
     {
@@ -84,7 +84,7 @@ void HandleFOVInput(float &newCustomFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -157,9 +157,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraInDegreesFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewCameraInDegreesFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0f)));
+    newCameraFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0)));
     return newCameraFOVValue;
 }
 

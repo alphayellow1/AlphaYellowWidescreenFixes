@@ -12,8 +12,8 @@
 using namespace std;
 
 // Constants
-const float kPi = 3.14159265358979323846f;
-const float kTolerance = 0.01f;
+const double kPi = 3.14159265358979323846;
+const double kTolerance = 0.01;
 const streampos kHipfireFOV1Offset = 0x00213F87;
 const streampos kHipfireFOV2Offset = 0x00213FA3;
 const streampos kAimDownSightsFOVOffset = 0x00213F8E;
@@ -22,21 +22,21 @@ const streampos kAimDownSightsFOVOffset = 0x00213F8E;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentHipfireFOVInRadians, currentAimDownSightsFOVInRadians, currentHipfireFOVInDegrees, currentAimDownSightsFOVInDegrees, newHipfireFOVInRadians, newAimDownSightsFOVInRadians, newHipfireFOVInDegrees, newAimDownSightsFOVInDegrees, oldWidth = 4.0f, oldHeight = 3.0f, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight, newCameraFOVValue;
+double currentHipfireFOVInRadians, currentAimDownSightsFOVInRadians, currentHipfireFOVInDegrees, currentAimDownSightsFOVInDegrees, newHipfireFOVInRadians, newAimDownSightsFOVInRadians, newHipfireFOVInDegrees, newAimDownSightsFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV, oldAspectRatio = oldWidth / oldHeight, newCameraFOVValue;
 string descriptor, input;
 fstream file;
 char ch;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
+double DegToRad(double degrees)
 {
-    return degrees * (kPi / 180.0f);
+    return degrees * (kPi / 180.0);
 }
 
 // Function to convert radians to degrees
-float RadToDeg(float radians)
+double RadToDeg(double radians)
 {
-    return radians * (180.0f / kPi);
+    return radians * (180.0 / kPi);
 }
 
 // Function to handle user input in choices
@@ -75,7 +75,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(float &newCustomFOVInDegrees)
+void HandleFOVInput(double &newCustomFOVInDegrees)
 {
     do
     {
@@ -85,7 +85,7 @@ void HandleFOVInput(float &newCustomFOVInDegrees)
         // Replaces all commas with dots
         replace(input.begin(), input.end(), ',', '.');
 
-        // Parses the string to a float
+        // Parses the string to a double
         newCustomFOVInDegrees = stof(input);
 
         if (cin.fail())
@@ -158,9 +158,9 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-float NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, float &oldCameraHorizontalFOVValue)
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, double &oldCameraHorizontalFOVValue)
 {
-    newCameraFOVValue = 2.0f * RadToDeg(atan((static_cast<float>(newWidthValue) / static_cast<float>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0f)));
+    newCameraFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOVValue / 2.0)));
     return newCameraFOVValue;
 }
 
