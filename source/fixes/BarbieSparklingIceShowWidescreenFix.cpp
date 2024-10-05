@@ -152,10 +152,10 @@ int main()
 
         do
         {
-            cout << "\n- Type the desired resolution width: ";
+            cout << "\n- Enter the desired resolution width: ";
             HandleResolutionInput(newWidth);
 
-            cout << "\n- Type the desired resolution height: ";
+            cout << "\n- Enter the desired resolution height: ";
             HandleResolutionInput(newHeight);
 
             newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);

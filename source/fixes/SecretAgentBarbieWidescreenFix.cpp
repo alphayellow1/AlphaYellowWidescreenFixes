@@ -151,10 +151,10 @@ int main()
 
         cout << "\nCurrent resolution: " << currentWidth << "x" << currentHeight << "\n";
 
-        cout << "\n- Type your new resolution width: ";
+        cout << "\n- Enter the desired resolution width: ";
         HandleResolutionInput(newWidth);
 
-        cout << "\n- Type your new resolution height: ";
+        cout << "\n- Enter the desired resolution height: ";
         HandleResolutionInput(newHeight);
 
         newWidthSmall = newWidth % 256;

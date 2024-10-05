@@ -164,10 +164,10 @@ int main()
     {
         OpenFile(file, "kao.exe");
 
-        cout << "\nEnter the desired width: ";
+        cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
 
-        cout << "\nEnter the desired height: ";
+        cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
         newMenuHorizontalFOV = NewMenuHorizontalFOVCalculation(newWidth, newHeight);

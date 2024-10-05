@@ -231,7 +231,7 @@ int main()
             newCameraFOV = HandleFOVCalculation(newWidth, newHeight);
             break;
         case 2:
-            cout << "\n- Type a custom field of view multiplier value (default for 4:3 aspect ratio is 0.8546222448): ";
+            cout << "\n- Enter a custom field of view multiplier value (default for 4:3 aspect ratio is 0.8546222448): ";
             HandleFOVInput(newCameraFOV);
             break;
         }

@@ -161,10 +161,10 @@ int main()
     {
         OpenFile(file, "QWC.exe");
 
-        cout << "\nEnter the desired width: ";
+        cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
 
-        cout << "\nEnter the desired height: ";
+        cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
         newCameraHorizontalFOV = static_cast<double>(newWidth) / static_cast<double>(newHeight);

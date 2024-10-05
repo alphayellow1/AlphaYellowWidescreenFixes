@@ -252,7 +252,7 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Type a custom camera FOV multiplier value (default for 4:3 aspect ratio is 1.0): ";
+            cout << "\n- Enter a custom camera FOV multiplier value (default for 4:3 aspect ratio is 1.0): ";
 
             HandleFOVInput(newCameraFOV);
 

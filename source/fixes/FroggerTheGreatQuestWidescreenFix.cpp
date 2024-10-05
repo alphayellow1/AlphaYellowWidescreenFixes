@@ -140,10 +140,10 @@ int main()
 
         cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
-        cout << "\nEnter the desired width: ";
+        cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
 
-        cout << "\nEnter the desired height: ";
+        cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
         newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);

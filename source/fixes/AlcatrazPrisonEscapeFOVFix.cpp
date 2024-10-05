@@ -22,7 +22,8 @@ const streampos kCameraVerticalFOVOffset = 0x000C42E6;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double newAspectRatio, currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, oldWidth = 4.0, oldHeight = 3.0, oldHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees;
+float currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians;
+double newAspectRatio, oldWidth = 4.0, oldHeight = 3.0, oldHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees;
 string descriptor, input;
 fstream file;
 char ch;
@@ -175,10 +176,10 @@ int main()
         OpenFile(file, "lithtech.exe");
 
         file.seekg(kCameraHorizontalFOVOffset);
-        file.read(reinterpret_cast<char *>(static_cast<const float *>(&currentCameraHorizontalFOVInRadians)), sizeof(float));
+        file.read(reinterpret_cast<char *>(&currentCameraHorizontalFOVInRadians), sizeof(currentCameraHorizontalFOVInRadians));
 
         file.seekg(kCameraVerticalFOVOffset);
-        file.read(reinterpret_cast<char *>(static_cast<const float *>(&currentCameraVerticalFOVInRadians)), sizeof(float));
+        file.read(reinterpret_cast<char *>(&currentCameraVerticalFOVInRadians), sizeof(currentCameraHorizontalFOVInRadians));
 
         file.close();
 
@@ -203,9 +204,9 @@ int main()
             // Calculates the new horizontal field of view
             newCameraHorizontalFOVInDegrees = NewHorizontalFOVInDegreesCalculation(newWidth, newHeight);
 
-            newCameraHorizontalFOVInRadians = DegToRad(newCameraHorizontalFOVInDegrees); // Converts degrees to radians
+            newCameraHorizontalFOVInRadians = static_cast<float>(DegToRad(newCameraHorizontalFOVInDegrees)); // Converts degrees to radians
 
-            newCameraVerticalFOVInRadians = kDefaultVerticalFOVInRadians;
+            newCameraVerticalFOVInRadians = static_cast<float>(kDefaultVerticalFOVInRadians);
 
             newCameraVerticalFOVInDegrees = RadToDeg(newCameraVerticalFOVInRadians);
 
@@ -220,9 +221,9 @@ int main()
             cout << "\n- Enter the desired vertical field of view (in degrees, default for 4:3 aspect ratio is 67.5\u00B0): ";
             HandleFOVInput(newCameraVerticalFOVInDegrees);
 
-            newCameraHorizontalFOVInRadians = DegToRad(newCameraHorizontalFOVInDegrees); // Converts degrees to radians
+            newCameraHorizontalFOVInRadians = static_cast<float>(DegToRad(newCameraHorizontalFOVInDegrees)); // Converts degrees to radians
 
-            newCameraVerticalFOVInRadians = DegToRad(newCameraVerticalFOVInDegrees); // Converts degrees to radians
+            newCameraVerticalFOVInRadians = static_cast<float>(DegToRad(newCameraVerticalFOVInDegrees)); // Converts degrees to radians
 
             descriptor = "manually";
 
@@ -232,10 +233,10 @@ int main()
         OpenFile(file, "lithtech.exe");
 
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraHorizontalFOVInRadians)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVInRadians), sizeof(newCameraHorizontalFOVInRadians));
 
         file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraVerticalFOVInRadians)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVInRadians), sizeof(newCameraHorizontalFOVInRadians));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

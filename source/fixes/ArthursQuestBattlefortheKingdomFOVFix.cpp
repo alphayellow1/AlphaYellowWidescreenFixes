@@ -22,7 +22,8 @@ const streampos kCameraVerticalFOVOffset = 0x001AF761;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegreesValue; 
+float newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees;
+double oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegreesValue; 
 string descriptor, input;
 fstream file;
 char ch;
@@ -173,10 +174,10 @@ int main()
         OpenFile(file, "CShell.dll");
 
         file.seekg(kCameraHorizontalFOVOffset);
-        file.read(reinterpret_cast<char *>(static_cast<const float *>(&currentCameraHorizontalFOVInRadians)), sizeof(float));
+        file.read(reinterpret_cast<char *>(&currentCameraHorizontalFOVInRadians), sizeof(currentCameraHorizontalFOVInRadians));
 
         file.seekg(kCameraVerticalFOVOffset);
-        file.read(reinterpret_cast<char *>(static_cast<const float *>(&currentCameraVerticalFOVInRadians)), sizeof(float));
+        file.read(reinterpret_cast<char *>(&currentCameraVerticalFOVInRadians), sizeof(currentCameraVerticalFOVInRadians));
 
         file.close();
 
@@ -200,9 +201,9 @@ int main()
 
             newCameraHorizontalFOVInDegrees = NewHorizontalFOVInDegreesCalculation(newWidth, newHeight);
 
-            newCameraHorizontalFOVInRadians = DegToRad(newCameraHorizontalFOVInDegrees); // Converts degrees to radians
+            newCameraHorizontalFOVInRadians = static_cast<float>(DegToRad(newCameraHorizontalFOVInDegrees)); // Converts degrees to radians
 
-            newCameraVerticalFOVInRadians = kDefaultVerticalFOVInRadians;
+            newCameraVerticalFOVInRadians = static_cast<float>(kDefaultVerticalFOVInRadians);
 
             newCameraVerticalFOVInDegrees = RadToDeg(newCameraVerticalFOVInRadians);
 
@@ -217,9 +218,9 @@ int main()
             cout << "\n- Enter the desired horizontal field of view (in degrees, default for 4:3 aspect ratio is 67.5\u00B0): ";
             HandleFOVInput(newCameraVerticalFOVInDegrees);
 
-            newCameraHorizontalFOVInRadians = DegToRad(newCameraHorizontalFOVInDegrees); // Converts degrees to radians
+            newCameraHorizontalFOVInRadians = static_cast<float>(DegToRad(newCameraHorizontalFOVInDegrees)); // Converts degrees to radians
 
-            newCameraVerticalFOVInRadians = DegToRad(newCameraVerticalFOVInDegrees); // Converts degrees to radians
+            newCameraVerticalFOVInRadians = static_cast<float>(DegToRad(newCameraVerticalFOVInDegrees)); // Converts degrees to radians
 
             descriptor = "manually";
 
@@ -229,10 +230,10 @@ int main()
         OpenFile(file, "CShell.dll");
 
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraHorizontalFOVInRadians)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVInRadians), sizeof(newCameraHorizontalFOVInRadians));
 
         file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraVerticalFOVInRadians)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVInRadians), sizeof(newCameraVerticalFOVInRadians));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
