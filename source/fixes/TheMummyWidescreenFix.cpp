@@ -6,12 +6,9 @@
 #include <limits>
 #include <string>
 #include <algorithm>
+#include <cstring>
 
 using namespace std;
-
-// Constants
-const streampos kAspectRatioOffset = 0x00082F5C;
-const streampos kCameraFOVOffset = 0x000673E5;
 
 // Variables
 uint32_t newWidth, newHeight;
@@ -19,6 +16,7 @@ fstream file;
 string input, descriptor;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
+float newAspectRatioAsFloat, newCameraFOVasFloat;
 double newAspectRatio, newCameraFOV, newCameraFOVValue;
 char ch;
 
@@ -142,6 +140,46 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
+streampos FindAddress(const char *pattern, const char *mask)
+{
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
+}
+
 double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
     newCameraFOVValue = (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
@@ -164,10 +202,12 @@ int main()
 
         OpenFile(file, "MummyPC.exe");
 
+        streampos kAspectRatioOffset = FindAddress("\x40\x9C\x45\xAB\xAA\xAA\x3F\x89\x88\x88", "xxx????xxx");
+
         file.seekp(kAspectRatioOffset);
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
 
-        cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2) ?: ";
+        cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom FOV multiplier value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
@@ -180,13 +220,19 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Type a custom FOV multiplier value (default value for 4:3 aspect ratio is 1.0): ";
+            cout << "\n- Enter a custom FOV multiplier value (default value for 4:3 aspect ratio is 1.0): ";
             HandleFOVInput(newCameraFOV);
 
             descriptor = "changed the ";
 
             break;
         }
+
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
+
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
+        streampos kCameraFOVOffset = FindAddress("\x44\x24\x30\x00\x00\x80\x3F\xD9\xC9\xD9", "xxx????xxx");
 
         file.seekp(kCameraFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));

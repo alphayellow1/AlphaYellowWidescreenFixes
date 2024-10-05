@@ -6,6 +6,7 @@
 #include <limits>
 #include <string>
 #include <algorithm>
+#include <cstring>
 
 using namespace std;
 
@@ -17,6 +18,7 @@ const streampos kCameraFOVOffset = 0x001E1640;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
+float newCameraHorizontalFOVasFloat, newCameraFOVasFloat;
 double newCameraHorizontalFOV, newCameraHorizontalFOVValue, newCameraFOV;
 fstream file;
 string input;
@@ -174,16 +176,20 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Type a custom field of view multiplier value (default for the 4:3 aspect ratio is 1.0): ";
+            cout << "\n- Enter a custom field of view multiplier value (default for the 4:3 aspect ratio is 1.0): ";
             HandleFOVInput(newCameraFOV);
             break;
         }
 
+        newCameraHorizontalFOVasFloat = static_cast<float>(newCameraHorizontalFOV);
+
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraHorizontalFOV)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVasFloat), sizeof(newCameraHorizontalFOVasFloat));
 
         file.seekp(kCameraFOVOffset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newCameraFOV)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

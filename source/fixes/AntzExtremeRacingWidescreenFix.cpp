@@ -28,6 +28,7 @@ string input;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
+float newHUDAndCharacterSelectionFOVasFloat, newGameplayCameraHorizontalFOVasFloat, newGameplayCameraVerticalFOVasFloat, newFOV2asFloat, newAspectRatioAsFloat;
 double newAspectRatio, newGameplayCameraHorizontalFOV, newGameplayCameraHorizontalFOVValue, newGameplayCameraVerticalFOV, newHUDAndCharacterSelectionFOV, newHUDAndCharacterSelectionFOVValue, newFOV2;
 char ch;
 
@@ -264,6 +265,8 @@ int main()
 
         newHUDAndCharacterSelectionFOV = NewHUDAndCharacterSelectionFOVCalculation(newWidth, newHeight);
 
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
+
         cout << "\n- Do you want to fix the field of view automatically based on the resolution typed above (1) or set custom multiplier values for horizontal and vertical field of view (2)?: ";
         HandleChoiceInput(choice1);
 
@@ -277,35 +280,45 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Type a custom horizontal field of view multiplier value (default for 4:3 aspect ratio is 0.5): ";
+            cout << "\n- Enter a custom horizontal field of view multiplier value (default for 4:3 aspect ratio is 0.5): ";
             HandleFOVInput(newGameplayCameraHorizontalFOV);
 
-            cout << "\n- Type a custom vertical field of view multiplier value (default for 4:3 aspect ratio is 0.375): ";
+            cout << "\n- Enter a custom vertical field of view multiplier value (default for 4:3 aspect ratio is 0.375): ";
             HandleFOVInput(newGameplayCameraVerticalFOV);
             break;
         }
+
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
+
+        newHUDAndCharacterSelectionFOVasFloat = static_cast<float>(newHUDAndCharacterSelectionFOV);
+
+        newGameplayCameraHorizontalFOVasFloat = static_cast<float>(newGameplayCameraHorizontalFOV);
+
+        newGameplayCameraVerticalFOVasFloat = static_cast<float>(newGameplayCameraVerticalFOV);
+
+        newFOV2asFloat = static_cast<float>(newFOV2);
 
         OpenFile(file, "antzextremeracing.exe");
 
         SearchAndReplacePatterns(file);
 
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newGameplayCameraHorizontalFOV)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newGameplayCameraHorizontalFOVasFloat), sizeof(newGameplayCameraHorizontalFOVasFloat));
 
         file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newGameplayCameraVerticalFOV)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newGameplayCameraVerticalFOVasFloat), sizeof(newGameplayCameraVerticalFOVasFloat));
 
         file.seekp(kHUD_and_Character_Selection_AspectRatio_Offset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newAspectRatio)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
         file.seekp(kHUD_and_Character_Selection_FOV_Offset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newHUDAndCharacterSelectionFOV)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newHUDAndCharacterSelectionFOVasFloat), sizeof(newHUDAndCharacterSelectionFOVasFloat));
 
         file.seekp(kAspectRatio2Offset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newAspectRatio)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
         file.seekp(kFOV2Offset);
-        file.write(reinterpret_cast<const char *>(static_cast<const float *>(&newFOV2)), sizeof(float));
+        file.write(reinterpret_cast<const char *>(&newFOV2asFloat), sizeof(newFOV2asFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())

@@ -199,10 +199,10 @@ int main()
         switch (choice1)
         {
         case 1:
-            cout << "\nEnter the desired width: ";
+            cout << "\n- Enter the desired width: ";
             HandleResolutionInput(newWidth);
 
-            cout << "\nEnter the desired height: ";
+            cout << "\n- Enter the desired height: ";
             HandleResolutionInput(newHeight);
 
             newCameraHorizontalFOV = NewCameraFOVCalculation(newWidth, newHeight);
@@ -214,10 +214,10 @@ int main()
             break;
 
         case 2:
-            cout << "\n- Type a custom horizontal FOV multiplier value (default for 4:3 aspect ratio is 0.7): ";
+            cout << "\n- Enter a custom horizontal FOV multiplier value (default for 4:3 aspect ratio is 0.7): ";
             HandleFOVInput(newCameraHorizontalFOV);
 
-            cout << "\n- Type a custom vertical FOV multiplier value (default for 4:3 aspect ratio is 0.7): ";
+            cout << "\n- Enter a custom vertical FOV multiplier value (default for 4:3 aspect ratio is 0.7): ";
             HandleFOVInput(newCameraVerticalFOV);
 
             descriptor = "changed";
