@@ -7,6 +7,7 @@
 #include <windows.h>
 #include <conio.h> // For getch() function [get character]
 #include <string>
+#include <cstring>
 #include <algorithm>
 
 using namespace std;
