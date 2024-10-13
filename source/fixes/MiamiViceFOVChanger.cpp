@@ -66,7 +66,7 @@ void HandleFOVInput(double &customFOV)
     replace(input.begin(), input.end(), ',', '.');
 
     // Parses the string to a double
-    customFOV = stof(input);
+    customFOV = stod(input);
 
     if (cin.fail())
     {

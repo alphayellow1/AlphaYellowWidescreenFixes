@@ -67,7 +67,7 @@ void HandleFOVInput(float &customFOVMultiplier)
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a float
-        customFOVMultiplier = stof(input);
+        customFOVMultiplier = stod(input);
 
         if (cin.fail())
         {

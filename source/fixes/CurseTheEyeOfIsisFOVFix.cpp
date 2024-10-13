@@ -1,41 +1,25 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <cstdint> // For uint32_t variable type
 #include <cmath>
-#include <limits>
-#include <windows.h>
 #include <conio.h> // For getch() function [get character]
+#include <cstdint> // For uint32_t variable type
+#include <limits>
 #include <string>
+#include <cstring>
 #include <algorithm>
 
 using namespace std;
 
-// Constants
-const double kPi = 3.14159265358979323846;
-const double kTolerance = 0.01;
-const streampos kCameraFOVOffset = 0x002BCBD6;
-
 // Variables
-int choice1, choice2, tempChoice;
-uint32_t newWidth, newHeight;
-bool fileNotFound, validKeyPressed;
-double currentCameraFOV, newCameraFOV, newCameraFOVValue, oldWidth = 4.0, oldHeight = 3.0, oldHorizontalFOV = 75.0, oldAspectRatio = oldWidth / oldHeight, newAspectRatio;
-string descriptor, input;
+uint32_t currentWidth, currentHeight, newWidth, newHeight;
+string input, descriptor1, descriptor2;
 fstream file;
+int choice1, choice2, tempChoice;
+bool fileNotFound, validKeyPressed;
+float newAspectRatioAsFloat, newCameraFOVasFloat;
+double newCameraFOV, newCameraFOVValue, newAspectRatio;
 char ch;
-
-// Function to convert degrees to radians
-double DegToRad(double degrees)
-{
-    return degrees * (kPi / 180.0);
-}
-
-// Function to convert radians to degrees
-double RadToDeg(double radians)
-{
-    return radians * (180.0 / kPi);
-}
 
 // Function to handle user input in choices
 void HandleChoiceInput(int &choice)
@@ -73,7 +57,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(double &newCustomFOV)
+void HandleFOVInput(double &customFOV)
 {
     do
     {
@@ -84,7 +68,7 @@ void HandleFOVInput(double &newCustomFOV)
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a double
-        newCustomFOV = stod(input);
+        customFOV = stod(input);
 
         if (cin.fail())
         {
@@ -92,13 +76,14 @@ void HandleFOVInput(double &newCustomFOV)
             cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
             cout << "Invalid input. Please enter a numeric value." << endl;
         }
-        else if (newCustomFOV <= 0 || newCustomFOV >= 180)
+        else if (customFOV <= 0)
         {
-            cout << "Please enter a valid number for the FOV (greater than 0 and less than 180)." << endl;
+            cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
         }
-    } while (newCustomFOV <= 0 || newCustomFOV >= 180);
+    } while (customFOV <= 0);
 }
 
+// Function to handle user input in resolution
 void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
@@ -142,11 +127,11 @@ void OpenFile(fstream &file, const string &filename)
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open " << filename << ", check if the DLL has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently being used. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
-                ch = _getch(); // Wait for user to press a key
-            } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+                ch = _getch(); // Waits for user to press a key
+            } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
         }
         else
         {
@@ -156,64 +141,106 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-double NewFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+streampos FindAddress(const char *pattern, const char *mask)
 {
-    newCameraFOVValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldHorizontalFOV / 2.0)));
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    size_t patternSize = strlen(mask);
+
+    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    {
+        bool match = true;
+        for (size_t k = 0; k < patternSize; ++k)
+        {
+            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
+            {
+                match = false;
+                break;
+            }
+        }
+        if (match)
+        {
+            // Find the first unknown byte
+            for (size_t k = 0; k < patternSize; ++k)
+            {
+                if (mask[k] == '?')
+                {
+                    streampos fileOffset = j + k;
+                    delete[] buffer;
+                    return fileOffset;
+                }
+            }
+        }
+    }
+
+    delete[] buffer;
+    return -1; // Return -1 if pattern not found
+}
+
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0)) * 0.5;
     return newCameraFOVValue;
 }
 
 int main()
 {
-    SetConsoleOutputCP(CP_UTF8);
-
-    cout << "Cabela's 4x4 Off-Road Adventure 3 (2003) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Curse: The Eye of Isis (2003) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        OpenFile(file, "EngineDll.dll");
+        OpenFile(file, "Curse.exe");
 
-        file.seekg(kCameraFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
+        cout << "\n- Enter the desired width: ";
+        HandleResolutionInput(newWidth);
 
-        cout << "\nCurrent FOV is " << currentCameraFOV << "\u00B0" << endl;
+        cout << "\n- Enter the desired height: ";
+        HandleResolutionInput(newHeight);
 
-        cout << "\n- Do you want to set FOV automatically based on a desired resolution (1) or set a custom camera FOV value (2)?: ";
+        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
+
+        cout << "\n- Do you want to set the field of view automatically based on the resolution set above (1) or set a custom field of view multiplier value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            cout << "\n- Enter the desired width: ";
-            HandleResolutionInput(newWidth);
-
-            cout << "\n- Enter the desired height: ";
-            HandleResolutionInput(newHeight);
-
-            // Calculates the new FOV
-            newCameraFOV = NewFOVInDegreesCalculation(newWidth, newHeight);
-
-            descriptor = "automatically";
-
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
+            descriptor1 = "fixed";
+            descriptor2 = ".";
             break;
 
         case 2:
-            cout << "\n- Enter the desired camera FOV (in degrees, default for 4:3 aspect ratio is 75\u00B0): ";
+            cout << "\n- Enter the desired field of view multiplier (default value for the 4:3 aspect ratio is 0.5): ";
             HandleFOVInput(newCameraFOV);
-
-            descriptor = "manually";
-
+            descriptor1 = "changed";
+            descriptor2 = " to " + to_string(newCameraFOV) + ".";
             break;
         }
 
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
+
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
+        streampos kAspectRatioOffset = FindAddress("\x8B\x44\x24\x04\x68\xAB\xAA\xAA\x3F\x68", "xxxxx????x");
+
+        file.seekp(kAspectRatioOffset);
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
+
+        streampos kCameraFOVOffset = FindAddress("\x68\x00\x00\x00\x3F\x8B\x11\x50\xFF\x52\x18\x8B\xC8\xE8\x5F", "x????xxxxxxxxxx");
+
         file.seekp(kCameraFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully changed " << descriptor << " the field of view to " << newCameraFOV << "\u00B0."
-                 << endl;
+            cout << "\nSuccessfully " << descriptor1 << " the field of view" << descriptor2 << endl;
         }
         else
         {
@@ -228,7 +255,7 @@ int main()
 
         if (choice2 == 1)
         {
-            cout << "\nPress enter to exit the program...";
+            cout << "\nPress Enter to exit the program...";
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -236,6 +263,6 @@ int main()
             return 0;
         }
 
-        cout << "\n---------------------------\n";
-    } while (choice2 == 2); // Checks the flag in the loop condition
+        cout << "\n-----------------------------------------\n";
+    } while (choice2 != 1); // Checks the flag in the loop condition
 }

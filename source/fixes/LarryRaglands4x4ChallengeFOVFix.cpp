@@ -67,7 +67,7 @@ void HandleFOVInput(double &customFOVMultiplier)
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a double
-        customFOVMultiplier = stof(input);
+        customFOVMultiplier = stod(input);
 
         if (cin.fail())
         {

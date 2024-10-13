@@ -85,7 +85,7 @@ void HandleFOVInput(double &newCustomCameraFOVInDegrees)
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a double
-        newCustomCameraFOVInDegrees = stof(input);
+        newCustomCameraFOVInDegrees = stod(input);
 
         if (cin.fail())
         {

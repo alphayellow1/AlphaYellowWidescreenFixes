@@ -8,12 +8,18 @@
 #include <string>
 #include <cstring>
 #include <algorithm>
+#include <vector>
 
 using namespace std;
 
+// Constants
+const streampos kResolutionWidthOffset = 0x0000018E;
+const streampos kResolutionHeightOffset = 0x00000192;
+const streampos kCameraFOVOffset = 0x000DE230;
+
 // Variables
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
-string input, descriptor;
+string input, descriptor1, descriptor2;
 fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
@@ -110,7 +116,7 @@ void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
+
     file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
@@ -141,71 +147,135 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-double NewFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+void SearchAndReplacePatternsF1EXE(fstream &file)
 {
-    newCameraFOVValue = ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0)) * 0.5;
-    return newCameraFOVValue;
-}
+    // Defines the original and new patterns with their sizes
+    vector<pair<const char *, size_t>> patterns = {
+        {"\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 36}
+    };
 
-streampos FindAddress(const char *pattern, const char *mask)
-{
+    vector<pair<const char *, size_t>> replacements = {
+        {"\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F", 36}
+    };
+
+    // Reads the entire file content into memory
     file.seekg(0, ios::end);
     size_t fileSize = file.tellg();
     file.seekg(0, ios::beg);
     char *buffer = new char[fileSize];
     file.read(buffer, fileSize);
 
-    size_t patternSize = strlen(mask);
-
-    for (size_t j = 0; j < fileSize - patternSize; ++j)
+    // Iterates through each pattern
+    for (size_t i = 0; i < patterns.size(); ++i)
     {
-        bool match = true;
-        for (size_t k = 0; k < patternSize; ++k)
+        const char *originalPattern = patterns[i].first;
+        size_t patternSize = patterns[i].second;
+        const char *newPattern = replacements[i].first;
+        size_t newPatternSize = replacements[i].second;
+
+        // Searches for the pattern
+        char *patternLocation = search(buffer, buffer + fileSize, originalPattern, originalPattern + patternSize);
+
+        // If the pattern is found, replaces it
+        if (patternLocation != buffer + fileSize)
         {
-            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
-            {
-                match = false;
-                break;
-            }
-        }
-        if (match)
-        {
-            // Find the first unknown byte
-            for (size_t k = 0; k < patternSize; ++k)
-            {
-                if (mask[k] == '?')
-                {
-                    streampos fileOffset = j + k;
-                    delete[] buffer;
-                    return fileOffset;
-                }
-            }
+            memcpy(patternLocation, newPattern, newPatternSize);
+
+            // Writes the modified content back to the file
+            file.seekp(patternLocation - buffer);
+            file.write(newPattern, newPatternSize);
         }
     }
 
+    // Cleans up
     delete[] buffer;
-    return -1; // Return -1 if pattern not found
+    file.flush();
+}
+
+void SearchAndReplacePatternsD3DDLL(fstream &file)
+{
+    // Defines the original and new patterns with their sizes
+    vector<pair<const char *, size_t>> patterns = {
+        {"\xDD\xD8\xD9\x44\x24\x1C", 6},
+        // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
+        // 1000289F | DD D8       | fstp st(0)
+        // 100028A1 | D9 44 24 1C | fld dword ptr [esp+1C]
+
+        {"\x8B\x45\x08\x59\x5F\x5E\xC9\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 44}
+    };
+
+    vector<pair<const char *, size_t>> replacements = {
+        {"\xE9\xF8\x1A\x01\x00\x90", 6},
+        // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
+        // 1000289F | E9 F8 1A 01 00 | jmp 1001439C
+        // 100028A4 | 90             | nop
+
+        {"\x8B\x45\x08\x59\x5F\x5E\xC9\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xDD\xD8\xD8\x0D\x30\xE2\x4D\x00\x3E\xD9\x44\x24\x1C\xE9\xF7\xE4\xFE\xFF", 44}
+        // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
+        // CODECAVE ENTRYPOINT AT 1001439C (x32dbg)
+        // 1001439C | DD D8             | fstp st(0)
+        // 1001439E | D8 0D 30 E2 4D 00 | fmul dword ptr [004DE230]
+        // 100143A4 | 3E D9 44 24 1C    | fld dword ptr [esp+1C]
+        // 100143A9 | E9 F7 E4 FE FF    | jmp 100028A5
+    };
+
+    // Reads the entire file content into memory
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    // Iterates through each pattern
+    for (size_t i = 0; i < patterns.size(); ++i)
+    {
+        const char *originalPattern = patterns[i].first;
+        size_t patternSize = patterns[i].second;
+        const char *newPattern = replacements[i].first;
+        size_t newPatternSize = replacements[i].second;
+
+        // Searches for the pattern
+        char *patternLocation = search(buffer, buffer + fileSize, originalPattern, originalPattern + patternSize);
+
+        // If the pattern is found, replaces it
+        if (patternLocation != buffer + fileSize)
+        {
+            memcpy(patternLocation, newPattern, newPatternSize);
+
+            // Writes the modified content back to the file
+            file.seekp(patternLocation - buffer);
+            file.write(newPattern, newPatternSize);
+        }
+    }
+
+    // Cleans up
+    delete[] buffer;
+    file.flush();
+}
+
+double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    newCameraFOVValue = (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
+    return newCameraFOVValue;
 }
 
 int main()
 {
-    cout << "Barbie and the Magic of Pegasus (2005) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "F1 World Grand Prix 2000 (2001) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        OpenFile(file, "Barbie Pegasus.exe");
-
-        streampos kResolutionWidthOffset = FindAddress("\x3C\x81\xFD\x80\x02\x00\x00\x7C\x46\x8B", "xxx????xxx");
-
-        streampos kResolutionHeightOffset = FindAddress("\x40\x81\xF9\xE0\x01\x00\x00\x7C\x3A\x8B", "xxx????xxx");
+        OpenFile(file, "../Data/enum.dat");
 
         file.seekg(kResolutionWidthOffset);
         file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
 
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
+        
+        file.close();
 
-        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << endl;
+        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
 
         cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
@@ -213,28 +283,40 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
-
-        cout << "\n- Do you want to set FOV automatically based on the resolution set above (1) or set a custom field of view value (2)?: ";
+        cout << "\n- Do you want to set the field of view automatically based on the resolution set above (1) or set a custom field of view multiplier value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            newCameraFOV = NewFOVCalculation(newWidth, newHeight);
-            descriptor = "fixed";
+            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
+            descriptor1 = "fixed";
+            descriptor2 = ".";
             break;
 
         case 2:
-            cout << "\n- Enter the desired field of view multiplier (default value for the 4:3 aspect ratio is 0.5, beware that changing this value beyond the automatic value for the aspect ratio also increases field of view in cutscenes): ";
+            cout << "\n- Enter the desired field of view multiplier (default value for the 4:3 aspect ratio is 1.0): ";
             HandleFOVInput(newCameraFOV);
-            descriptor = "changed";
+            descriptor1 = "changed";
+            descriptor2 = " to " + to_string(newCameraFOV) + ".";
             break;
         }
 
-        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
-
         newCameraFOVasFloat = static_cast<float>(newCameraFOV);
+
+        OpenFile(file, "F1.exe");
+
+        SearchAndReplacePatternsF1EXE(file);
+
+        file.close();
+
+        OpenFile(file, "d3d.dll");
+
+        SearchAndReplacePatternsD3DDLL(file);
+
+        file.close();
+
+        OpenFile(file, "../Data/enum.dat");
 
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
@@ -242,68 +324,24 @@ int main()
         file.seekp(kResolutionHeightOffset);
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
-        streampos kAspectRatioOffset1 = FindAddress("\x68\x81\x89\x00\x68\xAB\xAA\xAA\x3F\x68", "xxxxx????x");
+        file.close();
 
-        file.seekp(kAspectRatioOffset1);
-        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
-
-        streampos kAspectRatioOffset2 = FindAddress("\x24\x08\x8B\x15\xD4\x8A\x77\x00\x68\xAB\xAA\xAA\x3F\x68", "xxxxxxxxx????x");
-
-        file.seekp(kAspectRatioOffset2);
-        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
-
-        streampos kAspectRatioOffset3 = FindAddress("\xFC\xFF\x68\xAB\xAA\xAA\x3F\x8B\xF0\xA1", "xxx????xxx");
-
-        file.seekp(kAspectRatioOffset3);
-        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
-
-        streampos kAspectRatioOffset4 = FindAddress("\xB9\x08\x00\x8B\x0D\x68\x81\x89\x00\xA1\xD4\x8A\x77\x00\x68\xAB\xAA\xAA\x3F\x68", "xxxxxxxxxxxxxxx????x");
-
-        file.seekp(kAspectRatioOffset4);
-        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
-
-        streampos kAspectRatioOffset5 = FindAddress("\x99\x08\x00\x8B\x0D\x68\x81\x89\x00\xA1\xD4\x8A\x77\x00\x68\xAB\xAA\xAA\x3F\x68", "xxxxxxxxxxxxxxx????x");
-
-        file.seekp(kAspectRatioOffset5);
-        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
-
-        streampos kCameraFOVOffset1 = FindAddress("\x68\x00\x00\x00\x3F\x51\x50\xA3\xD4", "x????xxxx");
-
-        file.seekp(kCameraFOVOffset1);
-        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
-
-        streampos kCameraFOVOffset2 = FindAddress("\x68\x00\x00\x00\x3F\x51\x52\xE8", "x????xxx");
-
-        file.seekp(kCameraFOVOffset2);
-        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
-
-        streampos kCameraFOVOffset3 = FindAddress("\x68\x00\x00\x00\x3F\x50\x56", "x????xx");
-
-        file.seekp(kCameraFOVOffset3);
-        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
-
-        streampos kCameraFOVOffset4 = FindAddress("\x68\x00\x00\x00\x3F\x51\x50\xA3\x64\x81\x89\x00\xE8\x1C", "x????xxxxxxxxx");
-
-        file.seekp(kCameraFOVOffset4);
-        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
-
-        streampos kCameraFOVOffset5 = FindAddress("\x68\x00\x00\x00\x3F\x51\x50\xA3\x64\x81\x89\x00\xE8\x41", "x????xxxxxxxxx");
-
-        file.seekp(kCameraFOVOffset5);
+        OpenFile(file, "F1.exe");
+        
+        file.seekp(kCameraFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and " << descriptor << " the field of view." << endl;
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and " << descriptor1 << " the field of view" << descriptor2 << endl;
         }
         else
         {
             cout << "\nError(s) occurred during the file operations." << endl;
         }
 
-        // Closes the file
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";

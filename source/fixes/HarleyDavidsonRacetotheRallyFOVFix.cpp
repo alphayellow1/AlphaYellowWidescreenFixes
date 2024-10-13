@@ -84,7 +84,7 @@ void HandleCameraFOVInput(double &newCustomFOV)
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a double
-        newCustomFOV = stof(input);
+        newCustomFOV = stod(input);
 
         if (cin.fail())
         {
