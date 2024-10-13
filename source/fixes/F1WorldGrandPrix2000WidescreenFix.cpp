@@ -261,7 +261,7 @@ double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue
 
 int main()
 {
-    cout << "F1 World Grand Prix 2000 (2001) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "F1 World Grand Prix 2000 (2001) Widescreen Fixer v1.0 by AlphaYellow and AuToMaNiAk005, 2024\n\n----------------\n";
 
     do
     {
