@@ -84,7 +84,7 @@ void HandleFOVInput(double &newCustomFOVInDegrees)
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a double
-        newCustomFOVInDegrees = stof(input);
+        newCustomFOVInDegrees = stod(input);
 
         if (cin.fail())
         {
