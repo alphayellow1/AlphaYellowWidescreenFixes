@@ -17,21 +17,20 @@
 #include <iomanip>
 #include <functional>
 
-namespace AladdinWidescreenFixer
+namespace SpiderMan2CutscenesFOVFixer
 {
 
     // Constants for patterns and masks
-    constexpr std::array<char, 10> aspectRatioPattern = {'\xFB', '\x4A', '\x00', '\x00', '\x00', '\x40', '\x3F', '\x0F', '\x94', '\xC2'};
-    constexpr std::array<char, 10> aspectRatioMask = {'x', 'x', 'x', '?', '?', '?', '?', 'x', 'x', 'x'};
-    constexpr std::array<char, 10> cameraFOVPattern = {'\xA6', '\x4A', '\x00', '\x86', '\xC8', '\x5A', '\x3F', '\xD8', '\x35', '\x60'};
-    constexpr std::array<char, 10> cameraFOVMask = {'x', 'x', 'x', '?', '?', '?', '?', 'x', 'x', 'x'};
+    constexpr std::array<char, 12> cameraFOVPattern = {'\x4F', '\x48', '\x1B', '\x24', '\x00', '\x00', '\x70', '\x42', '\x00', '\x47', '\x01', '\x00'};
+    constexpr std::array<char, 12> cameraFOVMask = {'x', 'x', 'x', 'x', '?', '?', '?', '?', 'x', 'x', 'x', 'x'};
 
     // Constants for default values
-    constexpr double defaultAspectRatio = 0.75;
-    constexpr double defaultFOV = 0.8546222448;
+    constexpr double defaultAspectRatio = 4.0 / 3.0;
+    constexpr double defaultFOV = 60.0;
+    constexpr double Pi = 3.14159265358979323846;
     constexpr uint32_t minResolution = 1;
     constexpr uint32_t maxResolution = 65535;
-    constexpr char filename[] = "aladdin.exe";
+    constexpr char filename[] = "Webhead.u";
 
     // Exception classes
     class FileOpenException : public std::runtime_error
@@ -138,7 +137,7 @@ namespace AladdinWidescreenFixer
             else
             {
                 std::cerr << "\nFailed to open " << filePath
-                          << ". Please ensure the file exists, is not read-only, and is not currently running.\n";
+                          << ". Please ensure the file exists, is not read-only, and is not currently being used.\n";
                 std::cout << "Press Enter to retry...";
                 std::cin.get();
             }
@@ -207,71 +206,68 @@ namespace AladdinWidescreenFixer
         }
     }
 
-    // Function to calculate the new aspect ratio
-    constexpr double CalculateAspectRatio(uint32_t width, uint32_t height)
+    // Function to convert degrees to radians
+    double DegToRad(double degrees)
     {
-        return defaultAspectRatio / (static_cast<double>(width) / height / (4.0 / 3.0));
+        return degrees * (Pi / 180.0);
     }
 
-    // Function to calculate the new field of view
+    // Function to convert radians to degrees
+    double RadToDeg(double radians)
+    {
+        return radians * (180.0 / Pi);
+    }
+
+    // Function to calculate the new cutscenes field of view
     constexpr double CalculateFOV(uint32_t width, uint32_t height)
     {
-        return defaultFOV / ((4.0 / 3.0) / (static_cast<double>(width) / height));
+        double aspectRatio = static_cast<double>(width) / static_cast<double>(height);
+        double defaultFOVRadians = DegToRad(defaultFOV / 2.0);
+        double tanDefaultFOV = tan(defaultFOVRadians);
+        double newFOVRadians = 2.0 * atan(tanDefaultFOV * (aspectRatio / defaultAspectRatio));
+        return RadToDeg(newFOVRadians);
     }
 
     // Main processing function
-    void RunWidescreenFixer()
+    void RunFOVFixer()
     {
-        std::cout << "Aladdin in Nasira's Revenge (2001) Widescreen Fixer v1.4 by AlphaYellow, 2024\n\n----------------\n";
+        std::cout << "Spider-Man 2: The Game (2004) Cutscenes FOV Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
 
         bool continueProgram = true;
 
         while (continueProgram)
         {
-            // Get the desired width and height from the user
-            uint32_t newWidth = GetNumericInput<uint32_t>("\n- Enter the desired width: ", minResolution, maxResolution);
-            uint32_t newHeight = GetNumericInput<uint32_t>("\n- Enter the desired height: ", minResolution, maxResolution);
-
-            const double newAspectRatio = CalculateAspectRatio(newWidth, newHeight);
-            const float newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
-
-            // Open the file
-            std::fstream file = OpenFile(filename);
-
-            // Write the new aspect ratio value
-            if (WriteValueToPattern(file, aspectRatioPattern, aspectRatioMask, newAspectRatioAsFloat))
-            {
-                std::cout << "Aspect ratio updated successfully.\n";
-            }
-
             // Ask the user for FOV handling
-            int choice = GetChoice("\n- Do you want to fix the FOV automatically based on the resolution typed above or set a custom FOV multiplier value?",
+            int choice = GetChoice("\n- Do you want to fix the cutscenes FOV automatically based on a desired resolution or set a custom value?",
                                    {"Fix automatically", "Set custom value"});
 
             double newCameraFOV = 0.0;
             if (choice == 1)
             {
+                // Get the desired width and height from the user
+                uint32_t newWidth = GetNumericInput<uint32_t>("\n- Enter the desired width: ", minResolution, maxResolution);
+                uint32_t newHeight = GetNumericInput<uint32_t>("\n- Enter the desired height: ", minResolution, maxResolution);
+
                 newCameraFOV = CalculateFOV(newWidth, newHeight);
             }
             else if (choice == 2)
             {
-                newCameraFOV = GetNumericInput<double>("\n- Enter a custom field of view multiplier value (default for 4:3 aspect ratio is 0.8546222448): ", 0.0, std::numeric_limits<double>::max());
+                newCameraFOV = GetNumericInput<double>("\n- Enter a custom cutscenes FOV value (default for 4:3 aspect ratio is 60): ", 0.0, std::numeric_limits<double>::max());
             }
 
             const float newCameraFOVAsFloat = static_cast<float>(newCameraFOV);
 
-            // Write the new camera FOV value
+            // Open the file
+            std::fstream file = OpenFile(filename);
+
+            // Write the new cutscenes FOV value
             if (WriteValueToPattern(file, cameraFOVPattern, cameraFOVMask, newCameraFOVAsFloat))
             {
-                std::cout << "Camera FOV updated successfully.\n";
+                std::cout << "\nCutscenes FOV updated successfully.\n";
             }
 
             // Check for file errors
-            if (file.good())
-            {
-                std::cout << "\nSuccessfully changed the aspect ratio and field of view.\n";
-            }
-            else
+            if (!file.good())
             {
                 std::cout << "\nError(s) occurred during the file operations.\n";
             }
@@ -295,10 +291,10 @@ namespace AladdinWidescreenFixer
         std::cin.get();
     }
 
-} // namespace AladdinWidescreenFixer
+} // namespace SpiderMan2CutscenesFOVFixer
 
 int main()
 {
-    AladdinWidescreenFixer::RunWidescreenFixer();
+    SpiderMan2CutscenesFOVFixer::RunFOVFixer();
     return 0;
 }
