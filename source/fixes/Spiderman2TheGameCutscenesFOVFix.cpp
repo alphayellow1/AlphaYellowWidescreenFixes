@@ -12,10 +12,12 @@
 #include <exception>
 #include <span>
 #include <string_view>
+#include <sstream>
 #include <concepts>
 #include <array>
 #include <iomanip>
 #include <functional>
+#include <windows.h>
 
 namespace SpiderMan2CutscenesFOVFixer
 {
@@ -237,11 +239,24 @@ namespace SpiderMan2CutscenesFOVFixer
 
         while (continueProgram)
         {
+            // Open the file
+            std::fstream file = OpenFile(filename);
+
+            float currentCameraFOV = 0.0f;
+
+            auto currentCameraFOVOffset = FindPatternInFile(file, cameraFOVPattern, cameraFOVMask);
+
+            file.seekg(*currentCameraFOVOffset);
+            file.read(reinterpret_cast<char *>(&currentCameraFOV), sizeof(currentCameraFOV));
+
+            std::cout << "\nThe current cutscenes FOV is " << currentCameraFOV << "\u00B0" << std::endl;
+
             // Ask the user for FOV handling
             int choice = GetChoice("\n- Do you want to fix the cutscenes FOV automatically based on a desired resolution or set a custom value?",
                                    {"Fix automatically", "Set custom value"});
 
             double newCameraFOV = 0.0;
+            std::string descriptor = "";
             if (choice == 1)
             {
                 // Get the desired width and height from the user
@@ -249,21 +264,22 @@ namespace SpiderMan2CutscenesFOVFixer
                 uint32_t newHeight = GetNumericInput<uint32_t>("\n- Enter the desired height: ", minResolution, maxResolution);
 
                 newCameraFOV = CalculateFOV(newWidth, newHeight);
+
+                descriptor = "fixed.";
             }
             else if (choice == 2)
             {
-                newCameraFOV = GetNumericInput<double>("\n- Enter a custom cutscenes FOV value (default for 4:3 aspect ratio is 60): ", 0.0, std::numeric_limits<double>::max());
+                newCameraFOV = GetNumericInput<double>("\n- Enter a custom cutscenes FOV value (default for 4:3 aspect ratio is 60\u00B0): ", 0.0, std::numeric_limits<double>::max());
+
+                descriptor = "changed to " + std::to_string(newCameraFOV) + "\u00B0.";
             }
 
             const float newCameraFOVAsFloat = static_cast<float>(newCameraFOV);
 
-            // Open the file
-            std::fstream file = OpenFile(filename);
-
             // Write the new cutscenes FOV value
             if (WriteValueToPattern(file, cameraFOVPattern, cameraFOVMask, newCameraFOVAsFloat))
             {
-                std::cout << "\nCutscenes FOV updated successfully.\n";
+                std::cout << "\nCutscenes FOV successfully " << descriptor << std::endl;
             }
 
             // Check for file errors
@@ -295,6 +311,7 @@ namespace SpiderMan2CutscenesFOVFixer
 
 int main()
 {
+    SetConsoleOutputCP(CP_UTF8);
     SpiderMan2CutscenesFOVFixer::RunFOVFixer();
     return 0;
 }
