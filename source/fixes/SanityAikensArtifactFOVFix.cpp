@@ -15,14 +15,15 @@ using namespace std;
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
 const double kDefaultCameraVerticalFOVInRadians = 1.178097248;
-const streampos kCameraHorizontalFOVOffset = 0x0008AF74;
-const streampos kCameraVerticalFOVOffset = 0x0008AF97;
+const streampos kCameraHorizontalFOVOffset = 0x0008AF67;
+const streampos kCameraVerticalFOVOffset = 0x0008AF7C;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, newCameraHorizontalFOVInDegrees, newCameraHorizontalFOVInDegreesValue, newCameraVerticalFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight;
+double currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, newCameraHorizontalFOVInDegrees, newCameraHorizontalFOVInDegreesValue, newCameraVerticalFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight;
+float currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadiansAsFloat, newCameraVerticalFOVInRadiansAsFloat;
 string descriptor, input;
 fstream file;
 char ch;
@@ -180,8 +181,6 @@ int main()
         file.seekg(kCameraVerticalFOVOffset);
         file.read(reinterpret_cast<char *>(&currentCameraVerticalFOVInRadians), sizeof(currentCameraVerticalFOVInRadians));
 
-        file.close();
-
         // Converts the FOV values from radians to degrees
         currentCameraHorizontalFOVInDegrees = RadToDeg(currentCameraHorizontalFOVInRadians);
         currentCameraVerticalFOVInDegrees = RadToDeg(currentCameraVerticalFOVInRadians);
@@ -229,13 +228,15 @@ int main()
             break;
         }
 
-        OpenFile(file, "client.dll");
+        newCameraHorizontalFOVInRadiansAsFloat = static_cast<float>(newCameraHorizontalFOVInRadians);
+
+        newCameraVerticalFOVInRadiansAsFloat = static_cast<float>(newCameraVerticalFOVInRadians);
 
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVInRadians), sizeof(newCameraHorizontalFOVInRadians));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVInRadiansAsFloat), sizeof(newCameraHorizontalFOVInRadiansAsFloat));
 
         file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVInRadians), sizeof(newCameraVerticalFOVInRadians));
+        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVInRadiansAsFloat), sizeof(newCameraVerticalFOVInRadiansAsFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
