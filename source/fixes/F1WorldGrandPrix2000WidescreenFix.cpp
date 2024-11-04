@@ -15,7 +15,12 @@ using namespace std;
 // Constants
 const streampos kResolutionWidthOffset = 0x0000018E;
 const streampos kResolutionHeightOffset = 0x00000192;
-const streampos kCameraFOVOffset = 0x000DE230;
+const streampos kCameraFOVOffset = 0x000DE9CC;
+const streampos kC1Offset = 0x000DE220;
+const streampos kC2Offset = 0x000DE224;
+const streampos kC3Offset = 0x000DE228;
+const streampos kC4Offset = 0x000DE22C;
+const streampos kC5Offset = 0x000DE230;
 
 // Variables
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
@@ -141,116 +146,11 @@ void OpenFile(fstream &file, const string &filename)
         }
         else
         {
-            cout << "\n" << filename << " opened successfully!" << endl;
+            cout << "\n"
+                 << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
-}
-
-void SearchAndReplacePatternsF1EXE(fstream &file)
-{
-    // Defines the original and new patterns with their sizes
-    vector<pair<const char *, size_t>> patterns = {
-        {"\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 36}
-    };
-
-    vector<pair<const char *, size_t>> replacements = {
-        {"\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x80\x3F", 36}
-    };
-
-    // Reads the entire file content into memory
-    file.seekg(0, ios::end);
-    size_t fileSize = file.tellg();
-    file.seekg(0, ios::beg);
-    char *buffer = new char[fileSize];
-    file.read(buffer, fileSize);
-
-    // Iterates through each pattern
-    for (size_t i = 0; i < patterns.size(); ++i)
-    {
-        const char *originalPattern = patterns[i].first;
-        size_t patternSize = patterns[i].second;
-        const char *newPattern = replacements[i].first;
-        size_t newPatternSize = replacements[i].second;
-
-        // Searches for the pattern
-        char *patternLocation = search(buffer, buffer + fileSize, originalPattern, originalPattern + patternSize);
-
-        // If the pattern is found, replaces it
-        if (patternLocation != buffer + fileSize)
-        {
-            memcpy(patternLocation, newPattern, newPatternSize);
-
-            // Writes the modified content back to the file
-            file.seekp(patternLocation - buffer);
-            file.write(newPattern, newPatternSize);
-        }
-    }
-
-    // Cleans up
-    delete[] buffer;
-    file.flush();
-}
-
-void SearchAndReplacePatternsD3DDLL(fstream &file)
-{
-    // Defines the original and new patterns with their sizes
-    vector<pair<const char *, size_t>> patterns = {
-        {"\xDD\xD8\xD9\x44\x24\x1C", 6},
-        // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
-        // 1000289F | DD D8       | fstp st(0)
-        // 100028A1 | D9 44 24 1C | fld dword ptr [esp+1C]
-
-        {"\x8B\x45\x08\x59\x5F\x5E\xC9\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 44}
-    };
-
-    vector<pair<const char *, size_t>> replacements = {
-        {"\xE9\xF8\x1A\x01\x00\x90", 6},
-        // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
-        // 1000289F | E9 F8 1A 01 00 | jmp 1001439C
-        // 100028A4 | 90             | nop
-
-        {"\x8B\x45\x08\x59\x5F\x5E\xC9\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xDD\xD8\xD8\x0D\x30\xE2\x4D\x00\x3E\xD9\x44\x24\x1C\xE9\xF7\xE4\xFE\xFF", 44}
-        // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
-        // CODECAVE ENTRYPOINT AT 1001439C (x32dbg)
-        // 1001439C | DD D8             | fstp st(0)
-        // 1001439E | D8 0D 30 E2 4D 00 | fmul dword ptr [004DE230]
-        // 100143A4 | 3E D9 44 24 1C    | fld dword ptr [esp+1C]
-        // 100143A9 | E9 F7 E4 FE FF    | jmp 100028A5
-    };
-
-    // Reads the entire file content into memory
-    file.seekg(0, ios::end);
-    size_t fileSize = file.tellg();
-    file.seekg(0, ios::beg);
-    char *buffer = new char[fileSize];
-    file.read(buffer, fileSize);
-
-    // Iterates through each pattern
-    for (size_t i = 0; i < patterns.size(); ++i)
-    {
-        const char *originalPattern = patterns[i].first;
-        size_t patternSize = patterns[i].second;
-        const char *newPattern = replacements[i].first;
-        size_t newPatternSize = replacements[i].second;
-
-        // Searches for the pattern
-        char *patternLocation = search(buffer, buffer + fileSize, originalPattern, originalPattern + patternSize);
-
-        // If the pattern is found, replaces it
-        if (patternLocation != buffer + fileSize)
-        {
-            memcpy(patternLocation, newPattern, newPatternSize);
-
-            // Writes the modified content back to the file
-            file.seekp(patternLocation - buffer);
-            file.write(newPattern, newPatternSize);
-        }
-    }
-
-    // Cleans up
-    delete[] buffer;
-    file.flush();
 }
 
 double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
@@ -261,7 +161,7 @@ double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue
 
 int main()
 {
-    cout << "F1 World Grand Prix 2000 (2001) Widescreen Fixer v1.0 by AlphaYellow and AuToMaNiAk005, 2024\n\n----------------\n";
+    cout << "F1 World Grand Prix 2000 (2001) Widescreen Fixer v1.1 by AlphaYellow and AuToMaNiAk005, 2024\n\n----------------\n";
 
     do
     {
@@ -272,7 +172,7 @@ int main()
 
         file.seekg(kResolutionHeightOffset);
         file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
-        
+
         file.close();
 
         cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
@@ -304,18 +204,6 @@ int main()
 
         newCameraFOVasFloat = static_cast<float>(newCameraFOV);
 
-        OpenFile(file, "F1.exe");
-
-        SearchAndReplacePatternsF1EXE(file);
-
-        file.close();
-
-        OpenFile(file, "d3d.dll");
-
-        SearchAndReplacePatternsD3DDLL(file);
-
-        file.close();
-
         OpenFile(file, "../Data/enum.dat");
 
         file.seekp(kResolutionWidthOffset);
@@ -327,15 +215,35 @@ int main()
         file.close();
 
         OpenFile(file, "F1.exe");
-        
+
         file.seekp(kCameraFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
+
+        float c1 = 4.0f / 3.0f;
+        file.seekp(kC1Offset);
+        file.write(reinterpret_cast<const char *>(&c1), sizeof(c1));
+
+        float c2 = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
+        file.seekp(kC2Offset);
+        file.write(reinterpret_cast<const char *>(&c2), sizeof(c2));
+
+        float c3 = (static_cast<float>(newWidth) - static_cast<float>(newHeight) / 0.75f) / 2.0f;
+        file.seekp(kC3Offset);
+        file.write(reinterpret_cast<const char *>(&c3), sizeof(c3));
+
+        float c4 = static_cast<float>(newWidth) - static_cast<float>(newHeight) / 0.75f;
+        file.seekp(kC4Offset);
+        file.write(reinterpret_cast<const char *>(&c4), sizeof(c4));
+
+        uint32_t c5 = (600 * newWidth / newHeight - 800) / 2;
+        file.seekp(kC5Offset);
+        file.write(reinterpret_cast<const char *>(&c5), sizeof(c5));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and " << descriptor1 << " the field of view" << descriptor2 << endl;
+            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << ", fixed the HUD and " << descriptor1 << " the field of view" << descriptor2 << endl;
         }
         else
         {
