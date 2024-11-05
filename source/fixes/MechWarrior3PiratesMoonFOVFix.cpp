@@ -148,13 +148,13 @@ void SearchAndReplacePatterns(fstream &file)
         // 005070F1 | D8 0D 18 E8 5D 00             | fmul dword ptr [005DE818]
         // 005070F7 | C7 81 F8 00 00 00 01 00 00 00 | mov dword ptr [ecx+F8],1
 
-        {"\xD9\x81\xEC\x00\x00\x00\xD9\x81\xEC\x00\x00\x00\xD9\x54\x24\x08", 16},
+        {"\xD9\x81\xEC\x00\x00\x00\xD8\x0D\x18\xE8\x5D\x00\xD9\x54\x24\x08", 16},
         // DISASSEMBLED CODE - PATTERN 3 (UNMODIFIED)
         // 00507109 | D9 81 EC 00 00 00 | fld dword ptr [ecx+EC]
         // 0050710F | D8 0D 18 E8 5D 00 | fmul dword ptr [005DE818]
         // 00507115 | D9 54 24 08       | fst dword ptr [esp+8]
 
-        {"\x89\xBE\xF8\x00\x00\x00\x89\xBE\xF8\x00\x00\x00\x89\xBE\xFC\x00\x00\x00", 18},
+        {"\x89\xBE\xF8\x00\x00\x00\xD8\x0D\x18\xE8\x5D\x00\x89\xBE\xFC\x00\x00\x00", 18},
         // DISASSEMBLED CODE - PATTERN 4 (UNMODIFIED)
         // 0050763A | 89 BE F8 00 00 00 | mov dword ptr [esi+F8],edi
         // 00507640 | D8 0D 18 E8 5D 00 | fmul dword ptr [005DE818]
@@ -185,7 +185,7 @@ void SearchAndReplacePatterns(fstream &file)
         // 005070F1 | D8 0D 20 DA 5D 00             | fmul dword ptr [005DDA20]
         // 005070F7 | C7 81 F8 00 00 00 01 00 00 00 | mov dword ptr [ecx+F8],1
 
-        {"\xD9\x81\xEC\x00\x00\x00\xD9\x81\xEC\x00\x00\x00\xD9\x54\x24\x08", 16},
+        {"\xD9\x81\xEC\x00\x00\x00\xD8\x0D\x20\xDA\x5D\x00\xD9\x54\x24\x08", 16},
         // DISASSEMBLED CODE - PATTERN 3 (MODIFIED)
         // 00507109 | D9 81 EC 00 00 00 | fld dword ptr [ecx+EC]
         // 0050710F | D8 0D 20 DA 5D 00 | fmul dword ptr [005DDA20]
