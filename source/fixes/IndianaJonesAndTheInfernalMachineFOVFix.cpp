@@ -15,16 +15,15 @@ using namespace std;
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const streampos kAspectRatioOffset = 0x002A3243;
-const streampos kCameraFOVOffset = 0x002A3251;
+const streampos kCameraFOVOffset = 0x00103D07;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight;
-string input, descriptor;
-fstream file;
-int choice1, choice2, tempChoice;
+uint32_t newWidth, newHeight;
+string input;
+fstream file, file2;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-double newAspectRatio, newCameraFOV, newCameraFOVValue;
+float newCameraFOV;
 char ch;
 
 // Function to convert degrees to radians
@@ -73,32 +72,6 @@ void HandleChoiceInput(int &choice)
             break;               // Exits the loop since we have a confirmed input
         }
     }
-}
-
-void HandleFOVInput(double &customFOV)
-{
-    do
-    {
-        // Reads the input as a string
-        cin >> input;
-
-        // Replaces all commas with dots
-        replace(input.begin(), input.end(), ',', '.');
-
-        // Parses the string to a double
-        customFOV = stod(input);
-
-        if (cin.fail())
-        {
-            cin.clear();                                         // Clears error flags
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-            cout << "Invalid input. Please enter a numeric value." << endl;
-        }
-        else if (customFOV <= 0)
-        {
-            cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
-        }
-    } while (customFOV <= 0);
 }
 
 // Function to handle user input in resolution
@@ -163,26 +136,29 @@ void SearchAndReplacePatterns(fstream &file)
 {
     // Defines the original and new patterns with their sizes
     vector<pair<const char *, size_t>> patterns = {
-        {"\xD8\x3D\x54\x74\x6A\x00\xD9\x42\x44\xD9\xC2", 11},
+        {"\xD9\x56\x3C\xA1\x28\x12\x5E\x00", 8},
         // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
-        // 004AAF04 | D8 3D 54 74 6A 00 | fdivr dword ptr [006A7454]
-        // 004AAF0A | D9 42 44          | fld dword ptr [edx+44]
-        // 004AAF0D | D9 C2             | fld st(2)
-        {"\x8D\x41\x01\x84\xD2\x74\x07\x8A\x10\x40\x84\xD2\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 49}
+        // 004C577D | D9 56 3C       | fst dword ptr [esi+3C]
+        // 004C5780 | A1 28 12 5E 00 | mov eax, dword ptr [005E1228]
+
+        {"\xFF\x25\x48\x61\x50\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 35}
     };
 
     vector<pair<const char *, size_t>> replacements = {
-        {"\xD8\x3D\x51\x32\x6A\x00\xE9\x31\x83\x1F\x00", 11},
+        {"\xE9\x6E\xF1\x03\x00\x90\x90\x90", 8},
         // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
-        // 004AAF04 | D8 3D 51 32 6A 00 | fdivr dword ptr [006A3251]
-        // 004AAF0A | E9 31 83 1F 00    | jmp 006A3240
-        {"\x8D\x41\x01\x84\xD2\x74\x07\x8A\x10\x40\x84\xD2\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x42\x44\x00\x00\xA0\x40\xD9\x42\x44\xD9\xC2\xE9\xBE\x7C\xE0\xFF", 49}
+        // 004C577D | E9 6E F1 03 00 | jmp 005048F0
+        // 004C5782 | 90             | nop
+        // 004C5783 | 90             | nop
+        // 004C5784 | 90             | nop
+
+        {"\xFF\x25\x48\x61\x50\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xD8\x0D\x07\x49\x50\x00\xD9\x56\x3C\xA1\x28\x12\x5E\x00\xE9\x82\x0E\xFC\xFF", 35}
         // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
-        // CODECAVE ENTRYPOINT AT 006A3240 (x32dbg)
-        // 006A3240 | C7 42 44 00 00 A0 40 | mov dword ptr [edx+44],40A00000
-        // 006A3247 | D9 42 44             | fld dword ptr [edx+44]
-        // 006A324A | D9 C2                | fld st(2)
-        // 006A324C | E9 BE 7C E0 FF       | jmp 004AAF0F
+        // CODECAVE ENTRYPOINT AT 005048F0 (x32dbg)
+        // 005048F0 | D8 0D 07 49 50 00 | fmul dword ptr [00504907]
+        // 005048F6 | D9 56 3C          | fst dword ptr [esi+3C]
+        // 005048F9 | A1 28 12 5E 00    | mov eax, dword ptr [005E1228]
+        // 005048FE | E9 82 0E FC FF    | jmp 004C5785
     };
 
     // Reads the entire file content into memory
@@ -221,13 +197,13 @@ void SearchAndReplacePatterns(fstream &file)
 
 double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue));
-    return newCameraFOVValue;
+    return (4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue));
 }
 
 int main()
 {
-    cout << "Big Mutha Truckers 2 (2005) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+
+    cout << "Indiana Jones and the Infernal Machine (1999) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
@@ -237,36 +213,11 @@ int main()
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
-
-        cout << "\n- Do you want to fix the FOV automatically based on the resolution typed above (1) or set a custom multiplier value for camera FOV (2)?: ";
-        HandleChoiceInput(choice1);
-
-        switch (choice1)
-        {
-        case 1:
-            newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
-
-            descriptor = "fixed";
-            
-            break;
-
-        case 2:
-            cout << "\n- Enter a custom camera FOV multiplier value (default for 4:3 aspect ratio is 1.0): ";
-
-            HandleFOVInput(newCameraFOV);
-
-            descriptor = "changed";
-
-            break;
-        }
-
-        OpenFile(file, "bmt2.exe");
+        OpenFile(file, "Indy3D.exe");
 
         SearchAndReplacePatterns(file);
 
-        file.seekp(kAspectRatioOffset);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        newCameraFOV = static_cast<float>(NewCameraFOVCalculation(newWidth, newHeight));
 
         file.seekp(kCameraFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
@@ -274,7 +225,8 @@ int main()
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
-            cout << "\nSuccessfully " << descriptor << " the field of view." << endl;
+            // Confirmation message
+            cout << "\nSuccessfully fixed the field of view." << endl;
         }
         else
         {
@@ -285,11 +237,11 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleChoiceInput(choice2);
+        HandleChoiceInput(choice);
 
-        if (choice2 == 1)
+        if (choice == 1)
         {
-            cout << "\nPress Enter to exit the program...";
+            cout << "\nPress enter to exit the program...";
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -298,5 +250,5 @@ int main()
         }
 
         cout << "\n---------------------------\n";
-    } while (choice2 != 1); // Checks the flag in the loop condition
+    } while (choice != 1); // Checks the flag in the loop condition
 }
