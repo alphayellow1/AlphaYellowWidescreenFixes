@@ -29,7 +29,7 @@ fstream file;
 int choice1, choice2, tempChoice;
 bool fileNotFound, validKeyPressed;
 float newAspectRatioAsFloat, newCameraFOVasFloat;
-double newCameraFOV, newCameraFOVValue, newAspectRatio;
+double newCameraFOV, newAspectRatio;
 char ch;
 
 // Function to handle user input in choices
@@ -234,7 +234,7 @@ int main()
         file.seekp(kC4Offset);
         file.write(reinterpret_cast<const char *>(&c4), sizeof(c4));
 
-        uint32_t c5 = (600 * (newWidth / newHeight) - 800) / 2;
+        uint32_t c5 = (600 * newWidth / newHeight - 800) / 2;
         file.seekp(kC5Offset);
         file.write(reinterpret_cast<const char *>(&c5), sizeof(c5));
 
