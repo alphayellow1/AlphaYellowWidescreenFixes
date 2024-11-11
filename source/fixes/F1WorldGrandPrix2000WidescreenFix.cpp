@@ -155,8 +155,7 @@ void OpenFile(fstream &file, const string &filename)
 
 double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
-    return newCameraFOVValue;
+    return (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
 }
 
 int main()
