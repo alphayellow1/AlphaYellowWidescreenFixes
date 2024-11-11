@@ -5,25 +5,23 @@
 #include <conio.h> // For getch() function [get character]
 #include <cstdint> // For uint32_t variable type
 #include <limits>
+#include <vector>
+#include <cstring>
 #include <string>
 #include <algorithm>
-#include <vector>
 
 using namespace std;
 
 // Constants
-const streampos kResolutionWidthOffset = 0x0004CF10;
-const streampos kResolutionHeightOffset = 0x0004CF15;
-const streampos kAspectRatioOffset = 0x001B48D4;
-const streampos kCameraFOVOffset = 0x001B48E7;
+const streampos kCameraHorizontalFOVOffset = 0x004D10FB;
 
 // Variables
-uint32_t currentWidth, currentHeight, newWidth, newHeight;
-string input, descriptor;
+uint32_t newWidth, newHeight;
+string input;
 fstream file;
-int choice1, choice2, tempChoice;
+int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-double newCameraFOV, newAspectRatio, newAspectRatioValue;
+float newCameraHorizontalFOV;
 char ch;
 
 // Function to handle user input in choices
@@ -62,32 +60,6 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(double &customFOV)
-{
-    do
-    {
-        // Reads the input as a string
-        cin >> input;
-
-        // Replaces all commas with dots
-        replace(input.begin(), input.end(), ',', '.');
-
-        // Parses the string to a double
-        customFOV = stod(input);
-
-        if (cin.fail())
-        {
-            cin.clear();                                         // Clears error flags
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-            cout << "Invalid input. Please enter a numeric value." << endl;
-        }
-        else if (customFOV <= 0)
-        {
-            cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
-        }
-    } while (customFOV <= 0);
-}
-
 // Function to handle user input in resolution
 void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
@@ -115,7 +87,7 @@ void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 void OpenFile(fstream &file, const string &filename)
 {
     fileNotFound = false;
-    
+
     file.open(filename, ios::in | ios::out | ios::binary);
 
     // If the file is not open, sets fileNotFound to true
@@ -146,52 +118,41 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-double NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
-{
-    newAspectRatioValue = static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue);
-    return newAspectRatioValue;
-}
-
 void SearchAndReplacePatterns(fstream &file)
 {
     // Defines the original and new patterns with their sizes
     vector<pair<const char *, size_t>> patterns = {
-        {"\xD9\x40\xA4\xD8\x4C\x24\x28\xD9\x5C\x24\x28\xD9\x44\x24\x28\xD9\x5C\x24\x04\xD9\x40\xA0\xD9\x1C\x24", 25},
+        {"\x8B\x2D\x88\xB7\x95\x00\xD9\x05\x10\xBA\x95\x00", 12},
         // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
-        // 00445372 | D9 40 A4    | fld dword ptr [eax-5C] <-- ASPECT RATIO INSTRUCTION
-        // 00445375 | D8 4C 24 28 | fmul dword ptr [esp+28]
-        // 00445379 | D9 5C 24 28 | fstp dword ptr [esp+28]
-        // 0044537D | D9 44 24 28 | fld dword ptr [esp+28]
-        // 00445381 | D9 5C 24 04 | fstp dword ptr [esp+4]
-        // 00445385 | D9 40 A0    | fld dword ptr [eax-60] <-- FIELD OF VIEW INSTRUCTION
-        // 00445388 | D9 1C 24    | fstp dword ptr [esp]
+        // 0072FA8E | 8B 2D 88 B7 95 00 | mov ebp, dword ptr [0095B788]
+        // 0072FA94 | D9 05 10 BA 95 00 | fld dword ptr [0095BA10]
 
-        {"\xFD\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 67}
+        {"\xD8\x4D\x74\xD9\x05\x10\xBA\x95\x00", 9},
+        // DISASSEMBLED CODE - PATTERN 2 (UNMODIFIED)
+        // 00734369 | D8 4D 74          | fmul dword ptr [ebp+74]
+        // 0073436C | D9 05 10 BA 95 00 | fld dword ptr [0095BA10]
+
+        {"\x8B\x1D\x78\xB7\x95\x00\xD9\x05\x10\xBA\x95\x00", 12}
+        // DISASSEMBLED CODE - PATTERN 3 (UNMODIFIED)
+        // 0073484C | 8B 1D 78 B7 95 00 | mov ebx, dword ptr [0095B778]
+        // 00734852 | D9 05 10 BA 95 00 | fld dword ptr [0095BA10]
     };
 
     vector<pair<const char *, size_t>> replacements = {
-        {"\xE9\x5A\xF5\x16\x00\x90\x90\xD9\x5C\x24\x28\xD9\x44\x24\x28\xD9\x5C\x24\x04\xE9\x5A\xF5\x16\x00\x90", 25},
+        {"\x8B\x2D\x88\xB7\x95\x00\xD9\x05\xFB\x1C\x8D\x00", 12},
         // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
-        // 00445372 | E9 5A F5 16 00 | jmp 005B48D1
-        // 00445377 | 90             | nop
-        // 00445378 | 90             | nop
-        // 00445379 | D9 5C 24 28    | fstp dword ptr [esp+28]
-        // 0044537D | D9 44 24 28    | fld dword ptr [esp+28]
-        // 00445381 | D9 5C 24 04    | fstp dword ptr [esp+4]
-        // 00445385 | E9 5A F5 16 00 | jmp 005B48E4
-        // 0044538A | 90             | nop
-        
-        {"\xFD\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x40\xA4\x39\x8E\xE3\x3F\xD9\x40\xA4\xD8\x4C\x24\x28\xE9\x95\x0A\xE9\xFF\xC7\x40\xA0\xEF\xAD\x95\x3F\xD9\x40\xA0\xD9\x1C\x24\xE9\x95\x0A\xE9\xFF", 67}
-        // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
-        // CODECAVE ENTRYPOINT AT 005B48D1 (x32dbg)
-        // 005B48D1 | C7 40 A4 39 8E E3 3F | mov dword ptr [eax-5C],3FE38E39
-        // 005B48D8 | D9 40 A4             | fld dword ptr [eax-5C]
-        // 005B48DB | D8 4C 24 28          | fmul dword ptr [esp+28]
-        // 005B48DF | E9 99 0A E9 FF       | jmp 00445379
-        // 005B48E4 | C7 40 A0 EF AD 95 3F | mov dword ptr [eax-60],3F95ADEF
-        // 005B48EB | D9 40 A0             | fld dword ptr [eax-60]
-        // 005B48EE | D9 1C 24             | fstp dword ptr [esp]
-        // 005B48F1 | E9 95 0A E9 FF       | jmp 0044538B
+        // 0072FA8E | 8B 2D 88 B7 95 00 | mov ebp, dword ptr [0095B788]
+        // 0072FA94 | D9 05 FB 1C 8D 00 | fld dword ptr [008D1CFB]
+
+        {"\xD8\x4D\x74\xD9\x05\xFB\x1C\x8D\x00", 9},
+        // DISASSEMBLED CODE - PATTERN 2 (MODIFIED)
+        // 00734369 | D8 4D 74          | fmul dword ptr [ebp+74]
+        // 0073436C | D9 05 FB 1C 8D 00 | fld dword ptr [008D1CFB]
+
+        {"\x8B\x1D\x78\xB7\x95\x00\xD9\x05\xFB\x1C\x8D\x00", 12}
+        // DISASSEMBLED CODE - PATTERN 3 (MODIFIED)
+        // 0073484C | 8B 1D 78 B7 95 00 | mov ebx, dword ptr [0095B778]
+        // 00734852 | D9 05 FB 1C 8D 00 | fld dword ptr [008D1CFB]
     };
 
     // Reads the entire file content into memory
@@ -219,7 +180,7 @@ void SearchAndReplacePatterns(fstream &file)
 
             // Writes the modified content back to the file
             file.seekp(patternLocation - buffer);
-            file.write(newPattern, newPatternSize);     
+            file.write(newPattern, newPatternSize);
         }
     }
 
@@ -228,64 +189,38 @@ void SearchAndReplacePatterns(fstream &file)
     file.flush();
 }
 
+double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    return (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0);
+}
+
 int main()
 {
-    cout << "Barbie Horse Adventures: Riding Camp (2008) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+
+    cout << "Adrenalin: Extreme Show (2005) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        OpenFile(file, "PXGameStudioRuntime2008.exe");
-
-        file.seekg(kResolutionWidthOffset);
-        file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
-
-        file.seekg(kResolutionHeightOffset);
-        file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
-
-        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << endl;
-
         cout << "\n- Enter the desired width: ";
         HandleResolutionInput(newWidth);
 
         cout << "\n- Enter the desired height: ";
         HandleResolutionInput(newHeight);
 
-        newAspectRatio = NewAspectRatioCalculation(newWidth, newHeight);
-
-        cout << "\n- Do you want to set a custom camera FOV value (1) or leave it as default (2)?: ";
-        HandleChoiceInput(choice1);
-
-        switch (choice1)
-        {
-        case 1:
-            cout << "\n- Enter the desired field of view multiplier (default value is 1.169370532): ";
-            HandleFOVInput(newCameraFOV);
-            break;
-
-        case 2:
-            newCameraFOV = 1.169370532;
-            break;
-        }
+        OpenFile(file, "Adrenalin.exe");
 
         SearchAndReplacePatterns(file);
 
-        file.seekp(kResolutionWidthOffset);
-        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+        newCameraHorizontalFOV = static_cast<float>(NewCameraHorizontalFOVCalculation(newWidth, newHeight));
 
-        file.seekp(kResolutionHeightOffset);
-        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
-
-        file.seekp(kAspectRatioOffset);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
-
-        file.seekp(kCameraFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.seekp(kCameraHorizontalFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+            cout << "\nSuccessfully fixed the field of view." << endl;
         }
         else
         {
@@ -296,11 +231,11 @@ int main()
         file.close();
 
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        HandleChoiceInput(choice2);
+        HandleChoiceInput(choice);
 
-        if (choice2 == 1)
+        if (choice == 1)
         {
-            cout << "\nPress Enter to exit the program...";
+            cout << "\nPress enter to exit the program...";
             do
             {
                 ch = _getch(); // Waits for user to press a key
@@ -308,6 +243,6 @@ int main()
             return 0;
         }
 
-        cout << "\n-----------------------------------------\n";
-    } while (choice2 != 1); // Checks the flag in the loop condition
+        cout << "\n---------------------------\n";
+    } while (choice != 1); // Checks the flag in the loop condition
 }

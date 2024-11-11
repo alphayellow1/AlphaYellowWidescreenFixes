@@ -13,8 +13,6 @@
 using namespace std;
 
 // Constants
-const double kPi = 3.14159265358979323846;
-const double kTolerance = 0.01;
 const streampos kCameraFOVOffset = 0x00103D07;
 
 // Variables
@@ -25,18 +23,6 @@ int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
 float newCameraFOV;
 char ch;
-
-// Function to convert degrees to radians
-double DegToRad(double degrees)
-{
-    return degrees * (kPi / 180.0);
-}
-
-// Function to convert radians to degrees
-double RadToDeg(double radians)
-{
-    return radians * (180.0 / kPi);
-}
 
 // Function to handle user input in choices
 void HandleChoiceInput(int &choice)
