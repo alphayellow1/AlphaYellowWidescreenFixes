@@ -15,7 +15,7 @@ using namespace std;
 // Constants
 const streampos kResolutionWidthOffset = 0x0000018E;
 const streampos kResolutionHeightOffset = 0x00000192;
-const streampos kCameraFOVOffset = 0x000DE9CC;
+const streampos kCameraFOVOffset = 0x000DE90E;
 const streampos kC1Offset = 0x000DE220;
 const streampos kC2Offset = 0x000DE224;
 const streampos kC3Offset = 0x000DE228;
@@ -227,15 +227,15 @@ int main()
         file.seekp(kC2Offset);
         file.write(reinterpret_cast<const char *>(&c2), sizeof(c2));
 
-        float c3 = (static_cast<float>(newWidth) - static_cast<float>(newHeight) / 0.75f) / 2.0f;
+        float c3 = (static_cast<float>(newWidth) - static_cast<float>(newHeight) * (4.0f / 3.0f)) / 2.0f;
         file.seekp(kC3Offset);
         file.write(reinterpret_cast<const char *>(&c3), sizeof(c3));
 
-        float c4 = static_cast<float>(newWidth) - static_cast<float>(newHeight) / 0.75f;
+        float c4 = static_cast<float>(newWidth) - static_cast<float>(newHeight) * (4.0f / 3.0f);
         file.seekp(kC4Offset);
         file.write(reinterpret_cast<const char *>(&c4), sizeof(c4));
 
-        uint32_t c5 = (600 * newWidth / newHeight - 800) / 2;
+        uint32_t c5 = ((newWidth / newHeight) * 600 - 800) / 2;
         file.seekp(kC5Offset);
         file.write(reinterpret_cast<const char *>(&c5), sizeof(c5));
 
