@@ -223,19 +223,19 @@ int main()
         file.seekp(kC1Offset);
         file.write(reinterpret_cast<const char *>(&c1), sizeof(c1));
 
-        float c2 = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) / (4.0f / 3.0f);
+        float c2 = (static_cast<float>(newWidth) / static_cast<float>(newHeight)) * 0.75f;
         file.seekp(kC2Offset);
         file.write(reinterpret_cast<const char *>(&c2), sizeof(c2));
 
-        float c3 = (static_cast<float>(newWidth) - static_cast<float>(newHeight) * (4.0f / 3.0f)) / 2.0f;
+        float c3 = (static_cast<float>(newWidth) - static_cast<float>(newHeight) / 0.75f) / 2.0f;
         file.seekp(kC3Offset);
         file.write(reinterpret_cast<const char *>(&c3), sizeof(c3));
 
-        float c4 = static_cast<float>(newWidth) - static_cast<float>(newHeight) * (4.0f / 3.0f);
+        float c4 = static_cast<float>(newWidth) - static_cast<float>(newHeight) / 0.75f;
         file.seekp(kC4Offset);
         file.write(reinterpret_cast<const char *>(&c4), sizeof(c4));
 
-        uint32_t c5 = ((newWidth / newHeight) * 600 - 800) / 2;
+        uint32_t c5 = (600 * (newWidth / newHeight) - 800) / 2;
         file.seekp(kC5Offset);
         file.write(reinterpret_cast<const char *>(&c5), sizeof(c5));
 
