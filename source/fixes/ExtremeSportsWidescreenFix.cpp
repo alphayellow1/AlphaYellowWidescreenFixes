@@ -1,24 +1,28 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <conio.h> // For getch() function [get character]
-#include <cstdint> // For uint32_t variable type 
+#include <cstdint> // For uint32_t variable type
 #include <cmath>
 #include <limits>
+#include <conio.h> // For getch() function [get character]
 #include <string>
-#include <cstring>
 #include <algorithm>
 
 using namespace std;
+
+// Constants
+const streampos kGameplayCameraFOVOffset = 0x001D3565;
+const streampos kMenuCameraFOVOffset = 0x001D3575;
+const streampos kAspectRatioOffset = 0x001D45FC;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float newCameraHorizontalFOVasFloat, newCameraVerticalFOVasFloat;
-double newCameraHorizontalFOV, newCameraVerticalFOV;
+float newAspectRatioAsFloat, newGameplayCameraFOVasFloat, newMenuCameraFOVasFloat;
+double newAspectRatio, newGameplayCameraFOV, newMenuCameraFOV;
+string input;
 fstream file;
-string input, descriptor;
 char ch;
 
 // Function to handle user input in choices
@@ -57,7 +61,7 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(double &customFOVMultiplier)
+void HandleFOVInput(double &newCustomFOV)
 {
     do
     {
@@ -68,7 +72,7 @@ void HandleFOVInput(double &customFOVMultiplier)
         replace(input.begin(), input.end(), ',', '.');
 
         // Parses the string to a double
-        customFOVMultiplier = stod(input);
+        newCustomFOV = stod(input);
 
         if (cin.fail())
         {
@@ -76,14 +80,13 @@ void HandleFOVInput(double &customFOVMultiplier)
             cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
             cout << "Invalid input. Please enter a numeric value." << endl;
         }
-        else if (customFOVMultiplier <= 0)
+        else if (newCustomFOV <= 0)
         {
-            cout << "Please enter a number greater than 0 for the FOV." << endl;
+            cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
         }
-    } while (customFOVMultiplier <= 0);
+    } while (newCustomFOV <= 0);
 }
 
-// Function to handle user input in resolution
 void HandleResolutionInput(uint32_t &newCustomResolutionValue)
 {
     do
@@ -127,11 +130,11 @@ void OpenFile(fstream &file, const string &filename)
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
-                ch = _getch(); // Waits for user to press a key
-            } while (ch != '\r'); // Keeps waiting if the key is not Enter ('\r' is the Enter key in ASCII)
+                ch = _getch(); // Wait for user to press a key
+            } while (ch != '\r'); // Keep waiting if the key is not Enter ('\r' is the Enter key in ASCII)
         }
         else
         {
@@ -141,110 +144,75 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
-streampos FindAddress(const char *pattern, const char *mask)
+double NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    file.seekg(0, ios::end);
-    size_t fileSize = file.tellg();
-    file.seekg(0, ios::beg);
-    char *buffer = new char[fileSize];
-    file.read(buffer, fileSize);
-
-    size_t patternSize = strlen(mask);
-
-    for (size_t j = 0; j < fileSize - patternSize; ++j)
-    {
-        bool match = true;
-        for (size_t k = 0; k < patternSize; ++k)
-        {
-            if (mask[k] == 'x' && buffer[j + k] != pattern[k])
-            {
-                match = false;
-                break;
-            }
-        }
-        if (match)
-        {
-            // Find the first unknown byte
-            for (size_t k = 0; k < patternSize; ++k)
-            {
-                if (mask[k] == '?')
-                {
-                    streampos fileOffset = j + k;
-                    delete[] buffer;
-                    return fileOffset;
-                }
-            }
-        }
-    }
-
-    delete[] buffer;
-    return -1; // Return -1 if pattern not found
+    return (static_cast<double>(newWidth) / static_cast<double>(newHeight)) * 0.75 * 4.0;
 }
 
-double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+double NewGameplayCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    return 0.6999999881 / ((4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)));
+    return 1.428147912 / ((4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)));
+}
+
+double NewMenuCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+{
+    return 0.8000000119 / ((4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)));
 }
 
 int main()
 {
-    cout << "Frogger Beyond (2003) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Extreme Sports (2000) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        cout << "\n- Do you want to fix the FOV automatically based on a desired resolution (1) or set custom multiplier values for horizontal and vertical FOV (2)?: ";
+        cout << "\n- Enter the desired width: ";
+        HandleResolutionInput(newWidth);
+
+        cout << "\n- Enter the desired height: ";
+        HandleResolutionInput(newHeight);
+
+        newAspectRatio = NewAspectRatioCalculation(newWidth, newHeight);
+
+        newMenuCameraFOV = NewMenuCameraFOVCalculation(newWidth, newHeight);
+
+        cout << "\n- Do you want to set camera FOV automatically based on the resolution typed above (1) or set a custom multiplier value (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            cout << "\n- Enter the desired width: ";
-            HandleResolutionInput(newWidth);
-
-            cout << "\n- Enter the desired height: ";
-            HandleResolutionInput(newHeight);
-
-            newCameraHorizontalFOV = NewCameraFOVCalculation(newWidth, newHeight);
-
-            newCameraVerticalFOV = NewCameraFOVCalculation(newWidth, newHeight);
-
-            descriptor = "fixed";
-
+            // Calculates the new camera FOV
+            newGameplayCameraFOV = NewGameplayCameraFOVCalculation(newWidth, newHeight);
             break;
 
         case 2:
-            cout << "\n- Enter a custom horizontal FOV multiplier value (default for 4:3 aspect ratio is 0.7): ";
-            HandleFOVInput(newCameraHorizontalFOV);
-
-            cout << "\n- Enter a custom vertical FOV multiplier value (default for 4:3 aspect ratio is 0.7): ";
-            HandleFOVInput(newCameraVerticalFOV);
-
-            descriptor = "changed";
-
+            cout << "\n- Enter the desired camera FOV multiplier (default for 4:3 aspect ratio is 1.428147912): ";
+            HandleFOVInput(newGameplayCameraFOV);
             break;
         }
 
-        newCameraHorizontalFOVasFloat = static_cast<float>(newCameraHorizontalFOV);
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
 
-        newCameraVerticalFOVasFloat = static_cast<float>(newCameraVerticalFOV);
+        newMenuCameraFOVasFloat = static_cast<float>(newMenuCameraFOV);
 
-        OpenFile(file, "Frogger Beyond.exe");
+        newGameplayCameraFOVasFloat = static_cast<float>(newGameplayCameraFOV);
 
-        streampos kCameraHorizontalFOVOffset = FindAddress("\xC7\x45\xDC\x33\x33\x33\x3F\x83\x7D\x08", "xxx????xxx");
+        OpenFile(file, "pc.exe");
+        
+        file.seekp(kAspectRatioOffset);
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
-        file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVasFloat), sizeof(newCameraHorizontalFOVasFloat));
+        file.seekp(kGameplayCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newGameplayCameraFOVasFloat), sizeof(newGameplayCameraFOVasFloat));
 
-        streampos kCameraVerticalFOVOffset = FindAddress("\xF8\x3A\x40\x00\x00\x00\x00\x00\x33\x33\x33\x3F\x00\x00\x87\x43\x00\x00\x00\x00", "xxxxxxxx????xxxxxxxx");
-
-        file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVasFloat), sizeof(newCameraVerticalFOVasFloat));
+        file.seekp(kMenuCameraFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newMenuCameraFOVasFloat), sizeof(newMenuCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully " << descriptor << " the field of view." << endl;
+            cout << "\nSuccessfully changed the aspect ratio and field of view." << endl;
         }
         else
         {
@@ -268,5 +236,5 @@ int main()
         }
 
         cout << "\n-----------------------------------------\n";
-    } while (choice2 != 1); // Checks the flag in the loop condition
+    } while (choice2 == 2); // Checks the flag in the loop condition
 }
