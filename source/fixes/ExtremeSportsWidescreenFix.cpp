@@ -161,7 +161,7 @@ double NewMenuCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightV
 
 int main()
 {
-    cout << "Extreme Sports (2000) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Extreme Sports (2000) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
