@@ -192,7 +192,7 @@ void GameVersionCheck()
 
 double NewAspectRatioCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newAspectRatioValue = (static_cast<double>(newWidth) / static_cast<double>(newHeight)) * 0.75f * 4.0;
+    newAspectRatioValue = (static_cast<double>(newWidth) / static_cast<double>(newHeight)) * 0.75 * 4.0;
     return newAspectRatioValue;
 }
 

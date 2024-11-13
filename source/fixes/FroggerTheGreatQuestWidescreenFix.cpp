@@ -20,7 +20,8 @@ const streampos kCameraFOVOffset = 0x000ADB10;
 int choice, tempChoice;
 uint32_t currentWidth, currentHeight, newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double newCameraFOV, newCameraFOVValue, newAspectRatio;
+float newCameraFOVasFloat, newAspectRatioAsFloat;
+double newCameraFOV, newAspectRatio;
 fstream file;
 char ch;
 
@@ -120,8 +121,7 @@ void OpenFile(fstream &file, const string &filename)
 
 double NewCameraFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraFOVValue = (((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) * 0.5f) / 2.37037037037f) * 0.83198;
-    return newCameraFOVValue;
+    return (((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) * 0.5) / 2.37037037037) * 0.83198;
 }
 
 int main()
@@ -148,7 +148,7 @@ int main()
 
         newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
 
-        if (newAspectRatio > 3.555f)
+        if (newAspectRatio > 3.555)
         {
             newCameraFOV = NewCameraFOVCalculation(newWidth, newHeight);
         }
@@ -156,6 +156,10 @@ int main()
         {
             newCameraFOV = 0.5;
         }
+        
+        newAspectRatioAsFloat = static_cast<float>(newAspectRatio);
+
+        newCameraFOVasFloat = static_cast<float>(newCameraFOV);
 
         file.seekp(kResolutionWidthOffset);
         file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
@@ -164,10 +168,10 @@ int main()
         file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
 
         file.seekp(kAspectRatioOffset);
-        file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
+        file.write(reinterpret_cast<const char *>(&newAspectRatioAsFloat), sizeof(newAspectRatioAsFloat));
 
         file.seekp(kCameraFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraFOV), sizeof(newCameraFOV));
+        file.write(reinterpret_cast<const char *>(&newCameraFOVasFloat), sizeof(newCameraFOVasFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
