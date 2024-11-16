@@ -202,6 +202,8 @@ int main()
 
         OpenFile(file, "AirborneTroops.exe");
 
+        SearchAndReplacePatterns(file);
+
         newCameraHorizontalFOV = static_cast<float>(NewCameraHorizontalFOVCalculation(newWidth, newHeight));
 
         file.seekp(kCameraHorizontalFOVOffset);
