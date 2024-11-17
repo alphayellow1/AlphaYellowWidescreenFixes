@@ -8,21 +8,21 @@
 #include <conio.h> // For getch() function [get character]
 #include <string>
 #include <algorithm>
+#include <vector>
 
 using namespace std;
 
 // Constants
 const double kPi = 3.14159265358979323846;
-const double kTolerance = 0.01;
 const double kDefaultCameraVerticalFOVInRadians = 1.1780972480773926;
-const streampos kCameraHorizontalFOVOffset = 0x000CC411;
-const streampos kCameraVerticalFOVOffset = 0x000CC421;
+const streampos kCameraHorizontalFOVOffset = 0x000BAA31;
+const streampos kCameraVerticalFOVOffset = 0x000BAA41;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraHorizontalFOVInDegreesValue, newCameraVerticalFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight;
+double currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight;
 string descriptor, input;
 fstream file;
 char ch;
@@ -144,7 +144,7 @@ void OpenFile(fstream &file, const string &filename)
 
         if (!file.is_open())
         {
-            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if the executable is currently running. Press Enter when all the mentioned problems are solved." << endl;
+            cout << "\nFailed to open " << filename << ", check if the executable has special permissions allowed that prevent the fixer from opening it (e.g: read-only mode), it's not present in the same directory as the fixer, or if it's currently running. Press Enter when all the mentioned problems are solved." << endl;
             do
             {
                 ch = _getch(); // Wait for user to press a key
@@ -158,17 +158,83 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
+void SearchAndReplacePatterns(fstream &file)
+{
+    // Defines the original and new patterns with their sizes
+    vector<pair<const char *, size_t>> patterns = {
+        {"\x89\x81\x98\x01\x00\x00\x8B\x45\x10\x89\x81\x9C\x01\x00\x00", 15},
+        // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
+        // 00408732 | 89 81 98 01 00 00 | mov [ecx+00000198],eax
+        // 00408738 | 8B 45 10          | mov eax,[ebp+10]
+        // 0040873B | 89 81 9C 01 00 00 | mov [ecx+0000019C],eax
+
+        {"\xE9\x40\x73\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 37}
+    };
+
+    vector<pair<const char *, size_t>> replacements = {
+        {"\xE9\xF9\x22\x0B\x00\x90\x8B\x45\x10\xE9\x00\x23\x0B\x00\x90", 15},
+        // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
+        // 00408732 | E9 F9 22 0B 00 | jmp 004BAA30
+        // 00408737 | 90             | nop
+        // 00408738 | 8B 45 10       | mov eax,[ebp+10]
+        // 0040873B | E9 00 23 0B 00 | jmp 004BAA40
+        // 00408740 | 90             | nop
+
+        {"\xE9\x40\x73\xFF\xFF\xB8\xDB\x0F\xC9\x3F\x89\x81\x98\x01\x00\x00\xE9\xF8\xDC\xF4\xFF\xB8\xE4\xCB\x96\x3F\x89\x81\x9C\x01\x00\x00\xE9\xF1\xDC\xF4\xFF", 37}
+        // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
+        // CODECAVE ENTRYPOINT AT 004BAA30 (x32dbg)
+        // 004BAA30 | B8 DB 0F C9 3F    | mov eax,3FC90FDB
+        // 004BAA35 | 89 81 98 01 00 00 | mov [ecx+00000198],eax
+        // 004BAA3B | E9 F8 DC F4 FF    | jmp 00408738
+        // 004BAA40 | B8 E4 CB 96 3F    | mov eax,3F96CBE4
+        // 004BAA45 | 89 81 9C 01 00 00 | mov [ecx+0000019C],eax
+        // 004BAA4B | E9 F1 DC F4 FF    | jmp 00408741
+    };
+
+    // Reads the entire file content into memory
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    // Iterates through each pattern
+    for (size_t i = 0; i < patterns.size(); ++i)
+    {
+        const char *originalPattern = patterns[i].first;
+        size_t patternSize = patterns[i].second;
+        const char *newPattern = replacements[i].first;
+        size_t newPatternSize = replacements[i].second;
+
+        // Searches for the pattern
+        char *patternLocation = search(buffer, buffer + fileSize, originalPattern, originalPattern + patternSize);
+
+        // If the pattern is found, replaces it
+        if (patternLocation != buffer + fileSize)
+        {
+            memcpy(patternLocation, newPattern, newPatternSize);
+
+            // Writes the modified content back to the file
+            file.seekp(patternLocation - buffer);
+            file.write(newPattern, newPatternSize);
+        }
+    }
+
+    // Cleans up
+    delete[] buffer;
+    file.flush();
+}
+
 double NewHorizontalCameraFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    newCameraHorizontalFOVInDegreesValue = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0)));
-    return newCameraHorizontalFOVInDegreesValue;
+    return 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldCameraHorizontalFOV / 2.0)));
 }
 
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "Elite Forces: Navy SEALs (2002) FOV Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Elite Forces: Navy SEALs (2002) FOV Fixer v1.2 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
@@ -229,13 +295,19 @@ int main()
             break;
         }
 
+        float newCameraHorizontalFOVInRadiansAsFloat = static_cast<float>(newCameraHorizontalFOVInRadians);
+
+        float newCameraVerticalFOVInRadiansAsFloat = static_cast<float>(newCameraVerticalFOVInRadians);
+
         OpenFile(file, "lithtech.exe");
 
+        SearchAndReplacePatterns(file);
+
         file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVInRadians), sizeof(newCameraHorizontalFOVInRadians));
+        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVInRadiansAsFloat), sizeof(newCameraHorizontalFOVInRadiansAsFloat));
 
         file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVInRadians), sizeof(newCameraVerticalFOVInRadians));
+        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVInRadiansAsFloat), sizeof(newCameraVerticalFOVInRadiansAsFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
