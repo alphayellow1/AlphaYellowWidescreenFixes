@@ -22,7 +22,8 @@ const streampos kCameraVerticalFOVOffset = 0x000BAA41;
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-double currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight;
+float currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians;
+double newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees, oldWidth = 4.0, oldHeight = 3.0, oldCameraHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight;
 string descriptor, input;
 fstream file;
 char ch;
@@ -249,8 +250,8 @@ int main()
         file.close();
 
         // Converts the FOV values from radians to degrees
-        currentCameraHorizontalFOVInDegrees = RadToDeg(currentCameraHorizontalFOVInRadians);
-        currentCameraVerticalFOVInDegrees = RadToDeg(currentCameraVerticalFOVInRadians);
+        currentCameraHorizontalFOVInDegrees = RadToDeg(static_cast<double>(currentCameraHorizontalFOVInRadians));
+        currentCameraVerticalFOVInDegrees = RadToDeg(static_cast<double>(currentCameraVerticalFOVInRadians));
 
         cout << "\nCurrent FOV: " << currentCameraHorizontalFOVInDegrees << "\u00B0 (Horizontal); " << currentCameraVerticalFOVInDegrees << "\u00B0 (Vertical) " << "\n";
 
