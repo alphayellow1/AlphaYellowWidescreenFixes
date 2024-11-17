@@ -190,7 +190,7 @@ double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newH
 int main()
 {
 
-    cout << "Airborne Troops: Countdown to D-Day (2004) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Airborne Troops: Countdown to D-Day (2004) FOV Fixer v1.0 by AlphaYellow and AuToMaNiAk005, 2024\n\n----------------\n";
 
     do
     {
