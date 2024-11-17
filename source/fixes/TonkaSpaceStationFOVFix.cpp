@@ -198,6 +198,8 @@ int main()
 
         OpenFile(file, "SpaceStation.exe");
 
+        SearchAndReplacePatterns(file);
+
         file.seekp(kCameraHorizontalFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
 
