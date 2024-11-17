@@ -203,8 +203,6 @@ int main()
         file.seekp(kCameraHorizontalFOVOffset);
         file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOV), sizeof(newCameraHorizontalFOV));
 
-        cout << "\nSuccessfully changed the field of view." << endl;
-
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
