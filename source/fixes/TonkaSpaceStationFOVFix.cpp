@@ -184,7 +184,7 @@ double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newH
 
 int main()
 {
-    cout << "Tonka Space Station (2000) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Tonka Space Station (2000) FOV Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
