@@ -179,7 +179,7 @@ void SearchAndReplacePatterns(fstream &file)
 
 double NewCameraHorizontalFOVCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
 {
-    return ((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / (4.0 / 3.0)) * 0.75;
+    return ((4.0 / 3.0) / (static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue))) * 0.75;
 }
 
 int main()
