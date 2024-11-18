@@ -120,8 +120,9 @@ void SearchAndReplacePatterns(fstream &file)
 {
     // Defines the original and new patterns with their sizes
     vector<pair<const char *, size_t>> patterns = {
-        {"\xD8\x4A\x34\xD9\x42\x30", 6},
+        {"\xD9\xC0\xD8\x4A\x34\xD9\x42\x30", 8},
         // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
+        // 00438C55 | D9 C0    | fld st(0)
         // 00438C57 | D8 4A 34 | fmul dword ptr [edx+34]
         // 00438C5A | D9 42 30 | fld dword ptr [edx+30]
 
@@ -129,8 +130,9 @@ void SearchAndReplacePatterns(fstream &file)
     };
 
     vector<pair<const char *, size_t>> replacements = {
-        {"\xE9\x4B\x30\x02\x00\x90", 6},
+        {"\xD9\xC0\xE9\x4B\x30\x02\x00\x90", 8},
         // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
+        // 00438C55 | D9 C0          | fld st(0)
         // 00438C57 | E9 4B 30 02 00 | jmp 0045BCA7
         // 00438C5C | 90             | nop
 
