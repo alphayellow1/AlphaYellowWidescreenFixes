@@ -6,12 +6,11 @@
 #include <limits>
 #include <string>
 #include <algorithm>
+#include <vector>
 
 using namespace std;
 
 // Constants
-const streampos kResolutionWidthOffset = 0x0000FBE7;
-const streampos kResolutionHeightOffset = 0x0000FBF1;
 const streampos kAspectRatioOffset = 0x000B8E93;
 
 // Variables
@@ -19,7 +18,7 @@ uint32_t currentWidth, currentHeight, newWidth, newHeight;
 fstream file;
 int choice, tempChoice;
 bool fileNotFound, validKeyPressed;
-double newAspectRatio;
+float newAspectRatio;
 char ch;
 
 // Function to handle user input in choices
@@ -61,6 +60,8 @@ void HandleChoiceInput(int &choice)
 // Function to handle user input in resolution
 uint32_t HandleResolutionInput()
 {
+    uint32_t newCustomResolutionValue;
+
     do
     {
         cin >> newCustomResolutionValue;
@@ -118,35 +119,89 @@ void OpenFile(fstream &file, const string &filename)
     }
 }
 
+void SearchAndReplacePatterns(fstream &file)
+{
+    // Defines the original and new patterns with their sizes
+    vector<pair<const char *, size_t>> patterns = {
+        {"\x8B\x4E\x3C\x8B\x56\x34\x8D\x9E\x84\x00\x00\x00", 12},
+        // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
+        // 004450BD | 8B 4E 3C          | mov ecx,[esi+3C]
+        // 004450C0 | 8B 56 34          | mov edx,[esi+34]
+        // 004450C3 | 8D 9E 84 00 00 00 | lea ebx,[esi+00000084]
+        
+        {"\xE9\xE5\xCB\xFE\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 62}
+    };
+
+    vector<pair<const char *, size_t>> replacements = {
+        {"\x8B\x4E\x3C\xE9\xCB\x3D\x07\x00\x90\x90\x90\x90", 12},
+        // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
+        // 004450BD | 8B 4E 3C       | mov ecx,[esi+3C]
+        // 004450C0 | E9 CB 3D 07 00 | jmp 004B8E90
+        // 004450C5 | 90             | nop
+        // 004450C6 | 90             | nop
+        // 004450C7 | 90             | nop
+        // 004450C8 | 90             | nop 
+
+        {"\xE9\xE5\xCB\xFE\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x46\x34\xAB\xAA\xAA\x3F\x8B\x56\x34\x8D\x9E\x84\x00\x00\x00\xE9\x24\xC2\xF8\xFF", 62}
+        // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
+        // CODECAVE ENTRYPOINT AT 004B8E90 (x32dbg)
+        // 004B8E90 | C7 46 34 AB AA AA 3F | mov [esi+34],3FAAAAAB
+        // 004B8E97 | 8B 56 34             | mov edx,[esi+34]
+        // 004B8E9A | 8D 9E 84 00 00 00    | lea ebx,[esi+00000084]
+        // 004B8EA0 | E9 24 C2 F8 FF       | jmp 004450C9
+    };
+
+    // Reads the entire file content into memory
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    // Iterates through each pattern
+    for (size_t i = 0; i < patterns.size(); ++i)
+    {
+        const char *originalPattern = patterns[i].first;
+        size_t patternSize = patterns[i].second;
+        const char *newPattern = replacements[i].first;
+        size_t newPatternSize = replacements[i].second;
+
+        // Searches for the pattern
+        char *patternLocation = search(buffer, buffer + fileSize, originalPattern, originalPattern + patternSize);
+
+        // If the pattern is found, replaces it
+        if (patternLocation != buffer + fileSize)
+        {
+            memcpy(patternLocation, newPattern, newPatternSize);
+
+            // Writes the modified content back to the file
+            file.seekp(patternLocation - buffer);
+            file.write(newPattern, newPatternSize);
+        }
+    }
+
+    // Cleans up
+    delete[] buffer;
+    file.flush();
+}
+
 int main()
 {
-    cout << "Wanted Guns (2003) Widescreen Fixer v1.0 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Wanted Guns (2003) FOV Fixer v1.1 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
-        OpenFile(file, "WantedGuns.exe");
-
-        file.seekg(kResolutionWidthOffset);
-        file.read(reinterpret_cast<char *>(&currentWidth), sizeof(currentWidth));
-
-        file.seekg(kResolutionHeightOffset);
-        file.read(reinterpret_cast<char *>(&currentHeight), sizeof(currentHeight));
-
-        cout << "\nCurrent resolution is " << currentWidth << "x" << currentHeight << "." << endl;
-
         cout << "\n- Enter the desired width: ";
-        HandleResolutionInput(newWidth);
+        newWidth = HandleResolutionInput();
 
         cout << "\n- Enter the desired height: ";
-        HandleResolutionInput(newHeight);
+        newHeight = HandleResolutionInput();
 
-        newAspectRatio = static_cast<double>(newWidth) / static_cast<double>(newHeight);
+        newAspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
 
-        file.seekp(kResolutionWidthOffset);
-        file.write(reinterpret_cast<const char *>(&newWidth), sizeof(newWidth));
+        OpenFile(file, "WantedGuns.exe");
 
-        file.seekp(kResolutionHeightOffset);
-        file.write(reinterpret_cast<const char *>(&newHeight), sizeof(newHeight));
+        SearchAndReplacePatterns(file);
 
         file.seekp(kAspectRatioOffset);
         file.write(reinterpret_cast<const char *>(&newAspectRatio), sizeof(newAspectRatio));
@@ -155,7 +210,7 @@ int main()
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully changed the resolution to " << newWidth << "x" << newHeight << " and fixed the field of view." << endl;
+            cout << "\nSuccessfully fixed the field of view." << endl;
         }
         else
         {
