@@ -168,6 +168,7 @@ void SearchAndReplacePatterns(fstream &file)
         // 004AAF04 | D8 3D 54 74 6A 00 | fdivr dword ptr [006A7454]
         // 004AAF0A | D9 42 44          | fld dword ptr [edx+44]
         // 004AAF0D | D9 C2             | fld st(2)
+        
         {"\x8D\x41\x01\x84\xD2\x74\x07\x8A\x10\x40\x84\xD2\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 49}
     };
 
@@ -176,6 +177,7 @@ void SearchAndReplacePatterns(fstream &file)
         // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
         // 004AAF04 | D8 3D 51 32 6A 00 | fdivr dword ptr [006A3251]
         // 004AAF0A | E9 31 83 1F 00    | jmp 006A3240
+
         {"\x8D\x41\x01\x84\xD2\x74\x07\x8A\x10\x40\x84\xD2\x75\xF9\x2B\xC1\x48\xC3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC7\x42\x44\x00\x00\xA0\x40\xD9\x42\x44\xD9\xC2\xE9\xBE\x7C\xE0\xFF", 49}
         // DISASSEMBLED CODE - PART OF PATTERN 2 (MODIFIED)
         // CODECAVE ENTRYPOINT AT 006A3240 (x32dbg)
