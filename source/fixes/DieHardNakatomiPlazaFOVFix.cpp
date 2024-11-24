@@ -199,7 +199,7 @@ void SearchAndReplacePatterns(fstream &file)
         // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
         // 0040E35A | E9 55 AA 0A 00 | jmp 004B8DB4
         // 0040E35F | 90             | nop
-        // 0040E360 | 89 45 BC        | mov dword ptr ss:[ebp-44],eax
+        // 0040E360 | 89 45 BC       | mov dword ptr ss:[ebp-44],eax
         // 0040E363 | E9 7D AA 0A 00 | jmp 004B8DE5
         // 0040E368 | 90             | nop
 
