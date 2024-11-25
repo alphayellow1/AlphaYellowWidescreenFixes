@@ -8,23 +8,26 @@
 #include <string>
 #include <algorithm>
 #include <windows.h>
+#include <vector>
 
 using namespace std;
 
 // Constants
 const double kPi = 3.14159265358979323846;
 const double kTolerance = 0.01;
-const double kDefaultVerticalFOVInRadians = 1.1780972480773926; // 67.5 degrees
-const streampos kCameraHorizontalFOVOffset = 0x000C42D1;
-const streampos kCameraVerticalFOVOffset = 0x000C42E6;
+const double kDefaultCutscenesVFOVInRadians = 0.8490677476; // 48.647998 degrees
+const double kDefaultCameraVFOVInRadians = 1.1780972480773926; // 67.5 degrees
+const streampos kGameplayAndCutscenesCameraHFOVOffset = 0x000C42FD;
+const streampos kGameplayCameraVFOVOffset = 0x000C4309;
+const streampos kCutscenesCameraVFOVOffset = 0x000C4315;
 
 // Variables
 int choice1, choice2, tempChoice;
 uint32_t newWidth, newHeight;
 bool fileNotFound, validKeyPressed;
-float currentCameraHorizontalFOVInRadians, currentCameraVerticalFOVInRadians, newCameraHorizontalFOVInRadians, newCameraVerticalFOVInRadians;
-double newAspectRatio, oldWidth = 4.0, oldHeight = 3.0, oldHorizontalFOV = 90.0, oldAspectRatio = oldWidth / oldHeight, currentCameraHorizontalFOVInDegrees, currentCameraVerticalFOVInDegrees, newCameraHorizontalFOVInDegrees, newCameraVerticalFOVInDegrees;
-string descriptor, input;
+float currentCameraHFOVInRadians, currentCameraVFOVInRadians, newCameraHFOVInRadians, newCameraVFOVInRadians, DefaultCutscenesVFOVInRadiansAsFloat;
+double newAspectRatio, oldWidth = 4.0, oldHeight = 3.0, oldAspectRatio = oldWidth / oldHeight, currentCameraHFOVInDegrees, currentCameraVFOVInDegrees, newCameraHFOVInDegrees, newCameraVFOVInDegrees;
+string descriptor1, descriptor2, input;
 fstream file;
 char ch;
 
@@ -76,8 +79,10 @@ void HandleChoiceInput(int &choice)
     }
 }
 
-void HandleFOVInput(double &newCustomFOVInDegrees)
+double HandleFOVInput()
 {
+    double newCustomFOVInDegrees;
+
     do
     {
         // Reads the input as a string
@@ -100,10 +105,14 @@ void HandleFOVInput(double &newCustomFOVInDegrees)
             cout << "Please enter a valid number for the field of view (greater than 0 and less than 180)." << endl;
         }
     } while (newCustomFOVInDegrees <= 0 || newCustomFOVInDegrees >= 180);
+
+    return newCustomFOVInDegrees;
 }
 
-void HandleResolutionInput(uint32_t &newCustomResolutionValue)
+uint32_t HandleResolutionInput()
 {
+    uint32_t newCustomResolutionValue;
+
     do
     {
         cin >> newCustomResolutionValue;
@@ -122,6 +131,8 @@ void HandleResolutionInput(uint32_t &newCustomResolutionValue)
             cout << "Please enter a valid number." << endl;
         }
     } while (newCustomResolutionValue <= 0 || newCustomResolutionValue > 65535);
+
+    return newCustomResolutionValue;
 }
 
 // Function to open the file
@@ -153,41 +164,129 @@ void OpenFile(fstream &file, const string &filename)
         }
         else
         {
-            cout << "\n" << filename " opened successfully!" << endl;
+            cout << "\n" << filename << " opened successfully!" << endl;
             fileNotFound = false; // Sets fileNotFound to false as the file is found and opened
         }
     }
 }
 
-double NewHorizontalFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue)
+void SearchAndReplacePatterns(fstream &file)
 {
-    newCameraHorizontalFOVInDegrees = 2.0 * RadToDeg(atan((static_cast<double>(newWidthValue) / static_cast<double>(newHeightValue)) / oldAspectRatio) * tan(DegToRad(oldHorizontalFOV / 2.0)));
-    return newCameraHorizontalFOVInDegrees;
+    // Defines the original and new patterns with their sizes
+    vector<pair<const char *, size_t>> patterns = {
+        {"\x89\x8C\x24\x00\x01\x00\x00\x8B\x88\x98\x01\x00\x00\x89\x94\x24\xFC\x00\x00\x00", 20},
+        // DISASSEMBLED CODE - PATTERN 1 (UNMODIFIED)
+        // 00412D85 | 89 8C 24 00 01 00 00 | mov dword ptr ss:[esp+100],ecx
+        // 00412D8C | 8B 88 98 01 00 00    | mov ecx,dword ptr ds:[eax+198]
+        // 00412D92 | 89 94 24 FC 00 00 00 | mov dword ptr ss:[esp+FC],edx
+
+        {"\x89\x94\x24\x04\x01\x00\x00\x8B\x90\x9C\x01\x00\x00\x89\x94\x24\xE4\x00\x00\x00", 20},
+        // DISASSEMBLED CODE - PATTERN 2 (UNMODIFIED)
+        // 00412DAC | 89 94 24 04 01 00 00 | mov dword ptr ss:[esp+104],edx
+        // 00412DB3 | 8B 90 9C 01 00 00    | mov edx,dword ptr ds:[eax+19C]
+        // 00412DB9 | 89 94 24 E4 00 00 00 | mov dword ptr ss:[esp+E4],edx
+
+        {"\xE9\x9A\xE4\xFE\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 107}
+    };
+
+    vector<pair<const char *, size_t>> replacements = {
+        {"\x89\x8C\x24\x00\x01\x00\x00\xE9\x28\x15\x0B\x00\x90\x89\x94\x24\xFC\x00\x00\x00", 20},
+        // DISASSEMBLED CODE - PATTERN 1 (MODIFIED)
+        // 00412D85 | 89 8C 24 00 01 00 00 | mov dword ptr ss:[esp+100],ecx
+        // 00412D8C | E9 28 15 0B 00       | jmp 004C42B9
+        // 00412D91 | 90                   | nop
+        // 00412D92 | 89 94 24 FC 00 00 00 | mov dword ptr ss:[esp+FC],edx
+
+        {"\x89\x94\x24\x04\x01\x00\x00\xE9\x18\x15\x0B\x00\x90\x89\x94\x24\xE4\x00\x00\x00", 20},
+        // DISASSEMBLED CODE - PATTERN 2 (MODIFIED)
+        // 00412DAC | 89 94 24 04 01 00 00 | mov dword ptr ss:[esp+104],edx
+        // 00412DB3 | E9 18 15 0B 00       | jmp 004C42D0
+        // 00412DB8 | 90                   | nop
+        // 00412DB9 | 89 94 24 E4 00 00 00 | mov dword ptr ss:[esp+E4],edx
+
+        {"\xE9\x9A\xE4\xFE\xFF\x00\x00\x00\x00\x81\xB8\x98\x01\x00\x00\xDB\x0F\xC9\x3F\x74\x32\x8B\x88\x98\x01\x00\x00\xE9\xC2\xEA\xF4\xFF\x81\xB8\x9C\x01\x00\x00\xE4\xCB\x96\x3F\x74\x27\x81\xB8\x9C\x01\x00\x00\x81\x5C\x59\x3F\x74\x27\x8B\x90\x9C\x01\x00\x00\xE9\xC6\xEA\xF4\xFF\x00\x00\x00\x00\xC7\x80\x98\x01\x00\x00\x38\x63\xED\x3F\xEB\xC2\xC7\x80\x9C\x01\x00\x00\xE4\xCB\x96\x3F\xEB\xCD\xC7\x80\x9C\x01\x00\x00\x81\x5C\x59\x3F\xEB\xCD", 107}
+        // DISASSEMBLED CODE - PART OF PATTERN 3 (MODIFIED)
+        // CODECAVE ENTRYPOINT AT 004C42B9 (x32dbg)
+        // 004C42B9 | 81 B8 98 01 00 00 DB 0F C9 3F | cmp dword ptr ds:[eax+198],3FC90FDB
+        // 004C42C3 | 74 32                         | je 004C42F7
+        // 004C42C5 | 8B 88 98 01 00 00             | mov ecx,dword ptr ds:[eax+198]
+        // 004C42CB | E9 C2 EA F4 FF                | jmp 00412D92
+        // 004C42D0 | 81 B8 9C 01 00 00 E4 CB 96 3F | cmp dword ptr ds:[eax+19C],3F96CBE4
+        // 004C42DA | 74 27                         | je 004C4303
+        // 004C42DC | 81 B8 9C 01 00 00 81 5C 59 3F | cmp dword ptr ds:[eax+19C],3F595C81
+        // 004C42E6 | 74 27                         | je 004C430F
+        // 004C42E8 | 8B 90 9C 01 00 00             | mov edx,dword ptr ds:[eax+19C]
+        // 004C42EE | E9 C6 EA F4 FF                | jmp 00412DB9
+        // 004C42F3 | 00 00                         | add byte ptr ds:[eax],al
+        // 004C42F5 | 00 00                         | add byte ptr ds:[eax],al
+        // 004C42F7 | C7 80 98 01 00 00 38 63 ED 3F | mov dword ptr ds:[eax+198],3FED6338
+        // 004C4301 | EB C2                         | jmp 004C42C5
+        // 004C4303 | C7 80 9C 01 00 00 E4 CB 96 3F | mov dword ptr ds:[eax+19C],3F96CBE4
+        // 004C430D | EB CD                         | jmp 004C42DC
+        // 004C430F | C7 80 9C 01 00 00 81 5C 59 3F | mov dword ptr ds:[eax+19C],3F595C81
+        // 004C4319 | EB CD                         | jmp 004C42E8
+    };
+
+    // Reads the entire file content into memory
+    file.seekg(0, ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, ios::beg);
+    char *buffer = new char[fileSize];
+    file.read(buffer, fileSize);
+
+    // Iterates through each pattern
+    for (size_t i = 0; i < patterns.size(); ++i)
+    {
+        const char *originalPattern = patterns[i].first;
+        size_t patternSize = patterns[i].second;
+        const char *newPattern = replacements[i].first;
+        size_t newPatternSize = replacements[i].second;
+
+        // Searches for the pattern
+        char *patternLocation = search(buffer, buffer + fileSize, originalPattern, originalPattern + patternSize);
+
+        // If the pattern is found, replaces it
+        if (patternLocation != buffer + fileSize)
+        {
+            memcpy(patternLocation, newPattern, newPatternSize);
+
+            // Writes the modified content back to the file
+            file.seekp(patternLocation - buffer);
+            file.write(newPattern, newPatternSize);
+        }
+    }
+
+    // Cleans up
+    delete[] buffer;
+    file.flush();
+}
+
+double HorizontalFOVInDegreesCalculation(uint32_t &newWidthValue, uint32_t &newHeightValue, double oldHorizontalFOV)
+{
+    return 2.0 * RadToDeg(atan(tan(DegToRad(oldHorizontalFOV / 2.0)) * (static_cast<double>(newWidthValue) / newHeightValue) / oldAspectRatio));
 }
 
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
 
-    cout << "Alcatraz: Prison Escape (2001) FOV Fixer v1.3 by AlphaYellow, 2024\n\n----------------\n";
+    cout << "Alcatraz: Prison Escape (2001) FOV Fixer v1.4 by AlphaYellow, 2024\n\n----------------\n";
 
     do
     {
         OpenFile(file, "lithtech.exe");
 
-        file.seekg(kCameraHorizontalFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentCameraHorizontalFOVInRadians), sizeof(currentCameraHorizontalFOVInRadians));
+        file.seekg(kGameplayAndCutscenesCameraHFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCameraHFOVInRadians), sizeof(currentCameraHFOVInRadians));
 
-        file.seekg(kCameraVerticalFOVOffset);
-        file.read(reinterpret_cast<char *>(&currentCameraVerticalFOVInRadians), sizeof(currentCameraHorizontalFOVInRadians));
-
-        file.close();
+        file.seekg(kGameplayCameraVFOVOffset);
+        file.read(reinterpret_cast<char *>(&currentCameraVFOVInRadians), sizeof(currentCameraHFOVInRadians));
 
         // Converts the field of view values from radians to degrees
-        currentCameraHorizontalFOVInDegrees = RadToDeg(currentCameraHorizontalFOVInRadians);
-        currentCameraVerticalFOVInDegrees = RadToDeg(currentCameraVerticalFOVInRadians);
+        currentCameraHFOVInDegrees = RadToDeg(currentCameraHFOVInRadians);
+        currentCameraVFOVInDegrees = RadToDeg(currentCameraVFOVInRadians);
 
-        cout << "\nCurrent field of view: " << currentCameraHorizontalFOVInDegrees << "\u00B0 (Horizontal); " << currentCameraVerticalFOVInDegrees << "\u00B0 (Vertical)\n";
+        cout << "\nCurrent field of view: " << currentCameraHFOVInDegrees << "\u00B0 (Horizontal); " << currentCameraVFOVInDegrees << "\u00B0 (Vertical)\n";
 
         cout << "\n- Do you want to set field of view automatically based on the desired resolution (1) or set custom horizontal and vertical field of view values (2)?: ";
         HandleChoiceInput(choice1);
@@ -196,53 +295,62 @@ int main()
         {
         case 1:
             cout << "\n- Enter the desired width: ";
-            HandleResolutionInput(newWidth);
+            newWidth = HandleResolutionInput();
 
             cout << "\n- Enter the desired height: ";
-            HandleResolutionInput(newHeight);
+            newHeight = HandleResolutionInput();
 
             // Calculates the new horizontal field of view
-            newCameraHorizontalFOVInDegrees = NewHorizontalFOVInDegreesCalculation(newWidth, newHeight);
+            newCameraHFOVInDegrees = HorizontalFOVInDegreesCalculation(newWidth, newHeight, 90.0);
 
-            newCameraHorizontalFOVInRadians = static_cast<float>(DegToRad(newCameraHorizontalFOVInDegrees)); // Converts degrees to radians
+            newCameraHFOVInRadians = static_cast<float>(DegToRad(newCameraHFOVInDegrees)); // Converts degrees to radians
 
-            newCameraVerticalFOVInRadians = static_cast<float>(kDefaultVerticalFOVInRadians);
+            newCameraVFOVInRadians = static_cast<float>(kDefaultCameraVFOVInRadians);
 
-            newCameraVerticalFOVInDegrees = RadToDeg(newCameraVerticalFOVInRadians);
+            newCameraVFOVInDegrees = RadToDeg((double)newCameraVFOVInRadians);
 
-            descriptor = "automatically";
+            descriptor1 = "fixed";
+
+            descriptor2 = ".";
 
             break;
 
         case 2:
             cout << "\n- Enter the desired horizontal field of view (in degrees, default for 4:3 aspect ratio is 90\u00B0): ";
-            HandleFOVInput(newCameraHorizontalFOVInDegrees);
+            newCameraHFOVInDegrees = HandleFOVInput();
 
             cout << "\n- Enter the desired vertical field of view (in degrees, default for 4:3 aspect ratio is 67.5\u00B0): ";
-            HandleFOVInput(newCameraVerticalFOVInDegrees);
+            newCameraVFOVInDegrees = HandleFOVInput();
 
-            newCameraHorizontalFOVInRadians = static_cast<float>(DegToRad(newCameraHorizontalFOVInDegrees)); // Converts degrees to radians
+            newCameraHFOVInRadians = static_cast<float>(DegToRad(newCameraHFOVInDegrees)); // Converts degrees to radians
 
-            newCameraVerticalFOVInRadians = static_cast<float>(DegToRad(newCameraVerticalFOVInDegrees)); // Converts degrees to radians
+            newCameraVFOVInRadians = static_cast<float>(DegToRad(newCameraVFOVInDegrees)); // Converts degrees to radians
 
-            descriptor = "manually";
+            descriptor1 = "changed";
+
+            descriptor2 = " to " + to_string(newCameraHFOVInDegrees) + "\u00B0 (Horizontal) and " + to_string(newCameraVFOVInDegrees) + "\u00B0 (Vertical).";
 
             break;
         }
 
-        OpenFile(file, "lithtech.exe");
+        DefaultCutscenesVFOVInRadiansAsFloat = static_cast<float>(kDefaultCutscenesVFOVInRadians);
 
-        file.seekp(kCameraHorizontalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraHorizontalFOVInRadians), sizeof(newCameraHorizontalFOVInRadians));
+        SearchAndReplacePatterns(file);
 
-        file.seekp(kCameraVerticalFOVOffset);
-        file.write(reinterpret_cast<const char *>(&newCameraVerticalFOVInRadians), sizeof(newCameraHorizontalFOVInRadians));
+        file.seekp(kGameplayAndCutscenesCameraHFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraHFOVInRadians), sizeof(newCameraHFOVInRadians));
+
+        file.seekp(kGameplayCameraVFOVOffset);
+        file.write(reinterpret_cast<const char *>(&newCameraVFOVInRadians), sizeof(newCameraHFOVInRadians));
+
+        file.seekp(kCutscenesCameraVFOVOffset);
+        file.write(reinterpret_cast<const char *>(&DefaultCutscenesVFOVInRadiansAsFloat), sizeof(DefaultCutscenesVFOVInRadiansAsFloat));
 
         // Checks if any errors occurred during the file operations
         if (file.good())
         {
             // Confirmation message
-            cout << "\nSuccessfully changed " << descriptor << " the horizontal field of view to " << newCameraHorizontalFOVInDegrees << "\u00B0 and vertical field of view to " << newCameraVerticalFOVInDegrees << "\u00B0." << endl;
+            cout << "\nSuccessfully " << descriptor1 << " the field of view" << descriptor2 << endl; 
         }
         else
         {
