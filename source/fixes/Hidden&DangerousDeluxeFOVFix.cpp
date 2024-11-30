@@ -99,7 +99,7 @@ float HandleMultiplierInput()
 uint32_t HandleResolutionInput()
 {
     uint32_t newCustomResolutionValue;
-    
+
     do
     {
         cin >> newCustomResolutionValue;
@@ -288,19 +288,19 @@ int main()
 
         newCameraHFOV = static_cast<float>(CameraHFOVCalculation(newWidth, newHeight));
 
-        cout << "- Do you wish to set a custom camera FOV, rendering on the sides and rendering distance values (1) or leave them as default values (2)?: ";
+        cout << "\n- Do you wish to set a custom camera FOV, rendering on the sides and rendering distance values (1) or leave them as default values (2)?: ";
         HandleChoiceInput(choice1);
 
         switch (choice1)
         {
         case 1:
-            cout << "- Type the desired camera FOV multiplier (default for 4:3 is 0.5): ";
+            cout << "\n- Type the desired camera FOV multiplier (default for 4:3 is 0.5): ";
             newCameraFOV = HandleMultiplierInput();
 
-            cout << "- Type the desired rendering distance multiplier (default for 4:3 is 0.5): ";
+            cout << "\n- Type the desired rendering distance multiplier (default for 4:3 is 0.5): ";
             newRenderingDistance = HandleMultiplierInput();
 
-            cout << "- Type the desired rendering distance on the sides multiplier (default for 4:3 is 0.5, a very high value is recommended to avoid engine culling but might cause lag in older PCs): ";
+            cout << "\n- Type the desired rendering distance on the sides multiplier (default for 4:3 is 0.5, a very high value is recommended to avoid engine culling but might cause lag in older PCs): ";
             newObjectRenderingSidesValue = HandleMultiplierInput();
 
             break;
