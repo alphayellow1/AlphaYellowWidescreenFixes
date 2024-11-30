@@ -99,6 +99,7 @@ float HandleMultiplierInput()
 uint32_t HandleResolutionInput()
 {
     uint32_t newCustomResolutionValue;
+    
     do
     {
         cin >> newCustomResolutionValue;
@@ -280,10 +281,10 @@ int main()
     do
     {
         cout << "\n- Enter the desired width: ";
-        HandleResolutionInput(newWidth);
+        newWidth = HandleResolutionInput();
 
         cout << "\n- Enter the desired height: ";
-        HandleResolutionInput(newHeight);
+        newHeight = HandleResolutionInput();
 
         newCameraHFOV = static_cast<float>(CameraHFOVCalculation(newWidth, newHeight));
 
