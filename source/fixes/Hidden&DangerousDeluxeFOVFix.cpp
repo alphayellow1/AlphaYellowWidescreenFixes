@@ -15,8 +15,8 @@ using namespace std;
 // Constants
 const streampos kCameraHFOVOffset = 0x000E6337;
 const streampos kCameraFOVOffset = 0x000E633B;
-const streampos kObjectRenderingSidesOffset = 0x000E633F;
 const streampos kRenderingDistanceOffset = 0x000E6326;
+const streampos kObjectRenderingSidesOffset = 0x000E633F;
 
 // Variables
 uint32_t newWidth, newHeight;
