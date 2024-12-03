@@ -1,6 +1,0 @@
-﻿  safetyhook.cpp
-  dllmain.cpp
-C:\Users\Diogo Santos\source\repos\DAFix\src\dllmain.cpp(1376,9): warning C4018: '>=': signed/unsigned mismatch
-  Generating Code...
-  Zydis.c
-  DAFix.vcxproj -> C:\Users\Diogo Santos\source\repos\DAFix\Win32\Debug\DieHardNakatomiPlazaFOVFix.asi
