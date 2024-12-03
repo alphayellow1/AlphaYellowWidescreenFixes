@@ -1309,7 +1309,7 @@ void AdjustFOV()
 	// CustomCode3
 	std::vector<Instruction> customCode3 = {
 		// Instruction 1
-		{{0x3D, 0xF3, 0x66, 0xDF, 0x3E}, true, false, 0}, // cmp eax, 0x3EDF66F3
+		{{0x3D, 0xF3, 0x66, 0xDF, 0x3E}, true, false, 1}, // cmp eax, 0x3EDF66F3
 
 		// Instruction 2
 		{{0x74, 0x02}, false, false, 0}, // je 0x9

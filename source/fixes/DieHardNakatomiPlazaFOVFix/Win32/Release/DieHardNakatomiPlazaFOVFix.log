@@ -1,0 +1,9 @@
+﻿  dllmain.cpp
+D:\GitHub\repos\AlphaYellowWidescreenFixes\source\fixes\DieHardNakatomiPlazaFOVFix\src\dllmain.cpp(1377,9): warning C4018: '>=': signed/unsigned mismatch
+  Generating code
+  Previous IPDB and IOBJ mismatch, fall back to full compilation.
+  All 5486 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  DieHardNakatomiPlazaFOVFix.vcxproj -> D:\GitHub\repos\AlphaYellowWidescreenFixes\source\fixes\DieHardNakatomiPlazaFOVFix\Win32\Release\DieHardNakatomiPlazaFOVFix.asi
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
