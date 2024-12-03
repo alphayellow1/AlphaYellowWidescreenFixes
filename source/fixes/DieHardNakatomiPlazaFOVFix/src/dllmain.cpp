@@ -17,6 +17,7 @@
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
+#include <iostream>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
