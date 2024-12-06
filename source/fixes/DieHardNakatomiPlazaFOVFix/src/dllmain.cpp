@@ -45,7 +45,7 @@ constexpr float oldWidth = 4.0f;
 constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
 
-float originalHFOVInRadiansGameplay, originalVFOVInRadiansGameplay, originalZoomHFOVInRadians, originalZoomVFOVInRadians;
+float HFOVInRadians, VFOVInRadians, ZoomHFOVInRadians, ZoomVFOVInRadians;
 
 float newAspectRatio;
 
