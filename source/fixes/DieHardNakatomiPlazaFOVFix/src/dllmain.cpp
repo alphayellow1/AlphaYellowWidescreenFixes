@@ -45,10 +45,6 @@ constexpr float oldWidth = 4.0f;
 constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
 
-float HFOVInRadians, VFOVInRadians, ZoomHFOVInRadians, ZoomVFOVInRadians;
-
-float newAspectRatio;
-
 // Ini variables
 bool bFixFOV = true;
 
@@ -75,12 +71,6 @@ const std::map<Game, GameInfo> kGames = {
 
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
-
-// Updated function to calculate the horizontal camera FOV in degrees based on the original FOV (radians) and aspect ratio change
-double CalculateNewHFOVRadians(double oldHFOVRadians, double newAspectRatio, double oldAspectRatio)
-{
-	return 2.0 * atan(tan(oldHFOVRadians / 2.0) * (newAspectRatio / oldAspectRatio));
-}
 
 void Logging()
 {
@@ -197,1135 +187,268 @@ bool DetectGame()
 void FOV()
 {
 	if (eGameType == Game::DHNP) {
-
 		std::uint8_t* DHNP_HFOVScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00");
 		if (DHNP_HFOVScanResult) {
 			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), DHNP_HFOVScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid DHNP_HFOVMidHook{};
 			DHNP_HFOVMidHook = safetyhook::create_mid(DHNP_HFOVScanResult,
 				[](SafetyHookContext& ctx) {
-
-				newAspectRatio = static_cast<float>(iCurrentResX) / iCurrentResY;
-
-				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) = 1.5707963705062866f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * (newAspectRatio / oldAspectRatio));
+				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5707963705062866f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
 				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) = 0.5585054159164429f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * (newAspectRatio / oldAspectRatio));
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.5585054159164429f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
 				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) = 0.4886922240257263f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * (newAspectRatio / oldAspectRatio));
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4886922240257263f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0471975803375244f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.5235987901687622f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.3490658700466156f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.8726646900177002f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.1745329350233078f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1344640254974365f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.2617993950843811f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.06981317698955536f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.13962635397911072f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3962634801864624f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.7853981852531433f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.2217305898666382f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.6981317400932312f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5312644243240356f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.4747148752212524f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.448533296585083f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.4223518371582031f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3919837474822998f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3613520860671997f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3307284116744995f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3045469522476196f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.2783653736114502f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.2521837949752808f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.2260023355484009f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1953785419464111f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1691970825195312f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1430155038833618f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1168339252471924f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0906524658203125f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0602843761444092f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4363323152065277f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+			});
+
+			std::uint8_t* DHNP_VFOVScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00");
+			if (DHNP_VFOVScanResult) {
+				spdlog::info("VFOV: Address is {:s}+{:x}", sExeName.c_str(), DHNP_VFOVScanResult - (std::uint8_t*)exeModule);
+				static SafetyHookMid DHNP_VFOVMidHook{};
+				DHNP_VFOVMidHook = safetyhook::create_mid(DHNP_VFOVScanResult,
+					[](SafetyHookContext& ctx) {
+					if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780972480773926f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887909173965454f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887909173965454f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.36651918292045593f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.36651918292045593f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853981852531433f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853981852531433f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.39269909262657166f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.2617994248867035f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.2617994248867035f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.6544985175132751f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.6544985175132751f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.13089971244335175f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.13089971244335175f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8508480191230774f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8508480191230774f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.19634954631328583f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.19634954631328583f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.05235988646745682f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.05235988646745682f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.10471977293491364f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.10471977293491364f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887906193733215f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887906193733215f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.39269909262657166f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.047197699546814f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.047197699546814f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853982448577881f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853982448577881f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.5890486240386963f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.5890486240386963f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9162979125976562f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9162979125976562f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.523598849773407f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.523598849773407f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1484483480453491f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1484483480453491f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1060361862182617f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1060361862182617f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0863999128341675f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0863999128341675f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0667638778686523f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0667638778686523f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0439878702163696f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0439878702163696f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0210140943527222f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0210140943527222f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.998046338558197f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.998046338558197f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9784102439880371f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9784102439880371f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9587740302085876f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9587740302085876f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.939137876033783f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.939137876033783f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.919501781463623f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.919501781463623f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8965339064598083f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8965339064598083f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8768978118896484f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8768978118896484f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8572616577148438f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8572616577148438f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8376254439353943f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8376254439353943f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8179893493652344f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8179893493652344f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7952132821083069f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7952132821083069f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780973672866821f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780973672866821f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780972480773926f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.3272492289543152f) {
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.3272492289543152f;
+					}
+				});
+			}
+		}
+
+		std::uint8_t* DHNP_ZoomHFOVScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00");
+		if (DHNP_ZoomHFOVScanResult) {
+			spdlog::info("HFOV Zoom: Address is {:s}+{:x}", sExeName.c_str(), DHNP_ZoomHFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid DHNP_ZoomHFOVMidHook{};
+			DHNP_ZoomHFOVMidHook = safetyhook::create_mid(DHNP_ZoomHFOVScanResult,
+				[](SafetyHookContext& ctx) {
+				if (*reinterpret_cast<float*>(ctx.eax) == 0.4363323152065277f) {
+					*reinterpret_cast<float*>(ctx.eax) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
 				}
 			});
 		}
 
-		/*
-		std::uint8_t* HDD_VFOVScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00");
-		if (HDD_VFOVScanResult) {
-			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_VFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid HDD_HFOVMidHook{};
-			HDD_HFOVMidHook = safetyhook::create_mid(HDD_VFOVScanResult,
+		std::uint8_t* DHNP_ZoomVFOVScanResult = Memory::PatternScan(exeModule, "89 81 9C 01 00 00");
+		if (DHNP_ZoomVFOVScanResult) {
+			spdlog::info("VFOV Zoom: Address is {:s}+{:x}", sExeName.c_str(), DHNP_ZoomVFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid DHNP_ZoomVFOVMidHook{};
+			DHNP_ZoomVFOVMidHook = safetyhook::create_mid(DHNP_ZoomVFOVScanResult,
 				[](SafetyHookContext& ctx) {
-
-				*reinterpret_cast<float*>(ctx.esp - 0x60) = 0.3f;
-
+				if (*reinterpret_cast<float*>(ctx.eax) == 0.3272492289543152f) {
+					*reinterpret_cast<float*>(ctx.eax) = 0.3272492289543152f;
+				}
 			});
 		}
-
-		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00");
-		if (HDD_HFOVScanResult) {
-			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_HFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid HDD_HFOVMidHook{};
-			HDD_HFOVMidHook = safetyhook::create_mid(HDD_HFOVScanResult,
-				[](SafetyHookContext& ctx) {
-
-				*reinterpret_cast<float*>(ctx.esp - 0x60) = 0.3f;
-
-			});
-		}
-
-		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(exeModule, "89 81 9C 01 00 00");
-		if (HDD_HFOVScanResult) {
-			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_HFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid HDD_HFOVMidHook{};
-			HDD_HFOVMidHook = safetyhook::create_mid(HDD_HFOVScanResult,
-				[](SafetyHookContext& ctx) {
-
-				*reinterpret_cast<float*>(ctx.esp - 0x60) = 0.3f;
-
-			});
-		}
-		*/
 	}
 }
-/*
-void AdjustFOV()
-{
-	// Structure to define patterns and their associated code cave offsets
-	struct PatternInfo
-	{
-		const char* pattern;
-		const char* mask;
-		size_t patternLength;
-		size_t codeCaveOffset; // Offset into code cave for this pattern's custom code
-	};
-
-	// Define the patterns and their corresponding offsets
-	PatternInfo patterns[] = {
-		{"\x8B\x81\x98\x01\x00\x00", "xxxxxx", 6, 0x0000},
-		{"\x8B\x81\x9C\x01\x00\x00", "xxxxxx", 6, 0x1000},
-		{"\x89\x81\x98\x01\x00\x00", "xxxxxx", 6, 0x2000},
-		{"\x89\x81\x9C\x01\x00\x00", "xxxxxx", 6, 0x3000},
-	};
-
-	const int numPatterns = sizeof(patterns) / sizeof(patterns[0]);
-
-	// Allocate a code cave for custom code (16KB buffer)
-	size_t codeCaveSize = 16384; // 16KB
-	uint8_t* codeCave = static_cast<uint8_t*>(VirtualAlloc(nullptr, codeCaveSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
-	if (!codeCave)
-	{
-		spdlog::error("Failed to allocate memory for code cave.");
-		return;
-	}
-	spdlog::info("Code cave allocated at address: 0x{:X}", reinterpret_cast<uintptr_t>(codeCave));
-
-	// Calculate the new aspect ratio based on the resolution from the ini
-	;
-	spdlog::info("New Aspect Ratio: {:.4f} (Resolution: {}x{})", newAspectRatio, iCurrentResX, iCurrentResY);
-
-	// Define custom codes as vectors of Instructions
-
-	// CustomCode1
-	std::vector<Instruction> customCode1 = {
-		// Hex byte array of each instruction, ReadFrom, WriteTo, StartingByteToReadOrWriteValue
-		// Instruction 1
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0xC9, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FC90FDB
-
-		// Instruction 2
-		{{0x0F, 0x84, 0x15, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x225
-
-		// Instruction 3
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x36, 0xFA, 0x0E, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F0EFA36
-
-		// Instruction 4
-		{{0x0F, 0x84, 0x14, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x234
-
-		// Instruction 5
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xDE, 0x35, 0xFA, 0x3E}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3EFA35DE
-
-		// Instruction 6
-		{{0x0F, 0x84, 0x13, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x243
-
-		// Instruction 7
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x92, 0x0A, 0x86, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F860A92
-
-		// Instruction 8
-		{{0x0F, 0x84, 0x12, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x252
-
-		// Instruction 9
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x92, 0x0A, 0x06, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F060A92
-
-		// Instruction 10
-		{{0x0F, 0x84, 0x11, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x261
-
-		// Instruction 11
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xC3, 0xB8, 0xB2, 0x3E}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3EB2B8C3
-
-		// Instruction 12
-		{{0x0F, 0x84, 0x10, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x270
-
-		// Instruction 13
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xF4, 0x66, 0x5F, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F5F66F4
-
-		// Instruction 14
-		{{0x0F, 0x84, 0x0F, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x27F
-
-		// Instruction 15
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xC3, 0xB8, 0x32, 0x3E}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3E32B8C3
-
-		// Instruction 16
-		{{0x0F, 0x84, 0x0E, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x28E
-
-		// Instruction 17
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x1E, 0x36, 0x91, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F91361E
-
-		// Instruction 18
-		{{0x0F, 0x84, 0x0D, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x29D
-
-		// Instruction 19
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x92, 0x0A, 0x86, 0x3E}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3E860A92
-
-		// Instruction 20
-		{{0x0F, 0x84, 0x0C, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2AC
-
-		// Instruction 21
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x36, 0xFA, 0x8E, 0x3D}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3D8EFA36
-
-		// Instruction 22
-		{{0x0F, 0x84, 0x0B, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2BB
-
-		// Instruction 23
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x36, 0xFA, 0x0E, 0x3E}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3E0EFA36
-
-		// Instruction 24
-		{{0x0F, 0x84, 0x0A, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2CA
-
-		// Instruction 25
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xC3, 0xB8, 0xB2, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FB2B8C3
-
-		// Instruction 26
-		{{0x0F, 0x84, 0x09, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2D9
-
-		// Instruction 27
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0x49, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F490FDB
-
-		// Instruction 28
-		{{0x0F, 0x84, 0x08, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2E8
-
-		// Instruction 29
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xAB, 0x61, 0x9C, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F9C61AB
-
-		// Instruction 30
-		{{0x0F, 0x84, 0x07, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2F7
-
-		// Instruction 31
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xC3, 0xB8, 0x32, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F32B8C3
-
-		// Instruction 32
-		{{0x0F, 0x84, 0x06, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x306
-
-		// Instruction 33
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x79, 0x00, 0xC4, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FC40079
-
-		// Instruction 34
-		{{0x0F, 0x84, 0x05, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x315
-
-		// Instruction 35
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x75, 0xC3, 0xBC, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FBCC375
-
-		// Instruction 36
-		{{0x0F, 0x84, 0x04, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x324
-
-		// Instruction 37
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x8A, 0x69, 0xB9, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FB9698A
-
-		// Instruction 38
-		{{0x0F, 0x84, 0x03, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x333
-
-		// Instruction 39
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xA0, 0x0F, 0xB6, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FB60FA0
-
-		// Instruction 40
-		{{0x0F, 0x84, 0x02, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x342
-
-		// Instruction 41
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x86, 0x2C, 0xB2, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FB22C86
-
-		// Instruction 42
-		{{0x0F, 0x84, 0x01, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x351
-
-		// Instruction 43
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xC9, 0x40, 0xAE, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FAE40C9
-
-		// Instruction 44
-		{{0x0F, 0x84, 0x00, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x360
-
-		// Instruction 45
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x4F, 0x55, 0xAA, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FAA554F
-
-		// Instruction 46
-		{{0x0F, 0x84, 0xFF, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x36F
-
-		// Instruction 47
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x65, 0xFB, 0xA6, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FA6FB65
-
-		// Instruction 48
-		{{0x0F, 0x84, 0xFE, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x37E
-
-		// Instruction 49
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x7A, 0xA1, 0xA3, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FA3A17A
-
-		// Instruction 50
-		{{0x0F, 0x84, 0xFD, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x38D
-
-		// Instruction 51
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x8F, 0x47, 0xA0, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3FA0478F
-
-		// Instruction 52
-		{{0x0F, 0x84, 0xFC, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x39C
-
-		// Instruction 53
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xA5, 0xED, 0x9C, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F9CEDA5
-
-		// Instruction 54
-		{{0x0F, 0x84, 0xFB, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x3AB
-
-		// Instruction 55
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x2A, 0x02, 0x99, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F99022A
-
-		// Instruction 56
-		{{0x0F, 0x84, 0xFA, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x3BA
-
-		// Instruction 57
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x40, 0xA8, 0x95, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F95A840
-
-		// Instruction 58
-		{{0x0F, 0x84, 0xF9, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x3C9
-
-		// Instruction 59
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x55, 0x4E, 0x92, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F924E55
-
-		// Instruction 60
-		{{0x0F, 0x84, 0xF8, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x3D8
-
-		// Instruction 61
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x6A, 0xF4, 0x8E, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F8EF46A
-
-		// Instruction 62
-		{{0x0F, 0x84, 0xF7, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x3E7
-
-		// Instruction 63
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x80, 0x9A, 0x8B, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F8B9A80
-
-		// Instruction 64
-		{{0x0F, 0x84, 0xF6, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x3F6
-
-		// Instruction 65
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0x66, 0xB7, 0x87, 0x3F}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3F87B766
-
-		// Instruction 66
-		{{0x0F, 0x84, 0xF5, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x405
-
-		// Instruction 67
-		{{0x81, 0xB9, 0x98, 0x01, 0x00, 0x00, 0xF3, 0x66, 0xDF, 0x3E}, true, false, 6}, // cmp dword ptr [ecx+0x198], 0x3EDF66F3
-
-		// Instruction 68
-		{{0x0F, 0x84, 0xF4, 0x01, 0x00, 0x00}, false, false, 0}, // je 0x414
-
-		// Instruction 69
-		{{0xE9, 0xFB, 0x01, 0x00, 0x00}, false, false, 0}, // jmp 0x420
-
-		// Instruction 70
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x1A, 0x63, 0xED, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FED631A
-
-		// Instruction 71
-		{{0xE9, 0xDC, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x10
-
-		// Instruction 72
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xD3, 0xFC, 0x3A, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3F3AFCD3
-
-		// Instruction 73
-		{{0xE9, 0xDD, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x20
-
-		// Instruction 74
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xA9, 0x55, 0x24, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3F2455A9
-
-		// Instruction 75
-		{{0xE9, 0xDE, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x30
-
-		// Instruction 76
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 77
-		{{0xE9, 0xDF, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x40
-
-		// Instruction 78
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xF6, 0xAE, 0x2F, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3F2FAEF6
-
-		// Instruction 79
-		{{0xE9, 0xE0, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x50
-
-		// Instruction 80
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 81
-		{{0xE9, 0xE1, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x60
-
-		// Instruction 82
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xAD, 0x66, 0x8E, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3F8E66AD
-
-		// Instruction 83
-		{{0xE9, 0xE2, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x70
-
-		// Instruction 84
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xD9, 0xD3, 0x6D, 0x3E}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3E6DD3D9
-
-		// Instruction 85
-		{{0xE9, 0xE3, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x80
-
-		// Instruction 86
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xEB, 0x43, 0xB4, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FB443EB
-
-		// Instruction 87
-		{{0xE9, 0xE4, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x90
-
-		// Instruction 88
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xCE, 0xEF, 0xB1, 0x3E}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3EB1EFCE
-
-		// Instruction 89
-		{{0xE9, 0xE5, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xA0
-
-		// Instruction 90
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x8B, 0x93, 0xBE, 0x3D}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3DBE938B
-
-		// Instruction 91
-		{{0xE9, 0xE6, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xB0
-
-		// Instruction 92
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x7B, 0x65, 0x3E, 0x3E}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3E3E657B
-
-		// Instruction 93
-		{{0xE9, 0xE7, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xC0
-
-		// Instruction 94
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x91, 0x66, 0xD7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FD76691
-
-		// Instruction 95
-		{{0xE9, 0xE8, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xD0
-
-		// Instruction 96
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x2E, 0x2D, 0x81, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3F812D2E
-
-		// Instruction 97
-		{{0xE9, 0xE9, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xE0
-
-		// Instruction 98
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x95, 0x46, 0xC0, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FC04695
-
-		// Instruction 99
-		{{0xE9, 0xEA, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xF0
-
-		// Instruction 100
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x19, 0x54, 0x67, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3F675419
-
-		// Instruction 101
-		{{0xE9, 0xEB, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x100
-
-		// Instruction 102
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xB8, 0x80, 0xE8, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FE880B8
-
-		// Instruction 103
-		{{0xE9, 0xEC, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x110
-
-		// Instruction 104
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x64, 0x6B, 0xE1, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FE16B64
-
-		// Instruction 105
-		{{0xE9, 0xED, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x120
-
-		// Instruction 106
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xDF, 0x19, 0xDE, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FDE19DF
-
-		// Instruction 107
-		{{0xE9, 0xEE, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x130
-
-		// Instruction 108
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xEE, 0xC1, 0xDA, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FDAC1EE
-
-		// Instruction 109
-		{{0xE9, 0xEF, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x140
-
-		// Instruction 110
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0xF9, 0xD8, 0xD6, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FD6D8F9
-
-		// Instruction 111
-		{{0xE9, 0xF0, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x150
-
-		// Instruction 112
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 113
-		{{0xE9, 0xF1, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x160
-
-		// Instruction 114
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 115
-		{{0xE9, 0xF2, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x170
-
-		// Instruction 116
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 117
-		{{0xE9, 0xF3, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x180
-
-		// Instruction 118
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 119
-		{{0xE9, 0xF4, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x190
-
-		// Instruction 120
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 121
-		{{0xE9, 0xF5, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1A0
-
-		// Instruction 122
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 123
-		{{0xE9, 0xF6, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1B0
-
-		// Instruction 124
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 125
-		{{0xE9, 0xF7, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1C0
-
-		// Instruction 126
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 127
-		{{0xE9, 0xF8, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1D0
-
-		// Instruction 128
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 129
-		{{0xE9, 0xF9, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1E0
-
-		// Instruction 130
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 131
-		{{0xE9, 0xFA, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1F0
-
-		// Instruction 132
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 133
-		{{0xE9, 0xFB, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x200
-
-		// Instruction 134
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 135
-		{{0xE9, 0xFC, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x210
-
-		// Instruction 136
-		{{0xC7, 0x81, 0x98, 0x01, 0x00, 0x00, 0x28, 0xF4, 0xA7, 0x3F}, false, true, 6}, // mov dword ptr [ecx+0x198], 0x3FA7F428
-
-		// Instruction 137
-		{{0xEB, 0x00}, false, false, 0}, // jmp 0x420
-
-		// Instruction 138
-		{{0x8B, 0x81, 0x98, 0x01, 0x00, 0x00}, false, false, 0}, // mov eax, dword ptr [ecx+0x198]
-	};
-
-	// CustomCode2
-	std::vector<Instruction> customCode2 = {
-		// Instruction 1
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xE4, 0xCB, 0x96, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F96CBE4
-
-		// Instruction 2
-		{{0x0F, 0x84, 0x65, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x275
-
-		// Instruction 3
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x52, 0x77, 0xD6, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3ED67752
-
-		// Instruction 4
-		{{0x0F, 0x84, 0x64, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x284
-
-		// Instruction 5
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x67, 0xA8, 0xBB, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3EBBA867
-
-		// Instruction 6
-		{{0x0F, 0x84, 0x63, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x293
-
-		// Instruction 7
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0x49, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F490FDB
-
-		// Instruction 8
-		{{0x0F, 0x84, 0x62, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2A2
-
-		// Instruction 9
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0xC9, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3EC90FDB
-
-		// Instruction 10
-		{{0x0F, 0x84, 0x61, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2B1
-
-		// Instruction 11
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x93, 0x0A, 0x86, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3E860A93
-
-		// Instruction 12
-		{{0x0F, 0x84, 0x60, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2C0
-
-		// Instruction 13
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x37, 0x8D, 0x27, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F278D37
-
-		// Instruction 14
-		{{0x0F, 0x84, 0x5F, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2CF
-
-		// Instruction 15
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x93, 0x0A, 0x06, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3E060A93
-
-		// Instruction 16
-		{{0x0F, 0x84, 0x5E, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2DE
-
-		// Instruction 17
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x2D, 0xD1, 0x59, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F59D12D
-
-		// Instruction 18
-		{{0x0F, 0x84, 0x5D, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2ED
-
-		// Instruction 19
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0x49, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3E490FDB
-
-		// Instruction 20
-		{{0x0F, 0x84, 0x5C, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x2FC
-
-		// Instruction 21
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x52, 0x77, 0x56, 0x3D}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3D567752
-
-		// Instruction 22
-		{{0x0F, 0x84, 0x5B, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x30B
-
-		// Instruction 23
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x52, 0x77, 0xD6, 0x3D}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3DD67752
-
-		// Instruction 24
-		{{0x0F, 0x84, 0x5A, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x31A
-
-		// Instruction 25
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x51, 0x77, 0xD6, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3ED67751
-
-		// Instruction 26
-		{{0x0F, 0x84, 0x59, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x329
-
-		// Instruction 27
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0xC9, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3EC90FDB
-
-		// Instruction 28
-		{{0x0F, 0x84, 0x58, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x338
-
-		// Instruction 29
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x93, 0x0A, 0x86, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F860A93
-
-		// Instruction 30
-		{{0x0F, 0x84, 0x57, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x347
-
-		// Instruction 31
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xDC, 0x0F, 0x49, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F490FDC
-
-		// Instruction 32
-		{{0x0F, 0x84, 0x56, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x356
-
-		// Instruction 33
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xE4, 0xCB, 0x16, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F16CBE4
-
-		// Instruction 34
-		{{0x0F, 0x84, 0x55, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x365
-
-		// Instruction 35
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x80, 0x92, 0x6A, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F6A9280
-
-		// Instruction 36
-		{{0x0F, 0x84, 0x54, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x374
-
-		// Instruction 37
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x93, 0x0A, 0x06, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F060A93
-
-		// Instruction 38
-		{{0x0F, 0x84, 0x53, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x383
-
-		// Instruction 39
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x5B, 0x00, 0x93, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F93005B
-
-		// Instruction 40
-		{{0x0F, 0x84, 0x52, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x392
-
-		// Instruction 41
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x98, 0x92, 0x8D, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F8D9298
-
-		// Instruction 42
-		{{0x0F, 0x84, 0x51, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x3A1
-
-		// Instruction 43
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x27, 0x0F, 0x8B, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F8B0F27
-
-		// Instruction 44
-		{{0x0F, 0x84, 0x50, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x3B0
-
-		// Instruction 45
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xB8, 0x8B, 0x88, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F888BB8
-
-		// Instruction 46
-		{{0x0F, 0x84, 0x4F, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x3BF
-
-		// Instruction 47
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x65, 0xA1, 0x85, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F85A165
-
-		// Instruction 48
-		{{0x0F, 0x84, 0x4E, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x3CE
-
-		// Instruction 49
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x97, 0xB0, 0x82, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F82B097
-
-		// Instruction 50
-		{{0x0F, 0x84, 0x4D, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x3DD
-
-		// Instruction 51
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xF7, 0x7F, 0x7F, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F7F7FF7
-
-		// Instruction 52
-		{{0x0F, 0x84, 0x4C, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x3EC
-
-		// Instruction 53
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x18, 0x79, 0x7A, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F7A7918
-
-		// Instruction 54
-		{{0x0F, 0x84, 0x4B, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x3FB
-
-		// Instruction 55
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x37, 0x72, 0x75, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F757237
-
-		// Instruction 56
-		{{0x0F, 0x84, 0x4A, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x40A
-
-		// Instruction 57
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x57, 0x6B, 0x70, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F706B57
-
-		// Instruction 58
-		{{0x0F, 0x84, 0x49, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x419
-
-		// Instruction 59
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x78, 0x64, 0x6B, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F6B6478
-
-		// Instruction 60
-		{{0x0F, 0x84, 0x48, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x428
-
-		// Instruction 61
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x3F, 0x83, 0x65, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F65833F
-
-		// Instruction 62
-		{{0x0F, 0x84, 0x47, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x437
-
-		// Instruction 63
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x60, 0x7C, 0x60, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F607C60
-
-		// Instruction 64
-		{{0x0F, 0x84, 0x46, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x446
-
-		// Instruction 65
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x80, 0x75, 0x5B, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F5B7580
-
-		// Instruction 66
-		{{0x0F, 0x84, 0x45, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x455
-
-		// Instruction 67
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x9F, 0x6E, 0x56, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F566E9F
-
-		// Instruction 68
-		{{0x0F, 0x84, 0x44, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x464
-
-		// Instruction 69
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xC0, 0x67, 0x51, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F5167C0
-
-		// Instruction 70
-		{{0x0F, 0x84, 0x43, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x473
-
-		// Instruction 71
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x19, 0x93, 0x4B, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F4B9319
-
-		// Instruction 72
-		{{0x0F, 0x84, 0x42, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x482
-
-		// Instruction 73
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xE5, 0xCB, 0x96, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F96CBE5
-
-		// Instruction 74
-		{{0x0F, 0x84, 0x41, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x491
-
-		// Instruction 75
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0xE4, 0xCB, 0x96, 0x3F}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3F96CBE4
-
-		// Instruction 76
-		{{0x0F, 0x84, 0x40, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x4A0
-
-		// Instruction 77
-		{{0x81, 0xB9, 0x9C, 0x01, 0x00, 0x00, 0x36, 0x8D, 0xA7, 0x3E}, false, false, 0}, // cmp dword ptr [ecx+0x19C], 0x3EA78D36
-
-		// Instruction 78
-		{{0x0F, 0x84, 0x3F, 0x02, 0x00, 0x00}, false, false, 0}, // je 0x4AF
-
-		// Instruction 79
-		{{0xE9, 0x46, 0x02, 0x00, 0x00}, false, false, 0}, // jmp 0x4BB
-
-		// Instruction 80
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xE4, 0xCB, 0x96, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F96CBE4
-
-		// Instruction 81
-		{{0xE9, 0x8C, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x10
-
-		// Instruction 82
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x52, 0x77, 0xD6, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3ED67752
-
-		// Instruction 83
-		{{0xE9, 0x8D, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x20
-
-		// Instruction 84
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x67, 0xA8, 0xBB, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3EBBA867
-
-		// Instruction 85
-		{{0xE9, 0x8E, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x30
-
-		// Instruction 86
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0x49, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F490FDB
-
-		// Instruction 87
-		{{0xE9, 0x8F, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x40
-
-		// Instruction 88
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0xC9, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3EC90FDB
-
-		// Instruction 89
-		{{0xE9, 0x90, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x50
-
-		// Instruction 90
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x93, 0x0A, 0x86, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3E860A93
-
-		// Instruction 91
-		{{0xE9, 0x91, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x60
-
-		// Instruction 92
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x37, 0x8D, 0x27, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F278D37
-
-		// Instruction 93
-		{{0xE9, 0x92, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x70
-
-		// Instruction 94
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x93, 0x0A, 0x06, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3E060A93
-
-		// Instruction 95
-		{{0xE9, 0x93, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x80
-
-		// Instruction 96
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x2D, 0xD1, 0x59, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F59D12D
-
-		// Instruction 97
-		{{0xE9, 0x94, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x90
-
-		// Instruction 98
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0x49, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3E490FDB
-
-		// Instruction 99
-		{{0xE9, 0x95, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xA0
-
-		// Instruction 100
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x52, 0x77, 0x56, 0x3D}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3D567752
-
-		// Instruction 101
-		{{0xE9, 0x96, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xB0
-
-		// Instruction 102
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x52, 0x77, 0xD6, 0x3D}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3DD67752
-
-		// Instruction 103
-		{{0xE9, 0x97, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xC0
-
-		// Instruction 104
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x51, 0x77, 0xD6, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3ED67751
-
-		// Instruction 105
-		{{0xE9, 0x98, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xD0
-
-		// Instruction 106
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xDB, 0x0F, 0xC9, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3EC90FDB
-
-		// Instruction 107
-		{{0xE9, 0x99, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xE0
-
-		// Instruction 108
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x93, 0x0A, 0x86, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F860A93
-
-		// Instruction 109
-		{{0xE9, 0x9A, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0xF0
-
-		// Instruction 110
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xDC, 0x0F, 0x49, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F490FDC
-
-		// Instruction 111
-		{{0xE9, 0x9B, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x100
-
-		// Instruction 112
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xE4, 0xCB, 0x16, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F16CBE4
-
-		// Instruction 113
-		{{0xE9, 0x9C, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x110
-
-		// Instruction 114
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x80, 0x92, 0x6A, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F6A9280
-
-		// Instruction 115
-		{{0xE9, 0x9D, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x120
-
-		// Instruction 116
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x93, 0x0A, 0x06, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F060A93
-
-		// Instruction 117
-		{{0xE9, 0x9E, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x130
-
-		// Instruction 118
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x5B, 0x00, 0x93, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F93005B
-
-		// Instruction 119
-		{{0xE9, 0x9F, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x140
-
-		// Instruction 120
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x98, 0x92, 0x8D, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F8D9298
-
-		// Instruction 121
-		{{0xE9, 0xA0, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x150
-
-		// Instruction 122
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x27, 0x0F, 0x8B, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F8B0F27
-
-		// Instruction 123
-		{{0xE9, 0xA1, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x160
-
-		// Instruction 124
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xB8, 0x8B, 0x88, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F888BB8
-
-		// Instruction 125
-		{{0xE9, 0xA2, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x170
-
-		// Instruction 126
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x65, 0xA1, 0x85, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F85A165
-
-		// Instruction 127
-		{{0xE9, 0xA3, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x180
-
-		// Instruction 128
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x97, 0xB0, 0x82, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F82B097
-
-		// Instruction 129
-		{{0xE9, 0xA4, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x190
-
-		// Instruction 130
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xF7, 0x7F, 0x7F, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F7F7FF7
-
-		// Instruction 131
-		{{0xE9, 0xA5, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1A0
-
-		// Instruction 132
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x18, 0x79, 0x7A, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F7A7918
-
-		// Instruction 133
-		{{0xE9, 0xA6, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1B0
-
-		// Instruction 134
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x37, 0x72, 0x75, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F757237
-
-		// Instruction 135
-		{{0xE9, 0xA7, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1C0
-
-		// Instruction 136
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x57, 0x6B, 0x70, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F706B57
-
-		// Instruction 137
-		{{0xE9, 0xA8, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1D0
-
-		// Instruction 138
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x78, 0x64, 0x6B, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F6B6478
-
-		// Instruction 139
-		{{0xE9, 0xA9, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1E0
-
-		// Instruction 140
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x3F, 0x83, 0x65, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F65833F
-
-		// Instruction 141
-		{{0xE9, 0xAA, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x1F0
-
-		// Instruction 142
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x60, 0x7C, 0x60, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F607C60
-
-		// Instruction 143
-		{{0xE9, 0xAB, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x200
-
-		// Instruction 144
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x80, 0x75, 0x5B, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F5B7580
-
-		// Instruction 145
-		{{0xE9, 0xAC, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x210
-
-		// Instruction 146
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x9F, 0x6E, 0x56, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F566E9F
-
-		// Instruction 147
-		{{0xE9, 0xAD, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x220
-
-		// Instruction 148
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xC0, 0x67, 0x51, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F5167C0
-
-		// Instruction 149
-		{{0xE9, 0xAE, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x230
-
-		// Instruction 150
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x19, 0x93, 0x4B, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F4B9319
-
-		// Instruction 151
-		{{0xE9, 0xAF, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x240
-
-		// Instruction 152
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xE5, 0xCB, 0x96, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F96CBE5
-
-		// Instruction 153
-		{{0xE9, 0xB0, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x250
-
-		// Instruction 154
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0xE4, 0xCB, 0x96, 0x3F}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3F96CBE4
-
-		// Instruction 155
-		{{0xE9, 0xB1, 0xFD, 0xFF, 0xFF}, false, false, 0}, // jmp 0x260
-
-		// Instruction 156
-		{{0xC7, 0x81, 0x9C, 0x01, 0x00, 0x00, 0x36, 0x8D, 0xA7, 0x3E}, false, false, 0}, // mov dword ptr [ecx+0x19C], 0x3EA78D36
-
-		// Instruction 157
-		{{0xEB, 0x00}, false, false, 0}, // jmp 0x4BB
-
-		// Instruction 158
-		{{0x8B, 0x81, 0x9C, 0x01, 0x00, 0x00}, false, false, 0}, // mov eax, dword ptr [ecx+0x19C]
-	};
-
-	// CustomCode3
-	std::vector<Instruction> customCode3 = {
-		// Instruction 1
-		{{0x3D, 0xF3, 0x66, 0xDF, 0x3E}, true, false, 1}, // cmp eax, 0x3EDF66F3
-
-		// Instruction 2
-		{{0x74, 0x02}, false, false, 0}, // je 0x9
-
-		// Instruction 3
-		{{0x75, 0x07}, false, false, 0}, // jne 0x10
-
-		// Instruction 4
-		{{0xB8, 0xDF, 0x69, 0x0D, 0x3F}, false, true, 1}, // mov eax, 0x3F0D69DF
-
-		// Instruction 5
-		{{0xEB, 0x00}, false, false, 0}, // jmp 0x10
-
-		// Instruction 6
-		{{0x89, 0x81, 0x98, 0x01, 0x00, 0x00}, false, false, 0}, // mov dword ptr [ecx+0x198], eax
-	};
-
-	// CustomCode4
-	std::vector<Instruction> customCode4 = {
-		// Instruction 1
-		{{0x3D, 0x36, 0x8D, 0xA7, 0x3E}, false, false, 0}, // cmp eax, 0x3EA78D36
-
-		// Instruction 2
-		{{0x74, 0x02}, false, false, 0}, // je 0x9
-
-		// Instruction 3
-		{{0x75, 0x07}, false, false, 0}, // jne 0x10
-
-		// Instruction 4
-		{{0xB8, 0x36, 0x8D, 0xA7, 0x3E}, false, false, 0}, // mov eax, 0x3EA78D36
-
-		// Instruction 5
-		{{0xEB, 0x00}, false, false, 0}, // jmp 0x10
-
-		// Instruction 6
-		{{0x89, 0x81, 0x9C, 0x01, 0x00, 0x00}, false, false, 0}, // mov dword ptr [ecx+0x19C], eax
-	};
-
-	// List of custom codes
-	std::vector<std::vector<Instruction>> customCodeList = {
-		customCode1,
-		customCode2,
-		customCode3,
-		customCode4,
-	};
-
-	// Adjust each custom code individually with the correct aspect ratio
-	for (size_t i = 0; i < customCodeList.size(); ++i)
-	{
-		spdlog::info("Adjusting CustomCode{}", i + 1);
-		AdjustCustomCode(customCodeList[i], newAspectRatio, oldAspectRatio);
-	}
-
-	// Assemble the instructions back into byte arrays
-	std::vector<std::vector<uint8_t>> customCodes;
-	for (size_t i = 0; i < customCodeList.size(); ++i)
-	{
-		customCodes.push_back(AssembleCustomCode(customCodeList[i]));
-		spdlog::info("Assembled CustomCode{}: {} bytes", i + 1, customCodes[i].size());
-	}
-
-	// Copy custom code into the code cave after processing
-	for (int i = 0; i < numPatterns; ++i)
-	{
-		if (i >= customCodes.size())
-		{
-			spdlog::error("Not enough custom codes defined for the number of patterns.");
-			break;
-		}
-		size_t offset = patterns[i].codeCaveOffset;
-		if (offset + customCodes[i].size() > codeCaveSize)
-		{
-			spdlog::error("CustomCode{} exceeds code cave size at offset 0x{:X}.", i + 1, offset);
-			continue;
-		}
-		memcpy(codeCave + offset, customCodes[i].data(), customCodes[i].size());
-		spdlog::info("Copied CustomCode{} to code cave offset 0x{:X}", i + 1, offset);
-	}
-
-	// Process each pattern
-	for (int i = 0; i < numPatterns; ++i)
-	{
-		spdlog::info("Processing Pattern{}", i + 1);
-		uint8_t* targetAddress = Memory2::PatternScan2(exeModule, patterns[i].pattern, patterns[i].mask);
-		if (!targetAddress)
-		{
-			spdlog::error("Failed to find Pattern{}.", i + 1);
-			continue;
-		}
-
-		spdlog::info("Found Pattern{} at address: 0x{:X}", i + 1, reinterpret_cast<uintptr_t>(targetAddress));
-
-		// Calculate the return address and the jump target
-		uintptr_t returnAddress = reinterpret_cast<uintptr_t>(targetAddress) + patterns[i].patternLength;
-		uintptr_t jmpToCodeCave = reinterpret_cast<uintptr_t>(codeCave) + patterns[i].codeCaveOffset;
-		size_t customCodeSize = customCodes[i].size();
-
-		// Append a jump back to the return address at the end of the custom code
-		AppendJumpBack(codeCave, patterns[i].codeCaveOffset + customCodeSize, returnAddress);
-		spdlog::info("Appended JMP back to 0x{:X} in code cave.", returnAddress);
-
-		// Overwrite the original instruction with a JMP to the code cave
-		DWORD oldProtect;
-		if (!VirtualProtect(targetAddress, patterns[i].patternLength, PAGE_EXECUTE_READWRITE, &oldProtect))
-		{
-			spdlog::error("Failed to change memory protection for Pattern{}.", i + 1);
-			continue;
-		}
-
-		// Calculate the relative jump offset
-		int32_t jmpOffset = static_cast<int32_t>(jmpToCodeCave - reinterpret_cast<uintptr_t>(targetAddress) - 5);
-		spdlog::debug("Pattern{} JMP Offset: {:#X}", i + 1, jmpOffset);
-
-		// Write the JMP instruction
-		targetAddress[0] = 0xE9; // JMP opcode
-		*reinterpret_cast<int32_t*>(&targetAddress[1]) = jmpOffset;
-
-		// NOP remaining bytes if the original instruction was longer than the JMP
-		for (size_t j = 5; j < patterns[i].patternLength; ++j)
-		{
-			targetAddress[j] = 0x90; // NOP
-		}
-
-		// Restore the original protection
-		DWORD temp;
-		VirtualProtect(targetAddress, patterns[i].patternLength, oldProtect, &temp);
-
-		spdlog::info("Overwritten Pattern{} with JMP to code cave offset 0x{:X}.", i + 1, patterns[i].codeCaveOffset);
-	}
-}
-*/
 
 DWORD __stdcall Main(void*)
 {
