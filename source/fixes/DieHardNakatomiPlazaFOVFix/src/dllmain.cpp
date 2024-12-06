@@ -295,6 +295,9 @@ void FOV()
 				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4363323152065277f) {
 					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
 				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4363323152065277f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
 			});
 
 			std::uint8_t* DHNP_VFOVScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00");
@@ -424,26 +427,28 @@ void FOV()
 			}
 		}
 
-		std::uint8_t* DHNP_ZoomHFOVScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00");
+		std::uint8_t* DHNP_ZoomHFOVScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00 8B 45 10");
 		if (DHNP_ZoomHFOVScanResult) {
 			spdlog::info("HFOV Zoom: Address is {:s}+{:x}", sExeName.c_str(), DHNP_ZoomHFOVScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid DHNP_ZoomHFOVMidHook{};
 			DHNP_ZoomHFOVMidHook = safetyhook::create_mid(DHNP_ZoomHFOVScanResult,
 				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.eax) == 0.4363323152065277f) {
-					*reinterpret_cast<float*>(ctx.eax) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				if (ctx.eax == std::bit_cast<uint32_t>(0.4363323152065277f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(ctx.eax / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio)));
 				}
 			});
 		}
 
-		std::uint8_t* DHNP_ZoomVFOVScanResult = Memory::PatternScan(exeModule, "89 81 9C 01 00 00");
+		std::uint8_t* DHNP_ZoomVFOVScanResult = Memory::PatternScan(exeModule, "89 81 9C 01 00 00 5D C3");
 		if (DHNP_ZoomVFOVScanResult) {
 			spdlog::info("VFOV Zoom: Address is {:s}+{:x}", sExeName.c_str(), DHNP_ZoomVFOVScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid DHNP_ZoomVFOVMidHook{};
 			DHNP_ZoomVFOVMidHook = safetyhook::create_mid(DHNP_ZoomVFOVScanResult,
 				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.eax) == 0.3272492289543152f) {
-					*reinterpret_cast<float*>(ctx.eax) = 0.3272492289543152f;
+				if (ctx.eax == std::bit_cast<uint32_t>(0.3272492289543152f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(0.3272492289543152f);
 				}
 			});
 		}
