@@ -40,13 +40,14 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr double kPi = 3.14159265358979323846;
-constexpr double oldWidth = 4.0;
-constexpr double oldHeight = 3.0;
-constexpr double oldAspectRatio = oldWidth / oldHeight;
+constexpr float fPi = 3.14159265358979323846f;
+constexpr float oldWidth = 4.0f;
+constexpr float oldHeight = 3.0f;
+constexpr float oldAspectRatio = oldWidth / oldHeight;
 
-// Aspect ratio / FOV
-float fAspectRatio = static_cast<float>(oldAspectRatio);
+float originalHFOVInRadiansGameplay, originalVFOVInRadiansGameplay, originalZoomHFOVInRadians, originalZoomVFOVInRadians;
+
+float newAspectRatio;
 
 // Ini variables
 bool bFixFOV = true;
@@ -58,7 +59,7 @@ int iCurrentResY = 0;
 // Game detection
 enum class Game
 {
-	DHNM,
+	DHNP,
 	Unknown
 };
 
@@ -69,67 +70,11 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::DHNM, {"Die Hard: Nakatomi Plaza", "Lithtech.exe"}},
+	{Game::DHNP, {"Die Hard: Nakatomi Plaza", "Lithtech.exe"}},
 };
 
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
-
-// Structure to define Instruction
-struct Instruction
-{
-	std::vector<uint8_t> bytes; // The bytes of the instruction
-	bool readFrom;				// If true, this instruction is a source of FOV value
-	bool writtenTo;				// If true, this instruction is a target for FOV value
-	size_t immediateOffset;		// Offset within 'bytes' where the immediate value is located
-};
-
-namespace Memory2
-{
-	std::uint8_t* PatternScan2(HMODULE module, const char* pattern, const char* mask)
-	{
-		MODULEINFO moduleInfo = { 0 };
-		GetModuleInformation(GetCurrentProcess(), module, &moduleInfo, sizeof(MODULEINFO));
-
-		uintptr_t baseAddress = reinterpret_cast<uintptr_t>(moduleInfo.lpBaseOfDll);
-		uintptr_t sizeOfImage = static_cast<uintptr_t>(moduleInfo.SizeOfImage);
-
-		size_t patternLength = strlen(mask);
-
-		for (uintptr_t i = baseAddress; i < baseAddress + sizeOfImage - patternLength; ++i)
-		{
-			bool found = true;
-			for (size_t j = 0; j < patternLength; ++j)
-			{
-				if (mask[j] != 'x')
-					continue;
-
-				if (pattern[j] != *reinterpret_cast<char*>(i + j))
-				{
-					found = false;
-					break;
-				}
-			}
-
-			if (found)
-				return reinterpret_cast<std::uint8_t*>(i);
-		}
-
-		return nullptr;
-	}
-}
-
-// Function to convert degrees to radians
-constexpr double DegToRad(double degrees)
-{
-	return degrees * (kPi / 180.0);
-}
-
-// Function to convert radians to degrees
-constexpr double RadToDeg(double radians)
-{
-	return radians * (180.0 / kPi);
-}
 
 // Updated function to calculate the horizontal camera FOV in degrees based on the original FOV (radians) and aspect ratio change
 double CalculateNewHFOVRadians(double oldHFOVRadians, double newAspectRatio, double oldAspectRatio)
@@ -249,131 +194,71 @@ bool DetectGame()
 	return false;
 }
 
-// Helper function to append JMP back to returnAddress
-void AppendJumpBack(uint8_t* codeCave, size_t codeCaveOffset, uintptr_t returnAddress)
+void FOV()
 {
-	uintptr_t jmpInstructionAddress = reinterpret_cast<uintptr_t>(codeCave) + codeCaveOffset;
+	if (eGameType == Game::DHNP) {
 
-	// Append JMP opcode at the correct position
-	codeCave[codeCaveOffset] = 0xE9; // JMP opcode
+		std::uint8_t* DHNP_HFOVScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00");
+		if (DHNP_HFOVScanResult) {
+			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), DHNP_HFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid DHNP_HFOVMidHook{};
+			DHNP_HFOVMidHook = safetyhook::create_mid(DHNP_HFOVScanResult,
+				[](SafetyHookContext& ctx) {
 
-	// Calculate relative offset: target - (current + 5)
-	int32_t relativeOffset = static_cast<int32_t>(returnAddress - (jmpInstructionAddress + 5));
+				newAspectRatio = static_cast<float>(iCurrentResX) / iCurrentResY;
 
-	// Insert the relative offset into the JMP instruction
-	*reinterpret_cast<int32_t*>(codeCave + codeCaveOffset + 1) = relativeOffset;
-}
-
-// Function to assemble instructions back into bytes
-std::vector<uint8_t> AssembleCustomCode(const std::vector<Instruction>& customCode)
-{
-	std::vector<uint8_t> assembledCode;
-	for (const auto& instr : customCode)
-	{
-		assembledCode.insert(assembledCode.end(), instr.bytes.begin(), instr.bytes.end());
-	}
-	return assembledCode;
-}
-
-// Function to adjust FOV based on readFrom and writtenTo flags
-void AdjustCustomCode(std::vector<Instruction>& customCode, double newAspectRatio, double oldAspectRatio)
-{
-	// Vector to store FOV values read from instructions
-	std::vector<float> fovValues;
-
-	// First pass: Read all FOV values from 'readFrom' instructions
-	for (size_t index = 0; index < customCode.size(); ++index)
-	{
-		auto& instr = customCode[index];
-		if (instr.readFrom)
-		{
-			if (instr.immediateOffset + sizeof(float) <= instr.bytes.size())
-			{
-				// Safely copy bytes to float using memcpy
-				float originalFOVRadians;
-				std::memcpy(&originalFOVRadians, &instr.bytes[instr.immediateOffset], sizeof(float));
-
-				fovValues.push_back(originalFOVRadians);
-
-				// Log the read operation with raw bytes
-				std::stringstream ss;
-				for (size_t i = 0; i < sizeof(float); ++i)
-				{
-					ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(instr.bytes[instr.immediateOffset + i]) << " ";
+				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) = 1.5707963705062866f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * (newAspectRatio / oldAspectRatio));
 				}
-				spdlog::info("Instruction {}: Read FOV = {:.6f} radians ({:.2f} degrees), Raw Bytes = {}",
-					index + 1, originalFOVRadians, RadToDeg(originalFOVRadians), ss.str());
-			}
-			else
-			{
-				spdlog::error("Instruction {}: Immediate value offset out of bounds. Offset: {}, Bytes size: {}",
-					index + 1, instr.immediateOffset, instr.bytes.size());
-			}
-		}
-	}
-
-	// Second pass: Write new FOV values to 'writtenTo' instructions based on read values
-	size_t fovIndex = 0; // Index to track which read FOV to use
-	for (size_t index = 0; index < customCode.size(); ++index)
-	{
-		auto& instr = customCode[index];
-		if (instr.writtenTo)
-		{
-			if (fovIndex >= fovValues.size())
-			{
-				spdlog::error("No corresponding read FOV value available for Instruction {}.", index + 1);
-				continue;
-			}
-
-			if (instr.immediateOffset + sizeof(float) <= instr.bytes.size())
-			{
-				float originalFOVRadians = fovValues[fovIndex];
-
-				// Calculate the new HFOV in radians
-				double newFOVRadians = CalculateNewHFOVRadians(static_cast<double>(originalFOVRadians), newAspectRatio, oldAspectRatio);
-
-				// Optional: Validate the new FOV is within a reasonable range
-				double newFOVDegrees = RadToDeg(newFOVRadians);
-
-				// Convert the new FOV back to float radians
-				float newFOVFloat = static_cast<float>(newFOVRadians);
-
-				// Log the calculation steps
-				spdlog::debug("Instruction {}: Original FOV Radians: {:.6f}, Degrees: {:.2f}",
-					index + 1, originalFOVRadians, RadToDeg(originalFOVRadians));
-				spdlog::debug("Instruction {}: New FOV Radians: {:.6f}, Degrees: {:.2f}",
-					index + 1, newFOVRadians, newFOVDegrees);
-
-				// Safely copy the new FOV back into the instruction bytes
-				std::memcpy(&instr.bytes[instr.immediateOffset], &newFOVFloat, sizeof(float));
-
-				// Log the write operation with raw bytes
-				std::stringstream ssWrite;
-				uint8_t* fovBytes = reinterpret_cast<uint8_t*>(&newFOVFloat);
-				for (size_t i = 0; i < sizeof(float); ++i)
-				{
-					ssWrite << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(fovBytes[i]) << " ";
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) = 0.5585054159164429f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * (newAspectRatio / oldAspectRatio));
 				}
-				spdlog::info("Instruction {}: Adjusted FOV from {:.6f} radians ({:.2f} degrees) to {:.6f} radians ({:.2f} degrees), Raw Bytes Written = {}",
-					index + 1, originalFOVRadians, RadToDeg(originalFOVRadians), newFOVRadians, newFOVDegrees, ssWrite.str());
-
-				fovIndex++; // Move to the next read FOV value
-			}
-			else
-			{
-				spdlog::error("Instruction {}: Immediate value offset out of bounds. Offset: {}, Bytes size: {}",
-					index + 1, instr.immediateOffset, instr.bytes.size());
-			}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) = 0.4886922240257263f) {
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * (newAspectRatio / oldAspectRatio));
+				}
+			});
 		}
-	}
 
-	// Check if there are unused read FOV values
-	if (fovIndex < fovValues.size())
-	{
-		spdlog::warn("There are {} unused read FOV values.", fovValues.size() - fovIndex);
+		/*
+		std::uint8_t* HDD_VFOVScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00");
+		if (HDD_VFOVScanResult) {
+			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_VFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid HDD_HFOVMidHook{};
+			HDD_HFOVMidHook = safetyhook::create_mid(HDD_VFOVScanResult,
+				[](SafetyHookContext& ctx) {
+
+				*reinterpret_cast<float*>(ctx.esp - 0x60) = 0.3f;
+
+			});
+		}
+
+		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00");
+		if (HDD_HFOVScanResult) {
+			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_HFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid HDD_HFOVMidHook{};
+			HDD_HFOVMidHook = safetyhook::create_mid(HDD_HFOVScanResult,
+				[](SafetyHookContext& ctx) {
+
+				*reinterpret_cast<float*>(ctx.esp - 0x60) = 0.3f;
+
+			});
+		}
+
+		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(exeModule, "89 81 9C 01 00 00");
+		if (HDD_HFOVScanResult) {
+			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_HFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid HDD_HFOVMidHook{};
+			HDD_HFOVMidHook = safetyhook::create_mid(HDD_HFOVScanResult,
+				[](SafetyHookContext& ctx) {
+
+				*reinterpret_cast<float*>(ctx.esp - 0x60) = 0.3f;
+
+			});
+		}
+		*/
 	}
 }
-
+/*
 void AdjustFOV()
 {
 	// Structure to define patterns and their associated code cave offsets
@@ -406,7 +291,7 @@ void AdjustFOV()
 	spdlog::info("Code cave allocated at address: 0x{:X}", reinterpret_cast<uintptr_t>(codeCave));
 
 	// Calculate the new aspect ratio based on the resolution from the ini
-	double newAspectRatio = static_cast<double>(iCurrentResX) / iCurrentResY;
+	;
 	spdlog::info("New Aspect Ratio: {:.4f} (Resolution: {}x{})", newAspectRatio, iCurrentResX, iCurrentResY);
 
 	// Define custom codes as vectors of Instructions
@@ -1440,6 +1325,7 @@ void AdjustFOV()
 		spdlog::info("Overwritten Pattern{} with JMP to code cave offset 0x{:X}.", i + 1, patterns[i].codeCaveOffset);
 	}
 }
+*/
 
 DWORD __stdcall Main(void*)
 {
@@ -1447,7 +1333,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		AdjustFOV();
+		FOV();
 	}
 	return TRUE;
 }
