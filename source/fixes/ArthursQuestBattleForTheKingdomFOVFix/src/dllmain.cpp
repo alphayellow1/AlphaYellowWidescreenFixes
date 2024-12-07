@@ -22,11 +22,12 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "AlcatrazPrisonEscapeFOVFix";
-std::string sFixVersion = "1.5"; // Updated version
+std::string sFixName = "ArthursQuestBattleForTheKingdomFOVFix";
+std::string sFixVersion = "1.3"; // Updated version
 std::filesystem::path sFixPath;
 
 // Ini
@@ -55,7 +56,7 @@ int iCurrentResY = 0;
 // Game detection
 enum class Game
 {
-	APE,
+	AQBFTK,
 	Unknown
 };
 
@@ -66,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::APE, {"Alcatraz: Prison Escape", "lithtech.exe"}},
+	{Game::AQBFTK, {"Arthur's Quest: Battle for the Kingdom", "lithtech.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -176,6 +177,18 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+
+			Sleep(2000);
+
+			dllModule = GetModuleHandleA("CShell.dll");
+			if (!dllModule)
+			{
+				spdlog::error("Failed to get handle for CShell.dll.");
+				return false;
+			}
+
+			spdlog::info("Successfully obtained handle for CShell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
+
 			return true;
 		}
 	}
@@ -186,32 +199,17 @@ bool DetectGame()
 
 void FOV()
 {
-	if (eGameType == Game::APE) {
-		std::uint8_t* APE_HFOVScanResult = Memory::PatternScan(exeModule, "8B 88 98 01 00 00 89 94 24 FC 00 00 00");
-		if (APE_HFOVScanResult) {
-			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), APE_HFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid APE_HFOVMidHook{};
-			APE_HFOVMidHook = safetyhook::create_mid(APE_HFOVScanResult,
+	if (eGameType == Game::AQBFTK) {
+		std::uint8_t* AQBFTK_HFOVScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00");
+		if (AQBFTK_HFOVScanResult) {
+			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), AQBFTK_HFOVScanResult - (std::uint8_t*)dllModule);
+			static SafetyHookMid AQBFTK_HFOVMidHook{};
+			AQBFTK_HFOVMidHook = safetyhook::create_mid(AQBFTK_HFOVScanResult,
 				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.eax + 0x198) == 1.5707963705062866f) {
-					*reinterpret_cast<float*>(ctx.eax + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f)) {
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio)));
 				}
 			});
-
-			std::uint8_t* APE_VFOVScanResult = Memory::PatternScan(exeModule, "8B 90 9C 01 00 00 89 94 24 E4 00 00 00");
-			if (APE_VFOVScanResult) {
-				spdlog::info("VFOV: Address is {:s}+{:x}", sExeName.c_str(), APE_VFOVScanResult - (std::uint8_t*)exeModule);
-				static SafetyHookMid APE_VFOVMidHook{};
-				APE_VFOVMidHook = safetyhook::create_mid(APE_VFOVScanResult,
-					[](SafetyHookContext& ctx) {
-					if (*reinterpret_cast<float*>(ctx.eax + 0x19C) == 1.1780972480773926f) {
-						*reinterpret_cast<float*>(ctx.eax + 0x19C) = 1.1780972480773926f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.eax + 0x19C) == 0.849067747592926f) {
-						*reinterpret_cast<float*>(ctx.eax + 0x19C) = 0.849067747592926f;
-					}
-				});
-			}
 		}
 	}
 }
