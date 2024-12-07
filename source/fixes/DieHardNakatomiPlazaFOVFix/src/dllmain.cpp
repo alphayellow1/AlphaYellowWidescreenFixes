@@ -447,7 +447,7 @@ void FOV()
 				[](SafetyHookContext& ctx) {
 				if (ctx.eax == std::bit_cast<uint32_t>(0.4363323152065277f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4 / 3))));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f))));
 				}
 			});
 		}
