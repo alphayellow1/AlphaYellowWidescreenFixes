@@ -445,9 +445,9 @@ void FOV()
 			static SafetyHookMid DHNP_ZoomHFOVMidHook{};
 			DHNP_ZoomHFOVMidHook = safetyhook::create_mid(DHNP_ZoomHFOVScanResult,
 				[](SafetyHookContext& ctx) {
-				if (ctx.eax == std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (oldAspectRatio)))))
+				if (ctx.eax == std::bit_cast<uint32_t>(0.4363323152065277f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)))));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4 / 3))));
 				}
 			});
 		}
