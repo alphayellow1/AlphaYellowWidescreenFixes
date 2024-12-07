@@ -52,6 +52,18 @@ bool bFixFOV = true;
 int iCurrentResX = 0;
 int iCurrentResY = 0;
 
+// Function to convert degrees to radians
+float DegToRad(float degrees)
+{
+	return degrees * (fPi / 180.0f);
+}
+
+// Function to convert radians to degrees
+float RadToDeg(float radians)
+{
+	return radians * (180.0f / fPi);
+}
+
 // Game detection
 enum class Game
 {
@@ -433,9 +445,9 @@ void FOV()
 			static SafetyHookMid DHNP_ZoomHFOVMidHook{};
 			DHNP_ZoomHFOVMidHook = safetyhook::create_mid(DHNP_ZoomHFOVScanResult,
 				[](SafetyHookContext& ctx) {
-				if (ctx.eax == std::bit_cast<uint32_t>(0.4363323152065277f))
+				if (ctx.eax == std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (oldAspectRatio)))))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(ctx.eax / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio)));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)))));
 				}
 			});
 		}
@@ -446,7 +458,7 @@ void FOV()
 			static SafetyHookMid DHNP_ZoomVFOVMidHook{};
 			DHNP_ZoomVFOVMidHook = safetyhook::create_mid(DHNP_ZoomVFOVScanResult,
 				[](SafetyHookContext& ctx) {
-				if (ctx.eax == std::bit_cast<uint32_t>(0.3272492289543152f))
+				if (ctx.eax == std::bit_cast<uint32_t>(0.3272492289543152f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f))))
 				{
 					ctx.eax = std::bit_cast<uint32_t>(0.3272492289543152f);
 				}
