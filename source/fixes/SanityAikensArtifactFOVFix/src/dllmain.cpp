@@ -167,64 +167,47 @@ void Configuration()
 	spdlog::info("----------");
 }
 
-bool DetectGame()
+void OpenGame()
 {
-	for (const auto& [type, info] : kGames)
+	dllModule = GetModuleHandleA("client.dll");
+
+	while (!dllModule)
 	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
-		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-
-			Sleep(2000);
-
-			dllModule = GetModuleHandleA("client.dll");
-			if (!dllModule)
-			{
-				spdlog::error("Failed to get handle for client.dll.");
-				return false;
-			}
-
-			spdlog::info("Successfully obtained handle for client.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
-
-			return true;
+		if (!dllModule) {
+			spdlog::warn("Waiting for client.dll to load...");
+			Sleep(1000); // Delay to wait for the DLL to load
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
+	spdlog::info("Successfully obtained handle for client.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
 }
 
 void FOV()
 {
-	if (eGameType == Game::SAA) {
-		std::uint8_t* SAA_HFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
-		if (SAA_HFOVScanResult) {
-			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), SAA_HFOVScanResult - (std::uint8_t*)dllModule);
-			static SafetyHookMid SAA_HFOVMidHook{};
-			SAA_HFOVMidHook = safetyhook::create_mid(SAA_HFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.eax + 0x154) == 1.5707963705062866f)
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x154) = 2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio));
-				}
-			});
-		}
+	std::uint8_t* SAA_HFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
+	if (SAA_HFOVScanResult) {
+		spdlog::info("HFOV: Address is client.dll+{:x}", SAA_HFOVScanResult - (std::uint8_t*)dllModule);
+		static SafetyHookMid SAA_HFOVMidHook{};
+		SAA_HFOVMidHook = safetyhook::create_mid(SAA_HFOVScanResult,
+			[](SafetyHookContext& ctx) {
+			if (*reinterpret_cast<float*>(ctx.eax + 0x154) == 1.5707963705062866f)
+			{
+				*reinterpret_cast<float*>(ctx.eax + 0x154) = 2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio));
+			}
+		});
+	}
 
-		std::uint8_t* SAA_VFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
-		if (SAA_VFOVScanResult) {
-			spdlog::info("VFOV Zoom: Address is {:s}+{:x}", sExeName.c_str(), SAA_VFOVScanResult - (std::uint8_t*)dllModule);
-			static SafetyHookMid SAA_VFOVMidHook{};
-			SAA_VFOVMidHook = safetyhook::create_mid(SAA_VFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.eax + 0x158) == 1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.1780972480773926f;
-				}
-			});
-		}
+	std::uint8_t* SAA_VFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
+	if (SAA_VFOVScanResult) {
+		spdlog::info("VFOV: Address is client.dll+{:x}", SAA_VFOVScanResult - (std::uint8_t*)dllModule);
+		static SafetyHookMid SAA_VFOVMidHook{};
+		SAA_VFOVMidHook = safetyhook::create_mid(SAA_VFOVScanResult,
+			[](SafetyHookContext& ctx) {
+			if (*reinterpret_cast<float*>(ctx.eax + 0x158) == 1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))
+			{
+				*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.1780972480773926f;
+			}
+		});
 	}
 }
 
@@ -232,10 +215,8 @@ DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
-	if (DetectGame())
-	{
-		FOV();
-	}
+	OpenGame();
+	FOV();
 	return TRUE;
 }
 
