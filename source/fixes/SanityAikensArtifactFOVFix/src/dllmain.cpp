@@ -163,7 +163,7 @@ void OpenGame()
 
 void FOV()
 {
-	std::uint8_t* SAA_HFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00");
+	std::uint8_t* SAA_HFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
 	if (SAA_HFOVScanResult) {
 		spdlog::info("HFOV: Address is client.dll+{:x}", SAA_HFOVScanResult - (std::uint8_t*)dllModule);
 		static SafetyHookMid SAA_HFOVMidHook{};
@@ -176,7 +176,7 @@ void FOV()
 		});
 	}
 
-	std::uint8_t* SAA_VFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00");
+	std::uint8_t* SAA_VFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
 	if (SAA_VFOVScanResult) {
 		spdlog::info("VFOV: Address is client.dll+{:x}", SAA_VFOVScanResult - (std::uint8_t*)dllModule);
 		static SafetyHookMid SAA_VFOVMidHook{};
