@@ -21,7 +21,6 @@
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
-HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
@@ -47,31 +46,11 @@ constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
 
 // Ini variables
-bool bFixFOV = true;
+bool FixFOV = true;
 
 // Variables
 int iCurrentResX = 0;
 int iCurrentResY = 0;
-
-// Game detection
-enum class Game
-{
-	SAA,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::SAA, {"Sanity: Aiken's Artifact", "Sanity.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
 
 void Logging()
 {
@@ -83,7 +62,7 @@ void Logging()
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
+	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
@@ -103,7 +82,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -143,8 +122,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOV"], "Enabled", bFixFOV);
-	spdlog_confparse(bFixFOV);
+	inipp::get_value(ini.sections["FOV"], "Enabled", FixFOV);
+	spdlog_confparse(FixFOV);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
@@ -173,10 +152,8 @@ void OpenGame()
 
 	while (!dllModule)
 	{
-		if (!dllModule) {
-			spdlog::warn("Waiting for client.dll to load...");
-			Sleep(1000); // Delay to wait for the DLL to load
-		}
+		spdlog::warn("Waiting for client.dll to load...");
+		Sleep(1000); // Delay to wait for the DLL to load
 	}
 
 	spdlog::info("Successfully obtained handle for client.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
