@@ -52,6 +52,8 @@ bool FixFOV = true;
 int iCurrentResX = 0;
 int iCurrentResY = 0;
 
+const float epsilon = 0.00001f;
+
 void Logging()
 {
 	// Get path to DLL
@@ -161,7 +163,7 @@ void OpenGame()
 
 void FOV()
 {
-	std::uint8_t* SAA_HFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
+	std::uint8_t* SAA_HFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00");
 	if (SAA_HFOVScanResult) {
 		spdlog::info("HFOV: Address is client.dll+{:x}", SAA_HFOVScanResult - (std::uint8_t*)dllModule);
 		static SafetyHookMid SAA_HFOVMidHook{};
@@ -174,15 +176,19 @@ void FOV()
 		});
 	}
 
-	std::uint8_t* SAA_VFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
+	std::uint8_t* SAA_VFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00");
 	if (SAA_VFOVScanResult) {
 		spdlog::info("VFOV: Address is client.dll+{:x}", SAA_VFOVScanResult - (std::uint8_t*)dllModule);
 		static SafetyHookMid SAA_VFOVMidHook{};
 		SAA_VFOVMidHook = safetyhook::create_mid(SAA_VFOVScanResult,
 			[](SafetyHookContext& ctx) {
-			if (*reinterpret_cast<float*>(ctx.eax + 0x158) == 1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))
+			if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
 			{
 				*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.1780972480773926f;
+			}
+			else if (*reinterpret_cast<float*>(ctx.eax + 0x158) == 1.5707963705062866f)
+			{
+				*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.5707963705062866f;
 			}
 		});
 	}
