@@ -203,7 +203,7 @@ void FOV()
 
 		std::uint8_t* CTAD_VFOVScanResult = Memory::PatternScan(exeModule, "8B 88 10 02 00 00 89 94 24 D0 00 00 00 8B 90 50 01 00 00");
 		if (CTAD_VFOVScanResult) {
-			spdlog::info("VFOV: Address is client.dll+{:x}", CTAD_VFOVScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("VFOV: Address is {:s}+{:x}", CTAD_VFOVScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid CTAD_VFOVMidHook{};
 			CTAD_VFOVMidHook = safetyhook::create_mid(CTAD_VFOVScanResult,
 				[](SafetyHookContext& ctx) {
