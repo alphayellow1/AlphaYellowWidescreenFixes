@@ -376,3 +376,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/source/fixes/ArthursQuestBattleForTheKingdomFOVFix/ArthursQ.8a7099c5
+/source/fixes/AlcatrazPrisonEscapeFOVFix/AlcatrazPrisonEscapeFOVFix.vcxproj.user
+/source/fixes/AtlantisTheLostEmpireTrialByFireFOVFix/AtlantisTheLostEmpireTrialByFireFOVFix.vcxproj.user
+/source/fixes/DieHardNakatomiPlazaFOVFix/DieHardNakatomiPlazaFOVFix.vcxproj.user
+/source/fixes/Hidden&DangerousDeluxeFOVFix/Hidden&DangerousDeluxeFOVFix.vcxproj.user
+/source/fixes/SanityAikensArtifactFOVFix/SanityAi.b880f944
