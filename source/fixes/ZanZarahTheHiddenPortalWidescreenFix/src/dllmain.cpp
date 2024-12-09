@@ -199,7 +199,7 @@ void FOV()
 
 	float newValue8 = 0.69f * ((4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / iCurrentResY));
 
-	std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "98 54 5A 00 74 4E 83 4D 10 FF");
+	std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "3B 05 98 54 5A 00 74 4E 83 4D 10 FF");
 
 	std::uint8_t* Pattern2ScanResult = Memory::PatternScan(exeModule, "C4 F3 A5 8D 73 2C 8B CE E8 67 5C");
 
@@ -219,7 +219,7 @@ void FOV()
 
 	std::uint8_t* Pattern10ScanResult = Memory::PatternScan(exeModule, "EC 51 38 3F 7B 14 2E 3F C3 F5 08 3F A6 9B C4 3B 0A D7 23 3B CD CC 0C 3F 9A 99 39 3F 29 5C 2F 3F AD AC EF B7 17 B7 D1 37 7B 14 0E 3F 00 00 C0 3E E1 7A 14 3E D7 A3 30 3F");
 
-	Memory::PatchBytes(Pattern1ScanResult + 0x4, "\x90\x90", 2);
+	Memory::PatchBytes(Pattern1ScanResult + 0x6, "\x90\x90", 2);
 
 	Memory::PatchBytes(Pattern2ScanResult + 0x3, "\xE9\x0E\x2C\x19\x00", 5);
 

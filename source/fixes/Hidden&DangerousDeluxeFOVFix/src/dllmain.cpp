@@ -235,14 +235,14 @@ void FOV()
 
 	if (eGameType == Game::HDD) {
 
-		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule, "D9 45 FC D8 F1 8B 4D F8");
+		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule, "D8 F1 8B 4D F8 D9 1E");
 		if (HDD_HFOVScanResult) {
 			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_HFOVScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid HDD_HFOVMidHook{};
 			HDD_HFOVMidHook = safetyhook::create_mid(HDD_HFOVScanResult,
 				[](SafetyHookContext& ctx) {
 
-				*reinterpret_cast<float*>(ctx.esp - 0x60) = 0.3f;
+				ctx.fpu.f32[0] = 0.3f;
 
 			});
 		}
