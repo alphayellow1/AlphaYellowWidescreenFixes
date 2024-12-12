@@ -218,15 +218,7 @@ void FOV()
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314334f;
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.32582f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314334f;
-				}
 				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f;
-				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.988726616f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f;
 				}
@@ -234,63 +226,150 @@ void FOV()
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.4137166738510132f;
 				}
-			});
-		}
 
-		std::uint8_t* SMAD_HipfireAndCutscenesVFOV3ScanResult = Memory::PatternScan(exeModule, "8B 44 24 08 D9 99 3C 01 00 00");
-		if (SMAD_HipfireAndCutscenesVFOV3ScanResult) {
-			spdlog::info("Hipfire and Cutscenes VFOV: Address is {:s}+{:x}", sExeName.c_str(), SMAD_HipfireAndCutscenesVFOV3ScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid SMAD_HipfireAndCutscenesVFOV3MidHook{};
-			SMAD_HipfireAndCutscenesVFOV3MidHook = safetyhook::create_mid(SMAD_HipfireAndCutscenesVFOV3ScanResult,
-				[](SafetyHookContext& ctx) {
-				if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x13C) - (0.78539818525314334f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x13C) = 0.78539818525314334f;
+				if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 5.0f / 4.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.1297270059586f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (0.75315129756927f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x13C) - (1.32582f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x13C) = 0.78539818525314334f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 3.0f / 2.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.2662309408188f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (0.84415400028229f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x13C) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x13C) = 1.1780972480773926f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 16.0f / 10.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.3140871524811f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (0.87605810165405f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x13C) - (1.988726616f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x13C) = 1.1780972480773926f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 15.0f / 9.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.344083070755f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (0.89605540037155f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x13C) - (1.4137166738510132f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x13C) = 1.4137166738510132f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 16.0f / 9.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.3909428119659f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (0.92729520797729f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-			});
-		}
-
-		std::uint8_t* SMAD_HipfireAndCutscenesVFOV4ScanResult = Memory::PatternScan(exeModule, "8B 80 3C 01 00 00 89 01 5E C3 90");
-		if (SMAD_HipfireAndCutscenesVFOV4ScanResult) {
-			spdlog::info("Hipfire and Cutscenes VFOV: Address is {:s}+{:x}", sExeName.c_str(), SMAD_HipfireAndCutscenesVFOV4ScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid SMAD_HipfireAndCutscenesVFOV4MidHook{};
-			SMAD_HipfireAndCutscenesVFOV4MidHook = safetyhook::create_mid(SMAD_HipfireAndCutscenesVFOV4ScanResult,
-				[](SafetyHookContext& ctx) {
-				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (0.78539818525314334f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314334f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 1.85f / 1.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.4194481372833f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (0.9462987780571f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.32582f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314334f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 2560.0f / 1080.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.587610244751f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.058406829834f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 3440.0f / 1440.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.592588186264f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.0617254972458f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.988726616f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 2.39f / 1.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.5928848981857f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.0619232654572f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.4137166738510132f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.4137166738510132f;
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 3840.0f / 1600.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.5955467224121f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.0636978149414f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
+				}
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 2.76f / 1.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.6811498403549f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.1207666397095f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
+				}
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 32.0f / 10.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.7640079259872f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.1760053634644f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
+				}
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 32.0f / 9.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.8180385828018f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.2120257616043f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
+				}
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 15.0f / 4.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.8437712192535f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.2291808128357f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
+				}
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 12.0f / 3.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.8735685348511f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.2490457296371f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
+				}
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 48.0f / 10.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.94977414608f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.2998495101929f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
+				}
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 45.0f / 9.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.9652907848358f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.3101938962936f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
+				}
+				else if ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) == 48.0f / 9.0f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.9887266159058f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.1780972480773926f; // GAMEPLAY VFOV
+					}
+					else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.32581782341f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
+						*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.78539818525314f;   // CUTSCENE VFOV
+					}
 				}
 			});
 		}
