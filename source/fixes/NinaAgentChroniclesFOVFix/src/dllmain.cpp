@@ -171,6 +171,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	Sleep(2000);
+
 	dllModule = GetModuleHandleA("cshell.dll");
 	if (!dllModule)
 	{
@@ -179,27 +181,31 @@ bool DetectGame()
 	}
 
 	spdlog::info("Successfully obtained handle for cshell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
+
+	return true;
 }
 
 void FOV()
 {
-	if (eGameType == Game::NAA) {
-		std::uint8_t* NAA_HipfireAndCutscenesHFOVScanResult = Memory::PatternScan(dllModule, "8B B0 38 01 00 00 89 B4 24 D0 00 00 00");
-		if (NAA_HipfireAndCutscenesHFOVScanResult) {
-			spdlog::info("Hipfire and Cutscenes HFOV: Address is cshell.dll+{:x}", NAA_HipfireAndCutscenesHFOVScanResult - (std::uint8_t*)dllModule);
-			static SafetyHookMid NAA_HipfireAndCutscenesHFOVMidHook{};
-			NAA_HipfireAndCutscenesHFOVMidHook = safetyhook::create_mid(NAA_HipfireAndCutscenesHFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f))
-				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-				}
-				else if (ctx.esi == std::bit_cast<uint32_t>(1.483529806137085f))
-				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.8849556446075f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-				}
-			});
-		}
+	std::uint8_t* NAA_HipfireAndCutscenesHFOVScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00 8B 04 91");
+	if (NAA_HipfireAndCutscenesHFOVScanResult) {
+		spdlog::info("Hipfire and Cutscenes HFOV: Address is cshell.dll+{:x}", NAA_HipfireAndCutscenesHFOVScanResult - (std::uint8_t*)dllModule);
+		static SafetyHookMid NAA_HipfireAndCutscenesHFOVMidHook{};
+		NAA_HipfireAndCutscenesHFOVMidHook = safetyhook::create_mid(NAA_HipfireAndCutscenesHFOVScanResult,
+			[](SafetyHookContext& ctx) {
+			if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f))
+			{
+				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+			}
+			else if (ctx.esi == std::bit_cast<uint32_t>(1.483529806137085f))
+			{
+				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.483529806137085f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+			}
+			else if (ctx.esi == std::bit_cast<uint32_t>(1.7453292608261108f))
+			{
+				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.7453292608261108f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+			}
+		});
 	}
 }
 
