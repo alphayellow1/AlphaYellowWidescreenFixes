@@ -69,7 +69,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::NAA, {"Nina: Agent Chronicles", "Nina.exe"}},
+	{Game::NAA, {"Nina: Agent Chronicles", "lithtech.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -171,6 +171,22 @@ void Configuration()
 
 bool DetectGame()
 {
+	for (const auto& [type, info] : kGames)
+	{
+		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		{
+			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
+			spdlog::info("----------");
+			eGameType = type;
+			game = &info;
+			break;
+		}
+		else
+		{
+			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		}
+	}
+
 	Sleep(2000);
 
 	dllModule = GetModuleHandleA("cshell.dll");
@@ -205,7 +221,30 @@ void FOV()
 			{
 				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.7453292608261108f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
 			}
+			else if (ctx.esi == std::bit_cast<uint32_t>(1.4169141054153442f))
+			{
+				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.4169141054153442f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+			}
+			else if (ctx.esi == std::bit_cast<uint32_t>(1.3089969158172607f))
+			{
+				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+			}
 		});
+	}
+
+	if (eGameType == Game::NAA) {
+		std::uint8_t* NAA_HipfireAndCutscenesHFOVScanResult2 = Memory::PatternScan(exeModule, "89 81 C0 01 00 00 C3 90 90 90");
+		if (NAA_HipfireAndCutscenesHFOVScanResult2) {
+			spdlog::info("Hipfire and Cutscenes HFOV: Address is {:s}+{:x}", sExeName.c_str(), NAA_HipfireAndCutscenesHFOVScanResult2 - (std::uint8_t*)exeModule);
+			static SafetyHookMid NAA_HipfireAndCutscenesHFOV2MidHook{};
+			NAA_HipfireAndCutscenesHFOV2MidHook = safetyhook::create_mid(NAA_HipfireAndCutscenesHFOVScanResult2,
+				[](SafetyHookContext& ctx) {
+				if (ctx.eax == std::bit_cast<uint32_t>(1.3089969158172607f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+				}
+			});
+		}
 	}
 }
 
