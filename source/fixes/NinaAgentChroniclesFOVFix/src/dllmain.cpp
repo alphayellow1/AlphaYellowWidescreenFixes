@@ -186,7 +186,7 @@ void FOV()
 	if (eGameType == Game::NAA) {
 		std::uint8_t* NAA_HipfireAndCutscenesHFOVScanResult = Memory::PatternScan(dllModule, "8B B0 38 01 00 00 89 B4 24 D0 00 00 00");
 		if (NAA_HipfireAndCutscenesHFOVScanResult) {
-			spdlog::info("Hipfire and Cutscenes HFOV: Address is {:s}+{:x}", sExeName.c_str(), NAA_HipfireAndCutscenesHFOVScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Hipfire and Cutscenes HFOV: Address is cshell.dll+{:x}", NAA_HipfireAndCutscenesHFOVScanResult - (std::uint8_t*)dllModule);
 			static SafetyHookMid NAA_HipfireAndCutscenesHFOVMidHook{};
 			NAA_HipfireAndCutscenesHFOVMidHook = safetyhook::create_mid(NAA_HipfireAndCutscenesHFOVScanResult,
 				[](SafetyHookContext& ctx) {
