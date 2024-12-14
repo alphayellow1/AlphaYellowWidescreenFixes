@@ -26,8 +26,8 @@ HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "NinaAgentChroniclesFOVFix";
-std::string sFixVersion = "1.5";
+std::string sFixName = "AnneMcCaffreysFreedomFirstResistanceFOVFix";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,12 +53,10 @@ bool bFixFOV = true;
 int iCurrentResX = 0;
 int iCurrentResY = 0;
 
-const float epsilon = 0.00001f;
-
 // Game detection
 enum class Game
 {
-	NAA,
+	AMCFFR,
 	Unknown
 };
 
@@ -69,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::NAA, {"Nina: Agent Chronicles", "lithtech.exe"}},
+	{Game::AMCFFR, {"Anne McCaffrey's Freedom: First Resistance", "Freedom.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -179,69 +177,26 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			break;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+			return true;
 		}
 	}
 
-	Sleep(2000);
-
-	dllModule = GetModuleHandleA("cshell.dll");
-	if (!dllModule)
-	{
-		spdlog::error("Failed to get handle for cshell.dll.");
-		return false;
-	}
-
-	spdlog::info("Successfully obtained handle for cshell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 void FOV()
 {
-	std::uint8_t* NAA_HipfireAndCutscenesHFOVScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00 8B 04 91");
-	if (NAA_HipfireAndCutscenesHFOVScanResult) {
-		spdlog::info("Hipfire and Cutscenes HFOV: Address is cshell.dll+{:x}", NAA_HipfireAndCutscenesHFOVScanResult - (std::uint8_t*)dllModule);
-		static SafetyHookMid NAA_HipfireAndCutscenesHFOVMidHook{};
-		NAA_HipfireAndCutscenesHFOVMidHook = safetyhook::create_mid(NAA_HipfireAndCutscenesHFOVScanResult,
-			[](SafetyHookContext& ctx) {
-			if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-			else if (ctx.esi == std::bit_cast<uint32_t>(1.483529806137085f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.483529806137085f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-			else if (ctx.esi == std::bit_cast<uint32_t>(1.7453292608261108f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.7453292608261108f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-			else if (ctx.esi == std::bit_cast<uint32_t>(1.4169141054153442f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.4169141054153442f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-			else if (ctx.esi == std::bit_cast<uint32_t>(1.3089969158172607f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-		});
-	}
-
-	if (eGameType == Game::NAA) {
-		std::uint8_t* NAA_HipfireAndCutscenesHFOVScanResult2 = Memory::PatternScan(exeModule, "89 81 C0 01 00 00 C3 90 90 90");
-		if (NAA_HipfireAndCutscenesHFOVScanResult2) {
-			spdlog::info("Hipfire and Cutscenes HFOV: Address is {:s}+{:x}", sExeName.c_str(), NAA_HipfireAndCutscenesHFOVScanResult2 - (std::uint8_t*)exeModule);
-			static SafetyHookMid NAA_HipfireAndCutscenesHFOV2MidHook{};
-			NAA_HipfireAndCutscenesHFOV2MidHook = safetyhook::create_mid(NAA_HipfireAndCutscenesHFOVScanResult2,
+	if (eGameType == Game::AMCFFR) {
+		std::uint8_t* AMCFFR_CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 87 9C 01 00 00 D8 0D E4 04 68 00");
+		if (AMCFFR_CameraFOVScanResult) {
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), AMCFFR_CameraFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid AMCFFR_CameraFOVMidHook{};
+			AMCFFR_CameraFOVMidHook = safetyhook::create_mid(AMCFFR_CameraFOVScanResult,
 				[](SafetyHookContext& ctx) {
-				if (ctx.eax == std::bit_cast<uint32_t>(1.3089969158172607f))
+				if (*reinterpret_cast<float*>(ctx.edi + 0x19C) == 1.5707963705062866f)
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+					*reinterpret_cast<float*>(ctx.edi + 0x19C) = 2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio));
 				}
 			});
 		}
