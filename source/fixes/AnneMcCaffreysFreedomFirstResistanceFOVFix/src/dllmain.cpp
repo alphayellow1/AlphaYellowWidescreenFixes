@@ -47,11 +47,12 @@ constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
 
 // Ini variables
-bool bFixFOV = true;
+bool FixFOV = true;
 
 // Variables
 int iCurrentResX = 0;
 int iCurrentResY = 0;
+float fFOVFactor = 0.0f;
 
 // Game detection
 enum class Game
@@ -143,14 +144,16 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOV"], "Enabled", bFixFOV);
-	spdlog_confparse(bFixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
+	spdlog_confparse(FixFOV);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -196,7 +199,7 @@ void FOV()
 				[](SafetyHookContext& ctx) {
 				if (*reinterpret_cast<float*>(ctx.edi + 0x19C) == 1.5707963705062866f)
 				{
-					*reinterpret_cast<float*>(ctx.edi + 0x19C) = 2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio));
+					*reinterpret_cast<float*>(ctx.edi + 0x19C) = (2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio))) * fFOVFactor;
 				}
 			});
 		}
