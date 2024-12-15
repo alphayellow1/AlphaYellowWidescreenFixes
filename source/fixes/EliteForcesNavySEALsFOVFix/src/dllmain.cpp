@@ -291,7 +291,7 @@ void FOV()
 						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1254565715789795f;
 					}
 					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.3272492289543152f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (0.3272492289543152f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887909173965454f;
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.3272492289543152f;
 					}
 				});
 			}
