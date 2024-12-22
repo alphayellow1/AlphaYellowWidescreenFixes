@@ -17,7 +17,6 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include "dllmain.h"
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -43,18 +42,15 @@ std::string sExeName;
 // FOV 
 std::pair DesktopDimensions = { 0,0 };
 const float fNativeAspect = 4.0f / 3.0f;
-float fFOVMultiplier;
-float originalValue, newValue;
-
-// Aspect ratio / FOV
-
+float fNewCameraHFOV;
+float fNewCameraFOV;
 
 // Ini variables
-bool bFixFOV = true;
+bool FixFOV = true;
 
 // New INI variables
-float fRenderingDistance = 0.5f; // Initialized to 0.5
-float fFOVFactor = 1.0f;          // Initialized to 1.0
+float fNewRenderingDistance = 0.5f; // Initialized to 0.5
+float fFOVFactor = 1.0f;            // Initialized to 1.0
 
 // Variables
 int iCurrentResX = 0;
@@ -79,24 +75,6 @@ const std::map<Game, GameInfo> kGames = {
 
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
-
-void CalculateFOV(bool bLog)
-{
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-		return;
-
-	// Calculate aspect ratio
-	float fAspectRatio = (float)iCurrentResX / (float)iCurrentResY;
-	fFOVMultiplier = fNativeAspect / fAspectRatio;
-
-	// Log details about current resolution
-	if (bLog) {
-		spdlog::info("----------");
-		spdlog::info("Current Resolution: Resolution: {:d}x{:d}", iCurrentResX, iCurrentResY);
-		spdlog::info("Current Resolution: fAspectRatio: {}", fAspectRatio);
-		spdlog::info("----------");
-	}
-}
 
 void Logging()
 {
@@ -171,19 +149,17 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOV"], "Enabled", bFixFOV);
-	spdlog_confparse(bFixFOV);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
+	spdlog_confparse(FixFOV);
 
 	// Load new INI entries
-	inipp::get_value(ini.sections["Settings"], "Rendering Distance", fRenderingDistance);
+	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "RenderingDistance", fNewRenderingDistance);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(fRenderingDistance);
+	spdlog_confparse(iCurrentResX);
+	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fNewRenderingDistance);
 	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
@@ -231,133 +207,54 @@ bool DetectGame()
 
 void FOV()
 {
-
-
 	if (eGameType == Game::HDD) {
+		std::uint8_t* HDD_OverallFOVScanResult = Memory::PatternScan(dllModule, "D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC D9 FE");
 
-		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule, "D8 F1 8B 4D F8 D9 1E");
-		if (HDD_HFOVScanResult) {
-			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_HFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid HDD_HFOVMidHook{};
-			HDD_HFOVMidHook = safetyhook::create_mid(HDD_HFOVScanResult,
+		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule, "D9 45 FC D8 F1 8B 4D F8 D9 1E");
+
+		std::uint8_t* HDD_RenderingSidesScanResult = Memory::PatternScan(dllModule, "D8 0D ?? ?? ?? ?? 89 8D 7C FF FF FF");
+
+		std::uint8_t* HDD_RenderingDistanceScanResult = Memory::PatternScan(dllModule, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00"); // fld dword ptr ds:[ebx+1EC]
+
+		if (HDD_RenderingDistanceScanResult) {
+			static SafetyHookMid HDD_RenderingDistanceMidHook{};
+			HDD_RenderingDistanceMidHook = safetyhook::create_mid(HDD_RenderingDistanceScanResult,
 				[](SafetyHookContext& ctx) {
-
-				ctx.fpu.f32[0] = 0.3f;
-
+				*reinterpret_cast<float*>(ctx.ebx + 0x1EC) = fNewRenderingDistance;
 			});
 		}
 
-		/* std::uint8_t* HDD_OverallFOVScanResult = Memory::PatternScan(dllModule, "D9 83 E4 01 00 00 D8 0D ?? ?? ?? ?? D9 C0");
-		if (HDD_OverallFOVScanResult) {
-			spdlog::info("FOV: Address is {:s}+{:x}", sExeName.c_str(), HDD_OverallFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid HDD_OverallFOVMidHook{};
-			HDD_OverallFOVMidHook = safetyhook::create_mid(HDD_OverallFOVScanResult + 0x9,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* HDD_CodecaveScanResult = Memory::PatternScan(dllModule, "E9 BF 22 FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
 
+		Memory::PatchBytes(HDD_HFOVScanResult, "\xE9\x8E\x4F\x0E\x00", 5);
 
-				ctx.ebx + 0x1E4;
-				spdlog::info("Original Value: {}", originalValue);
+		Memory::PatchBytes(HDD_CodecaveScanResult + 0x7, "\xD9\x45\xFC\xD8\x0D\x37\x63\x0F\x10\xD8\xF1\xE9\x62\xB0\xF1\xFF\x00\x00\xC7\x83\xEC\x01\x00\x00\x00\x00\x00\x3F\xD9\x83\xEC\x01\x00\x00\xE9\x37\xB0\xF1\xFF\x00\x00\x00\x00\x40\x3F\x00\x00\x00\x3F\x00\x00\x48\x43", 53);
 
-				// 2. Multiply it with the value at the provided address
-				float multiplyValue = *addressWithValue;
-				float result = originalValue * multiplyValue;
-				spdlog::info("Multiply Value: {}, Result: {}", multiplyValue, result);
+		std::uint8_t* HDD_NewCodecaveScanResult = Memory::PatternScan(dllModule, "D9 45 FC D8 0D ?? ?? ?? ?? D8 F1 E9 62 B0 F1 FF 00 00 C7 83 EC 01 00 00 ?? ?? ?? ?? D9 83 EC 01 00 00 E9 37 B0 F1 FF 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 00 00 48 43");
 
-				// 3. Inject the result back into the FPU stack
-				__asm {
-					fld result  // Push the result onto the FPU stack
-				}
+		std::uint8_t* HDD_CodecaveHFOVValueAddressScanResult = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x29 /* 41 bytes ahead */);
 
-				// Continue with the original execution (fdiv and mov)
-				ctx.call();
+		std::uint8_t* HDD_CodecaveOverallFOVValueAddressScanResult = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x2D /* 45 bytes ahead */);
 
-			});
-		}*/
+		spdlog::info("Address is i3d2.dll+{:x}", HDD_CodecaveHFOVValueAddressScanResult - (std::uint8_t*)dllModule);
+
+		std::uint8_t* HDD_CodecaveRenderingSidesValueAddressScanResult = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x31 /* 49 bytes ahead */);
+
+		fNewCameraHFOV = (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+
+		fNewCameraFOV = 0.5f * fFOVFactor;
+
+		Memory::Write(HDD_OverallFOVScanResult + 0x2D, HDD_CodecaveOverallFOVValueAddressScanResult);
+
+		Memory::Write(HDD_RenderingSidesScanResult + 0x2, HDD_CodecaveRenderingSidesValueAddressScanResult);
+
+		Memory::Write(HDD_NewCodecaveScanResult + 0x5, HDD_CodecaveHFOVValueAddressScanResult);
+
+		Memory::Write(HDD_NewCodecaveScanResult + 0x29, fNewCameraHFOV);
+
+		Memory::Write(HDD_NewCodecaveScanResult + 0x2D, fNewCameraFOV);
 	}
 }
-
-/*
-	// Define the patterns and their corresponding offsets
-	PatternInfo patterns[] = {
-		{"\xD9\x45\xFC\xD8\xF1\x8B\x4D\xF8", "xxxxxxxx", 8, 0x0000},
-		{"\xD9\x83\xE4\x01\x00\x00\xD8\x0D\x9C\x72\x0E\x10\xD9\xC0", "xxxxxxxx????xx", 14, 0x1000},
-		{"\xD9\x80\xE4\x01\x00\x00\xD8\x0D\x9C\x72\x0E\x10\x89\x8D\x7C\xFF\xFF\xFF", "xxxxxxxx????xxxxxx", 18, 0x2000},
-		{"\xD9\xFE\xD9\x83\xEC\x01\x00\x00\xD8\xA3\xE8\x01\x00\x00", "xxxxxxxxxxxxxx", 14, 0x3000},
-	};
-
-	// CustomCode1
-	std::vector<Instruction> customCode1 = {
-		// Instruction 1
-		{{0xEB, 0x05}, false, false, 0, "", false, 0}, // Jump to Instruction 5
-
-		// Instruction 2
-		{{0x3D, 0x00, 0x00, 0x40, 0x3F}, false, true, 0, "HFOV", false, 0}, // add byte ptr [eax], al
-
-		// Instruction 5
-		{{0x36, 0xD9, 0x45, 0xFC}, false, false, 0, "", false, 0}, // fld dword ptr ss:[ebp - 0x4]
-
-		// Instruction 6
-		{{0x3E, 0xD8, 0x0D, 0x03, 0x00, 0x00, 0x00}, false, false, 0, "", true, 3}, // fmul dword ptr ds:[3]
-
-		// Instruction 7
-		{{0xD8, 0xF1}, false, false, 0, "", false, 0}, // fdiv st(0),st(1)
-
-		{{0x8B, 0x4D, 0xF8}, false, false, 0, "", false, 0},
-	};
-
-	// CustomCode2
-	std::vector<Instruction> customCode2 = {
-		// Instruction 1
-		{{0xEB, 0x05}, false, false, 0, "", false, 0}, // jmp 5
-
-		// Instruction 2
-		{{0x3D, 0x00, 0x00, 0x80, 0x3F}, false, false, 0, "FOVFactor", false, 0}, // Float at byte 0
-
-		// Instruction 5
-		{{0x3E, 0xD9, 0x83, 0xE4, 0x01, 0x00, 0x00}, false, false, 0, "", false, 0}, // fld dword ptr ds:[ebx+0x1E4]
-
-		// Instruction 6
-		{{0x3E, 0xD8, 0x0D, 0x03, 0x00, 0x00, 0x00}, false, false, 0, "", true, 3}, // fmul dword ptr ds:[3]
-
-		// Instruction 7
-		{{0xD9, 0xC0}, false, false, 0, "", false, 0}, // fld st(0)
-	};
-
-	// CustomCode3
-	std::vector<Instruction> customCode3 = {
-		// Instruction 1
-		{{0xEB, 0x05}, false, false, 0, "", false, 0}, // jmp 4
-
-		// Instruction 2
-		{{0x3D, 0x00, 0x00, 0x00, 0x3F}, false, false, 0, "", false, 0}, // add byte ptr [eax], al
-
-		// Instruction 4
-		{{0x3E, 0xD9, 0x80, 0xE4, 0x01, 0x00, 0x00}, false, false, 0, "HFOV", false, 0}, // fld dword ptr ds:[eax+0x1E4]
-
-		// Instruction 5
-		{{0x3E, 0xD8, 0x0D, 0x03, 0x00, 0x00, 0x00}, false, false, 0, "", true, 3}, // fmul dword ptr ds:[3]
-
-		// Instruction 6
-		{{0x89, 0x8D, 0x7C, 0xFF, 0xFF, 0xFF}, false, false, 0, "", false, 0}, // mov dword ptr ss:[ebp - 0x84], ecx
-	};
-
-	// CustomCode4
-	std::vector<Instruction> customCode4 = {
-		// Instruction 1
-		{{0xD9, 0xFE}, false, false, 0, "", false, 0}, // fsin
-
-		// Instruction 2
-		{{0x3E, 0xC7, 0x83, 0xEC, 0x01, 0x00, 0x00, 0x00, 0x00, 0x7A, 0x44}, false, false, 0, "RenderingDistance", false, 0}, // Float at byte 6
-
-		// Instruction 3
-		{{0x3E, 0xD9, 0x83, 0xEC, 0x01, 0x00, 0x00}, false, false, 0, "", false, 0}, // fld dword ptr ds:[ebx + 0x1EC]
-
-		// Instruction 4
-		{{0x3E, 0xD8, 0xA3, 0xE8, 0x01, 0x00, 0x00}, false, false, 0, "", false, 0}, // fsub dword ptr ds:[ebx + 0x1E8]
-	};
-*/
-
-
 
 DWORD __stdcall Main(void*)
 {
