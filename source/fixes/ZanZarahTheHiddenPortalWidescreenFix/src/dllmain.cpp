@@ -199,7 +199,7 @@ void FOV()
 
 	float newValue8 = 0.69f * ((4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / iCurrentResY));
 
-	std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "3B 05 98 54 5A 00 74 4E 83 4D 10 FF");
+	std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "3B 05 ?? ?? ?? ?? 74 4E 83 4D 10 FF");
 
 	std::uint8_t* Pattern2ScanResult = Memory::PatternScan(exeModule, "C4 F3 A5 8D 73 2C 8B CE E8 67 5C");
 
@@ -235,23 +235,23 @@ void FOV()
 
 	Memory::Write(Pattern8ScanResult + 0x8, newValue1);
 
-	Memory::Write(Pattern9ScanResult + 0x12, newValue3);
+	Memory::Write(Pattern9ScanResult + 0xC, newValue3);
 
 	Memory::Write(Pattern10ScanResult, newValue4);
 
 	Memory::Write(Pattern10ScanResult + 0x4, newValue5);
 
-	Memory::Write(Pattern10ScanResult + 0x24, newValue6);
+	Memory::Write(Pattern10ScanResult + 0x12, newValue6);
 
-	Memory::Write(Pattern10ScanResult + 0x28, newValue7);
+	Memory::Write(Pattern10ScanResult + 0x1C, newValue7);
 
-	Memory::Write(Pattern10ScanResult + 0x52, newValue8);
+	Memory::Write(Pattern10ScanResult + 0x34, newValue8);
 
 	std::uint8_t* Pattern11ScanResult = Memory::PatternScan(exeModule, "F9 FF 00 8D 73 2C 8B CE C7 44 24 08 80 07 00 00 C7 44 24 0C 38 04 00 00 E9 D8 D3 E6 FF 00 00 00 C7 41 08 80 07 00 00 C7 41 0C 38 04 00 00 C7 41 10 20 00 00 00 C7 41 14 00 00 00 00 5E C2 04");
 
-	Memory::Write(Pattern11ScanResult + 0x12, iCurrentResX);
+	Memory::Write(Pattern11ScanResult + 0xC, iCurrentResX);
 
-	Memory::Write(Pattern11ScanResult + 0x20, iCurrentResY);
+	Memory::Write(Pattern11ScanResult + 0x14, iCurrentResY);
 }
 
 DWORD __stdcall Main(void*)
