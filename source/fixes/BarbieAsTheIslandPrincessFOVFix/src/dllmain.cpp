@@ -148,8 +148,8 @@ void Configuration()
 	spdlog_confparse(FixFOV);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
