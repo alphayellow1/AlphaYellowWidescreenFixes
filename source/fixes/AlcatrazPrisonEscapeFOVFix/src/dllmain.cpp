@@ -197,21 +197,21 @@ void FOV()
 					*reinterpret_cast<float*>(ctx.eax + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
 				}
 			});
+		}
 
-			std::uint8_t* APE_VFOVScanResult = Memory::PatternScan(exeModule, "8B 90 9C 01 00 00 89 94 24 E4 00 00 00");
-			if (APE_VFOVScanResult) {
-				spdlog::info("VFOV: Address is {:s}+{:x}", sExeName.c_str(), APE_VFOVScanResult - (std::uint8_t*)exeModule);
-				static SafetyHookMid APE_VFOVMidHook{};
-				APE_VFOVMidHook = safetyhook::create_mid(APE_VFOVScanResult,
-					[](SafetyHookContext& ctx) {
-					if (*reinterpret_cast<float*>(ctx.eax + 0x19C) == 1.1780972480773926f) {
-						*reinterpret_cast<float*>(ctx.eax + 0x19C) = 1.1780972480773926f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.eax + 0x19C) == 0.849067747592926f) {
-						*reinterpret_cast<float*>(ctx.eax + 0x19C) = 0.849067747592926f;
-					}
-				});
-			}
+		std::uint8_t* APE_VFOVScanResult = Memory::PatternScan(exeModule, "8B 90 9C 01 00 00 89 94 24 E4 00 00 00");
+		if (APE_VFOVScanResult) {
+			spdlog::info("VFOV: Address is {:s}+{:x}", sExeName.c_str(), APE_VFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid APE_VFOVMidHook{};
+			APE_VFOVMidHook = safetyhook::create_mid(APE_VFOVScanResult,
+				[](SafetyHookContext& ctx) {
+				if (*reinterpret_cast<float*>(ctx.eax + 0x19C) == 1.1780972480773926f) {
+					*reinterpret_cast<float*>(ctx.eax + 0x19C) = 1.1780972480773926f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.eax + 0x19C) == 0.849067747592926f) {
+					*reinterpret_cast<float*>(ctx.eax + 0x19C) = 0.849067747592926f;
+				}
+			});
 		}
 	}
 }
