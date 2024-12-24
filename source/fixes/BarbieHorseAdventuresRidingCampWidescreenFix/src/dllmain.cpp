@@ -52,6 +52,8 @@ bool FixActive = true;
 // Variables
 int iCurrentResX = 0;
 int iCurrentResY = 0;
+float fFOVFactor;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -144,7 +146,7 @@ void Configuration()
 
 	// Load settings from ini
 	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", FixActive);
-	spdlog_confparse(bFixFOV);
+	spdlog_confparse(FixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
