@@ -212,7 +212,7 @@ void WidescreenFix()
 			});
 		}
 
-		std::uint8_t* BHARC_CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 5C 24 04 D9 40 A0 D9 1C 24");
+		std::uint8_t* BHARC_CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 5C 24 28 D9 44 24 28 D9 5C 24 04 D9 40 A0 D9 1C 24");
 		if (BHARC_CameraFOVScanResult) {
 			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), BHARC_CameraFOVScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid BHARC_CameraFOVMidHook{};
