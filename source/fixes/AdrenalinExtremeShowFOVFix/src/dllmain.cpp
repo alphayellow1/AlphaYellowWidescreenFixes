@@ -5,7 +5,6 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
-#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>

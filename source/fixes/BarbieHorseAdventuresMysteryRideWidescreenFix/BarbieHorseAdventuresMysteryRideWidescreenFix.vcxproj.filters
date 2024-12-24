@@ -18,12 +18,6 @@
     <ClCompile Include="src\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="external\safetyhook\Zydis.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="external\safetyhook\safetyhook.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\stdafx.h">
@@ -33,12 +27,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="external\inipp\inipp\inipp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="external\safetyhook\Zydis.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="external\safetyhook\safetyhook.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
