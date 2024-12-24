@@ -5,7 +5,6 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
-#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -26,8 +25,8 @@ HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "BarbieAndTheMagicOfPegasusWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "BarbieHorseAdventuresMysteryRideWidescreenFix";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -47,7 +46,7 @@ constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
 
 // Ini variables
-bool FixFOV = true;
+bool FixActive = true;
 
 // Variables
 uint32_t iCurrentResX = 0;
@@ -59,7 +58,7 @@ float fFOVFactor;
 // Game detection
 enum class Game
 {
-	BATMOP,
+	BHAMR,
 	Unknown
 };
 
@@ -70,7 +69,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::BATMOP, {"Barbie and the Magic of Pegasus", "Barbie Pegasus.exe"}},
+	{Game::BHAMR, {"Barbie Horse Adventures: Mystery Ride", "Barbie Horse.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -146,8 +145,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", FixActive);
+	spdlog_confparse(FixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -192,58 +191,130 @@ bool DetectGame()
 
 void Fix()
 {
-	if (eGameType == Game::BATMOP) {
+	if (eGameType == Game::BHAMR) {
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fNewCameraFOV = fFOVFactor * (0.5f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)));
 
-		std::uint8_t* BATMOP_ResolutionWidthScanResult = Memory::PatternScan(exeModule, "3C 81 FD 80 02 00 00 7C 46 8B");
+		std::uint8_t* BHAMR_ResolutionWidthScanResult = Memory::PatternScan(exeModule, "C0 80 02 00 00 7C");
 
-		std::uint8_t* BATMOP_ResolutionHeightScanResult = Memory::PatternScan(exeModule, "40 81 F9 E0 01 00 00 7C 3A 8B");
+		std::uint8_t* BHAMR_ResolutionHeightScanResult = Memory::PatternScan(exeModule, "C4 E0 01 00 00 7C");
 
-		std::uint8_t* BATMOP_AspectRatioScan1Result = Memory::PatternScan(exeModule, "68 81 89 00 68 AB AA AA 3F 68");
+		std::uint8_t* BHAMR_AspectRatioScan1Result = Memory::PatternScan(exeModule, "75 00 A3 F0 A8 76 00 68 AB AA AA 3F");
 
-		std::uint8_t* BATMOP_AspectRatioScan2Result = Memory::PatternScan(exeModule, "24 08 8B 15 D4 8A 77 00 68 AB AA AA 3F 68");
+		std::uint8_t* BHAMR_AspectRatioScan2Result = Memory::PatternScan(exeModule, "8A F7 FF 83 C4 0C 68 AB AA AA 3F");
 
-		std::uint8_t* BATMOP_AspectRatioScan3Result = Memory::PatternScan(exeModule, "FC FF 68 AB AA AA 3F 8B F0 A1");
+		std::uint8_t* BHAMR_AspectRatioScan3Result = Memory::PatternScan(exeModule, "26 F7 FF 83 C4 0C 68 AB AA AA 3F 68");
 
-		std::uint8_t* BATMOP_AspectRatioScan4Result = Memory::PatternScan(exeModule, "B9 08 00 8B 0D 68 81 89 00 A1 D4 8A 77 00 68 AB AA AA 3F 68");
+		std::uint8_t* BHAMR_AspectRatioScan4Result = Memory::PatternScan(exeModule, "A3 C4 31 77 00 68 AB AA AA 3F 68");
 
-		std::uint8_t* BATMOP_AspectRatioScan5Result = Memory::PatternScan(exeModule, "99 08 00 8B 0D 68 81 89 00 A1 D4 8A 77 00 68 AB AA AA 3F 68");
+		std::uint8_t* BHAMR_AspectRatioScan5Result = Memory::PatternScan(exeModule, "D8 E9 98 00 00 00 68 AB AA AA 3F 68");
 
-		std::uint8_t* BATMOP_CameraFOVScan1Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 D4");
+		std::uint8_t* BHAMR_AspectRatioScan6Result = Memory::PatternScan(exeModule, "04 A3 F0 A8 76 00 68 AB AA AA 3F 68");
 
-		std::uint8_t* BATMOP_CameraFOVScan2Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 52 E8");
+		std::uint8_t* BHAMR_AspectRatioScan7Result = Memory::PatternScan(exeModule, "ED FF 83 C4 04 89 45 F8 68 AB AA AA 3F 68");
 
-		std::uint8_t* BATMOP_CameraFOVScan3Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 50 56");
+		std::uint8_t* BHAMR_AspectRatioScan8Result = Memory::PatternScan(exeModule, "15 F0 A8 76 00 89 15 C4 31 77 00 68 AB AA AA 3F");
 
-		std::uint8_t* BATMOP_CameraFOVScan4Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 64 81 89 00 E8 1C");
+		std::uint8_t* BHAMR_AspectRatioScan9Result = Memory::PatternScan(exeModule, "EC FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
 
-		std::uint8_t* BATMOP_CameraFOVScan5Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 64 81 89 00 E8 41");
+		std::uint8_t* BHAMR_AspectRatioScan10Result = Memory::PatternScan(exeModule, "04 8B 0D F0 A8 76 00 89 0D C4 31 77 00 68 AB AA AA 3F 68");
 
-		Memory::Write(BATMOP_ResolutionWidthScanResult + 0x3, iCurrentResX);
+		std::uint8_t* BHAMR_AspectRatioScan11Result = Memory::PatternScan(exeModule, "D6 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
 
-		Memory::Write(BATMOP_ResolutionHeightScanResult + 0x3, iCurrentResY);
+		std::uint8_t* BHAMR_AspectRatioScan12Result = Memory::PatternScan(exeModule, "00 51 E8 58 B5 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
 
-		Memory::Write(BATMOP_AspectRatioScan1Result + 0x5, fNewAspectRatio);
+		std::uint8_t* BHAMR_AspectRatioScan13Result = Memory::PatternScan(exeModule, "0D F0 A8 76 00 68 AB AA AA 3F");
 
-		Memory::Write(BATMOP_AspectRatioScan2Result + 0x9, fNewAspectRatio);
+		std::uint8_t* BHAMR_AspectRatioScan14Result = Memory::PatternScan(exeModule, "00 52 E8 9F 5C EB FF 83 C4 04 A3 C4 31 77 00 A1 C4 31 77 00 A3 F0 A8 76 00 68 AB AA AA 3F 68");
 
-		Memory::Write(BATMOP_AspectRatioScan3Result + 0x3, fNewAspectRatio);
+		std::uint8_t* BHAMR_CameraFOVScan1Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D 48");
 
-		Memory::Write(BATMOP_AspectRatioScan4Result + 0xF, fNewAspectRatio);
+		std::uint8_t* BHAMR_CameraFOVScan2Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 B5");
 
-		Memory::Write(BATMOP_AspectRatioScan5Result + 0xF, fNewAspectRatio);
+		std::uint8_t* BHAMR_CameraFOVScan3Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 7E");
 
-		Memory::Write(BATMOP_CameraFOVScan1Result + 0x1, fNewCameraFOV);
+		std::uint8_t* BHAMR_CameraFOVScan4Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 CE");
 
-		Memory::Write(BATMOP_CameraFOVScan2Result + 0x1, fNewCameraFOV);
+		std::uint8_t* BHAMR_CameraFOVScan5Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 45");
 
-		Memory::Write(BATMOP_CameraFOVScan3Result + 0x1, fNewCameraFOV);
+		std::uint8_t* BHAMR_CameraFOVScan6Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 8A");
 
-		Memory::Write(BATMOP_CameraFOVScan4Result + 0x1, fNewCameraFOV);
+		std::uint8_t* BHAMR_CameraFOVScan7Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 4D");
 
-		Memory::Write(BATMOP_CameraFOVScan5Result + 0x1, fNewCameraFOV);
+		std::uint8_t* BHAMR_CameraFOVScan8Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D C4");
+
+		std::uint8_t* BHAMR_CameraFOVScan9Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 2A");
+
+		std::uint8_t* BHAMR_CameraFOVScan10Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 97");
+
+		std::uint8_t* BHAMR_CameraFOVScan11Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 0E");
+
+		std::uint8_t* BHAMR_CameraFOVScan12Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 D2");
+
+		std::uint8_t* BHAMR_CameraFOVScan13Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 6B");
+
+		std::uint8_t* BHAMR_CameraFOVScan14Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 1A");
+
+		Memory::Write(BHAMR_ResolutionWidthScanResult + 0x1, iCurrentResX);
+
+		Memory::Write(BHAMR_ResolutionHeightScanResult + 0x1, iCurrentResY);
+
+		Memory::Write(BHAMR_AspectRatioScan1Result + 0x8, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan2Result + 0x7, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan3Result + 0x7, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan4Result + 0x6, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan5Result + 0x7, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan6Result + 0x7, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan7Result + 0x9, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan8Result + 0xC, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan9Result + 0x17, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan10Result + 0xE, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan11Result + 0x18, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan12Result + 0x1C, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan13Result + 0x6, fNewAspectRatio);
+
+		Memory::Write(BHAMR_AspectRatioScan14Result + 0x1A, fNewAspectRatio);
+
+		Memory::Write(BHAMR_CameraFOVScan1Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan2Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan3Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan4Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan5Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan6Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan7Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan8Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan9Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan10Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan11Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan12Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan13Result + 0x1, fNewCameraFOV);
+
+		Memory::Write(BHAMR_CameraFOVScan14Result + 0x1, fNewCameraFOV);
 	}
 }
 
