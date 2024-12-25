@@ -225,17 +225,17 @@ void FOV()
 
 	Memory::PatchBytes(HDD_HFOVScanResult, "\xE9\x8E\x4F\x0E\x00", 5);
 
-	Memory::PatchBytes(HDD_CodecaveScanResult + 0x7, "\xD9\x45\xFC\xD8\x0D\x37\x63\x0F\x10\xD8\xF1\xE9\x62\xB0\xF1\xFF\x00\x00\xC7\x83\xEC\x01\x00\x00\x00\x00\x00\x3F\xD9\x83\xEC\x01\x00\x00\xE9\x37\xB0\xF1\xFF\x00\x00\x00\x00\x40\x3F\x00\x00\x00\x3F\x00\x00\x48\x43", 53);
+	Memory::PatchBytes(HDD_CodecaveScanResult + 0x7, "\xD9\x45\xFC\xD8\x0D\x37\x63\x0F\x10\xD8\xF1\xE9\x62\xB0\xF1\xFF\x00\x00\x00\x00\x40\x3F\x00\x00\x00\x3F\x00\x00\x48\x43", 30);
 
-	std::uint8_t* HDD_NewCodecaveScanResult = Memory::PatternScan(dllModule2, "D9 45 FC D8 0D ?? ?? ?? ?? D8 F1 E9 62 B0 F1 FF 00 00 C7 83 EC 01 00 00 ?? ?? ?? ?? D9 83 EC 01 00 00 E9 37 B0 F1 FF 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 00 00 48 43");
+	std::uint8_t* HDD_NewCodecaveScanResult = Memory::PatternScan(dllModule2, "E9 BF 22 FF FF 00 00 D9 45 FC D8 0D ?? ?? ?? ?? D8 F1 E9 62 B0 F1 FF 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 00 00 48 43 00 00 00 00 00");
 
-	std::uint8_t* HDD_CodecaveHFOVValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x29);
+	std::uint8_t* HDD_CodecaveHFOVValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x19);
 
-	std::uint8_t* HDD_CodecaveOverallFOVValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x2D);
+	std::uint8_t* HDD_CodecaveOverallFOVValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x1D);
 
 	spdlog::info("Address is i3d2.dll+{:x}", HDD_CodecaveHFOVValueAddress - (std::uint8_t*)dllModule2);
 
-	std::uint8_t* HDD_CodecaveRenderingSidesValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x31);
+	std::uint8_t* HDD_CodecaveRenderingSidesValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x21);
 
 	fNewCameraHFOV = (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
 
@@ -245,11 +245,11 @@ void FOV()
 
 	Memory::Write(HDD_RenderingSidesScanResult + 0x2, HDD_CodecaveRenderingSidesValueAddress - 0x4);
 
-	Memory::Write(HDD_NewCodecaveScanResult + 0x5, HDD_CodecaveHFOVValueAddress - 0x4);
+	Memory::Write(HDD_NewCodecaveScanResult + 0xC, HDD_CodecaveHFOVValueAddress - 0x4);
 
-	Memory::Write(HDD_NewCodecaveScanResult + 0x29, fNewCameraHFOV);
+	Memory::Write(HDD_NewCodecaveScanResult + 0x19, fNewCameraHFOV);
 
-	Memory::Write(HDD_NewCodecaveScanResult + 0x2D, fNewCameraFOV);
+	Memory::Write(HDD_NewCodecaveScanResult + 0x1D, fNewCameraFOV);
 }
 
 DWORD __stdcall Main(void*)
