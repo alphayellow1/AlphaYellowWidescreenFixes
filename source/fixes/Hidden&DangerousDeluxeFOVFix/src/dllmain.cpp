@@ -21,7 +21,8 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr; // Handle for i3d2.dll
+HMODULE dllModule = nullptr;
+HMODULE dllModule2 = nullptr; // Handle for i3d2.dll
 HMODULE thisModule;
 
 // Fix details
@@ -179,27 +180,38 @@ void Configuration()
 
 bool DetectGame()
 {
-	dllModule = GetModuleHandleA("i3d2.dll");
-	if (!dllModule)
+	for (const auto& [type, info] : kGames)
+	{
+		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		{
+			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
+			spdlog::info("----------");
+			eGameType = type;
+			game = &info;
+		}
+	}
+
+	dllModule2 = GetModuleHandleA("i3d2.dll");
+	if (!dllModule2)
 	{
 		spdlog::error("Failed to get handle for i3d2.dll.");
 		return false;
 	}
 
-	spdlog::info("Successfully obtained handle for i3d2.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
+	spdlog::info("Successfully obtained handle for i3d2.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
 }
 
 void FOV()
 {
-	std::uint8_t* HDD_OverallFOVScanResult = Memory::PatternScan(dllModule, "D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC");
+	std::uint8_t* HDD_OverallFOVScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC");
 
-	std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule, "D9 45 FC D8 F1 8B 4D F8 D9 1E");
+	std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule2, "D9 45 FC D8 F1 8B 4D F8 D9 1E");
 
-	std::uint8_t* HDD_RenderingSidesScanResult = Memory::PatternScan(dllModule, "D8 0D ?? ?? ?? ?? 89 8D 7C FF FF FF");
+	std::uint8_t* HDD_RenderingSidesScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? 89 8D 7C FF FF FF");
 
-	std::uint8_t* HDD_RenderingDistanceScanResult = Memory::PatternScan(dllModule, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00"); // fld dword ptr ds:[ebx+1EC]
+	std::uint8_t* HDD_RenderingDistanceScanResult = Memory::PatternScan(dllModule2, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00"); // fld dword ptr ds:[ebx+1EC]
 
 	if (HDD_RenderingDistanceScanResult) {
 		static SafetyHookMid HDD_RenderingDistanceMidHook{};
@@ -209,19 +221,19 @@ void FOV()
 		});
 	}
 
-	std::uint8_t* HDD_CodecaveScanResult = Memory::PatternScan(dllModule, "E9 BF 22 FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
+	std::uint8_t* HDD_CodecaveScanResult = Memory::PatternScan(dllModule2, "E9 BF 22 FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
 
 	Memory::PatchBytes(HDD_HFOVScanResult, "\xE9\x8E\x4F\x0E\x00", 5);
 
 	Memory::PatchBytes(HDD_CodecaveScanResult + 0x7, "\xD9\x45\xFC\xD8\x0D\x37\x63\x0F\x10\xD8\xF1\xE9\x62\xB0\xF1\xFF\x00\x00\xC7\x83\xEC\x01\x00\x00\x00\x00\x00\x3F\xD9\x83\xEC\x01\x00\x00\xE9\x37\xB0\xF1\xFF\x00\x00\x00\x00\x40\x3F\x00\x00\x00\x3F\x00\x00\x48\x43", 53);
 
-	std::uint8_t* HDD_NewCodecaveScanResult = Memory::PatternScan(dllModule, "D9 45 FC D8 0D ?? ?? ?? ?? D8 F1 E9 62 B0 F1 FF 00 00 C7 83 EC 01 00 00 ?? ?? ?? ?? D9 83 EC 01 00 00 E9 37 B0 F1 FF 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 00 00 48 43");
+	std::uint8_t* HDD_NewCodecaveScanResult = Memory::PatternScan(dllModule2, "D9 45 FC D8 0D ?? ?? ?? ?? D8 F1 E9 62 B0 F1 FF 00 00 C7 83 EC 01 00 00 ?? ?? ?? ?? D9 83 EC 01 00 00 E9 37 B0 F1 FF 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 00 00 48 43");
 
 	std::uint8_t* HDD_CodecaveHFOVValueAddressScanResult = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x29);
 
 	std::uint8_t* HDD_CodecaveOverallFOVValueAddressScanResult = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x2D);
 
-	spdlog::info("Address is i3d2.dll+{:x}", HDD_CodecaveHFOVValueAddressScanResult - (std::uint8_t*)dllModule);
+	spdlog::info("Address is i3d2.dll+{:x}", HDD_CodecaveHFOVValueAddressScanResult - (std::uint8_t*)dllModule2);
 
 	std::uint8_t* HDD_CodecaveRenderingSidesValueAddressScanResult = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x31);
 
