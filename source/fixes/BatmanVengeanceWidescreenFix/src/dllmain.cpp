@@ -5,14 +5,12 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
-#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -22,11 +20,13 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
+HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "SecretAgentBarbieWidescreenFix";
-std::string sFixVersion = "1.2";
+std::string sFixName = "BatmanVengeanceWidescreenFix";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,11 +40,9 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float oldWidth = 4.0f;
+constexpr float oldHeight = 3.0f;
+constexpr float oldAspectRatio = oldWidth / oldHeight;
 
 // Ini variables
 bool FixActive;
@@ -52,29 +50,12 @@ bool FixActive;
 // Variables
 int iCurrentResX = 0;
 int iCurrentResY = 0;
-uint8_t newWidthSmall;
-uint8_t newWidthBig;
-uint8_t newHeightSmall;
-uint8_t newHeightBig;
-float fNewCameraFOV;
-float fFOVFactor;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fNewCameraHFOV;
 
 // Game detection
 enum class Game
 {
-	SAB,
+	BV,
 	Unknown
 };
 
@@ -85,7 +66,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SAB, {"Secret Agent Barbie", "SecretAgent.exe"}},
+	{Game::BV, {"Batman Vengeance", "Batman.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -101,7 +82,7 @@ void Logging()
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
+	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
@@ -121,7 +102,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -167,10 +148,8 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -197,60 +176,41 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			return true;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
+	dllModule2 = GetModuleHandleA("osr_dx8_vf.dll");
+	if (!dllModule2)
+	{
+		spdlog::error("Failed to get handle for osr_dx8_vf.dll.");
+		return false;
+	}
+
+	spdlog::info("Successfully obtained handle for osr_dx8_vf.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
+	return true;
 }
 
-void FOV()
+void WidescreenFix()
 {
-	newWidthSmall = iCurrentResX % 256;
+	if (eGameType == Game::BV && FixActive == true) {
+		std::uint8_t* BV_ResolutionScanResult = Memory::PatternScan(dllModule2, "80 01 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 03 00 00");
 
-	newWidthBig = (iCurrentResX - newWidthSmall) / 256;
+		std::uint8_t* BV_CameraHFOVScanResult = Memory::PatternScan(dllModule2, "C7 40 2C 00 00 80 BF D8 3D ?? ?? ?? ?? D9 45 18 D8 65 14");
 
-	newHeightSmall = iCurrentResY % 256;
+		std::uint8_t* BV_CameraHFOVCodecaveScanResult = Memory::PatternScan(dllModule2, "E9 3F F0 FE FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
 
-	newHeightBig = (iCurrentResY - newHeightSmall) / 256;
+		fNewCameraHFOV = (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
 
-	if (eGameType == Game::SAB && FixActive == true) {
-		std::uint8_t* SAB_CameraFOVScanResult = Memory::PatternScan(exeModule, "8B 54 24 08 89 81 B0 00 00 00");
-		if (SAB_CameraFOVScanResult) {
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), SAB_CameraFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid BIT12DP_CameraHFOVMidHook{};
-			BIT12DP_CameraHFOVMidHook = safetyhook::create_mid(SAB_CameraFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (ctx.eax == std::bit_cast<uint32_t>(35.0f)) {
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(35.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
-				}
-				else if (ctx.eax == std::bit_cast<uint32_t>(90.0f)) {
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
-				}
-				else if (ctx.eax == std::bit_cast<uint32_t>(100.0f)) {
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(100.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
-				}
-			});
-		}
+		std::uint8_t* BV_CameraHFOVCodecaveValueAddress = Memory::GetAbsolute(BV_CameraHFOVCodecaveScanResult + 0x7);
 
-		std::uint8_t* SAB_ResolutionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 04 8B 54 24 08 89 48 40 8B 4C 24 0C 89 50 44 8B 54 24 10 89 48 48 89 50 4C");
+		Memory::Write(BV_CameraHFOVScanResult + 0x9, BV_CameraHFOVCodecaveValueAddress - 0x4);
 
-		Memory::PatchBytes(SAB_ResolutionScanResult + 0x8, "\xE9\x0E\x2A\x08\x00\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+		Memory::Write(BV_CameraHFOVCodecaveScanResult + 0x7, fNewCameraHFOV);
 
-		std::uint8_t* SAB_CodecaveScanResult = Memory::PatternScan(exeModule, "E9 6E 2D FB FF 00 00 00 00 00 00 00 00 00 00");
+		Memory::Write(BV_ResolutionScanResult + 0x4, iCurrentResX);
 
-		Memory::PatchBytes(SAB_CodecaveScanResult + 0x13, "\xC7\x40\x40\x80\x02\x00\x00\x8B\x4C\xE4\x0C\xC7\x40\x44\xE0\x01\x00\x00\x8B\x54\xE4\x10\xE9\xE0\xD5\xF7\xFF", 27);
-
-		std::uint8_t* SAB_NewCodecaveScanResult = Memory::PatternScan(exeModule, "C7 40 40 ?? ?? ?? ?? 8B 4C E4 0C C7 40 44 ?? ?? ?? ?? 8B 54 E4 10 E9 E0 D5 F7 FF");
-
-		Memory::Write(SAB_NewCodecaveScanResult + 0x3, newWidthSmall);
-
-		Memory::Write(SAB_NewCodecaveScanResult + 0x4, newWidthBig);
-
-		Memory::Write(SAB_NewCodecaveScanResult + 0xE, newHeightSmall);
-
-		Memory::Write(SAB_NewCodecaveScanResult + 0xF, newHeightBig);
+		Memory::Write(BV_ResolutionScanResult + 0x8, iCurrentResY);
 	}
 }
 
@@ -260,7 +220,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOV();
+		WidescreenFix();
 	}
 	return TRUE;
 }
