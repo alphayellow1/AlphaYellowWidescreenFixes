@@ -40,7 +40,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float oldWidth = 4.0f;
 constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
@@ -210,7 +209,7 @@ void Fix()
 
 	std::uint8_t* AINR_CameraHFOVandFOVCodecaveScanResult = Memory::PatternScan(exeModule, "E9 E4 4F FF FF 00 00 00 00 00 00 00 00 00 00");
 
-	fNewCameraHFOV = 1.0f * ((4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+	fNewCameraHFOV = (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
 
 	fNewCameraFOV = 0.8546222448348999f * fFOVFactor;
 
