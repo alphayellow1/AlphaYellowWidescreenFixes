@@ -1,0 +1,9 @@
+>>> ERRORS <<<
+>>> GENERATE <<<
+[section one]
+variable=value
+
+>>> INTERPOLATE <<<
+[section one]
+variable=value
+
