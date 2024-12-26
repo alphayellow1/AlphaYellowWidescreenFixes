@@ -190,10 +190,11 @@ static void FOVFix()
 {
 	if (eGameType == Game::BMT && FixActive == true) {
 		std::uint8_t* BMT_CameraFOVScanResult = Memory::PatternScan(exeModule, "8D B2 D4 00 00 00 33 C0 8B FE D9 42 1C D8 0D 00 5F 5B 00 D9 F2 DD D8 D8 3D ?? ?? ?? ??");
+		spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), BMT_CameraFOVScanResult - (std::uint8_t*)exeModule);
 
 		std::uint8_t* BMT_AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 42 44 D9 42 3C D8 EB F3 AB D8 FB");
 		if (BMT_AspectRatioScanResult) {
-			spdlog::info("VFOV: Address is {:s}+{:x}", sExeName.c_str(), BMT_AspectRatioScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), BMT_AspectRatioScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid BMT_AspectRatioMidHook{};
 			BMT_AspectRatioMidHook = safetyhook::create_mid(BMT_AspectRatioScanResult,
 				[](SafetyHookContext& ctx) {
@@ -202,6 +203,7 @@ static void FOVFix()
 		}
 
 		std::uint8_t* BMT_CodecaveScanResult = Memory::PatternScan(exeModule, "75 F9 2B C1 48 C3 00 00 00 00 00 00 00 00 00 00");
+		spdlog::info("Codecave: Address is {:s}+{:x}", sExeName.c_str(), BMT_CodecaveScanResult - (std::uint8_t*)exeModule);
 
 		std::uint8_t* BMT_CodecaveCameraFOVValueAddress = Memory::GetAbsolute(BMT_CodecaveScanResult + 0x8);
 
@@ -224,7 +226,7 @@ static DWORD __stdcall Main(void*)
 	return TRUE;
 }
 
-static BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
