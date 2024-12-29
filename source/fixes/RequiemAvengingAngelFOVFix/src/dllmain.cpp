@@ -182,7 +182,7 @@ bool DetectGame()
 	return false;
 }
 
-void FOV()
+void FOVFix()
 {
 	if (eGameType == Game::RAA && FixActive == true) {
 		std::uint8_t* RAA_CameraFOVScanResult = Memory::PatternScan(exeModule, "89 86 FC 09 00 00 8B 86 38 09 00 00 51 89 8E 00 0A 00 00");
@@ -218,7 +218,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOV();
+		FOVFix();
 	}
 	return TRUE;
 }
