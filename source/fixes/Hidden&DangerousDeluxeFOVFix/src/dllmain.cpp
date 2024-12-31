@@ -21,13 +21,12 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE dllModule2 = nullptr; // Handle for i3d2.dll
+HMODULE dllModule2;
 HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "Hidden&DangerousDeluxeFOVFix";
-std::string sFixVersion = "1.1"; // Updated version
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -47,11 +46,11 @@ float fNewCameraHFOV;
 float fNewCameraFOV;
 
 // Ini variables
-bool FixFOV = true;
+bool FixActive;
 
 // New INI variables
-float fNewRenderingDistance = 0.5f; // Initialized to 0.5
-float fFOVFactor = 1.0f;            // Initialized to 1.0
+float fNewRenderingDistance;
+float fFOVFactor;
 
 // Variables
 int iCurrentResX = 0;
@@ -150,8 +149,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
+	spdlog_confparse(FixActive);
 
 	// Load new INI entries
 	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
@@ -205,51 +204,53 @@ bool DetectGame()
 
 void FOV()
 {
-	std::uint8_t* HDD_OverallFOVScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC");
+	if (eGameType == Game::HDD && FixActive == true)
+	{
+		std::uint8_t* HDD_CodecaveScanResult = Memory::PatternScan(dllModule2, "E9 BF 22 FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
 
-	std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule2, "D9 45 FC D8 F1 8B 4D F8 D9 1E");
+		std::uint8_t* HDD_CodecaveHFOVValueAddress = Memory::GetAbsolute(HDD_CodecaveScanResult + 0x7);
 
-	std::uint8_t* HDD_RenderingSidesScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? 89 8D 7C FF FF FF");
+		std::uint8_t* HDD_CodecaveOverallFOVValueAddress = Memory::GetAbsolute(HDD_CodecaveScanResult + 0xB);
 
-	std::uint8_t* HDD_RenderingDistanceScanResult = Memory::PatternScan(dllModule2, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00"); // fld dword ptr ds:[ebx+1EC]
+		std::uint8_t* HDD_CodecaveRenderingSidesValueAddress = Memory::GetAbsolute(HDD_CodecaveScanResult + 0xF);
 
-	if (HDD_RenderingDistanceScanResult) {
-		static SafetyHookMid HDD_RenderingDistanceMidHook{};
-		HDD_RenderingDistanceMidHook = safetyhook::create_mid(HDD_RenderingDistanceScanResult,
-			[](SafetyHookContext& ctx) {
-			*reinterpret_cast<float*>(ctx.ebx + 0x1EC) = fNewRenderingDistance;
-		});
+		std::uint8_t* HDD_CodecaveFMULInstructionAddressInCodecave = Memory::GetAbsolute(HDD_CodecaveScanResult + 0x1A);
+
+		std::uint8_t* HDD_OverallFOVScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC");
+
+		std::uint8_t* HDD_RenderingSidesScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? 89 8D 7C FF FF FF");
+
+		Memory::Write(HDD_OverallFOVScanResult + 0x2, HDD_CodecaveOverallFOVValueAddress - 0x4);
+
+		Memory::Write(HDD_RenderingSidesScanResult + 0x2, HDD_CodecaveRenderingSidesValueAddress - 0x4);
+
+		std::uint8_t* HDD_RenderingDistanceScanResult = Memory::PatternScan(dllModule2, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00"); // fld dword ptr ds:[ebx+1EC]
+		if (HDD_RenderingDistanceScanResult) {
+			static SafetyHookMid HDD_RenderingDistanceMidHook{};
+			HDD_RenderingDistanceMidHook = safetyhook::create_mid(HDD_RenderingDistanceScanResult + 0x2,
+				[](SafetyHookContext& ctx) {
+				*reinterpret_cast<float*>(ctx.ebx + 0x1EC) = fNewRenderingDistance;
+			});
+		}
+
+		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule2, "D9 45 FC D8 F1 8B 4D F8 D9 1E");
+
+		Memory::PatchBytes(HDD_HFOVScanResult, "\xE9\x9C\x4F\x0E\x00", 5);
+
+		Memory::PatchBytes(HDD_CodecaveScanResult + 0x15, "\xD9\x45\xFC\xD8\x0D\x37\x63\x0F\x10\xD8\xF1\xE9\x54\xB0\xF1\xFF", 16);
+
+		Memory::Write(HDD_CodecaveFMULInstructionAddressInCodecave - 0x4, HDD_CodecaveHFOVValueAddress - 0x4);
+
+		fNewCameraHFOV = (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+
+		fNewCameraFOV = 0.5f * fFOVFactor;
+
+		Memory::Write(HDD_CodecaveHFOVValueAddress - 0x4, fNewCameraHFOV);
+
+		Memory::Write(HDD_CodecaveOverallFOVValueAddress - 0x4, fNewCameraFOV);
+
+		Memory::Write(HDD_CodecaveRenderingSidesValueAddress - 0x4, 200.0f);
 	}
-
-	std::uint8_t* HDD_CodecaveScanResult = Memory::PatternScan(dllModule2, "E9 BF 22 FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
-
-	Memory::PatchBytes(HDD_HFOVScanResult, "\xE9\x8E\x4F\x0E\x00", 5);
-
-	Memory::PatchBytes(HDD_CodecaveScanResult + 0x7, "\xD9\x45\xFC\xD8\x0D\x37\x63\x0F\x10\xD8\xF1\xE9\x62\xB0\xF1\xFF\x00\x00\x00\x00\x40\x3F\x00\x00\x00\x3F\x00\x00\x48\x43", 30);
-
-	std::uint8_t* HDD_NewCodecaveScanResult = Memory::PatternScan(dllModule2, "E9 BF 22 FF FF 00 00 D9 45 FC D8 0D ?? ?? ?? ?? D8 F1 E9 62 B0 F1 FF 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 00 00 48 43 00 00 00 00 00");
-
-	std::uint8_t* HDD_CodecaveHFOVValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x19);
-
-	std::uint8_t* HDD_CodecaveOverallFOVValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x1D);
-
-	spdlog::info("Address is i3d2.dll+{:x}", HDD_CodecaveHFOVValueAddress - (std::uint8_t*)dllModule2);
-
-	std::uint8_t* HDD_CodecaveRenderingSidesValueAddress = Memory::GetAbsolute(HDD_NewCodecaveScanResult + 0x21);
-
-	fNewCameraHFOV = (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
-
-	fNewCameraFOV = 0.5f * fFOVFactor;
-
-	Memory::Write(HDD_OverallFOVScanResult + 0x2, HDD_CodecaveOverallFOVValueAddress - 0x4);
-
-	Memory::Write(HDD_RenderingSidesScanResult + 0x2, HDD_CodecaveRenderingSidesValueAddress - 0x4);
-
-	Memory::Write(HDD_NewCodecaveScanResult + 0xC, HDD_CodecaveHFOVValueAddress - 0x4);
-
-	Memory::Write(HDD_NewCodecaveScanResult + 0x19, fNewCameraHFOV);
-
-	Memory::Write(HDD_NewCodecaveScanResult + 0x1D, fNewCameraFOV);
 }
 
 DWORD __stdcall Main(void*)
