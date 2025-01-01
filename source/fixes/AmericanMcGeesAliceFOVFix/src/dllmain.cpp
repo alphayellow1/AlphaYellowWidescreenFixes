@@ -51,6 +51,7 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float oldWidth = 4.0f;
 constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOriginalCameraFOV = 90.0f;
 
 // Ini variables
 bool FixActive;
@@ -214,20 +215,31 @@ void FOVFix()
 	if (eGameType == Game::AMA || eGameType == Game::AMA_QUAKE3 && FixActive == true)
 	{
 		std::uint8_t* AMA_GameplayCameraFOVScanResult = Memory::PatternScan(hModule, "C7 45 EC ?? ?? ?? ?? EB 17 D9");
-		if (AMA_GameplayCameraFOVScanResult == nullptr) {
+		if (AMA_GameplayCameraFOVScanResult)
+		{
+			spdlog::info("Gameplay Camera FOV: Address is fgamex86.dll+{:x}", AMA_GameplayCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
+		}
+		else
+		{
 			spdlog::error("Failed to locate gameplay FOV memory address.");
 			return;
 		}
 
 		std::uint8_t* AMA_CutscenesCameraFOVScanResult = Memory::PatternScan(hModule, "88 18 B9 ?? ?? ?? ?? B8 00 00");
-		if (AMA_CutscenesCameraFOVScanResult == nullptr) {
+		if (AMA_CutscenesCameraFOVScanResult)
+		{
+			spdlog::info("Cutscenes Camera FOV: Address is fgamex86.dll+{:x}", AMA_CutscenesCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
+
+		}
+		else
+		{
 			spdlog::error("Failed to locate cutscenes FOV memory address.");
 			return;
 		}
 
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / oldAspectRatio)));
+		fNewCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / oldAspectRatio)));
 
 		Memory::Write(AMA_GameplayCameraFOVScanResult + 0x3, fNewCameraFOV * fFOVFactor);
 
