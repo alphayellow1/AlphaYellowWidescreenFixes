@@ -229,7 +229,6 @@ void FOVFix()
 		if (AMA_CutscenesCameraFOVScanResult)
 		{
 			spdlog::info("Cutscenes Camera FOV: Address is fgamex86.dll+{:x}", AMA_CutscenesCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
-
 		}
 		else
 		{
