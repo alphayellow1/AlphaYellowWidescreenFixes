@@ -44,25 +44,14 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float oldWidth = 4.0f;
 constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float epsilon = 0.00001f;
 
 // Ini variables
-bool bFixFOV = true;
+bool FixActive;
 
 // Variables
 int iCurrentResX = 0;
 int iCurrentResY = 0;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -154,12 +143,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOV"], "Enabled", bFixFOV);
-	spdlog_confparse(bFixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
+	spdlog_confparse(FixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -196,22 +185,29 @@ bool DetectGame()
 	return false;
 }
 
-void FOV()
+void FOVFix()
 {
-	if (eGameType == Game::DHNP) {
+	if (eGameType == Game::DHNP && FixActive == true) {
 		std::uint8_t* DHNP_HFOVScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00");
 		if (DHNP_HFOVScanResult) {
 			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), DHNP_HFOVScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid DHNP_HFOVMidHook{};
 			DHNP_HFOVMidHook = safetyhook::create_mid(DHNP_HFOVScanResult,
 				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5707963705062866f) {
+				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5707963705062866f)
+				{
 					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
 				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.5585054159164429f) {
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5700000524520874f)
+				{
 					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
 				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4886922240257263f) {
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.5585054159164429f)
+				{
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4886922240257263f)
+				{
 					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
 				}
 				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0471975803375244f) {
@@ -318,16 +314,24 @@ void FOV()
 				static SafetyHookMid DHNP_VFOVMidHook{};
 				DHNP_VFOVMidHook = safetyhook::create_mid(DHNP_VFOVScanResult,
 					[](SafetyHookContext& ctx) {
-					if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780972480773926f) {
+					if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
+					{
 						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
 					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887909173965454f) {
+					else if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1699999570846558f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
+					{
+						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1699999570846558f;
+					}
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887909173965454f)
+					{
 						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887909173965454f;
 					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.36651918292045593f) {
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.36651918292045593f)
+					{
 						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.36651918292045593f;
 					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853981852531433f) {
+					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853981852531433f)
+					{
 						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853981852531433f;
 					}
 					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f) {
@@ -473,7 +477,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOV();
+		FOVFix();
 	}
 	return TRUE;
 }
