@@ -265,10 +265,6 @@ void ResolutionFix()
 				*reinterpret_cast<uint32_t*>(ctx.eax + 0x68) = iCurrentResY;
 			});
 		}
-
-
-
-
 	}
 }
 
