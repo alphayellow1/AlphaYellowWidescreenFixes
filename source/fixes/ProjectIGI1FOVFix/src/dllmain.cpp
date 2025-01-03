@@ -279,13 +279,11 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
+			spdlog::error("Failed to locate weapon FOV memory address.");
 			return;
 		}
 
-		fNewWeaponFOV = 2.0f * atanf(tanf(fOriginalWeaponFOV / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
-
-		Memory::Write(WeaponFOVScanResult + 0x8, fNewWeaponFOV * fWeaponFOVFactor);
+		Memory::Write(WeaponFOVScanResult + 0x8, fOriginalWeaponFOV * fWeaponFOVFactor);
 	}
 }
 
