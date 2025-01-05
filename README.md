@@ -21,7 +21,7 @@ I use x86 Assembly to patch the game executables, DLLs or other neighbour files,
 Contributions are welcome! If you have a new fix for a classic game or improvements for an existing one in this repository, open a pull request with your changes or additions.
 
 ## License
-This project is licensed under the GPL 3.0 license - see the LICENSE file for details.
+This project is licensed under the MIT license - see the LICENSE file for details.
 
 ## Acknowledgments
 Huge thanks to contributors like Automaniak (Youtube: https://www.youtube.com/@AuToMaNiAk005), who has helped and contributed on many of these fixes, and overall has kept classic games alive on modern systems.
