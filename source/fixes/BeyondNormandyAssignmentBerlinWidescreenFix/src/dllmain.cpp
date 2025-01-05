@@ -5,20 +5,17 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
-#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include "dllmain.h"
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -39,12 +36,6 @@ std::shared_ptr<spdlog::logger> logger;
 std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
-
-// Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
 
 // Ini variables
 bool FixActive;
@@ -80,7 +71,6 @@ uint8_t newHeightBig;
 enum class Game
 {
 	BNAB,
-	BNABUPDATE,
 	Unknown
 };
 
