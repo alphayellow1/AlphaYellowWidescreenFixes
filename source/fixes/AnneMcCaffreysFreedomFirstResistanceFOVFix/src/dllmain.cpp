@@ -42,17 +42,17 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
-bool FixFOV = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
-float fFOVFactor = 0.0f;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -144,8 +144,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -190,18 +190,24 @@ bool DetectGame()
 
 void FOV()
 {
-	if (eGameType == Game::AMCFFR) {
-		std::uint8_t* AMCFFR_CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 87 9C 01 00 00 D8 0D E4 04 68 00");
-		if (AMCFFR_CameraFOVScanResult) {
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), AMCFFR_CameraFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid AMCFFR_CameraFOVMidHook{};
-			AMCFFR_CameraFOVMidHook = safetyhook::create_mid(AMCFFR_CameraFOVScanResult,
-				[](SafetyHookContext& ctx) {
+	if (eGameType == Game::AMCFFR && bFixActive == true) {
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 87 9C 01 00 00 D8 0D E4 04 68 00");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid CameraFOVMidHook{};
+			CameraFOVMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
 				if (*reinterpret_cast<float*>(ctx.edi + 0x19C) == 1.5707963705062866f)
 				{
-					*reinterpret_cast<float*>(ctx.edi + 0x19C) = (2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio))) * fFOVFactor;
+					*reinterpret_cast<float*>(ctx.edi + 0x19C) = fFOVFactor * (2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
 				}
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
 		}
 	}
 }

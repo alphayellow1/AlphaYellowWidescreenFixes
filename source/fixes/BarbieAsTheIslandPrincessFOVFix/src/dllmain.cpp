@@ -38,17 +38,12 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
-
 // Ini variables
-bool FixFOV = true;
+bool bFixActive;
 
 // Variables
-uint32_t iCurrentResX = 0;
-uint32_t iCurrentResY = 0;
+uint32_t iCurrentResX;
+uint32_t iCurrentResY;
 float fNewCameraHFOV;
 
 // Game detection
@@ -141,8 +136,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
@@ -183,16 +178,24 @@ bool DetectGame()
 	return false;
 }
 
-void Fix()
+void FOVFix()
 {
-	if (eGameType == Game::BATIP) {
-		fNewCameraHFOV = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		std::uint8_t* BATIP_CameraHFOVScanResult = Memory::PatternScan(exeModule, "20 0B 68 00 E1 6A 40 00 00 00 00 00 AB AA AA 3F 39 8E E3 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 25 73 3A 25");
-
-		Memory::Write(BATIP_CameraHFOVScanResult + 0xC, fNewCameraHFOV);
-
-		Memory::Write(BATIP_CameraHFOVScanResult + 0x10, fNewCameraHFOV);
+	if (eGameType == Game::BATIP && bFixActive == true)
+	{
+		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "20 0B 68 00 E1 6A 40 00 00 00 00 00 AB AA AA 3F 39 8E E3 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 25 73 3A 25");
+		if (CameraHFOVScanResult)
+		{
+			fNewCameraHFOV = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+			
+			Memory::Write(CameraHFOVScanResult + 0xC, fNewCameraHFOV);
+			
+			Memory::Write(CameraHFOVScanResult + 0x10, fNewCameraHFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV memory address.");
+			return;
+		}
 	}
 }
 
@@ -202,7 +205,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		Fix();
+		FOVFix();
 	}
 	return TRUE;
 }

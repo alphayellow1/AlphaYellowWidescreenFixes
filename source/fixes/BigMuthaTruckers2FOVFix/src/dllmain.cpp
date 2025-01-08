@@ -44,11 +44,11 @@ constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fNewCameraFOV;
 float fFOVFactor;
 
@@ -142,8 +142,8 @@ static void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -186,32 +186,50 @@ static bool DetectGame()
 	return false;
 }
 
+SafetyHookMid CameraFOVMidHook1{};
+void CameraFOVMidHook(SafetyHookContext& ctx)
+{
+	fNewCameraFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+
+	_asm
+	{
+		fdivr dword ptr ds : [fNewCameraFOV * (1.0f / fFOVFactor)]
+	}
+}
+
 static void FOVFix()
 {
-	if (eGameType == Game::BMT2 && FixActive == true) {
-		std::uint8_t* BMT2_CameraFOVScanResult = Memory::PatternScan(exeModule, "8D B2 EC 01 00 00 33 C0 8B FE D9 F2 B9 10 00 00 00 DD D8 D8 3D ?? ?? ?? ??");
-		spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), BMT2_CameraFOVScanResult - (std::uint8_t*)exeModule);
+	if (eGameType == Game::BMT2 && bFixActive == true) {
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "8D B2 EC 01 00 00 33 C0 8B FE D9 F2 B9 10 00 00 00 DD D8 D8 3D ?? ?? ?? ??");
+		if (CameraFOVScanResult)
+		{
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV memory address.");
+			return;
+		}
 
-		std::uint8_t* BMT2_AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 42 44 D9 C2 D8 62 3C F3 AB 5F D8 FB");
-		if (BMT2_AspectRatioScanResult) {
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), BMT2_AspectRatioScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid BMT2_AspectRatioMidHook{};
-			BMT2_AspectRatioMidHook = safetyhook::create_mid(BMT2_AspectRatioScanResult,
+		Memory::PatchBytes(CameraFOVScanResult + 0x13, "\x90\x90\x90\x90\x90\x90", 6);
+
+		CameraFOVMidHook1 = safetyhook::create_mid(CameraFOVScanResult + 0x19, CameraFOVMidHook);
+
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 42 44 D9 C2 D8 62 3C F3 AB 5F D8 FB");
+		if (AspectRatioScanResult)
+		{
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid AspectRatioMidHook{};
+			AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult,
 				[](SafetyHookContext& ctx) {
 				*reinterpret_cast<float*>(ctx.edx + 0x44) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 			});
 		}
-
-		std::uint8_t* BMT2_CodecaveScanResult = Memory::PatternScan(exeModule, "2B C1 48 C3 00 00 00 00 00 00 00 00 00 00 00 00");
-		spdlog::info("Codecave: Address is {:s}+{:x}", sExeName.c_str(), BMT2_CodecaveScanResult - (std::uint8_t*)exeModule);
-
-		std::uint8_t* BMT2_CodecaveCameraFOVValueAddress = Memory::GetAbsolute(BMT2_CodecaveScanResult + 0x6);
-
-		fNewCameraFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
-
-		Memory::Write(BMT2_CodecaveScanResult + 0x6, fNewCameraFOV * (1.0f / fFOVFactor));
-
-		Memory::Write(BMT2_CameraFOVScanResult + 0x15, BMT2_CodecaveCameraFOVValueAddress - 0x4);
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio memory address.");
+			return;
+		}
 	}
 }
 

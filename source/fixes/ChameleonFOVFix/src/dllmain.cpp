@@ -46,11 +46,11 @@ constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fFOVFactor;
 
 // Game detection
@@ -143,8 +143,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -194,40 +194,55 @@ bool DetectGame()
 	return true;
 }
 
+SafetyHookMid FCOMPInstructionHook{};
+void FCOMPInstructionMidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fcomp dword ptr ds : [8.0f]
+	}
+}
+
 void FOVFix()
 {
-	if (eGameType == Game::CHAMELEON) {
-		std::uint8_t* Chameleon_AspectRatioScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 82 20 01 00 00 D8 1D ?? ?? ?? ??");
-		if (Chameleon_AspectRatioScanResult) {
-			spdlog::info("Aspect Ratio: Address is LS3DF.dll+{:x}", Chameleon_AspectRatioScanResult - (std::uint8_t*)dllModule2);
-			static SafetyHookMid Chameleon_AspectRatioMidHook{};
-			Chameleon_AspectRatioMidHook = safetyhook::create_mid(Chameleon_AspectRatioScanResult + 0x6,
+	if (eGameType == Game::CHAMELEON && bFixActive == true) {
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 82 20 01 00 00 D8 1D ?? ?? ?? ??");
+		if (AspectRatioScanResult)
+		{
+			spdlog::info("Aspect Ratio: Address is LS3DF.dll+{:x}", AspectRatioScanResult - (std::uint8_t*)dllModule2);
+			static SafetyHookMid AspectRatioMidHook{};
+			AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult + 0x6,
 				[](SafetyHookContext& ctx) {
 				*reinterpret_cast<float*>(ctx.edx + 0x120) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio memory address.");
+			return;
+		}
 
-		std::uint8_t* Chameleon_CameraFOVScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
-		if (Chameleon_CameraFOVScanResult) {
-			spdlog::info("Camera FOV: Address is LS3DF.dll+{:x}", Chameleon_CameraFOVScanResult - (std::uint8_t*)dllModule2);
-			static SafetyHookMid Chameleon_CameraFOVMidHook{};
-			Chameleon_CameraFOVMidHook = safetyhook::create_mid(Chameleon_CameraFOVScanResult + 0x11,
+		Memory::PatchBytes(AspectRatioScanResult + 0xC, "\x90\x90\x90\x90\x90\x90", 6);
+
+		FCOMPInstructionHook = safetyhook::create_mid(AspectRatioScanResult + 0x12, FCOMPInstructionMidHook);
+
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
+		if (CameraFOVScanResult)
+		{
+			spdlog::info("Camera FOV: Address is LS3DF.dll+{:x}", CameraFOVScanResult - (std::uint8_t*)dllModule2);
+			static SafetyHookMid CameraFOVMidHook{};
+			CameraFOVMidHook = safetyhook::create_mid(CameraFOVScanResult + 0x11,
 				[](SafetyHookContext& ctx) {
 				if (*reinterpret_cast<float*>(ctx.edx + 0x108) == 1.308996916f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 1.134464025f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 2.094395161f) {
 					*reinterpret_cast<float*>(ctx.edx + 0x108) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x108) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
 				}
 			});
 		}
-
-		std::uint8_t* Chameleon_AspectRatioComparisonScanResult = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 75 19 D9 C0 DE C1");
-
-		std::uint8_t* Chameleon_CodecaveScanResult = Memory::PatternScan(dllModule2, "E9 5D 36 FF FF 00 00 00 00 00 00");
-
-		std::uint8_t* Chameleon_CodecaveValueAddress = Memory::GetAbsolute(Chameleon_CodecaveScanResult + 0x7);
-
-		Memory::Write(Chameleon_AspectRatioComparisonScanResult + 0x2, Chameleon_CodecaveValueAddress - 0x4);
-
-		Memory::Write(Chameleon_CodecaveScanResult + 0x7, 8.0f);
+		else
+		{
+			spdlog::error("Failed to locate camera FOV memory address.");
+			return;
+		}
 	}
 }
 

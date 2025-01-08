@@ -39,11 +39,11 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fFOVFactor;
 
 // Game detection
@@ -138,8 +138,8 @@ static void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -182,9 +182,10 @@ static bool DetectGame()
 
 static void FOVFix()
 {
-	if (eGameType == Game::REGULAR_C2 || eGameType == Game::C2_GOG_WITH_MUSIC && FixActive == true) {
+	if (eGameType == Game::REGULAR_C2 || eGameType == Game::C2_GOG_WITH_MUSIC && bFixActive == true) {
 		std::uint8_t* C2_AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 46 0C 51 52 51 8B 46 10");
-		if (C2_AspectRatioScanResult) {
+		if (C2_AspectRatioScanResult)
+		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), C2_AspectRatioScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid C2_AspectRatioMidHook{};
 			C2_AspectRatioMidHook = safetyhook::create_mid(C2_AspectRatioScanResult,

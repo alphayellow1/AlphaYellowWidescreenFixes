@@ -39,11 +39,11 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fFOVFactor;
 
 // Game detection
@@ -136,8 +136,8 @@ static void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -182,28 +182,28 @@ static bool DetectGame()
 
 static void FOVFix()
 {
-	if (eGameType == Game::BBTOT && FixActive == true) {
-		std::uint8_t* BBTOT_ResolutionScanResult = Memory::PatternScan(exeModule, "C8 00 00 00 FF 00 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 00 00 00");
+	if (eGameType == Game::BBTOT && bFixActive == true) {
+		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "C8 00 00 00 FF 00 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 00 00 00");
 
-		Memory::Write(BBTOT_ResolutionScanResult + 0x8, iCurrentResX);
+		Memory::Write(ResolutionScanResult + 0x8, iCurrentResX);
 
-		Memory::Write(BBTOT_ResolutionScanResult + 0xC, iCurrentResY);
+		Memory::Write(ResolutionScanResult + 0xC, iCurrentResY);
 
-		std::uint8_t* BBTOT_AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 1C 24 51 D9 46 3C D9 1C 24 51 D9 46 34");
-		if (BBTOT_AspectRatioScanResult) {
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), BBTOT_AspectRatioScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid BBTOT_AspectRatioMidHook{};
-			BBTOT_AspectRatioMidHook = safetyhook::create_mid(BBTOT_AspectRatioScanResult,
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 1C 24 51 D9 46 3C D9 1C 24 51 D9 46 34");
+		if (AspectRatioScanResult) {
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid AspectRatioMidHook{};
+			AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult,
 				[](SafetyHookContext& ctx) {
 				*reinterpret_cast<float*>(ctx.esi + 0x34) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 			});
 		}
 
-		std::uint8_t* BBTOT_CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 46 38 D9 1C 24 E8 39 39 FF FF 8B 4E 04");
-		if (BBTOT_CameraFOVScanResult) {
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), BBTOT_CameraFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid BBTOT_CameraFOVMidHook{};
-			BBTOT_CameraFOVMidHook = safetyhook::create_mid(BBTOT_CameraFOVScanResult,
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 46 38 D9 1C 24 E8 39 39 FF FF 8B 4E 04");
+		if (CameraFOVScanResult) {
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid CameraFOVMidHook{};
+			CameraFOVMidHook = safetyhook::create_mid(CameraFOVScanResult,
 				[](SafetyHookContext& ctx) {
 				*reinterpret_cast<float*>(ctx.esi + 0x38) = 0.6108652949f * fFOVFactor;
 			});

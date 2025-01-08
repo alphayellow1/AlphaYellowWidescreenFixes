@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "SanityAikensArtifactFOVFix";
-std::string sFixVersion = "1.5"; // Updated version
+std::string sFixVersion = "1.5";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,15 +44,14 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float oldWidth = 4.0f;
 constexpr float oldHeight = 3.0f;
 constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float epsilon = 0.00001f;
 
 // Ini variables
-bool FixFOV = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
-
-const float epsilon = 0.00001f;
+int iCurrentResX;
+int iCurrentResY;
 
 void Logging()
 {
@@ -124,8 +123,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOV"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOV"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
@@ -163,12 +162,14 @@ void OpenGame()
 
 void FOV()
 {
-	std::uint8_t* SAA_HFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
-	if (SAA_HFOVScanResult) {
-		spdlog::info("HFOV: Address is client.dll+{:x}", SAA_HFOVScanResult - (std::uint8_t*)dllModule);
-		static SafetyHookMid SAA_HFOVMidHook{};
-		SAA_HFOVMidHook = safetyhook::create_mid(SAA_HFOVScanResult,
-			[](SafetyHookContext& ctx) {
+	if (bFixActive == true)
+	{
+	std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
+	if (CameraHFOVScanResult) {
+		spdlog::info("HFOV: Address is client.dll+{:x}", CameraHFOVScanResult - (std::uint8_t*)dllModule);
+		static SafetyHookMid CameraHFOVMidHook{};
+		CameraHFOVMidHook = safetyhook::create_mid(CameraHFOVScanResult, [](SafetyHookContext& ctx)
+		{
 			if (*reinterpret_cast<float*>(ctx.eax + 0x154) == 1.5707963705062866f)
 			{
 				*reinterpret_cast<float*>(ctx.eax + 0x154) = 2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio));
@@ -176,12 +177,12 @@ void FOV()
 		});
 	}
 
-	std::uint8_t* SAA_VFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
-	if (SAA_VFOVScanResult) {
-		spdlog::info("VFOV: Address is client.dll+{:x}", SAA_VFOVScanResult - (std::uint8_t*)dllModule);
-		static SafetyHookMid SAA_VFOVMidHook{};
-		SAA_VFOVMidHook = safetyhook::create_mid(SAA_VFOVScanResult,
-			[](SafetyHookContext& ctx) {
+	std::uint8_t* CameraVFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
+	if (CameraVFOVScanResult) {
+		spdlog::info("VFOV: Address is client.dll+{:x}", CameraVFOVScanResult - (std::uint8_t*)dllModule);
+		static SafetyHookMid CameraVFOVMidHook{};
+		CameraVFOVMidHook = safetyhook::create_mid(CameraVFOVScanResult, [](SafetyHookContext& ctx)
+		{
 			if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
 			{
 				*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.1780972480773926f;
@@ -191,6 +192,7 @@ void FOV()
 				*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.5707963705062866f;
 			}
 		});
+	}
 	}
 }
 
