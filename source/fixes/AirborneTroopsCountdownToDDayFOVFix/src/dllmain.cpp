@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -40,30 +41,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 5.0f;
+constexpr float fOldHeight = 4.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
-bool FixFOV = true;
+bool bFixActive = true;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float newCameraHFOV;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
-
 
 // Game detection
 enum class Game
@@ -155,8 +143,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
@@ -197,21 +185,22 @@ bool DetectGame()
 	return false;
 }
 
-void Fix()
+SafetyHookMid hook1{};
+
+void CameraHFOVMidHook(SafetyHookContext& ctx)
 {
-	std::uint8_t* ATCTDD_HFOVScanResult = Memory::PatternScan(exeModule, "D9 05 00 62 61 00 D8 C9 D9 5C 24 08");
+	float newCameraHFOV = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio;
 
-	std::uint8_t* ATCTDD_HFOVCodecaveScanResult = Memory::PatternScan(exeModule, "E9 86 FA E5 FF 90 90 90 90 90 90");
+	_asm {
+		fmul newCameraHFOV
+	}
+}
 
-	Memory::PatchBytes(ATCTDD_HFOVScanResult + 0x6, "\xE9\x62\xC8\x19\x00\x90", 6);
+void FOVFix()
+{
+	std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "D9 05 00 62 61 00 D8 C9 D9 5C 24 08");
 
-	Memory::PatchBytes(ATCTDD_HFOVCodecaveScanResult + 0xB, "\xD8\xC9\xD8\x0D\xA2\xE9\x60\x00\x3E\xD9\x5C\x24\x08\xE9\x8D\x37\xE6\xFF\x00\x00\x80\x3F", 22);
-
-	std::uint8_t* ATCTDD_HFOVNewCodecaveScanResult = Memory::PatternScan(exeModule, "D8 C9 D8 0D A2 E9 60 00 3E D9 5C 24 08 E9 8D 37 E6 FF ?? ?? ?? ??");
-
-	newCameraHFOV = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (5.0f / 4.0f);
-
-	Memory::Write(ATCTDD_HFOVNewCodecaveScanResult + 0x12/* 18 bytes ahead in hexadecimal*/, newCameraHFOV);
+	hook1 = safetyhook::create_mid(CameraHFOVScanResult + 6, CameraHFOVMidHook);
 }
 
 DWORD __stdcall Main(void*)
@@ -220,7 +209,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		Fix();
+		FOVFix();
 	}
 	return TRUE;
 }
