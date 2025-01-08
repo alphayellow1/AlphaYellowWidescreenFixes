@@ -203,67 +203,98 @@ void ResolutionFix()
 {
 	if (eGameType == Game::APFI && FixActive == true)
 	{
-		std::uint8_t* APFI_ResolutionsScanResult = Memory::PatternScan(dllModule2, "3D ?? ?? ?? ?? 72 4B 75 09 81 7E 08 ?? ?? ?? ?? 74 40 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 30 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 20 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 10 3D ?? ?? ?? ?? 75 5A 81 7E 08 ?? ?? ?? ?? 75 51");
-		spdlog::info("Resolutions: Address is D3DDrv.dll+{:x}", APFI_ResolutionsScanResult - (std::uint8_t*)dllModule2);
+		std::uint8_t* ResolutionsScanResult = Memory::PatternScan(dllModule2, "3D ?? ?? ?? ?? 72 4B 75 09 81 7E 08 ?? ?? ?? ?? 74 40 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 30 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 20 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 10 3D ?? ?? ?? ?? 75 5A 81 7E 08 ?? ?? ?? ?? 75 51");
+		if (ResolutionsScanResult)
+		{
+			spdlog::info("Resolutions: Address is D3DDrv.dll+{:x}", ResolutionsScanResult - (std::uint8_t*)dllModule2);
+			
+			Memory::Write(ResolutionsScanResult + 0x1, iCurrentResX);
+			
+			Memory::Write(ResolutionsScanResult + 0xC, iCurrentResY);
+			
+			Memory::Write(ResolutionsScanResult + 0x13, iCurrentResX);
+			
+			Memory::Write(ResolutionsScanResult + 0x1C, iCurrentResY);
+			
+			Memory::Write(ResolutionsScanResult + 0x23, iCurrentResX);
+			
+			Memory::Write(ResolutionsScanResult + 0x2C, iCurrentResY);
+			
+			Memory::Write(ResolutionsScanResult + 0x33, iCurrentResX);
+			
+			Memory::Write(ResolutionsScanResult + 0x3C, iCurrentResY);
+			
+			Memory::Write(ResolutionsScanResult + 0x43, iCurrentResX);
+			
+			Memory::Write(ResolutionsScanResult + 0x4C, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolutions memory address.");
+			return;
+		}
 
-		Memory::Write(APFI_ResolutionsScanResult + 0x1, iCurrentResX);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0xC, iCurrentResY);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0x13, iCurrentResX);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0x1C, iCurrentResY);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0x23, iCurrentResX);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0x2C, iCurrentResY);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0x33, iCurrentResX);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0x3C, iCurrentResY);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0x43, iCurrentResX);
-
-		Memory::Write(APFI_ResolutionsScanResult + 0x4C, iCurrentResY);
-
-		std::uint8_t* APFI_ResolutionScan1Result = Memory::PatternScan(dllModule3, "89 51 64 8B 55 E8");
-		if (APFI_ResolutionScan1Result) {
-			spdlog::info("Resolution 1: Address is WinDrv.dll+{:x}", APFI_ResolutionScan1Result - (std::uint8_t*)dllModule3);
-			static SafetyHookMid APFI_Resolution1MidHook{};
-			APFI_Resolution1MidHook = safetyhook::create_mid(APFI_ResolutionScan1Result,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* ResolutionScan1Result = Memory::PatternScan(dllModule3, "89 51 64 8B 55 E8");
+		if (ResolutionScan1Result) {
+			spdlog::info("Resolution 1: Address is WinDrv.dll+{:x}", ResolutionScan1Result - (std::uint8_t*)dllModule3);
+			static SafetyHookMid Resolution1MidHook{};
+			Resolution1MidHook = safetyhook::create_mid(ResolutionScan1Result, [](SafetyHookContext& ctx)
+			{
 				ctx.edx = std::bit_cast<uint32_t>(iCurrentResX);
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate resolution 1 scan memory address.");
+			return;
+		}
 
-		std::uint8_t* APFI_ResolutionScan2Result = Memory::PatternScan(dllModule3, "89 41 68 8D 04 D5 00 00 00 00");
-		if (APFI_ResolutionScan2Result) {
-			spdlog::info("Resolution 2: Address is WinDrv.dll+{:x}", APFI_ResolutionScan2Result - (std::uint8_t*)dllModule3);
-			static SafetyHookMid APFI_Resolution2MidHook{};
-			APFI_Resolution2MidHook = safetyhook::create_mid(APFI_ResolutionScan2Result,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* ResolutionScan2Result = Memory::PatternScan(dllModule3, "89 41 68 8D 04 D5 00 00 00 00");
+		if (ResolutionScan2Result)
+		{
+			spdlog::info("Resolution 2: Address is WinDrv.dll+{:x}", ResolutionScan2Result - (std::uint8_t*)dllModule3);
+			static SafetyHookMid Resolution2MidHook{};
+			Resolution2MidHook = safetyhook::create_mid(ResolutionScan2Result, [](SafetyHookContext& ctx)
+			{
 				ctx.eax = std::bit_cast<uint32_t>(iCurrentResY);
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate resolution 2 scan memory address.");
+			return;
+		}
 
-		std::uint8_t* APFI_ResolutionScan3Result = Memory::PatternScan(dllModule3, "8B 78 64 EB 03 8B 78 58 89 7D 0C 39 55 10 75 0F");
-		if (APFI_ResolutionScan3Result) {
-			spdlog::info("Resolution 2: Address is WinDrv.dll+{:x}", APFI_ResolutionScan3Result - (std::uint8_t*)dllModule3);
-			static SafetyHookMid APFI_Resolution3MidHook{};
-			APFI_Resolution3MidHook = safetyhook::create_mid(APFI_ResolutionScan3Result,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* ResolutionScan3Result = Memory::PatternScan(dllModule3, "8B 78 64 EB 03 8B 78 58 89 7D 0C 39 55 10 75 0F");
+		if (ResolutionScan3Result)
+		{
+			spdlog::info("Resolution 3: Address is WinDrv.dll+{:x}", ResolutionScan3Result - (std::uint8_t*)dllModule3);
+			static SafetyHookMid Resolution3MidHook{};
+			Resolution3MidHook = safetyhook::create_mid(ResolutionScan3Result, [](SafetyHookContext& ctx)
+			{
 				*reinterpret_cast<uint32_t*>(ctx.eax + 0x64) = iCurrentResX;
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate resolution 3 scan memory address.");
+			return;
+		}
 
-		std::uint8_t* APFI_ResolutionScan4Result = Memory::PatternScan(dllModule3, "8B 78 68 EB 03 8B 78 5C 89 7D 10 8B 7D 14 3B FA");
-		if (APFI_ResolutionScan4Result) {
-			spdlog::info("Resolution 2: Address is WinDrv.dll+{:x}", APFI_ResolutionScan4Result - (std::uint8_t*)dllModule3);
-			static SafetyHookMid APFI_Resolution4MidHook{};
-			APFI_Resolution4MidHook = safetyhook::create_mid(APFI_ResolutionScan4Result,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* ResolutionScan4Result = Memory::PatternScan(dllModule3, "8B 78 68 EB 03 8B 78 5C 89 7D 10 8B 7D 14 3B FA");
+		if (ResolutionScan4Result)
+		{
+			spdlog::info("Resolution 4: Address is WinDrv.dll+{:x}", ResolutionScan4Result - (std::uint8_t*)dllModule3);
+			static SafetyHookMid Resolution4MidHook{};
+			Resolution4MidHook = safetyhook::create_mid(ResolutionScan4Result, [](SafetyHookContext& ctx)
+			{
 				*reinterpret_cast<uint32_t*>(ctx.eax + 0x68) = iCurrentResY;
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution 4 scan memory address.");
+			return;
 		}
 	}
 }

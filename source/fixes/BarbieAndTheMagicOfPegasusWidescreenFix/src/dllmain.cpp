@@ -40,16 +40,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOriginalCameraFOV = 0.5f;
 
 // Ini variables
-bool FixFOV = true;
+bool bFixActive;
 
 // Variables
-uint32_t iCurrentResX = 0;
-uint32_t iCurrentResY = 0;
+uint32_t iCurrentResX;
+uint32_t iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
@@ -144,8 +145,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -188,60 +189,169 @@ bool DetectGame()
 	return false;
 }
 
-void Fix()
+void WidescreenFix()
 {
-	if (eGameType == Game::BATMOP) {
+	if (eGameType == Game::BATMOP && bFixActive == true)
+	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewCameraFOV = fFOVFactor * (0.5f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)));
+		fNewCameraFOV = fFOVFactor * (fOriginalCameraFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
 
-		std::uint8_t* BATMOP_ResolutionWidthScanResult = Memory::PatternScan(exeModule, "3C 81 FD 80 02 00 00 7C 46 8B");
+		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "3C 81 FD 80 02 00 00 7C 46 8B");
+		if (ResolutionWidthScanResult)
+		{
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 0x3 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BATMOP_ResolutionHeightScanResult = Memory::PatternScan(exeModule, "40 81 F9 E0 01 00 00 7C 3A 8B");
+			Memory::Write(ResolutionWidthScanResult + 0x3, iCurrentResX);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width memory address.");
+			return;
+		}
 
-		std::uint8_t* BATMOP_AspectRatioScan1Result = Memory::PatternScan(exeModule, "68 81 89 00 68 AB AA AA 3F 68");
+		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "40 81 F9 E0 01 00 00 7C 3A 8B");
+		if (ResolutionHeightScanResult)
+		{
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 0x3 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BATMOP_AspectRatioScan2Result = Memory::PatternScan(exeModule, "24 08 8B 15 D4 8A 77 00 68 AB AA AA 3F 68");
+			Memory::Write(ResolutionHeightScanResult + 0x3, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width memory address.");
+			return;
+		}
 
-		std::uint8_t* BATMOP_AspectRatioScan3Result = Memory::PatternScan(exeModule, "FC FF 68 AB AA AA 3F 8B F0 A1");
+		std::uint8_t* AspectRatioScan1Result = Memory::PatternScan(exeModule, "68 81 89 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan1Result)
+		{
+			spdlog::info("Aspect Ratio Scan 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan1Result + 0x5 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BATMOP_AspectRatioScan4Result = Memory::PatternScan(exeModule, "B9 08 00 8B 0D 68 81 89 00 A1 D4 8A 77 00 68 AB AA AA 3F 68");
+			Memory::Write(AspectRatioScan1Result + 0x5, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 1 memory address.");
+			return;
+		}
 
-		std::uint8_t* BATMOP_AspectRatioScan5Result = Memory::PatternScan(exeModule, "99 08 00 8B 0D 68 81 89 00 A1 D4 8A 77 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan2Result = Memory::PatternScan(exeModule, "24 08 8B 15 D4 8A 77 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan2Result)
+		{
+			spdlog::info("Aspect Ratio Scan 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan2Result + 0x9 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BATMOP_CameraFOVScan1Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 D4");
+			Memory::Write(AspectRatioScan2Result + 0x9, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 2 memory address.");
+			return;
+		}
 
-		std::uint8_t* BATMOP_CameraFOVScan2Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 52 E8");
+		std::uint8_t* AspectRatioScan3Result = Memory::PatternScan(exeModule, "FC FF 68 AB AA AA 3F 8B F0 A1");
+		if (AspectRatioScan3Result)
+		{
+			spdlog::info("Aspect Ratio Scan 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan3Result + 0x9 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BATMOP_CameraFOVScan3Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 50 56");
+			Memory::Write(AspectRatioScan3Result + 0x3, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 3 memory address.");
+			return;
+		}
 
-		std::uint8_t* BATMOP_CameraFOVScan4Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 64 81 89 00 E8 1C");
+		std::uint8_t* AspectRatioScan4Result = Memory::PatternScan(exeModule, "B9 08 00 8B 0D 68 81 89 00 A1 D4 8A 77 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan4Result)
+		{
+			spdlog::info("Aspect Ratio Scan 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan4Result + 0xF - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BATMOP_CameraFOVScan5Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 64 81 89 00 E8 41");
+			Memory::Write(AspectRatioScan4Result + 0xF, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 4 memory address.");
+			return;
+		}
 
-		Memory::Write(BATMOP_ResolutionWidthScanResult + 0x3, iCurrentResX);
+		std::uint8_t* AspectRatioScan5Result = Memory::PatternScan(exeModule, "99 08 00 8B 0D 68 81 89 00 A1 D4 8A 77 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan5Result)
+		{
+			spdlog::info("Aspect Ratio Scan 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan5Result + 0xF - (std::uint8_t*)exeModule);
 
-		Memory::Write(BATMOP_ResolutionHeightScanResult + 0x3, iCurrentResY);
+			Memory::Write(AspectRatioScan5Result + 0xF, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 5 memory address.");
+			return;
+		}
 
-		Memory::Write(BATMOP_AspectRatioScan1Result + 0x5, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan1Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 D4");
+		if (CameraFOVScan1Result)
+		{
+			spdlog::info("Camera FOV Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan1Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BATMOP_AspectRatioScan2Result + 0x9, fNewAspectRatio);
+			Memory::Write(CameraFOVScan1Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 1 memory address.");
+			return;
+		}
 
-		Memory::Write(BATMOP_AspectRatioScan3Result + 0x3, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan2Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 52 E8");
+		if (CameraFOVScan2Result)
+		{
+			spdlog::info("Camera FOV Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan2Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BATMOP_AspectRatioScan4Result + 0xF, fNewAspectRatio);
+			Memory::Write(CameraFOVScan2Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 2 memory address.");
+			return;
+		}
 
-		Memory::Write(BATMOP_AspectRatioScan5Result + 0xF, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan3Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 50 56");
+		if (CameraFOVScan3Result)
+		{
+			spdlog::info("Camera FOV Scan 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan3Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BATMOP_CameraFOVScan1Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan3Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 3 memory address.");
+			return;
+		}
 
-		Memory::Write(BATMOP_CameraFOVScan2Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan4Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 64 81 89 00 E8 1C");
+		if (CameraFOVScan4Result)
+		{
+			spdlog::info("Camera FOV Scan 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan4Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BATMOP_CameraFOVScan3Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan4Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 4 memory address.");
+			return;
+		}
 
-		Memory::Write(BATMOP_CameraFOVScan4Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan5Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 51 50 A3 64 81 89 00 E8 41");
+		if (CameraFOVScan5Result)
+		{
+			spdlog::info("Camera FOV Scan 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan5Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BATMOP_CameraFOVScan5Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan5Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 5 memory address.");
+			return;
+		}	
 	}
 }
 
@@ -251,7 +361,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		Fix();
+		WidescreenFix();
 	}
 	return TRUE;
 }

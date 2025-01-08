@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -40,18 +41,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
-bool FixFOV = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fNewCameraHFOV;
-float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -143,8 +143,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
@@ -185,28 +185,63 @@ bool DetectGame()
 	return false;
 }
 
-void Fix()
+void CameraHFOVMidHook(SafetyHookContext& ctx)
 {
-	if (eGameType == Game::AES) {
-		std::uint8_t* AES_CameraHFOVScan1Result = Memory::PatternScan(exeModule, "8B 2D 88 B7 95 00 D9 05 10 BA 95 00");
+	fNewCameraHFOV = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio;
 
-		std::uint8_t* AES_CameraHFOVScan2Result = Memory::PatternScan(exeModule, "D8 4D 74 D9 05 10 BA 95 00");
+	_asm {
+		fld fNewCameraHFOV
+	}
+}
 
-		std::uint8_t* AES_CameraHFOVScan3Result = Memory::PatternScan(exeModule, "8B 1D 78 B7 95 00 D9 05 10 BA 95 00");
+void FOVFix()
+{
+	if (eGameType == Game::AES && bFixActive == true)
+	{
+		std::uint8_t* CameraHFOVScan1Result = Memory::PatternScan(exeModule, "8B 2D 88 B7 95 00 D9 05 10 BA 95 00");
+		if (CameraHFOVScan1Result)
+		{
+			spdlog::info("Camera HFOV Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScan1Result + 0x6 - (std::uint8_t*)exeModule);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV memory address.");
+			return;
+		}
 
-		std::uint8_t* AES_CodecaveScanResult = Memory::PatternScan(exeModule, "E9 BC C7 F1 FF 00 00 00 00");
+		std::uint8_t* CameraHFOVScan2Result = Memory::PatternScan(exeModule, "D8 4D 74 D9 05 10 BA 95 00");
+		if (CameraHFOVScan2Result)
+		{
+			spdlog::info("Camera HFOV Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScan2Result + 0x3 - (std::uint8_t*)exeModule);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV memory address.");
+			return;
+		}
 
-		std::uint8_t* AES_CodecaveValueAddress = Memory::GetAbsolute(AES_CodecaveScanResult + 0x7);
+		std::uint8_t* CameraHFOVScan3Result = Memory::PatternScan(exeModule, "8B 1D 78 B7 95 00 D9 05 10 BA 95 00");
+		if (CameraHFOVScan3Result)
+		{
+			spdlog::info("Camera HFOV Scan 3: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScan3Result + 0x6 - (std::uint8_t*)exeModule);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV memory address.");
+			return;
+		}
 
-		Memory::Write(AES_CameraHFOVScan1Result + 0x8, AES_CodecaveValueAddress);
+		Memory::PatchBytes(CameraHFOVScan1Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
 
-		Memory::Write(AES_CameraHFOVScan2Result + 0x5, AES_CodecaveValueAddress);
+		Memory::PatchBytes(CameraHFOVScan2Result + 0x3, "\x90\x90\x90\x90\x90\x90", 6);
 
-		Memory::Write(AES_CameraHFOVScan3Result + 0x8, AES_CodecaveValueAddress);
+		Memory::PatchBytes(CameraHFOVScan3Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
 
-		fNewCameraHFOV = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f);
+		safetyhook::create_mid(CameraHFOVScan1Result + 0xC, CameraHFOVMidHook);
 
-		Memory::Write(AES_CodecaveValueAddress, fNewCameraHFOV);
+		safetyhook::create_mid(CameraHFOVScan2Result + 0x9, CameraHFOVMidHook);
+
+		safetyhook::create_mid(CameraHFOVScan3Result + 0xC, CameraHFOVMidHook);
 	}
 }
 
@@ -216,7 +251,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		Fix();
+		FOVFix();
 	}
 	return TRUE;
 }

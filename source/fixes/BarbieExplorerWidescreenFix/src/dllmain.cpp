@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -40,33 +41,19 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
-bool FixFOV = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fNewCameraHFOV;
 float fNewCameraFOV;
 float fFOVFactor;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
-
 
 // Game detection
 enum class Game
@@ -158,8 +145,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
@@ -200,34 +187,71 @@ bool DetectGame()
 	return false;
 }
 
+SafetyHookMid CameraForegroundHFOVHook{};
+
+void CameraForegroundHFOVMidHook(SafetyHookContext& ctx)
+{
+	fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+
+	_asm
+	{
+		fmul dword ptr ds:[fNewCameraHFOV]
+	}
+}
+
+SafetyHookMid CameraBackgroundHFOVHook{};
+
+void CameraBackgroundHFOVMidHook(SafetyHookContext& ctx)
+{
+	fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+
+	_asm
+	{
+		fmul dword ptr ds:[fNewCameraHFOV]
+	}
+}
+
 void Fix()
 {
-	if (eGameType == Game::BE) {
-		std::uint8_t* BE_ResolutionWidthScanResult = Memory::PatternScan(exeModule, "00 80 02 00 00 C7");
+	if (eGameType == Game::BE && bFixActive == true)
+	{
+		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "00 80 02 00 00 C7");
+		if (ResolutionWidthScanResult)
+		{
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 0x1 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BE_ResolutionHeightScanResult = Memory::PatternScan(exeModule, "00 E0 01 00 00 C7");
+			Memory::Write(ResolutionWidthScanResult + 0x1, iCurrentResX);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width memory address.");
+			return;
+		}
 
-		std::uint8_t* BE_ForegroundHFOVScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
+		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "00 E0 01 00 00 C7");
+		if (ResolutionHeightScanResult)
+		{
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::PatchBytes(BE_ForegroundHFOVScanResult, "\xE9\xF7\x21\x04\x00\x90\x90\x90\x90", 9);
+			Memory::Write(ResolutionHeightScanResult + 0x1, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution height memory address.");
+			return;
+		}
 
-		std::uint8_t* BE_BackgroundHFOVScanResult = Memory::PatternScan(exeModule, "D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 94 BD 5D 00 D9 05 64 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00 89 15 1C BE 5D 00 D9 05 10 F3 48 00 D8 35");
+		std::uint8_t* ForegroundHFOVScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
 
-		Memory::PatchBytes(BE_BackgroundHFOVScanResult + 0x2, "\xB2\xE5", 2);
+		Memory::PatchBytes(ForegroundHFOVScanResult + 0x3, "\x90\x90\x90\x90\x90\x90", 6);
 
-		std::uint8_t* BE_CameraHFOVCodecaveScanResult = Memory::PatternScan(exeModule, "E9 72 DF FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
+		CameraForegroundHFOVHook = safetyhook::create_mid(ForegroundHFOVScanResult + 0x9, CameraForegroundHFOVMidHook);
 
-		Memory::PatchBytes(BE_CameraHFOVCodecaveScanResult + 0x7, "\xDB\x45\xD8\xD8\x0D\xB2\xE5\x48\x00\xD8\x0D\x60\xBD\x5D\x00\xE9\xF9\xDD\xFB\xFF", 20);
+		std::uint8_t* BackgroundHFOVScanResult = Memory::PatternScan(exeModule, "D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 94 BD 5D 00 D9 05 64 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00 89 15 1C BE 5D 00 D9 05 10 F3 48 00 D8 35");
 
-		std::uint8_t* BE_CameraNewHFOVCodecaveScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D B2 E5 48 00 D8 0D 60 BD 5D 00 E9 F9 DD FB FF");
+		Memory::PatchBytes(BackgroundHFOVScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-		fNewCameraHFOV = (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
-
-		Memory::Write(BE_CameraNewHFOVCodecaveScanResult + 0x14, fNewCameraHFOV);
-
-		Memory::Write(BE_ResolutionWidthScanResult + 0x1, iCurrentResX);
-
-		Memory::Write(BE_ResolutionHeightScanResult + 0x1, iCurrentResY);
+		CameraBackgroundHFOVHook = safetyhook::create_mid(BackgroundHFOVScanResult + 0x6, CameraBackgroundHFOVMidHook);		
 	}
 }
 

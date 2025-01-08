@@ -45,7 +45,7 @@ constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float fOriginalCameraFOV = 1.0f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
@@ -144,8 +144,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -188,13 +188,30 @@ bool DetectGame()
 	return false;
 }
 
+SafetyHookMid hook1{};
+void CameraHFOVMidHook(SafetyHookContext& ctx)
+{
+	fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+	fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
+
+	_asm
+	{
+		fld fNewCameraHFOV
+	}
+}
+
 void FOVFix()
 {
-	if (eGameType == Game::A10MW && FixActive == true) {
+	if (eGameType == Game::A10MW && bFixActive == true) {
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 1D ?? ?? ?? ?? E8 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? C7 05 ?? ?? ?? ?? 00 00 00 00 C7 05 ?? ?? ?? ?? 00 00 00 00 8B 45 FC 5F 5E 5B 8B E5 5D C3 CC CC CC CC CC CC CC CC 55 8B EC 83 EC 40 53 56 57 D9 05 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C3 CC CC CC CC CC CC CC CC CC CC 55 8B EC 83 EC 40 53 56 57 D9 05 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C3");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x60 - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraHFOVInstructionScanResult + 0x60, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			hook1 = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x66, CameraHFOVMidHook);
 		}
 		else
 		{
@@ -202,34 +219,13 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CodecaveScanResult = Memory::PatternScan(exeModule, "5F 5E 5B 8B E5 5D C3 00 00 00 00 00 00");
-		if (CodecaveScanResult)
-		{
-			spdlog::info("Codecave: Address is {:s}+{:x}", sExeName.c_str(), CodecaveScanResult + 0x7 - (std::uint8_t*)exeModule);
-		}
-		else
-		{
-			spdlog::error("Failed to locate codecave memory address.");
-			return;
-		}
-
-		std::uint8_t* CodecaveValueAddress = Memory::GetAbsolute(CodecaveScanResult + 0x9);
-
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
-
-		Memory::Write(CodecaveValueAddress - 0x4, fNewCameraHFOV);
-
-		Memory::Write(CameraHFOVInstructionScanResult + 0x62, CodecaveValueAddress - 0x4);
-
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "A1 ?? ?? ?? ?? A3 ?? ?? ?? ?? A1 ?? ?? ?? ?? 50 8B 0D ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 0x5 - (std::uint8_t*)exeModule);
 			static SafetyHookMid CameraFOVInstructionMidHook{};
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x5,
-				[](SafetyHookContext& ctx) {
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x5, [](SafetyHookContext& ctx)
+			{
 				ctx.eax = std::bit_cast<uint32_t>(fOriginalCameraFOV * fFOVFactor);
 			});
 		}

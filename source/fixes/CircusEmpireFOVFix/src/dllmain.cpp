@@ -41,17 +41,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float epsilon = 0.00001f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fFOVFactor;
 
 // Game detection
@@ -144,8 +144,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -195,9 +195,27 @@ bool DetectGame()
 	return true;
 }
 
+SafetyHookMid FCOMPInstructionHook{};
+void FCOMPInstructionMidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fcomp dword ptr ds : [8.0f]
+	}
+}
+
+SafetyHookMid FCOMPInstruction2Hook{};
+void FCOMPInstruction2MidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fcomp dword ptr ds : [8.0f]
+	}
+}
+
 void FOVFix()
 {
-	if (eGameType == Game::CE && FixActive == true) {
+	if (eGameType == Game::CE && bFixActive == true) {
 		std::uint8_t* CircusEmpire_CameraFOVScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
 		if (CircusEmpire_CameraFOVScanResult) {
 			spdlog::info("Camera FOV: Address is LS3DF.dll+{:x}", CircusEmpire_CameraFOVScanResult - (std::uint8_t*)dllModule2);
@@ -205,7 +223,7 @@ void FOVFix()
 			CircusEmpire_CameraFOVMidHook = safetyhook::create_mid(CircusEmpire_CameraFOVScanResult + 0x11,
 				[](SafetyHookContext& ctx) {
 				if (*reinterpret_cast<float*>(ctx.edx + 0x108) == 1.22173059f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 1.256637096f) {
-					*reinterpret_cast<float*>(ctx.edx + 0x108) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x108) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+					*reinterpret_cast<float*>(ctx.edx + 0x108) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x108) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
 				}
 			});
 		}
@@ -217,7 +235,7 @@ void FOVFix()
 			CircusEmpire_CameraFOV2MidHook = safetyhook::create_mid(CircusEmpire_CameraFOVScan2Result,
 				[](SafetyHookContext& ctx) {
 				if (fabs(*reinterpret_cast<float*>(ctx.edx + 0x114) - 0.7853981852531433f) < epsilon) {
-					*reinterpret_cast<float*>(ctx.edx + 0x114) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x114) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+					*reinterpret_cast<float*>(ctx.edx + 0x114) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x114) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
 				}
 			});
 		}
@@ -226,15 +244,13 @@ void FOVFix()
 
 		std::uint8_t* CircusEmpire_AspectRatioComparisonScan2Result = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 75 19 D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 41 75 08 DD D8 D9 05 ?? ?? ?? ?? D9 C0 5F D9 FF D9 C9 D9 FE D9 C9 D9 C9 DE F9");
 
-		std::uint8_t* CircusEmpire_CodecaveScanResult = Memory::PatternScan(dllModule2, "E9 6D 36 FF FF 00 00 00 00 00 00");
+		Memory::PatchBytes(CircusEmpire_AspectRatioComparisonScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-		std::uint8_t* CircusEmpire_CodecaveValueAddress = Memory::GetAbsolute(CircusEmpire_CodecaveScanResult + 0x7);
+		Memory::PatchBytes(CircusEmpire_AspectRatioComparisonScan2Result, "\x90\x90\x90\x90\x90\x90", 6);
 
-		Memory::Write(CircusEmpire_AspectRatioComparisonScanResult + 0x2, CircusEmpire_CodecaveValueAddress - 0x4);
+		FCOMPInstructionHook = safetyhook::create_mid(CircusEmpire_AspectRatioComparisonScanResult + 0x6, FCOMPInstructionMidHook);
 
-		Memory::Write(CircusEmpire_AspectRatioComparisonScan2Result + 0x2, CircusEmpire_CodecaveValueAddress - 0x4);
-
-		Memory::Write(CircusEmpire_CodecaveScanResult + 0x7, 8.0f);
+		FCOMPInstruction2Hook = safetyhook::create_mid(CircusEmpire_AspectRatioComparisonScan2Result + 0x6, FCOMPInstruction2MidHook);
 	}
 }
 

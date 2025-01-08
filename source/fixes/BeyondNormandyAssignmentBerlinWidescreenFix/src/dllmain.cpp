@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -38,7 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
@@ -53,8 +54,6 @@ float fHUDLeftMargin;
 float fHUDMargin;
 float fHUDWidth;
 float fCompassNeedleX;
-double dObjectiveDirectionWidth;
-double dHUDTextWidth;
 float fCompassX;
 float fCompassWidth;
 float fWeaponsListWidth;
@@ -62,6 +61,8 @@ float fAmmoX;
 float fAmmoWidth;
 float fValue1;
 float fFOVFactor;
+double dObjectiveDirectionWidth;
+double dHUDTextWidth;
 uint8_t newWidthSmall;
 uint8_t newWidthBig;
 uint8_t newHeightSmall;
@@ -157,8 +158,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -203,23 +204,49 @@ bool DetectGame()
 	return false;
 }
 
+SafetyHookMid hook1{};
+void Instruction1MidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fmul dword ptr ds : [fValue1]
+	}
+}
+
+SafetyHookMid hook2{};
+void Instruction2MidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fmul dword ptr ds : [fCompassNeedleWidth]
+	}
+}
+
+SafetyHookMid hook3{};
+void Instruction3MidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fld dword ptr ds : [eax]
+		fmul dword ptr ds : [fNewCameraFOV]
+		fstp dword ptr ds : [eax]
+	}
+}
+
+SafetyHookMid hook4{};
+void Instruction4MidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fld dword ptr ds : [eax + 0x4]
+		fmul dword ptr ds : [fNewCameraFOV]
+		fstp dword ptr ds : [eax + 0x4]
+	}
+}
+
 void WidescreenFix()
 {
-	if (eGameType == Game::BNAB && FixActive == true) {
-		std::uint8_t* CodecaveScanResult = Memory::PatternScan(exeModule, "E9 0F 0E FE FF 00 00 00 00 00 00");
-
-		std::uint8_t* Value1Address = Memory::GetAbsolute(CodecaveScanResult + 0x7);
-
-		std::uint8_t* CompassNeedleWidthAddress = Memory::GetAbsolute(CodecaveScanResult + 0xB);
-
-		std::uint8_t* CameraFOVValueAddress = Memory::GetAbsolute(CodecaveScanResult + 0xF);
-
-		std::uint8_t* FMULAddress1LocationAddress = Memory::GetAbsolute(CodecaveScanResult + 0x19);
-
-		std::uint8_t* FLDAddress1LocationAddress = Memory::GetAbsolute(CodecaveScanResult + 0x23);
-
-		std::uint8_t* FMULAddress2LocationAddress = Memory::GetAbsolute(CodecaveScanResult + 0x31);
-
+	if (eGameType == Game::BNAB && bFixActive == true) {
 		std::uint8_t* HUDElementsScanResult = Memory::PatternScan(exeModule, "00 00 1C 42 00 80 B1 43 00 00 50 42 00 00 5E 43 0E 74 DA 3A 0A D7 A3 3A 23 20 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 20 25 73 0A 00 00");
 		if (HUDElementsScanResult)
 		{
@@ -345,27 +372,15 @@ void WidescreenFix()
 
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		Memory::PatchBytes(CodecaveScanResult + 0x15, "\xD9\x00\xD8\x0D\xFC\xD0\x59\x00\xD9\x18\x8B\x08\xD9\x05\x54\xFC\x59\x00\xE9\xE0\x11\xF9\xFF\xD9\x40\x04\xD8\x0D\xFC\xD0\x59\x00\xD9\x58\x04\x8B\x50\x04\xD8\x76\x68\xE9\xD2\x11\xF9\xFF", 46);
-
 		fValue1 = 0.025000000372529f;
-
-		Memory::Write(Value1Address - 0x4, fValue1);
 
 		// Field of view
 		fNewCameraFOV = 0.75f * fNewAspectRatio * fFOVFactor;
-
-		Memory::Write(CameraFOVValueAddress - 0x4, fNewCameraFOV);
-
-		Memory::Write(FMULAddress1LocationAddress - 0x4, CameraFOVValueAddress - 0x4);
-
-		Memory::Write(FMULAddress2LocationAddress - 0x4, CameraFOVValueAddress - 0x4);
 
 		fHUDWidth = 600.0f * fNewAspectRatio;
 
 		// Compass needle width
 		fCompassNeedleWidth = 0.0333333f / fNewAspectRatio;
-
-		Memory::Write(CodecaveScanResult + 0xB, fCompassNeedleWidth);
 
 		// Loading bar X
 		fLoadingBarX = 222.0f + (fHUDWidth - 800.0f) / 2.0f;
@@ -432,7 +447,9 @@ void WidescreenFix()
 			spdlog::info("Cannot locate the instruction 1 scan memory address.");
 		}
 
-		Memory::Write(InstructionScanResult + 0x6, Value1Address - 0x4);
+		Memory::PatchBytes(InstructionScanResult + 0x4, "\x90\x90\x90\x90\x90\x90", 6);
+
+		hook1 = safetyhook::create_mid(InstructionScanResult + 0xA, Instruction1MidHook);
 
 		std::uint8_t* Instruction2ScanResult = Memory::PatternScan(exeModule, "D9 44 24 0C D8 0D ?? ?? ?? ?? 8B 44 24 2C 50 51");
 		if (Instruction2ScanResult)
@@ -444,11 +461,23 @@ void WidescreenFix()
 			spdlog::info("Cannot locate the instruction 2 scan memory address.");
 		}
 
-		Memory::Write(Instruction2ScanResult + 0x6, CompassNeedleWidthAddress - 0x4);
+		Memory::PatchBytes(Instruction2ScanResult + 0x4, "\x90\x90\x90\x90\x90\x90", 6);
+
+		hook2 = safetyhook::create_mid(Instruction2ScanResult + 0xA, Instruction2MidHook);
 
 		std::uint8_t* Instruction3ScanResult = Memory::PatternScan(exeModule, "8B 74 24 08 8B 08 D9 05 54 FC 59 00 89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04");
+		if (Instruction3ScanResult)
+		{
+			spdlog::info("Instruction Pattern 3: Address is {:s}+{:x}", sExeName.c_str(), Instruction3ScanResult - (std::uint8_t*)exeModule);
+		}
+		else
+		{
+			spdlog::info("Cannot locate the instruction 3 scan memory address.");
+		}
 
-		Memory::PatchBytes(Instruction3ScanResult + 0x4, "\xE9\x0C\xEE\x06\x00\x90\x90\x90\x89\x4E\x68\xE9\x18\xEE\x06\x00\x90", 17);
+		hook3 = safetyhook::create_mid(Instruction3ScanResult + 0x4, Instruction3MidHook);
+
+		hook4 = safetyhook::create_mid(Instruction3ScanResult + 0xF, Instruction4MidHook);
 	}
 }
 

@@ -48,17 +48,17 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float fOriginalCameraFOV = 90.0f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
@@ -75,12 +75,11 @@ float RadToDeg(float radians)
 	return radians * (180.0f / fPi);
 }
 
-
 // Game detection
 enum class Game
 {
 	AMA,
-	AMA_QUAKE3,
+	QUAKE3,
 	Unknown
 };
 
@@ -92,7 +91,7 @@ struct GameInfo
 
 const std::map<Game, GameInfo> kGames = {
 	{Game::AMA, {"American McGee's Alice", "alice.exe"}},
-	{Game::AMA_QUAKE3, {"American McGee's Alice", "quake3.exe"}},
+	{Game::QUAKE3, {"American McGee's Alice", "quake3.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -168,8 +167,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -212,12 +211,18 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (eGameType == Game::AMA || eGameType == Game::AMA_QUAKE3 && FixActive == true)
+	if (eGameType == Game::AMA || eGameType == Game::QUAKE3 && bFixActive == true)
 	{
-		std::uint8_t* AMA_GameplayCameraFOVScanResult = Memory::PatternScan(hModule, "C7 45 EC ?? ?? ?? ?? EB 17 D9");
-		if (AMA_GameplayCameraFOVScanResult)
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fNewCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / oldAspectRatio)));
+
+		std::uint8_t* GameplayCameraFOVScanResult = Memory::PatternScan(hModule, "C7 45 EC ?? ?? ?? ?? EB 17 D9");
+		if (GameplayCameraFOVScanResult)
 		{
-			spdlog::info("Gameplay Camera FOV: Address is fgamex86.dll+{:x}", AMA_GameplayCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
+			spdlog::info("Gameplay Camera FOV: Address is fgamex86.dll+{:x}", GameplayCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
+
+			Memory::Write(GameplayCameraFOVScanResult + 0x3, fNewCameraFOV * fFOVFactor);
 		}
 		else
 		{
@@ -225,24 +230,18 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* AMA_CutscenesCameraFOVScanResult = Memory::PatternScan(hModule, "88 18 B9 ?? ?? ?? ?? B8 00 00");
-		if (AMA_CutscenesCameraFOVScanResult)
+		std::uint8_t* CutscenesCameraFOVScanResult = Memory::PatternScan(hModule, "88 18 B9 ?? ?? ?? ?? B8 00 00");
+		if (CutscenesCameraFOVScanResult)
 		{
-			spdlog::info("Cutscenes Camera FOV: Address is fgamex86.dll+{:x}", AMA_CutscenesCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
+			spdlog::info("Cutscenes Camera FOV: Address is fgamex86.dll+{:x}", CutscenesCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
+
+			Memory::Write(CutscenesCameraFOVScanResult + 0x3, fNewCameraFOV);
 		}
 		else
 		{
 			spdlog::error("Failed to locate cutscenes FOV memory address.");
 			return;
 		}
-
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fNewCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / oldAspectRatio)));
-
-		Memory::Write(AMA_GameplayCameraFOVScanResult + 0x3, fNewCameraFOV * fFOVFactor);
-
-		Memory::Write(AMA_CutscenesCameraFOVScanResult + 0x3, fNewCameraFOV);
 	}
 }
 
