@@ -58,6 +58,7 @@ uint8_t newHeightSmall;
 uint8_t newHeightBig;
 float fNewCameraFOV;
 float fFOVFactor;
+float fOriginalCameraFOV;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -205,41 +206,78 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid ResolutionWidthInstructionHook{};
+
+static void ResolutionWidthInstructionMidHook(SafetyHookContext& ctx)
+{
+	*reinterpret_cast<uint32_t*>(ctx.eax + 0x40) = iCurrentResX;
+}
+
+static SafetyHookMid ResolutionHeightInstructionHook{};
+
+static void ResolutionHeightInstructionMidHook(SafetyHookContext& ctx)
+{
+	*reinterpret_cast<uint32_t*>(ctx.eax + 0x44) = iCurrentResY;
+}
+
 void WidescreenFix()
 {
 	if (eGameType == Game::SAB && bFixActive == true)
 	{
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "8B 54 24 08 89 81 B0 00 00 00");
-		if (CameraFOVScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 54 24 08 89 81 B0 00 00 00");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid CameraHFOVMidHook{};
-			CameraHFOVMidHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				if (ctx.eax == std::bit_cast<uint32_t>(35.0f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(35.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
+					fOriginalCameraFOV = 35.0f;
+
+					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))));
 				}
 				else if (ctx.eax == std::bit_cast<uint32_t>(90.0f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
+					fOriginalCameraFOV = 90.0f;
+
+					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))));
 				}
 				else if (ctx.eax == std::bit_cast<uint32_t>(100.0f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(100.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
+					fOriginalCameraFOV = 100.0f;
+
+					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))));
 				}
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
+		}
 
-		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 04 8B 54 24 08 89 48 40 8B 4C 24 0C 89 50 44 8B 54 24 10 89 48 48 89 50 4C");
+		std::uint8_t* ResolutionsInstructionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 04 8B 54 24 08 89 48 40 8B 4C 24 0C 89 50 44 8B 54 24 10 89 48 48 89 50 4C");
+		if (ResolutionsInstructionScanResult)
+		{
+			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult + 0x8 - (std::uint8_t*)exeModule);
 
-		Memory::PatchBytes(ResolutionScanResult + 0x8, "\xE9\x0E\x2A\x08\x00\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult + 0xF - (std::uint8_t*)exeModule);
 
-		std::uint8_t* CodecaveScanResult = Memory::PatternScan(exeModule, "E9 6E 2D FB FF 00 00 00 00 00 00 00 00 00 00");
+			Memory::PatchBytes(ResolutionsInstructionScanResult + 0x8, "\x90\x90\x90", 3);
 
-		Memory::PatchBytes(CodecaveScanResult + 0x13, "\xC7\x40\x40\x80\x02\x00\x00\x8B\x4C\xE4\x0C\xC7\x40\x44\xE0\x01\x00\x00\x8B\x54\xE4\x10\xE9\xE0\xD5\xF7\xFF", 27);
+			Memory::PatchBytes(ResolutionsInstructionScanResult + 0xF, "\x90\x90\x90", 3);
 
-		std::uint8_t* NewCodecaveScanResult = Memory::PatternScan(exeModule, "C7 40 40 ?? ?? ?? ?? 8B 4C E4 0C C7 40 44 ?? ?? ?? ?? 8B 54 E4 10 E9 E0 D5 F7 FF");
+			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionsInstructionScanResult + 0xB, ResolutionWidthInstructionMidHook);
+
+			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionsInstructionScanResult + 0x12, ResolutionHeightInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolutions instruction memory address.");
+			return;
+		}
 
 		/*
 		newWidthSmall = iCurrentResX % 256;
