@@ -40,9 +40,11 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
+constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOriginalMenuCameraFOV = 0.5f;
 constexpr float fOriginalCameraHFOV = 0.5f;
 constexpr float fOriginalCameraVFOV = 0.375f;
 
@@ -76,6 +78,18 @@ const std::map<Game, GameInfo> kGames = {
 	{Game::AER, {"Antz Extreme Racing", "antzextremeracing.exe"}},
 };
 
+// Function to convert degrees to radians
+float DegToRad(float degrees)
+{
+	return degrees * (fPi / 180.0f);
+}
+
+// Function to convert radians to degrees
+float RadToDeg(float radians)
+{
+	return radians * (180.0f / fPi);
+}
+
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
@@ -84,7 +98,8 @@ void Logging()
 	// Get path to DLL
 	WCHAR dllPath[_MAX_PATH] = { 0 };
 	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPename();
+	sFixPath = dllPath;
+	sFixPath = sFixPath.remove_filename();
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
@@ -152,8 +167,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -194,121 +209,123 @@ void FOVFix()
 {
 	if (eGameType == Game::AER && bFixActive == true)
 	{
-		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "D9 40 3C D8 49 28");
-	if (CameraHFOVScanResult)
-	{
-		spdlog::info("Horizontal FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult - (std::uint8_t*)exeModule);
-		static SafetyHookMid CameraHFOVMidHook{};
-		CameraHFOVMidHook = safetyhook::create_mid(CameraHFOVScanResult, [](SafetyHookContext& ctx)
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 3C D8 49 28");
+		if (CameraHFOVInstructionScanResult)
 		{
-			*reinterpret_cast<float*>(ctx.eax + 0x3C) = fOriginalCameraHFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
-		});
-	}
-	else
-	{
-		spdlog::error("Failed to locate camera HFOV memory address.");
-		return;
-	}
-
-	std::uint8_t* CameraVFOVScanResult = Memory::PatternScan(exeModule, "D9 42 40 D8 48 28");
-	if (CameraVFOVScanResult)
-	{
-		spdlog::info("Vertical FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVScanResult - (std::uint8_t*)exeModule);
-		static SafetyHookMid CameraVFOVMidHook{};
-		CameraVFOVMidHook = safetyhook::create_mid(CameraVFOVScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Camera Horizontal FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<float*>(ctx.eax + 0x3C) = fOriginalCameraHFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+			});
+		}
+		else
 		{
-			*reinterpret_cast<float*>(ctx.edx + 0x40) = fOriginalCameraVFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
-		});
-	}
-	else
-	{
-		spdlog::error("Failed to locate camera VFOV memory address.");
-		return;
-	}
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			return;
+		}
 
-	fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 42 40 D8 48 28");
+		if (CameraVFOVInstructionScanResult)
+		{
+			spdlog::info("Camera Vertical FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			static SafetyHookMid CameraVFOVInstructionMidHook{};
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<float*>(ctx.edx + 0x40) = fOriginalCameraVFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			return;
+		}
 
-	fNewMenuFOV = fOriginalCameraHFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-	std::uint8_t* MenuAspectRatioAndFOVScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 10 68 6C 34 58 00 E8 00 1F 00 00 83 C4 04");
-	spdlog::info("Menu Aspect Ratio & FOV: Address is {:s}+{:x}", sExeName.c_str(), MenuAspectRatioAndFOVScanResult - (std::uint8_t*)exeModule);
-	if (MenuAspectRatioAndFOVScanResult)
-	{
-		Memory::Write(MenuAspectRatioAndFOVScanResult + 0x1, fNewAspectRatio);
-		
-		Memory::Write(MenuAspectRatioAndFOVScanResult + 0x6, fNewMenuFOV);
-	}
-	else
-	{
-		spdlog::error("Failed to locate menu aspect ratio & FOV scan 1 memory address.");
-		return;
-	}
+		fNewMenuFOV = fOriginalMenuCameraFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
 
-	std::uint8_t* MenuAspectRatioAndFOV2ScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A 00 68 AC CD BC 00 E8 2C 8F F8 FF 83 C4 10 8B 0D A0 7A 57 00");
-	spdlog::info("Menu Aspect Ratio & FOV 2: Address is {:s}+{:x}", sExeName.c_str(), MenuAspectRatioAndFOV2ScanResult - (std::uint8_t*)exeModule);
-	if (MenuAspectRatioAndFOV2ScanResult)
-	{
-		Memory::Write(MenuAspectRatioAndFOV2ScanResult + 0x1, fNewAspectRatio);
-		
-		Memory::Write(MenuAspectRatioAndFOV2ScanResult + 0x6, fNewMenuFOV);
-	}
-	else
-	{
-		spdlog::error("Failed to locate menu aspect ratio & FOV scan 2 memory address.");
-		return;
-	}
+		std::uint8_t* MenuAspectRatioAndFOVScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 10 68 6C 34 58 00 E8 00 1F 00 00 83 C4 04");
+		spdlog::info("Menu Aspect Ratio & FOV: Address is {:s}+{:x}", sExeName.c_str(), MenuAspectRatioAndFOVScanResult - (std::uint8_t*)exeModule);
+		if (MenuAspectRatioAndFOVScanResult)
+		{
+			Memory::Write(MenuAspectRatioAndFOVScanResult + 0x1, fNewAspectRatio);
 
-	std::uint8_t* Value1ScanResult = Memory::PatternScan(exeModule, "10 8B 45 08 C7 40 28 CD CC CC 3F 6A 00 8B");
-	if (Value1ScanResult)
-	{
-		fValue1 = 1.6f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
-		
-		Memory::Write(Value1ScanResult + 0x7, fValue1);
-	}
-	else
-	{
-		spdlog::error("Failed to locate value 1 memory address.");
-		return;
-	}
+			Memory::Write(MenuAspectRatioAndFOVScanResult + 0x6, fNewMenuFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate menu aspect ratio & FOV scan 1 memory address.");
+			return;
+		}
 
-	std::uint8_t* Value2ScanResult = Memory::PatternScan(exeModule, "BF 00 C7 45 F4 00 00 80 3F E9 A0 01");
-	if (Value2ScanResult)
-	{
-		fValue2 = 1.0f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
-		
-		Memory::Write(Value2ScanResult + 0x5, fValue2);
-	}
-	else
-	{
-		spdlog::error("Failed to locate value 2 memory address.");
-		return;
-	}
+		std::uint8_t* MenuAspectRatioAndFOV2ScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A 00 68 AC CD BC 00 E8 2C 8F F8 FF 83 C4 10 8B 0D A0 7A 57 00");
+		spdlog::info("Menu Aspect Ratio & FOV 2: Address is {:s}+{:x}", sExeName.c_str(), MenuAspectRatioAndFOV2ScanResult - (std::uint8_t*)exeModule);
+		if (MenuAspectRatioAndFOV2ScanResult)
+		{
+			Memory::Write(MenuAspectRatioAndFOV2ScanResult + 0x1, fNewAspectRatio);
 
-	std::uint8_t* Value3ScanResult = Memory::PatternScan(exeModule, "BF 00 C7 45 F4 00 00 80 3F C7 05 30");
-	if (Value3ScanResult)
-	{
-		fValue3 = 1.0f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+			Memory::Write(MenuAspectRatioAndFOV2ScanResult + 0x6, fNewMenuFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate menu aspect ratio & FOV scan 2 memory address.");
+			return;
+		}
 
-		Memory::Write(Value3ScanResult + 0x5, fValue3);
-	}
-	else
-	{
-		spdlog::error("Failed to locate value 3 memory address.");
-		return;
-	}
+		std::uint8_t* Value1ScanResult = Memory::PatternScan(exeModule, "10 8B 45 08 C7 40 28 CD CC CC 3F 6A 00 8B");
+		if (Value1ScanResult)
+		{
+			fValue1 = 1.6f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
 
-	std::uint8_t* Value4ScanResult = Memory::PatternScan(exeModule, "00 00 00 70 42 00 00 00 00 F4 1D DB 43 F8 B3");
-	if (Value4ScanResult)
-	{
-		fValue4 = 2.0f * RadToDeg(atanf(tanf(DegToRad(60.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)));
-		
-		Memory::Write(Value4ScanResult + 0x1, fValue4);
-	}
-	else
-	{
-		spdlog::error("Failed to locate value 4 memory address.");
-		return;
-	}
+			Memory::Write(Value1ScanResult + 0x7, fValue1);
+		}
+		else
+		{
+			spdlog::error("Failed to locate value 1 memory address.");
+			return;
+		}
+
+		std::uint8_t* Value2ScanResult = Memory::PatternScan(exeModule, "BF 00 C7 45 F4 00 00 80 3F E9 A0 01");
+		if (Value2ScanResult)
+		{
+			fValue2 = 1.0f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+
+			Memory::Write(Value2ScanResult + 0x5, fValue2);
+		}
+		else
+		{
+			spdlog::error("Failed to locate value 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* Value3ScanResult = Memory::PatternScan(exeModule, "BF 00 C7 45 F4 00 00 80 3F C7 05 30");
+		if (Value3ScanResult)
+		{
+			fValue3 = 1.0f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+
+			Memory::Write(Value3ScanResult + 0x5, fValue3);
+		}
+		else
+		{
+			spdlog::error("Failed to locate value 3 memory address.");
+			return;
+		}
+
+		std::uint8_t* Value4ScanResult = Memory::PatternScan(exeModule, "00 00 00 70 42 00 00 00 00 F4 1D DB 43 F8 B3");
+		if (Value4ScanResult)
+		{
+			fValue4 = 2.0f * RadToDeg(atanf(tanf(DegToRad(60.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)));
+
+			Memory::Write(Value4ScanResult + 0x1, fValue4);
+		}
+		else
+		{
+			spdlog::error("Failed to locate value 4 memory address.");
+			return;
+		}
 	}
 }
 

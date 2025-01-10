@@ -39,7 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
@@ -136,8 +136,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -180,22 +180,22 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (eGameType == Game::FHD && FixActive == true)
+	if (eGameType == Game::FHD && bFixActive == true)
 	{
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "C0 10 43 00 ?? ?? ?? ?? 30 C5 57 00");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x4 - (std::uint8_t*)exeModule);
+
+			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+			Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
 		}
 		else
 		{
 			spdlog::error("Failed to locate aspect ratio memory address.");
 			return;
 		}
-
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
 	}
 }
 

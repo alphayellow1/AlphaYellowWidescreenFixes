@@ -40,16 +40,16 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fNewCameraHFOV;
 
 // Game detection
@@ -142,12 +142,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -186,21 +186,40 @@ bool DetectGame()
 
 void WidescreenFix()
 {
-	if (eGameType == Game::BIT12DP && FixActive == true) {
-		std::uint8_t* BIT12DP_ResolutionScanResult = Memory::PatternScan(exeModule, "75 2F 6A 20 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? EB 1A");
+	if (eGameType == Game::BIT12DP && bFixActive == true)
+	{
+		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "75 2F 6A 20 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? EB 1A");
+		if (ResolutionScanResult)
+		{
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0x5 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BIT12DP_ResolutionScanResult + 0x5, iCurrentResX);
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0xA - (std::uint8_t*)exeModule);
 
-		Memory::Write(BIT12DP_ResolutionScanResult + 0xA, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 0x5, iCurrentResX);
 
-		std::uint8_t* BIT12DP_CameraHFOVScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
-		if (BIT12DP_CameraHFOVScanResult) {
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), BIT12DP_CameraHFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid BIT12DP_CameraHFOVMidHook{};
-			BIT12DP_CameraHFOVMidHook = safetyhook::create_mid(BIT12DP_CameraHFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				ctx.ecx = std::bit_cast<uint32_t>(0.5f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio));
+			Memory::Write(ResolutionScanResult + 0xA, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				ctx.ecx = std::bit_cast<uint32_t>(0.5f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			return;
 		}
 	}
 }

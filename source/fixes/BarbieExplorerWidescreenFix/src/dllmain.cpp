@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -145,12 +144,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -187,31 +186,27 @@ bool DetectGame()
 	return false;
 }
 
-SafetyHookMid CameraForegroundHFOVHook{};
+static SafetyHookMid CameraForegroundHFOVHook{};
 
 void CameraForegroundHFOVMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
-
 	_asm
 	{
-		fmul dword ptr ds:[fNewCameraHFOV]
+		fmul dword ptr ds : [fNewCameraHFOV]
 	}
 }
 
-SafetyHookMid CameraBackgroundHFOVHook{};
+static SafetyHookMid CameraBackgroundHFOVHook{};
 
 void CameraBackgroundHFOVMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
-
 	_asm
 	{
-		fmul dword ptr ds:[fNewCameraHFOV]
+		fmul dword ptr ds : [fNewCameraHFOV]
 	}
 }
 
-void Fix()
+void WidescreenFix()
 {
 	if (eGameType == Game::BE && bFixActive == true)
 	{
@@ -241,17 +236,37 @@ void Fix()
 			return;
 		}
 
-		std::uint8_t* ForegroundHFOVScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
+		fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
 
-		Memory::PatchBytes(ForegroundHFOVScanResult + 0x3, "\x90\x90\x90\x90\x90\x90", 6);
+		std::uint8_t* CameraForegroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
+		if (CameraForegroundHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera Foreground HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundHFOVInstructionScanResult + 0x3 - (std::uint8_t*)exeModule);
 
-		CameraForegroundHFOVHook = safetyhook::create_mid(ForegroundHFOVScanResult + 0x9, CameraForegroundHFOVMidHook);
+			Memory::PatchBytes(CameraForegroundHFOVInstructionScanResult + 0x3, "\x90\x90\x90\x90\x90\x90", 6);
 
-		std::uint8_t* BackgroundHFOVScanResult = Memory::PatternScan(exeModule, "D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 94 BD 5D 00 D9 05 64 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00 89 15 1C BE 5D 00 D9 05 10 F3 48 00 D8 35");
+			CameraForegroundHFOVHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 0x9, CameraForegroundHFOVMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera foreground HFOV instruction memory address.");
+			return;
+		}
 
-		Memory::PatchBytes(BackgroundHFOVScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+		std::uint8_t* CameraBackgroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 94 BD 5D 00 D9 05 64 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00 89 15 1C BE 5D 00 D9 05 10 F3 48 00 D8 35");
+		if (CameraBackgroundHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera Background HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraBackgroundHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-		CameraBackgroundHFOVHook = safetyhook::create_mid(BackgroundHFOVScanResult + 0x6, CameraBackgroundHFOVMidHook);		
+			Memory::PatchBytes(CameraBackgroundHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraBackgroundHFOVHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult + 0x6, CameraBackgroundHFOVMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera background HFOV instruction memory address.");
+			return;
+		}
 	}
 }
 
@@ -261,7 +276,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		Fix();
+		WidescreenFix();
 	}
 	return TRUE;
 }

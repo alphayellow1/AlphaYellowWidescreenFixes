@@ -12,7 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -40,18 +40,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float originalCameraFOV = 1.169370532f;
 
 // Ini variables
-bool FixActive = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
 
@@ -145,8 +144,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -191,33 +190,56 @@ bool DetectGame()
 
 void WidescreenFix()
 {
-	if (eGameType == Game::BHARC) {
+	if (eGameType == Game::BHARC && bFixActive == true)
+	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* BHARC_ResolutionWidthScanResult = Memory::PatternScan(exeModule, "78 05 00 00 89 1D E8 C5 5F 00 B8 00 04 00 00 B9");
+		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "78 05 00 00 89 1D E8 C5 5F 00 B8 00 04 00 00 B9");
+		if (ResolutionWidthScanResult)
+		{
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 0xB - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHARC_ResolutionHeightScanResult = Memory::PatternScan(exeModule, "B9 00 03 00 00 73 08 8D 41 20 B9");
+			Memory::Write(ResolutionWidthScanResult + 0xB, iCurrentResX);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width memory address.");
+			return;
+		}
 
-		Memory::Write(BHARC_ResolutionWidthScanResult + 0xB, iCurrentResX);
+		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "B9 00 03 00 00 73 08 8D 41 20 B9");
+		if (ResolutionHeightScanResult)
+		{
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHARC_ResolutionHeightScanResult + 0x1, iCurrentResY);
+			Memory::Write(ResolutionHeightScanResult + 0x1, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width memory address.");
+			return;
+		}
 
-		std::uint8_t* BHARC_AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 5C 24 08 D9 40 A4 D8 4C 24 28");
-		if (BHARC_AspectRatioScanResult) {
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), BHARC_AspectRatioScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid BHARC_AspectRatioMidHook{};
-			BHARC_AspectRatioMidHook = safetyhook::create_mid(BHARC_AspectRatioScanResult,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 5C 24 08 D9 40 A4 D8 4C 24 28");
+		if (AspectRatioScanResult)
+		{
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+			
+			static SafetyHookMid AspectRatioMidHook{};
+			AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
+			{
 				*reinterpret_cast<float*>(ctx.eax - 0x5C) = fNewAspectRatio;
 			});
 		}
 
-		std::uint8_t* BHARC_CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 5C 24 28 D9 44 24 28 D9 5C 24 04 D9 40 A0 D9 1C 24");
-		if (BHARC_CameraFOVScanResult) {
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), BHARC_CameraFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid BHARC_CameraFOVMidHook{};
-			BHARC_CameraFOVMidHook = safetyhook::create_mid(BHARC_CameraFOVScanResult,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 5C 24 28 D9 44 24 28 D9 5C 24 04 D9 40 A0 D9 1C 24");
+		if (CameraFOVScanResult)
+		{
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
+			
+			static SafetyHookMid CameraFOVMidHook{};
+			CameraFOVMidHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
+			{
 				*reinterpret_cast<float*>(ctx.eax - 0x60) = originalCameraFOV * fFOVFactor;
 			});
 		}

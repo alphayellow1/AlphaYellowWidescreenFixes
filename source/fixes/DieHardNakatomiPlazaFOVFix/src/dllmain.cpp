@@ -12,7 +12,8 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
+#include <unordered_set>
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -40,17 +41,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float epsilon = 0.00001f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 
 // Game detection
 enum class Game
@@ -142,8 +143,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -186,282 +187,254 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (eGameType == Game::DHNP && FixActive == true) {
-		std::uint8_t* DHNP_HFOVScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00");
-		if (DHNP_HFOVScanResult) {
-			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), DHNP_HFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid DHNP_HFOVMidHook{};
-			DHNP_HFOVMidHook = safetyhook::create_mid(DHNP_HFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5707963705062866f)
+	if (eGameType == Game::DHNP && bFixActive == true)
+	{
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				static const std::unordered_set<float> validAngles =
 				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5700000524520874f)
+				1.5707963705062866f, 1.5700000524520874f, 0.5585054159164429f, 0.4886922240257263f,
+				1.0471975803375244f, 0.5235987901687622f, 0.3490658700466156f, 0.8726646900177002f,
+				0.1745329350233078f, 1.1344640254974365f, 0.2617993950843811f, 0.06981317698955536f,
+				0.13962635397911072f, 1.3962634801864624f, 0.7853981852531433f, 1.2217305898666382f,
+				0.6981317400932312f, 1.5312644243240356f, 1.4747148752212524f, 1.448533296585083f,
+				1.4223518371582031f, 1.3919837474822998f, 1.3613520860671997f, 1.3307284116744995f,
+				1.3045469522476196f, 1.2783653736114502f, 1.2521837949752808f, 1.2260023355484009f,
+				1.1953785419464111f, 1.1691970825195312f, 1.1430155038833618f, 1.1168339252471924f,
+				1.0906524658203125f, 1.0602843761444092f, 0.4363323152065277f
+				};
+
+				float* anglePtr = reinterpret_cast<float*>(ctx.ecx + 0x198);
+				if (validAngles.find(*anglePtr) != validAngles.end())
 				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.5585054159164429f)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4886922240257263f)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0471975803375244f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.5235987901687622f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.3490658700466156f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.8726646900177002f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.1745329350233078f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1344640254974365f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.2617993950843811f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.06981317698955536f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.13962635397911072f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3962634801864624f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.7853981852531433f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.2217305898666382f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.6981317400932312f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5312644243240356f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.4747148752212524f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.448533296585083f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.4223518371582031f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3919837474822998f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3613520860671997f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3307284116744995f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.3045469522476196f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.2783653736114502f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.2521837949752808f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.2260023355484009f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1953785419464111f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1691970825195312f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1430155038833618f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.1168339252471924f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0906524658203125f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0602843761444092f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4363323152065277f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4363323152065277f) {
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+					*anglePtr = 2.0f * atanf(tanf(*anglePtr / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
 				}
 			});
-
-			std::uint8_t* DHNP_VFOVScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00");
-			if (DHNP_VFOVScanResult) {
-				spdlog::info("VFOV: Address is {:s}+{:x}", sExeName.c_str(), DHNP_VFOVScanResult - (std::uint8_t*)exeModule);
-				static SafetyHookMid DHNP_VFOVMidHook{};
-				DHNP_VFOVMidHook = safetyhook::create_mid(DHNP_VFOVScanResult,
-					[](SafetyHookContext& ctx) {
-					if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
-					{
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887909173965454f)
-					{
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887909173965454f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.36651918292045593f)
-					{
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.36651918292045593f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853981852531433f)
-					{
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853981852531433f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.39269909262657166f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.2617994248867035f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.2617994248867035f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.6544985175132751f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.6544985175132751f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.13089971244335175f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.13089971244335175f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8508480191230774f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8508480191230774f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.19634954631328583f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.19634954631328583f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.05235988646745682f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.05235988646745682f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.10471977293491364f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.10471977293491364f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887906193733215f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887906193733215f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.39269909262657166f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.047197699546814f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.047197699546814f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853982448577881f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853982448577881f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.5890486240386963f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.5890486240386963f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9162979125976562f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9162979125976562f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.523598849773407f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.523598849773407f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1484483480453491f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1484483480453491f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1060361862182617f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1060361862182617f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0863999128341675f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0863999128341675f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0667638778686523f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0667638778686523f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0439878702163696f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0439878702163696f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0210140943527222f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0210140943527222f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.998046338558197f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.998046338558197f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9784102439880371f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9784102439880371f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9587740302085876f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9587740302085876f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.939137876033783f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.939137876033783f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.919501781463623f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.919501781463623f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8965339064598083f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8965339064598083f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8768978118896484f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8768978118896484f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8572616577148438f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8572616577148438f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8376254439353943f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8376254439353943f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8179893493652344f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8179893493652344f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7952132821083069f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7952132821083069f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780973672866821f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780973672866821f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780972480773926f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.3272492289543152f) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.3272492289543152f;
-					}
-				});
-			}
+		}
+		else
+		{
+			spdlog::error("Failed to locate hipfire/cutscenes HFOV instruction memory address.");
+			return;
 		}
 
-		std::uint8_t* DHNP_ZoomHFOVScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00 8B 45 10");
-		if (DHNP_ZoomHFOVScanResult) {
-			spdlog::info("HFOV Zoom: Address is {:s}+{:x}", sExeName.c_str(), DHNP_ZoomHFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid DHNP_ZoomHFOVMidHook{};
-			DHNP_ZoomHFOVMidHook = safetyhook::create_mid(DHNP_ZoomHFOVScanResult,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00");
+		if (CameraVFOVInstructionScanResult)
+		{
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraVFOVInstructionMidHook{};
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon)
+				{
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
+				}
+				/*
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887909173965454f)
+				{
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887909173965454f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.36651918292045593f)
+				{
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.36651918292045593f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853981852531433f)
+				{
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853981852531433f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.39269909262657166f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.2617994248867035f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.2617994248867035f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.6544985175132751f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.6544985175132751f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.13089971244335175f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.13089971244335175f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8508480191230774f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8508480191230774f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.19634954631328583f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.19634954631328583f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.05235988646745682f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.05235988646745682f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.10471977293491364f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.10471977293491364f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887906193733215f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887906193733215f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.39269909262657166f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.047197699546814f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.047197699546814f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853982448577881f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853982448577881f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.5890486240386963f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.5890486240386963f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9162979125976562f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9162979125976562f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.523598849773407f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.523598849773407f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1484483480453491f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1484483480453491f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1060361862182617f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1060361862182617f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0863999128341675f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0863999128341675f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0667638778686523f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0667638778686523f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0439878702163696f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0439878702163696f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0210140943527222f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0210140943527222f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.998046338558197f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.998046338558197f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9784102439880371f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9784102439880371f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9587740302085876f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9587740302085876f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.939137876033783f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.939137876033783f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.919501781463623f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.919501781463623f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8965339064598083f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8965339064598083f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8768978118896484f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8768978118896484f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8572616577148438f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8572616577148438f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8376254439353943f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8376254439353943f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8179893493652344f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8179893493652344f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7952132821083069f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7952132821083069f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780973672866821f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780973672866821f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780972480773926f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
+				}
+				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.3272492289543152f)
+                {
+					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.3272492289543152f;
+				}
+				*/
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate hipfire/cutscenes VFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraZoomHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00 8B 45 10");
+		if (CameraZoomHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera Zoom HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraZoomHFOVInstructionMidHook{};
+			CameraZoomHFOVInstructionMidHook = safetyhook::create_mid(CameraZoomHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
 				if (ctx.eax == std::bit_cast<uint32_t>(0.4363323152065277f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f))));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
 				}
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate weapon zoom HFOV instruction memory address.");
+			return;
+		}
 
-		std::uint8_t* DHNP_ZoomVFOVScanResult = Memory::PatternScan(exeModule, "89 81 9C 01 00 00 5D C3");
-		if (DHNP_ZoomVFOVScanResult) {
-			spdlog::info("VFOV Zoom: Address is {:s}+{:x}", sExeName.c_str(), DHNP_ZoomVFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid DHNP_ZoomVFOVMidHook{};
-			DHNP_ZoomVFOVMidHook = safetyhook::create_mid(DHNP_ZoomVFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (ctx.eax == std::bit_cast<uint32_t>(0.3272492289543152f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f))))
+		std::uint8_t* CameraZoomVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 81 9C 01 00 00 5D C3");
+		if (CameraZoomVFOVInstructionScanResult)
+		{
+			spdlog::info("Camera Zoom VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraZoomVFOVInstructionMidHook{};
+			CameraZoomVFOVInstructionMidHook = safetyhook::create_mid(CameraZoomVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				if (ctx.eax == std::bit_cast<uint32_t>(0.3272492289543152f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))
 				{
 					ctx.eax = std::bit_cast<uint32_t>(0.3272492289543152f);
 				}
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate weapon zoom VFOV instruction memory address.");
+			return;
 		}
 	}
 }

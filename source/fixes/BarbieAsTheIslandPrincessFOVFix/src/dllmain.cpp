@@ -140,8 +140,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -185,10 +185,12 @@ void FOVFix()
 		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "20 0B 68 00 E1 6A 40 00 00 00 00 00 AB AA AA 3F 39 8E E3 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 25 73 3A 25");
 		if (CameraHFOVScanResult)
 		{
+			spdlog::info("Camera HFOV Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult - (std::uint8_t*)exeModule);
+
 			fNewCameraHFOV = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-			
+
 			Memory::Write(CameraHFOVScanResult + 0xC, fNewCameraHFOV);
-			
+
 			Memory::Write(CameraHFOVScanResult + 0x10, fNewCameraHFOV);
 		}
 		else

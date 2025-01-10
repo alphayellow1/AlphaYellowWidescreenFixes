@@ -189,7 +189,7 @@ bool DetectGame()
 	return false;
 }
 
-SafetyHookMid hook1{};
+static SafetyHookMid hook1{};
 void CameraHFOVMidHook(SafetyHookContext& ctx)
 {
 	fNewCameraHFOV = fOriginalAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
@@ -200,7 +200,7 @@ void CameraHFOVMidHook(SafetyHookContext& ctx)
 	}
 }
 
-SafetyHookMid hook2{};
+static SafetyHookMid hook2{};
 void CameraFOVMidHook(SafetyHookContext& ctx)
 {
 	fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;

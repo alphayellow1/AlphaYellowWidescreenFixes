@@ -12,7 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -41,9 +41,9 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float epsilon = 0.00001f;
 
 // Ini variables
@@ -123,12 +123,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOV"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -160,39 +160,55 @@ void OpenGame()
 	spdlog::info("Successfully obtained handle for client.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
 }
 
-void FOV()
+void FOVFix()
 {
 	if (bFixActive == true)
 	{
-	std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
-	if (CameraHFOVScanResult) {
-		spdlog::info("HFOV: Address is client.dll+{:x}", CameraHFOVScanResult - (std::uint8_t*)dllModule);
-		static SafetyHookMid CameraHFOVMidHook{};
-		CameraHFOVMidHook = safetyhook::create_mid(CameraHFOVScanResult, [](SafetyHookContext& ctx)
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
+		if (CameraHFOVInstructionScanResult)
 		{
-			if (*reinterpret_cast<float*>(ctx.eax + 0x154) == 1.5707963705062866f)
-			{
-				*reinterpret_cast<float*>(ctx.eax + 0x154) = 2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio));
-			}
-		});
-	}
+			spdlog::info("Camera HFOV Instruction: Address is client.dll+{:x}", CameraHFOVInstructionScanResult - (std::uint8_t*)dllModule);
 
-	std::uint8_t* CameraVFOVScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
-	if (CameraVFOVScanResult) {
-		spdlog::info("VFOV: Address is client.dll+{:x}", CameraVFOVScanResult - (std::uint8_t*)dllModule);
-		static SafetyHookMid CameraVFOVMidHook{};
-		CameraVFOVMidHook = safetyhook::create_mid(CameraVFOVScanResult, [](SafetyHookContext& ctx)
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				if (*reinterpret_cast<float*>(ctx.eax + 0x154) == 1.5707963705062866f)
+				{
+					*reinterpret_cast<float*>(ctx.eax + 0x154) = 2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+				}
+			});
+		}
+		else
 		{
-			if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon)
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
+		if (CameraVFOVInstructionScanResult)
+		{
+			spdlog::info("Camera VFOV Instruction: Address is client.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule);
+
+			static SafetyHookMid CameraVFOVInstructionMidHook{};
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.1780972480773926f;
-			}
-			else if (*reinterpret_cast<float*>(ctx.eax + 0x158) == 1.5707963705062866f)
-			{
-				*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.5707963705062866f;
-			}
-		});
-	}
+				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon)
+				{
+					*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.1780972480773926f;
+				}
+				/*
+				else if (*reinterpret_cast<float*>(ctx.eax + 0x158) == 1.5707963705062866f) // Main Menu/Pause Menu VFOV
+				{
+					*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.5707963705062866f;
+				}
+				*/
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			return;
+		}
 	}
 }
 
@@ -201,7 +217,7 @@ DWORD __stdcall Main(void*)
 	Logging();
 	Configuration();
 	OpenGame();
-	FOV();
+	FOVFix();
 	return TRUE;
 }
 

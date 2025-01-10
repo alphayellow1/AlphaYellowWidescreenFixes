@@ -39,11 +39,11 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 
@@ -137,8 +137,8 @@ static void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -183,22 +183,38 @@ static bool DetectGame()
 
 static void FOVFix()
 {
-	if (eGameType == Game::SCIT && FixActive == true) {
-		std::uint8_t* SCIT_AspectRatioScanResult = Memory::PatternScan(exeModule, "AC 00 00 00 68 ?? ?? ?? ?? 51 E8 F0 B5 00 00 C2");
-		spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), SCIT_AspectRatioScanResult - (std::uint8_t*)exeModule);
+	if (eGameType == Game::SCIT && bFixActive == true)
+	{
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "AC 00 00 00 68 ?? ?? ?? ?? 51 E8 F0 B5 00 00 C2");
+		if (AspectRatioScanResult)
+		{
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x5 - (std::uint8_t*)exeModule);
 
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		Memory::Write(SCIT_AspectRatioScanResult + 0x5, fNewAspectRatio);
+			Memory::Write(AspectRatioScanResult + 0x5, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio memory address.");
+			return;
+		}
 
-		std::uint8_t* SCIT_CameraFOVScanResult = Memory::PatternScan(exeModule, "8B 44 24 04 52 89 41 54");
-		if (SCIT_CameraFOVScanResult) {
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), SCIT_CameraFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid SCIT_CameraFOVMidHook{};
-			SCIT_CameraFOVMidHook = safetyhook::create_mid(SCIT_CameraFOVScanResult + 0x5,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 04 52 89 41 54");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x5, [](SafetyHookContext& ctx)
+			{
 				ctx.eax = std::bit_cast<uint32_t>(0.8999999761581421f * (1.0f / fFOVFactor));
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
 		}
 	}
 }

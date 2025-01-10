@@ -186,24 +186,29 @@ static bool DetectGame()
 	return false;
 }
 
-SafetyHookMid hook1{};
+static SafetyHookMid hook1{};
 void CameraFOVMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+	fNewCameraFOV = (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY))) * (1.0f / fFOVFactor);
 
 	_asm
 	{
-		fdivr dword ptr ds : [fNewCameraFOV * (1.0f / fFOVFactor)]
+		fdivr dword ptr ds : [fNewCameraFOV]
 	}
 }
 
 static void FOVFix()
 {
-	if (eGameType == Game::BMT && bFixActive == true) {
+	if (eGameType == Game::BMT && bFixActive == true)
+	{
 		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "8D B2 D4 00 00 00 33 C0 8B FE D9 42 1C D8 0D 00 5F 5B 00 D9 F2 DD D8 D8 3D ?? ?? ?? ??");
 		if (CameraFOVScanResult)
 		{
 			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraFOVScanResult + 0x17, "\x90\x90\x90\x90\x90\x90", 6);
+
+			hook1 = safetyhook::create_mid(CameraFOVScanResult + 0x1D, CameraFOVMidHook);
 		}
 		else
 		{
@@ -211,17 +216,14 @@ static void FOVFix()
 			return;
 		}
 
-		Memory::PatchBytes(CameraFOVScanResult + 0x17, "\x90\x90\x90\x90\x90\x90", 6);
-
-		hook1 = safetyhook::create_mid(CameraFOVScanResult + 0x1D, CameraFOVMidHook);
-
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 42 44 D9 42 3C D8 EB F3 AB D8 FB");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+
 			static SafetyHookMid AspectRatioMidHook{};
-			AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult,
-				[](SafetyHookContext& ctx) {
+			AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
+			{
 				*reinterpret_cast<float*>(ctx.edx + 0x44) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 			});
 		}

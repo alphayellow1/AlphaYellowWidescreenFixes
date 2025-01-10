@@ -12,7 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -45,6 +45,7 @@ constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float epsilon = 0.00001f;
+constexpr float fAspectRatioToCompare = 8.0f;
 
 // Ini variables
 bool bFixActive;
@@ -195,62 +196,97 @@ bool DetectGame()
 	return true;
 }
 
-SafetyHookMid FCOMPInstructionHook{};
+static SafetyHookMid FCOMPInstructionHook{};
 void FCOMPInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fcomp dword ptr ds : [8.0f]
+		fcomp dword ptr ds : [fAspectRatioToCompare]
 	}
 }
 
-SafetyHookMid FCOMPInstruction2Hook{};
+static SafetyHookMid FCOMPInstruction2Hook{};
 void FCOMPInstruction2MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fcomp dword ptr ds : [8.0f]
+		fcomp dword ptr ds : [fAspectRatioToCompare]
 	}
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::CE && bFixActive == true) {
-		std::uint8_t* CircusEmpire_CameraFOVScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
-		if (CircusEmpire_CameraFOVScanResult) {
-			spdlog::info("Camera FOV: Address is LS3DF.dll+{:x}", CircusEmpire_CameraFOVScanResult - (std::uint8_t*)dllModule2);
-			static SafetyHookMid CircusEmpire_CameraFOVMidHook{};
-			CircusEmpire_CameraFOVMidHook = safetyhook::create_mid(CircusEmpire_CameraFOVScanResult + 0x11,
-				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.edx + 0x108) == 1.22173059f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 1.256637096f) {
+	if (eGameType == Game::CE && bFixActive == true)
+	{
+		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
+		if (CameraFOVInstruction1ScanResult)
+		{
+			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
+
+			static SafetyHookMid CameraFOVInstruction1MidHook{};
+			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 0x11, [](SafetyHookContext& ctx)
+			{
+				if (*reinterpret_cast<float*>(ctx.edx + 0x108) == 1.22173059f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 1.256637096f)
+				{
 					*reinterpret_cast<float*>(ctx.edx + 0x108) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x108) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
 				}
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
+			return;
+		}
 
-		std::uint8_t* CircusEmpire_CameraFOVScan2Result = Memory::PatternScan(dllModule2, "D9 82 14 01 00 00 D8 0D ?? ?? ?? ?? D9 82 20 01 00 00");
-		if (CircusEmpire_CameraFOVScan2Result) {
-			spdlog::info("Camera FOV 2: Address is LS3DF.dll+{:x}", CircusEmpire_CameraFOVScan2Result - (std::uint8_t*)dllModule2);
-			static SafetyHookMid CircusEmpire_CameraFOV2MidHook{};
-			CircusEmpire_CameraFOV2MidHook = safetyhook::create_mid(CircusEmpire_CameraFOVScan2Result,
-				[](SafetyHookContext& ctx) {
-				if (fabs(*reinterpret_cast<float*>(ctx.edx + 0x114) - 0.7853981852531433f) < epsilon) {
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 82 14 01 00 00 D8 0D ?? ?? ?? ?? D9 82 20 01 00 00");
+		if (CameraFOVInstruction2ScanResult)
+		{
+			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
+
+			static SafetyHookMid CameraFOVInstruction2MidHook{};
+			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				if (fabs(*reinterpret_cast<float*>(ctx.edx + 0x114) - 0.7853981852531433f) < epsilon)
+				{
 					*reinterpret_cast<float*>(ctx.edx + 0x114) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x114) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
 				}
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
+			return;
+		}
 
-		std::uint8_t* CircusEmpire_AspectRatioComparisonScanResult = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 75 19 D9 C0 DE C1");
+		std::uint8_t* AspectRatioComparisonInstruction1ScanResult = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 75 19 D9 C0 DE C1");
+		if (AspectRatioComparisonInstruction1ScanResult)
+		{
+			spdlog::info("Aspect Ratio Comparison Instruction 1: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
-		std::uint8_t* CircusEmpire_AspectRatioComparisonScan2Result = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 75 19 D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 41 75 08 DD D8 D9 05 ?? ?? ?? ?? D9 C0 5F D9 FF D9 C9 D9 FE D9 C9 D9 C9 DE F9");
+			Memory::PatchBytes(AspectRatioComparisonInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-		Memory::PatchBytes(CircusEmpire_AspectRatioComparisonScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioComparisonInstruction1ScanResult + 0x6, FCOMPInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio comparison instruction 1 memory address.");
+			return;
+		}
 
-		Memory::PatchBytes(CircusEmpire_AspectRatioComparisonScan2Result, "\x90\x90\x90\x90\x90\x90", 6);
+		std::uint8_t* AspectRatioComparisonInstruction2ScanResult = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 75 19 D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 41 75 08 DD D8 D9 05 ?? ?? ?? ?? D9 C0 5F D9 FF D9 C9 D9 FE D9 C9 D9 C9 DE F9");
+		if (AspectRatioComparisonInstruction2ScanResult)
+		{
+			spdlog::info("Aspect Ratio Comparison Instruction 2: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
-		FCOMPInstructionHook = safetyhook::create_mid(CircusEmpire_AspectRatioComparisonScanResult + 0x6, FCOMPInstructionMidHook);
+			Memory::PatchBytes(AspectRatioComparisonInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-		FCOMPInstruction2Hook = safetyhook::create_mid(CircusEmpire_AspectRatioComparisonScan2Result + 0x6, FCOMPInstruction2MidHook);
+			FCOMPInstruction2Hook = safetyhook::create_mid(AspectRatioComparisonInstruction2ScanResult + 0x6, FCOMPInstruction2MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio comparison instruction 2 memory address.");
+			return;
+		}
 	}
 }
 

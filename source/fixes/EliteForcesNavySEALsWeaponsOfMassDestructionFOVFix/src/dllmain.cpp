@@ -12,7 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -40,19 +40,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float epsilon = 0.00001f;
 
 // Ini variables
-bool FixFOV = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
-
-const float epsilon = 0.00001f;
+int iCurrentResX;
+int iCurrentResY;
 
 void Logging()
 {
@@ -124,12 +122,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -164,42 +162,57 @@ bool DetectGame()
 	return true;
 }
 
-void FOV()
+void FOVFix()
 {
-	std::uint8_t* EFNSWMD_HipfireHFOVScanResult = Memory::PatternScan(dllModule, "8B 86 00 86 00 00 89 45 08");
-	if (EFNSWMD_HipfireHFOVScanResult)
+	if (bFixActive == true)
 	{
-		spdlog::info("Hipfire HFOV: Address is cshell.dll+{:x}", EFNSWMD_HipfireHFOVScanResult - (std::uint8_t*)dllModule);
-		static SafetyHookMid EFNSWMD_HipfireHFOVMidHook{};
-		EFNSWMD_HipfireHFOVMidHook = safetyhook::create_mid(EFNSWMD_HipfireHFOVScanResult,
-			[](SafetyHookContext& ctx) {
-			if (*reinterpret_cast<float*>(ctx.esi + 0x8600) == 1.0471975803375244f)
-			{
-				*reinterpret_cast<float*>(ctx.esi + 0x8600) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.esi + 0x8600) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
-			}
-		});
-	}
+		std::uint8_t* HipfireCameraHFOVInstructionScanResult = Memory::PatternScan(dllModule, "8B 86 00 86 00 00 89 45 08");
+		if (HipfireCameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Hipfire Camera HFOV Instruction: Address is cshell.dll+{:x}", HipfireCameraHFOVInstructionScanResult - (std::uint8_t*)dllModule);
 
-	std::uint8_t* EFNSWMD_ZoomHFOVScanResult = Memory::PatternScan(dllModule, "89 86 FC 85 00 00 8D 86 78 87 00 00");
-	if (EFNSWMD_ZoomHFOVScanResult)
-	{
-		spdlog::info("Zoom HFOV: Address is cshell.dll+{:x}", EFNSWMD_ZoomHFOVScanResult - (std::uint8_t*)dllModule);
-		static SafetyHookMid EFNSWMD_ZoomHFOVMidHook{};
-		EFNSWMD_ZoomHFOVMidHook = safetyhook::create_mid(EFNSWMD_ZoomHFOVScanResult,
-			[](SafetyHookContext& ctx) {
-			if (ctx.eax == std::bit_cast<uint32_t>(0.5235987902f))
+			static SafetyHookMid HipfireCameraHFOVInstructionMidHook{};
+			HipfireCameraHFOVInstructionMidHook = safetyhook::create_mid(HipfireCameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.5235987902f / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio)));
-			}
-			else if (ctx.eax == std::bit_cast<uint32_t>(0.174532935f))
+				if (*reinterpret_cast<float*>(ctx.esi + 0x8600) == 1.0471975803375244f)
+				{
+					*reinterpret_cast<float*>(ctx.esi + 0x8600) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.esi + 0x8600) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+				}
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate hipfire camera HFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraZoomHFOVInstructionScanResult = Memory::PatternScan(dllModule, "89 86 FC 85 00 00 8D 86 78 87 00 00");
+		if (CameraZoomHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera Zoom HFOV Instruction: Address is cshell.dll+{:x}", CameraZoomHFOVInstructionScanResult - (std::uint8_t*)dllModule);
+
+			static SafetyHookMid CameraZoomHFOVInstructionMidHook{};
+			CameraZoomHFOVInstructionMidHook = safetyhook::create_mid(CameraZoomHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.174532935f / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio)));
-			}
-			else if (ctx.eax == std::bit_cast<uint32_t>(0.06981316954f))
-			{
-				ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.06981316954f / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio)));
-			}
-		});
+				if (ctx.eax == std::bit_cast<uint32_t>(0.5235987902f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.5235987902f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+				}
+				else if (ctx.eax == std::bit_cast<uint32_t>(0.174532935f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.174532935f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+				}
+				else if (ctx.eax == std::bit_cast<uint32_t>(0.06981316954f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.06981316954f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+				}
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera zoom HFOV instruction memory address.");
+			return;
+		}
 	}
 }
 
@@ -209,7 +222,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOV();
+		FOVFix();
 	}
 	return TRUE;
 }

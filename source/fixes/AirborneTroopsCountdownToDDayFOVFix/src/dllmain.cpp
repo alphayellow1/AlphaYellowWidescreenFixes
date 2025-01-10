@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -147,8 +146,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -185,14 +184,14 @@ bool DetectGame()
 	return false;
 }
 
-SafetyHookMid hook1{};
+static SafetyHookMid CameraHFOVHook{};
 
 void CameraHFOVMidHook(SafetyHookContext& ctx)
 {
 	fNewCameraHFOV = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio;
 
 	_asm {
-		fmul dword ptr ds:[fNewCameraHFOV]
+		fmul dword ptr ds : [fNewCameraHFOV]
 	}
 }
 
@@ -205,7 +204,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult - (std::uint8_t*)exeModule);
 
-			hook1 = safetyhook::create_mid(CameraHFOVScanResult + 6, CameraHFOVMidHook);
+			CameraHFOVHook = safetyhook::create_mid(CameraHFOVScanResult + 6, CameraHFOVMidHook);
 		}
 		else
 		{

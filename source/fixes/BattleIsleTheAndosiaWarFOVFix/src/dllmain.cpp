@@ -12,13 +12,12 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include "dllmain.h"
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -41,10 +40,9 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
 bool bFixActive;
@@ -189,35 +187,37 @@ bool DetectGame()
 	return false;
 }
 
-SafetyHookMid hook1{};
+static SafetyHookMid CameraFOVHook{};
+
 void CameraFOVMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraFOV = fFOVFactor * (2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+	fNewCameraFOV = fFOVFactor * (2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
 
 	_asm
 	{
-		push eax                              // Save the current state of EAX on the stack
-		mov eax, dword ptr[fNewCameraFOV]     // Load the binary representation of fNewCameraFOV into EAX
-		mov dword ptr ds : [0x00633F1C] , eax // Write the value in EAX to the specific memory address
-		pop eax                               // Restore the original state of EAX from the stack
+		push eax                                 // Save the current state of EAX on the stack
+		mov eax, dword ptr ds : [fNewCameraFOV]  // Load the binary representation of fNewCameraFOV into EAX
+		mov dword ptr ds : [0x00633F1C] , eax    // Write the value in EAX to the memory address 00633F1C
+		pop eax                                  // Restore the original state of EAX from the stack
 	}
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::BITAW && bFixActive == true) {
+	if (eGameType == Game::BITAW && bFixActive == true)
+	{
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 18 8B 0D ?? ?? ?? ?? D9 5C 24 10");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 0x4 - (std::uint8_t*)exeModule);
+
+			CameraFOVHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x4, CameraFOVMidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
-
-		hook1 = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x4, CameraFOVMidHook);
 	}
 }
 
