@@ -47,11 +47,11 @@ constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float epsilon = 0.00001f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 uint8_t newWidthSmall;
 uint8_t newWidthBig;
 uint8_t newHeightSmall;
@@ -161,8 +161,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -205,52 +205,59 @@ bool DetectGame()
 	return false;
 }
 
-void FOV()
+void WidescreenFix()
 {
-	newWidthSmall = iCurrentResX % 256;
-
-	newWidthBig = (iCurrentResX - newWidthSmall) / 256;
-
-	newHeightSmall = iCurrentResY % 256;
-
-	newHeightBig = (iCurrentResY - newHeightSmall) / 256;
-
-	if (eGameType == Game::SAB && FixActive == true) {
-		std::uint8_t* SAB_CameraFOVScanResult = Memory::PatternScan(exeModule, "8B 54 24 08 89 81 B0 00 00 00");
-		if (SAB_CameraFOVScanResult) {
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), SAB_CameraFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid BIT12DP_CameraHFOVMidHook{};
-			BIT12DP_CameraHFOVMidHook = safetyhook::create_mid(SAB_CameraFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (ctx.eax == std::bit_cast<uint32_t>(35.0f)) {
+	if (eGameType == Game::SAB && bFixActive == true)
+	{
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "8B 54 24 08 89 81 B0 00 00 00");
+		if (CameraFOVScanResult)
+		{
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
+			static SafetyHookMid CameraHFOVMidHook{};
+			CameraHFOVMidHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
+			{
+				if (ctx.eax == std::bit_cast<uint32_t>(35.0f))
+				{
 					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(35.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
 				}
-				else if (ctx.eax == std::bit_cast<uint32_t>(90.0f)) {
+				else if (ctx.eax == std::bit_cast<uint32_t>(90.0f))
+				{
 					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
 				}
-				else if (ctx.eax == std::bit_cast<uint32_t>(100.0f)) {
+				else if (ctx.eax == std::bit_cast<uint32_t>(100.0f))
+				{
 					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(100.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio)))));
 				}
 			});
 		}
 
-		std::uint8_t* SAB_ResolutionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 04 8B 54 24 08 89 48 40 8B 4C 24 0C 89 50 44 8B 54 24 10 89 48 48 89 50 4C");
+		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 04 8B 54 24 08 89 48 40 8B 4C 24 0C 89 50 44 8B 54 24 10 89 48 48 89 50 4C");
 
-		Memory::PatchBytes(SAB_ResolutionScanResult + 0x8, "\xE9\x0E\x2A\x08\x00\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+		Memory::PatchBytes(ResolutionScanResult + 0x8, "\xE9\x0E\x2A\x08\x00\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
 
-		std::uint8_t* SAB_CodecaveScanResult = Memory::PatternScan(exeModule, "E9 6E 2D FB FF 00 00 00 00 00 00 00 00 00 00");
+		std::uint8_t* CodecaveScanResult = Memory::PatternScan(exeModule, "E9 6E 2D FB FF 00 00 00 00 00 00 00 00 00 00");
 
-		Memory::PatchBytes(SAB_CodecaveScanResult + 0x13, "\xC7\x40\x40\x80\x02\x00\x00\x8B\x4C\xE4\x0C\xC7\x40\x44\xE0\x01\x00\x00\x8B\x54\xE4\x10\xE9\xE0\xD5\xF7\xFF", 27);
+		Memory::PatchBytes(CodecaveScanResult + 0x13, "\xC7\x40\x40\x80\x02\x00\x00\x8B\x4C\xE4\x0C\xC7\x40\x44\xE0\x01\x00\x00\x8B\x54\xE4\x10\xE9\xE0\xD5\xF7\xFF", 27);
 
-		std::uint8_t* SAB_NewCodecaveScanResult = Memory::PatternScan(exeModule, "C7 40 40 ?? ?? ?? ?? 8B 4C E4 0C C7 40 44 ?? ?? ?? ?? 8B 54 E4 10 E9 E0 D5 F7 FF");
+		std::uint8_t* NewCodecaveScanResult = Memory::PatternScan(exeModule, "C7 40 40 ?? ?? ?? ?? 8B 4C E4 0C C7 40 44 ?? ?? ?? ?? 8B 54 E4 10 E9 E0 D5 F7 FF");
 
-		Memory::Write(SAB_NewCodecaveScanResult + 0x3, newWidthSmall);
+		/*
+		newWidthSmall = iCurrentResX % 256;
 
-		Memory::Write(SAB_NewCodecaveScanResult + 0x4, newWidthBig);
+		newWidthBig = (iCurrentResX - newWidthSmall) / 256;
 
-		Memory::Write(SAB_NewCodecaveScanResult + 0xE, newHeightSmall);
+		newHeightSmall = iCurrentResY % 256;
 
-		Memory::Write(SAB_NewCodecaveScanResult + 0xF, newHeightBig);
+		newHeightBig = (iCurrentResY - newHeightSmall) / 256;
+
+		Memory::Write(NewCodecaveScanResult + 0x3, newWidthSmall);
+
+		Memory::Write(NewCodecaveScanResult + 0x4, newWidthBig);
+
+		Memory::Write(NewCodecaveScanResult + 0xE, newHeightSmall);
+
+		Memory::Write(NewCodecaveScanResult + 0xF, newHeightBig);
+		*/
 	}
 }
 
@@ -260,7 +267,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOV();
+		WidescreenFix();
 	}
 	return TRUE;
 }
