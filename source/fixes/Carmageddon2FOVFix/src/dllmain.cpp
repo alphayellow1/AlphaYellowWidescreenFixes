@@ -182,16 +182,23 @@ static bool DetectGame()
 
 static void FOVFix()
 {
-	if (eGameType == Game::REGULAR_C2 || eGameType == Game::C2_GOG_WITH_MUSIC && bFixActive == true) {
-		std::uint8_t* C2_AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 46 0C 51 52 51 8B 46 10");
-		if (C2_AspectRatioScanResult)
+	if (eGameType == Game::REGULAR_C2 || eGameType == Game::C2_GOG_WITH_MUSIC && bFixActive == true)
+	{
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 0C 51 52 51 8B 46 10");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), C2_AspectRatioScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid C2_AspectRatioMidHook{};
-			C2_AspectRatioMidHook = safetyhook::create_mid(C2_AspectRatioScanResult,
-				[](SafetyHookContext& ctx) {
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid AspectRatioInstructionMidHook{};
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x6, [](SafetyHookContext& ctx)
+			{
 				*reinterpret_cast<float*>(ctx.esi + 0x10) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
 		}
 	}
 }

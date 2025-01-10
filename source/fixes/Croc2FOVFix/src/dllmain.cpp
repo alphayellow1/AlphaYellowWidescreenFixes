@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -47,7 +46,7 @@ constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float fOriginalCameraFOV = 1.568006992340088f; // Default camera FOV, approximately 90 degrees (in radians)
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
@@ -146,8 +145,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -190,34 +189,54 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraHFOVHook{};
+
+void CameraHFOVMidHook(SafetyHookContext& ctx)
+{
+	fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+	fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCameraHFOV]
+	}
+}
+
 void FOVFix()
 {
-	if (eGameType == Game::CROC2 && FixActive == true)
+	if (eGameType == Game::CROC2 && bFixActive == true)
 	{
-		std::uint8_t* Croc2_CameraHFOVScanResult = Memory::PatternScan(exeModule, "D9 F2 DD D8 D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ??");
-		spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), Croc2_CameraHFOVScanResult + 0xC - (std::uint8_t*)exeModule);
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 F2 DD D8 D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ??");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0xA - (std::uint8_t*)exeModule);
 
-		std::uint8_t* Croc2_CodecaveScanResult = Memory::PatternScan(exeModule, "E9 07 56 FF FF 00 00 00 00 00 00 00 00");
-		spdlog::info("Codecave: Address is {:s}+{:x}", sExeName.c_str(), Croc2_CodecaveScanResult - (std::uint8_t*)exeModule);
+			Memory::PatchBytes(CameraHFOVInstructionScanResult + 0xA, "\x90\x90\x90\x90\x90\x90", 6);
 
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+			CameraHFOVHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x10, CameraHFOVMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV memory address.");
+			return;
+		}
 
-		fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "8B C1 5F 85 C0 5E 5D 0F 94 C0 5B 59 C2 0C 00 D9 41 20 DC 0D ?? ?? ?? ??");
+		if (CameraFOVScanResult)
+		{
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 0xF - (std::uint8_t*)exeModule);
 
-		std::uint8_t* Croc2_CameraCodecaveValueAddress = Memory::GetAbsolute(Croc2_CodecaveScanResult + 0x7);
-
-		Memory::Write(Croc2_CameraHFOVScanResult + 0xC, Croc2_CameraCodecaveValueAddress - 0x4);
-
-		Memory::Write(Croc2_CodecaveScanResult + 0x7, fNewCameraHFOV);
-
-		std::uint8_t* Croc2_CameraFOVScanResult = Memory::PatternScan(exeModule, "8B C1 5F 85 C0 5E 5D 0F 94 C0 5B 59 C2 0C 00 D9 41 20 DC 0D ?? ?? ?? ??");
-		if (Croc2_CameraFOVScanResult) {
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), Croc2_CameraFOVScanResult + 0xF - (std::uint8_t*)exeModule);
-			static SafetyHookMid Croc2_CameraFOVMidHook{};
-			Croc2_CameraFOVMidHook = safetyhook::create_mid(Croc2_CameraFOVScanResult + 0xF,
-				[](SafetyHookContext& ctx) {
+			static SafetyHookMid CameraFOVMidHook{};
+			CameraFOVMidHook = safetyhook::create_mid(CameraFOVScanResult + 0xF, [](SafetyHookContext& ctx)
+			{
 				*reinterpret_cast<float*>(ctx.ecx + 0x20) = fFOVFactor * fOriginalCameraFOV;
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV memory address.");
+			return;
 		}
 	}
 }

@@ -11,7 +11,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -40,17 +39,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOriginalCameraFOV = 0.5f;
 
 // Ini variables
-bool FixActive = true;
+bool bFixActive;
 
 // Variables
-uint32_t iCurrentResX = 0;
-uint32_t iCurrentResY = 0;
+uint32_t iCurrentResX;
+uint32_t iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
@@ -145,8 +144,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -189,132 +188,402 @@ bool DetectGame()
 	return false;
 }
 
-void Fix()
+void WidescreenFix()
 {
-	if (eGameType == Game::BHAMR) {
+	if (eGameType == Game::BHAMR && bFixActive == true) {
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewCameraFOV = fFOVFactor * (0.5f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)));
+		fNewCameraFOV = fFOVFactor * (fOriginalCameraFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
 
-		std::uint8_t* BHAMR_ResolutionWidthScanResult = Memory::PatternScan(exeModule, "C0 80 02 00 00 7C");
+		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "C0 80 02 00 00 7C");
+		if (ResolutionWidthScanResult)
+		{
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 0x1 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_ResolutionHeightScanResult = Memory::PatternScan(exeModule, "C4 E0 01 00 00 7C");
+			Memory::Write(ResolutionWidthScanResult + 0x1, iCurrentResX);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_AspectRatioScan1Result = Memory::PatternScan(exeModule, "75 00 A3 F0 A8 76 00 68 AB AA AA 3F");
+		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "C4 E0 01 00 00 7C");
+		if (ResolutionHeightScanResult)
+		{
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 0x1 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_AspectRatioScan2Result = Memory::PatternScan(exeModule, "8A F7 FF 83 C4 0C 68 AB AA AA 3F");
+			Memory::Write(ResolutionHeightScanResult + 0x1, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_AspectRatioScan3Result = Memory::PatternScan(exeModule, "26 F7 FF 83 C4 0C 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan1Result = Memory::PatternScan(exeModule, "75 00 A3 F0 A8 76 00 68 AB AA AA 3F");
+		if (AspectRatioScan1Result)
+		{
+			spdlog::info("Aspect Ratio Scan 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan1Result + 0x8 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_AspectRatioScan4Result = Memory::PatternScan(exeModule, "A3 C4 31 77 00 68 AB AA AA 3F 68");
+			Memory::Write(AspectRatioScan1Result + 0x8, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 1 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_AspectRatioScan5Result = Memory::PatternScan(exeModule, "D8 E9 98 00 00 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan2Result = Memory::PatternScan(exeModule, "8A F7 FF 83 C4 0C 68 AB AA AA 3F");
+		if (AspectRatioScan2Result)
+		{
+			spdlog::info("Aspect Ratio Scan 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan2Result + 0x7 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_AspectRatioScan6Result = Memory::PatternScan(exeModule, "04 A3 F0 A8 76 00 68 AB AA AA 3F 68");
+			Memory::Write(AspectRatioScan2Result + 0x7, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 2 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_AspectRatioScan7Result = Memory::PatternScan(exeModule, "ED FF 83 C4 04 89 45 F8 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan3Result = Memory::PatternScan(exeModule, "26 F7 FF 83 C4 0C 68 AB AA AA 3F 68");
+		if (AspectRatioScan3Result)
+		{
+			spdlog::info("Aspect Ratio Scan 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan3Result + 0x7 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_AspectRatioScan8Result = Memory::PatternScan(exeModule, "15 F0 A8 76 00 89 15 C4 31 77 00 68 AB AA AA 3F");
+			Memory::Write(AspectRatioScan3Result + 0x7, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 3 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_AspectRatioScan9Result = Memory::PatternScan(exeModule, "EC FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan4Result = Memory::PatternScan(exeModule, "A3 C4 31 77 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan4Result)
+		{
+			spdlog::info("Aspect Ratio Scan 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan4Result + 0x6 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_AspectRatioScan10Result = Memory::PatternScan(exeModule, "04 8B 0D F0 A8 76 00 89 0D C4 31 77 00 68 AB AA AA 3F 68");
+			Memory::Write(AspectRatioScan4Result + 0x6, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 4 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_AspectRatioScan11Result = Memory::PatternScan(exeModule, "D6 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan5Result = Memory::PatternScan(exeModule, "D8 E9 98 00 00 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan5Result)
+		{
+			spdlog::info("Aspect Ratio Scan 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan5Result + 0x7 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_AspectRatioScan12Result = Memory::PatternScan(exeModule, "00 51 E8 58 B5 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+			Memory::Write(AspectRatioScan5Result + 0x7, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 5 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_AspectRatioScan13Result = Memory::PatternScan(exeModule, "0D F0 A8 76 00 68 AB AA AA 3F");
+		std::uint8_t* AspectRatioScan6Result = Memory::PatternScan(exeModule, "04 A3 F0 A8 76 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan6Result)
+		{
+			spdlog::info("Aspect Ratio Scan 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan6Result + 0x7 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_AspectRatioScan14Result = Memory::PatternScan(exeModule, "00 52 E8 9F 5C EB FF 83 C4 04 A3 C4 31 77 00 A1 C4 31 77 00 A3 F0 A8 76 00 68 AB AA AA 3F 68");
+			Memory::Write(AspectRatioScan6Result + 0x7, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 6 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_CameraFOVScan1Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D 48");
+		std::uint8_t* AspectRatioScan7Result = Memory::PatternScan(exeModule, "ED FF 83 C4 04 89 45 F8 68 AB AA AA 3F 68");
+		if (AspectRatioScan7Result)
+		{
+			spdlog::info("Aspect Ratio Scan 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan7Result + 0x9 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_CameraFOVScan2Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 B5");
+			Memory::Write(AspectRatioScan7Result + 0x9, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 7 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_CameraFOVScan3Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 7E");
+		std::uint8_t* AspectRatioScan8Result = Memory::PatternScan(exeModule, "15 F0 A8 76 00 89 15 C4 31 77 00 68 AB AA AA 3F");
+		if (AspectRatioScan8Result)
+		{
+			spdlog::info("Aspect Ratio Scan 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan8Result + 0xC - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_CameraFOVScan4Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 CE");
+			Memory::Write(AspectRatioScan8Result + 0xC, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 8 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_CameraFOVScan5Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 45");
+		std::uint8_t* AspectRatioScan9Result = Memory::PatternScan(exeModule, "EC FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan9Result)
+		{
+			spdlog::info("Aspect Ratio Scan 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan9Result + 0x17 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_CameraFOVScan6Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 8A");
+			Memory::Write(AspectRatioScan9Result + 0x17, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 9 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_CameraFOVScan7Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 4D");
+		std::uint8_t* AspectRatioScan10Result = Memory::PatternScan(exeModule, "04 8B 0D F0 A8 76 00 89 0D C4 31 77 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan10Result)
+		{
+			spdlog::info("Aspect Ratio Scan 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan10Result + 0xE - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_CameraFOVScan8Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D C4");
+			Memory::Write(AspectRatioScan10Result + 0xE, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 10 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_CameraFOVScan9Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 2A");
+		std::uint8_t* AspectRatioScan11Result = Memory::PatternScan(exeModule, "D6 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan11Result)
+		{
+			spdlog::info("Aspect Ratio Scan 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan11Result + 0x18 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_CameraFOVScan10Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 97");
+			Memory::Write(AspectRatioScan11Result + 0x18, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 11 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_CameraFOVScan11Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 0E");
+		std::uint8_t* AspectRatioScan12Result = Memory::PatternScan(exeModule, "00 51 E8 58 B5 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan12Result)
+		{
+			spdlog::info("Aspect Ratio Scan 12: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan12Result + 0x1C - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_CameraFOVScan12Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 D2");
+			Memory::Write(AspectRatioScan12Result + 0x1C, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 12 memory address.");
+			return;
+		}
 
-		std::uint8_t* BHAMR_CameraFOVScan13Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 6B");
+		std::uint8_t* AspectRatioScan13Result = Memory::PatternScan(exeModule, "0D F0 A8 76 00 68 AB AA AA 3F");
+		if (AspectRatioScan13Result)
+		{
+			spdlog::info("Aspect Ratio Scan 13: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan13Result + 0x6 - (std::uint8_t*)exeModule);
 
-		std::uint8_t* BHAMR_CameraFOVScan14Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 1A");
+			Memory::Write(AspectRatioScan13Result + 0x6, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 13 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_ResolutionWidthScanResult + 0x1, iCurrentResX);
+		std::uint8_t* AspectRatioScan14Result = Memory::PatternScan(exeModule, "00 52 E8 9F 5C EB FF 83 C4 04 A3 C4 31 77 00 A1 C4 31 77 00 A3 F0 A8 76 00 68 AB AA AA 3F 68");
+		if (AspectRatioScan14Result)
+		{
+			spdlog::info("Aspect Ratio Scan 14: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan14Result + 0x1A - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_ResolutionHeightScanResult + 0x1, iCurrentResY);
+			Memory::Write(AspectRatioScan14Result + 0x1A, fNewAspectRatio);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio scan 14 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_AspectRatioScan1Result + 0x8, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan1Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D 48");
+		if (CameraFOVScan1Result)
+		{
+			spdlog::info("Camera FOV Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan1Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_AspectRatioScan2Result + 0x7, fNewAspectRatio);
+			Memory::Write(CameraFOVScan1Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 1 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_AspectRatioScan3Result + 0x7, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan2Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 B5");
+		if (CameraFOVScan2Result)
+		{
+			spdlog::info("Camera FOV Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan2Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_AspectRatioScan4Result + 0x6, fNewAspectRatio);
+			Memory::Write(CameraFOVScan2Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 2 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_AspectRatioScan5Result + 0x7, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan3Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 7E");
+		if (CameraFOVScan3Result)
+		{
+			spdlog::info("Camera FOV Scan 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan3Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_AspectRatioScan6Result + 0x7, fNewAspectRatio);
+			Memory::Write(CameraFOVScan3Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 3 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_AspectRatioScan7Result + 0x9, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan4Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 CE");
+		if (CameraFOVScan4Result)
+		{
+			spdlog::info("Camera FOV Scan 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan4Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_AspectRatioScan8Result + 0xC, fNewAspectRatio);
+			Memory::Write(CameraFOVScan4Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 4 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_AspectRatioScan9Result + 0x17, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan5Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 45");
+		if (CameraFOVScan5Result)
+		{
+			spdlog::info("Camera FOV Scan 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan5Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_AspectRatioScan10Result + 0xE, fNewAspectRatio);
+			Memory::Write(CameraFOVScan5Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 5 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_AspectRatioScan11Result + 0x18, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan6Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 8A");
+		if (CameraFOVScan6Result)
+		{
+			spdlog::info("Camera FOV Scan 6: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan6Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_AspectRatioScan12Result + 0x1C, fNewAspectRatio);
+			Memory::Write(CameraFOVScan6Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 6 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_AspectRatioScan13Result + 0x6, fNewAspectRatio);
+		std::uint8_t* CameraFOVScan7Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 4D");
+		if (CameraFOVScan7Result)
+		{
+			spdlog::info("Camera FOV Scan 7: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan7Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_AspectRatioScan14Result + 0x1A, fNewAspectRatio);
+			Memory::Write(CameraFOVScan7Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 7 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_CameraFOVScan1Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan8Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D C4");
+		if (CameraFOVScan8Result)
+		{
+			spdlog::info("Camera FOV Scan 8: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan8Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_CameraFOVScan2Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan8Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 8 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_CameraFOVScan3Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan9Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 2A");
+		if (CameraFOVScan9Result)
+		{
+			spdlog::info("Camera FOV Scan 9: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan9Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_CameraFOVScan4Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan9Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 9 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_CameraFOVScan5Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan10Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 97");
+		if (CameraFOVScan10Result)
+		{
+			spdlog::info("Camera FOV Scan 10: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan10Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_CameraFOVScan6Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan10Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 10 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_CameraFOVScan7Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan11Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 0E");
+		if (CameraFOVScan11Result)
+		{
+			spdlog::info("Camera FOV Scan 11: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan11Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_CameraFOVScan8Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan11Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 11 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_CameraFOVScan9Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan12Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 D2");
+		if (CameraFOVScan12Result)
+		{
+			spdlog::info("Camera FOV Scan 12: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan12Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_CameraFOVScan10Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan12Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 12 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_CameraFOVScan11Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan13Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 6B");
+		if (CameraFOVScan13Result)
+		{
+			spdlog::info("Camera FOV Scan 13: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan13Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_CameraFOVScan12Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan13Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 13 memory address.");
+			return;
+		}
 
-		Memory::Write(BHAMR_CameraFOVScan13Result + 0x1, fNewCameraFOV);
+		std::uint8_t* CameraFOVScan14Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 1A");
+		if (CameraFOVScan14Result)
+		{
+			spdlog::info("Camera FOV Scan 14: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan14Result + 0x1 - (std::uint8_t*)exeModule);
 
-		Memory::Write(BHAMR_CameraFOVScan14Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan14Result + 0x1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan 14 memory address.");
+			return;
+		}
 	}
 }
 
@@ -324,7 +593,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		Fix();
+		WidescreenFix();
 	}
 	return TRUE;
 }

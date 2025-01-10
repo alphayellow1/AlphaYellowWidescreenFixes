@@ -39,11 +39,11 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 
 // Game detection
 enum class Game
@@ -135,8 +135,8 @@ static void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["ResolutionFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["ResolutionFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -179,25 +179,40 @@ static bool DetectGame()
 
 static void FOVFix()
 {
-	if (eGameType == Game::MG && FixActive == true) {
-		std::uint8_t* MG_ResolutionWidthScanResult = Memory::PatternScan(exeModule, "8B 86 7C 01 00 00 8B 6C 24 2C 50 8B CE 89 BE 74 01 00 00");
-		if (MG_ResolutionWidthScanResult) {
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), MG_ResolutionWidthScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid MG_ResolutionWidthMidHook{};
-			MG_ResolutionWidthMidHook = safetyhook::create_mid(MG_ResolutionWidthScanResult,
-				[](SafetyHookContext& ctx) {
+	if (eGameType == Game::MG && bFixActive == true)
+	{
+		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "8B 86 7C 01 00 00 8B 6C 24 2C 50 8B CE 89 BE 74 01 00 00");
+		if (ResolutionWidthInstructionScanResult)
+		{
+			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult + 0xD - (std::uint8_t*)exeModule);
+			
+			static SafetyHookMid ResolutionWidthInstructionMidHook{};
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 0xD, [](SafetyHookContext& ctx)
+			{
 				ctx.edi = std::bit_cast<uint32_t>(iCurrentResX);
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width instruction memory address.");
+			return;
+		}
 
-		std::uint8_t* MG_ResolutionHeightScanResult = Memory::PatternScan(exeModule, "89 AE 78 01 00 00 E8 08 EB FF FF 89 86 9C 01 00 00 89 9E 64 03 00 00 89 9E 68 03 00 00 89 9E 94 03 00 00");
-		if (MG_ResolutionHeightScanResult) {
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), MG_ResolutionHeightScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid MG_ResolutionHeightMidHook{};
-			MG_ResolutionHeightMidHook = safetyhook::create_mid(MG_ResolutionHeightScanResult,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(exeModule, "89 AE 78 01 00 00 E8 08 EB FF FF 89 86 9C 01 00 00 89 9E 64 03 00 00 89 9E 68 03 00 00 89 9E 94 03 00 00");
+		if (ResolutionHeightInstructionScanResult)
+		{
+			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			static SafetyHookMid ResolutionHeightInstructionMidHook{};
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
+			{
 				ctx.ebp = std::bit_cast<uint32_t>(iCurrentResY);
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution height instruction memory address.");
+			return;
 		}
 	}
 }

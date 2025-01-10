@@ -11,7 +11,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -45,7 +45,7 @@ constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float fOriginalWeaponFOV = 1.75589966773987f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
@@ -147,8 +147,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -223,13 +223,18 @@ uint16_t GameVersionCheck()
 
 void FOVFix()
 {
-	if (eGameType == Game::PI1 && FixActive == true) {
+	if (eGameType == Game::PI1 && bFixActive == true)
+	{
 		GameVersionCheckValue = GameVersionCheck();
 
 		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "C7 44 24 0C 00 00 00 00 56 57 68 00 00 80 3F 6A 00 6A 00 6A 00 6A");
 		if (CameraFOVScanResult)
 		{
 			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 0xB - (std::uint8_t*)exeModule);
+
+			fNewCameraFOV = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) * 0.75f;
+
+			Memory::Write(CameraFOVScanResult + 0xB, fNewCameraFOV * fCameraFOVFactor);
 		}
 		else
 		{
@@ -237,53 +242,51 @@ void FOVFix()
 			return;
 		}
 
-		fNewCameraFOV = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) * 0.75f;
-
-		Memory::Write(CameraFOVScanResult + 0xB, fNewCameraFOV * fCameraFOVFactor);
-
 		fNewAspectRatio = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) * 0.75f * 4.0f;
 
-		if (GameVersionCheckValue == 29894) {
+		if (GameVersionCheckValue == 29894)
+		{
 			std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "00 00 E0 3F 00 00 80 40 33 33 B3 3F");
 			if (AspectRatioScanResult)
 			{
 				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x4 - (std::uint8_t*)exeModule);
+
+				Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
 			}
 			else
 			{
 				spdlog::error("Failed to locate aspect ratio memory address.");
 				return;
 			}
-
-			Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
 		}
-		else if (GameVersionCheckValue == 19290 || GameVersionCheckValue == 1571) {
+		else if (GameVersionCheckValue == 19290 || GameVersionCheckValue == 1571)
+		{
 			std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "00 00 E0 3F 00 00 00 40 00 00 80 40 CD CC 4C 3D");
 			if (AspectRatioScanResult)
 			{
 				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x8 - (std::uint8_t*)exeModule);
+
+				Memory::Write(AspectRatioScanResult + 0x8, fNewAspectRatio);
 			}
 			else
 			{
 				spdlog::error("Failed to locate aspect ratio memory address.");
 				return;
 			}
-
-			Memory::Write(AspectRatioScanResult + 0x8, fNewAspectRatio);
 		}
 
 		std::uint8_t* WeaponFOVScanResult = Memory::PatternScan(exeModule, "9A 99 19 44 00 00 00 40 52 C1 E0 3F 56 55 85 3F");
 		if (WeaponFOVScanResult)
 		{
 			spdlog::info("Weapon FOV: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVScanResult + 0x8 - (std::uint8_t*)exeModule);
+
+			Memory::Write(WeaponFOVScanResult + 0x8, fOriginalWeaponFOV * fWeaponFOVFactor);
 		}
 		else
 		{
 			spdlog::error("Failed to locate weapon FOV memory address.");
 			return;
 		}
-
-		Memory::Write(WeaponFOVScanResult + 0x8, fOriginalWeaponFOV * fWeaponFOVFactor);
 	}
 }
 

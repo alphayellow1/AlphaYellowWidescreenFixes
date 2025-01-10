@@ -21,6 +21,7 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
 HMODULE dllModule2;
 HMODULE thisModule;
 
@@ -39,22 +40,23 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// FOV 
-std::pair DesktopDimensions = { 0,0 };
-const float fNativeAspect = 4.0f / 3.0f;
-float fNewCameraHFOV;
-float fNewCameraFOV;
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalCameraFOV = 0.5f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // New INI variables
 float fNewRenderingDistance;
 float fFOVFactor;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
+float fNewCameraHFOV;
+float fNewCameraFOV;
+float fRenderingSidesValue;
 
 // Game detection
 enum class Game
@@ -149,12 +151,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load new INI entries
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "RenderingDistance", fNewRenderingDistance);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
@@ -190,6 +192,8 @@ bool DetectGame()
 		}
 	}
 
+	Sleep(3000);
+
 	dllModule2 = GetModuleHandleA("i3d2.dll");
 	if (!dllModule2)
 	{
@@ -202,65 +206,114 @@ bool DetectGame()
 	return true;
 }
 
-void FOV()
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	if (eGameType == Game::HDD && FixActive == true)
+	fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
+
+	_asm
 	{
-		std::uint8_t* HDD_CodecaveScanResult = Memory::PatternScan(dllModule2, "E9 BF 22 FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
+		fmul dword ptr ds : [fNewCameraFOV]
+	}
+}
 
-		std::uint8_t* HDD_CodecaveHFOVValueAddress = Memory::GetAbsolute(HDD_CodecaveScanResult + 0x7);
+static SafetyHookMid CameraHFOVInstructionHook{};
 
-		std::uint8_t* HDD_CodecaveOverallFOVValueAddress = Memory::GetAbsolute(HDD_CodecaveScanResult + 0xB);
+void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
 
-		std::uint8_t* HDD_CodecaveRenderingSidesValueAddress = Memory::GetAbsolute(HDD_CodecaveScanResult + 0xF);
+	_asm
+	{
+		fmul dword ptr ds : [fNewCameraHFOV]
+	}
+}
 
-		std::uint8_t* HDD_CodecaveFMULInstructionAddressInCodecave = Memory::GetAbsolute(HDD_CodecaveScanResult + 0x1A);
+static SafetyHookMid RenderingSidesInstructionHook{};
 
-		std::uint8_t* HDD_OverallFOVScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC");
+void RenderingSidesInstructionMidHook(SafetyHookContext& ctx)
+{
+	fRenderingSidesValue = 200.0f;
 
-		std::uint8_t* HDD_RenderingSidesScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? 89 8D 7C FF FF FF");
+	_asm
+	{
+		fmul dword ptr ds : [fRenderingSidesValue]
+	}
+}
 
-		Memory::Write(HDD_OverallFOVScanResult + 0x2, HDD_CodecaveOverallFOVValueAddress - 0x4);
+void FOVFix()
+{
+	if (eGameType == Game::HDD && bFixActive == true)
+	{
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 45 FC D8 F1 8B 4D F8 D9 1E");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is i3d2.dll+{:x}", CameraHFOVInstructionScanResult + 0x3 - (std::uint8_t*)dllModule2);
 
-		Memory::Write(HDD_RenderingSidesScanResult + 0x2, HDD_CodecaveRenderingSidesValueAddress - 0x4);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x3, CameraHFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			return;
+		}
 
-		std::uint8_t* HDD_RenderingDistanceScanResult = Memory::PatternScan(dllModule2, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00"); // fld dword ptr ds:[ebx+1EC]
-		if (HDD_RenderingDistanceScanResult) {
-			static SafetyHookMid HDD_RenderingDistanceMidHook{};
-			HDD_RenderingDistanceMidHook = safetyhook::create_mid(HDD_RenderingDistanceScanResult + 0x2,
-				[](SafetyHookContext& ctx) {
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is i3d2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x6, CameraFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* RenderingSidesInstructionScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? 89 8D 7C FF FF FF");
+		if (RenderingSidesInstructionScanResult)
+		{
+			spdlog::info("Rendering Sides Instruction: Address is i3d2.dll+{:x}", RenderingSidesInstructionScanResult - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(RenderingSidesInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			RenderingSidesInstructionHook = safetyhook::create_mid(RenderingSidesInstructionScanResult + 0x6, RenderingSidesInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate rendering sides instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* RenderingDistanceScanResult = Memory::PatternScan(dllModule2, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00"); // fld dword ptr ds:[ebx+1EC]
+		if (RenderingDistanceScanResult)
+		{
+			spdlog::info("Rendering Distance Instruction: Address is i3d2.dll+{:x}", RenderingDistanceScanResult + 0x2 - (std::uint8_t*)dllModule2);
+
+			static SafetyHookMid RenderingDistanceMidHook{};
+			RenderingDistanceMidHook = safetyhook::create_mid(RenderingDistanceScanResult + 0x2, [](SafetyHookContext& ctx)
+			{
 				*reinterpret_cast<float*>(ctx.ebx + 0x1EC) = fNewRenderingDistance;
 			});
 		}
-
-		std::uint8_t* HDD_HFOVScanResult = Memory::PatternScan(dllModule2, "D9 45 FC D8 F1 8B 4D F8 D9 1E");
-
-		Memory::PatchBytes(HDD_HFOVScanResult, "\xE9\x9C\x4F\x0E\x00", 5);
-
-		Memory::PatchBytes(HDD_CodecaveScanResult + 0x15, "\xD9\x45\xFC\xD8\x0D\x37\x63\x0F\x10\xD8\xF1\xE9\x54\xB0\xF1\xFF", 16);
-
-		Memory::Write(HDD_CodecaveFMULInstructionAddressInCodecave - 0x4, HDD_CodecaveHFOVValueAddress - 0x4);
-
-		fNewCameraHFOV = (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
-
-		fNewCameraFOV = 0.5f * fFOVFactor;
-
-		Memory::Write(HDD_CodecaveHFOVValueAddress - 0x4, fNewCameraHFOV);
-
-		Memory::Write(HDD_CodecaveOverallFOVValueAddress - 0x4, fNewCameraFOV);
-
-		Memory::Write(HDD_CodecaveRenderingSidesValueAddress - 0x4, 200.0f);
+		else
+		{
+			spdlog::error("Failed to locate rendering distance instruction memory address.");
+			return;
+		}
 	}
 }
 
 DWORD __stdcall Main(void*)
 {
-	Sleep(3000);
-
 	Logging();
 	Configuration();
 	if (DetectGame()) {
-		FOV();
+		FOVFix();
 	}
 	return true;
 }

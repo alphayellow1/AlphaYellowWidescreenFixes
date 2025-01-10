@@ -11,7 +11,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -351,7 +350,7 @@ void WidescreenFix()
 		{
 			spdlog::error("Failed to locate camera FOV scan 5 memory address.");
 			return;
-		}	
+		}
 	}
 }
 

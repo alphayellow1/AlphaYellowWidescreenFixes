@@ -12,7 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -45,13 +45,12 @@ constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
-float fOriginalCameraFOV;
 float fNewAspectRatio;
 
 // Game detection
@@ -144,8 +143,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -190,11 +189,16 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (eGameType == Game::ES && FixActive == true) {
+	if (eGameType == Game::ES && bFixActive == true)
+	{
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "87 82 89 42 ?? ?? ?? ?? 00 00 00 A0");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x4 - (std::uint8_t*)exeModule);
+
+			fNewAspectRatio = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) * 0.75f * 4.0f;
+
+			Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
 		}
 		else
 		{
@@ -202,41 +206,29 @@ void FOVFix()
 			return;
 		}
 
-		fNewAspectRatio = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) * 0.75f * 4.0f;
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 4B 30 D9 1C 24 8D 44 24 48 52 8D 4C 24 74 50 51");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-		Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				static const std::unordered_set<float> validFOVMultipliers =
+				{
+				0.8000000119f, 1.0f, 1.25f, 1.25f, 1.428148031f, 1.428147912f // FOV multipliers
+				};
 
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "D8 4B 30 D9 1C 24 8D 44 24 48 52 8D 4C 24 74 50 51");
-		if (CameraFOVScanResult) {
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid CameraFOVMidHook{};
-			CameraFOVMidHook = safetyhook::create_mid(CameraFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.ebx + 0x30) == 0.8000000119f)
+				float* anglePtr = reinterpret_cast<float*>(ctx.ebx + 0x30);
+				if (validFOVMultipliers.find(*anglePtr) != validFOVMultipliers.end())
 				{
-					*reinterpret_cast<float*>(ctx.ebx + 0x30) = 0.8000000119f / (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY))); // Menu FOV
-				}
-				else if (*reinterpret_cast<float*>(ctx.ebx + 0x30) == 1.0f)
-				{
-					*reinterpret_cast<float*>(ctx.ebx + 0x30) = 1.0f / (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY))); // Map Briefing FOV #1
-				}
-				else if (*reinterpret_cast<float*>(ctx.ebx + 0x30) == 1.25f)
-				{
-					*reinterpret_cast<float*>(ctx.ebx + 0x30) = 1.25f / (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY))); // Menu FOV #2
-				}
-				else if (*reinterpret_cast<float*>(ctx.ebx + 0x30) == 1.428148031f)
-				{
-					*reinterpret_cast<float*>(ctx.ebx + 0x30) = 1.428148031f / (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY))); // Menu FOV #2
-				}
-				else if (*reinterpret_cast<float*>(ctx.ebx + 0x30) == 1.428147912f)
-				{
-					*reinterpret_cast<float*>(ctx.ebx + 0x30) = 1.428147912f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio); // Map Briefing FOV #2
+					*anglePtr = *anglePtr / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
 				}
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}

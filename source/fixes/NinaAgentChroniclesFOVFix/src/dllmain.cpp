@@ -12,7 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -42,18 +42,17 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float epsilon = 0.00001f;
 
 // Ini variables
-bool bFixFOV = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
-
-const float epsilon = 0.00001f;
+int iCurrentResX;
+int iCurrentResY;
 
 // Game detection
 enum class Game
@@ -145,12 +144,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOV"], "Enabled", bFixFOV);
-	spdlog_confparse(bFixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -201,49 +200,64 @@ bool DetectGame()
 	return true;
 }
 
-void FOV()
+void FOVFix()
 {
-	std::uint8_t* NAA_HipfireAndCutscenesHFOVScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00 8B 04 91");
-	if (NAA_HipfireAndCutscenesHFOVScanResult) {
-		spdlog::info("Hipfire and Cutscenes HFOV: Address is cshell.dll+{:x}", NAA_HipfireAndCutscenesHFOVScanResult - (std::uint8_t*)dllModule);
-		static SafetyHookMid NAA_HipfireAndCutscenesHFOVMidHook{};
-		NAA_HipfireAndCutscenesHFOVMidHook = safetyhook::create_mid(NAA_HipfireAndCutscenesHFOVScanResult,
-			[](SafetyHookContext& ctx) {
-			if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-			else if (ctx.esi == std::bit_cast<uint32_t>(1.483529806137085f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.483529806137085f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-			else if (ctx.esi == std::bit_cast<uint32_t>(1.7453292608261108f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.7453292608261108f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-			else if (ctx.esi == std::bit_cast<uint32_t>(1.4169141054153442f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.4169141054153442f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-			else if (ctx.esi == std::bit_cast<uint32_t>(1.3089969158172607f))
-			{
-				ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
-			}
-		});
-	}
+	if (eGameType == Game::NAA && bFixActive == true)
+	{
+		std::uint8_t* HipfireAndCutscenesHFOVInstructionScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00 8B 04 91");
+		if (HipfireAndCutscenesHFOVInstructionScanResult)
+		{
+			spdlog::info("Hipfire and Cutscenes Camera HFOV Instruction: Address is cshell.dll+{:x}", HipfireAndCutscenesHFOVInstructionScanResult - (std::uint8_t*)dllModule);
 
-	if (eGameType == Game::NAA) {
-		std::uint8_t* NAA_HipfireAndCutscenesHFOVScanResult2 = Memory::PatternScan(exeModule, "89 81 C0 01 00 00 C3 90 90 90");
-		if (NAA_HipfireAndCutscenesHFOVScanResult2) {
-			spdlog::info("Hipfire and Cutscenes HFOV: Address is {:s}+{:x}", sExeName.c_str(), NAA_HipfireAndCutscenesHFOVScanResult2 - (std::uint8_t*)exeModule);
-			static SafetyHookMid NAA_HipfireAndCutscenesHFOV2MidHook{};
-			NAA_HipfireAndCutscenesHFOV2MidHook = safetyhook::create_mid(NAA_HipfireAndCutscenesHFOVScanResult2,
-				[](SafetyHookContext& ctx) {
-				if (ctx.eax == std::bit_cast<uint32_t>(1.3089969158172607f))
+			static SafetyHookMid HipfireAndCutscenesHFOVInstructionMidHook{};
+			HipfireAndCutscenesHFOVInstructionMidHook = safetyhook::create_mid(HipfireAndCutscenesHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / oldAspectRatio)));
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+				}
+				else if (ctx.esi == std::bit_cast<uint32_t>(1.483529806137085f))
+				{
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.483529806137085f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+				}
+				else if (ctx.esi == std::bit_cast<uint32_t>(1.7453292608261108f))
+				{
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.7453292608261108f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+				}
+				else if (ctx.esi == std::bit_cast<uint32_t>(1.4169141054153442f))
+				{
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.4169141054153442f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+				}
+				else if (ctx.esi == std::bit_cast<uint32_t>(1.3089969158172607f))
+				{
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
 				}
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate hipfire and cutscenes camera HFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* HipfireAndCutscenesHFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "89 81 C0 01 00 00 C3 90 90 90");
+		if (HipfireAndCutscenesHFOVInstruction2ScanResult)
+		{
+			spdlog::info("Hipfire and Cutscenes HFOV: Address is {:s}+{:x}", sExeName.c_str(), HipfireAndCutscenesHFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid HipfireAndCutscenesHFOVInstruction2MidHook{};
+			HipfireAndCutscenesHFOVInstruction2MidHook = safetyhook::create_mid(HipfireAndCutscenesHFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				if (ctx.eax == std::bit_cast<uint32_t>(1.3089969158172607f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+				}
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate hipfire and cutscenes camera HFOV instruction 2 memory address.");
+			return;
 		}
 	}
 }
@@ -254,7 +268,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOV();
+		FOVFix();
 	}
 	return TRUE;
 }

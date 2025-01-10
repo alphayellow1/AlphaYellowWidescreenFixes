@@ -192,14 +192,14 @@ bool DetectGame()
 	return true;
 }
 
-SafetyHookMid hook1{};
+static SafetyHookMid CameraHFOVHook{};
 void CameraHFOVMidHook(SafetyHookContext& ctx)
 {
 	fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
 
 	_asm
 	{
-		fld fNewCameraHFOV
+		fld dword ptr ds : [fNewCameraHFOV]
 	}
 }
 
@@ -211,7 +211,12 @@ void WidescreenFix()
 		if (ResolutionScanResult)
 		{
 			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0x4 - (std::uint8_t*)exeModule);
+
 			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0x8 - (std::uint8_t*)exeModule);
+
+			Memory::Write(ResolutionScanResult + 0x4, iCurrentResX);
+
+			Memory::Write(ResolutionScanResult + 0x8, iCurrentResY);
 		}
 		else
 		{
@@ -219,24 +224,20 @@ void WidescreenFix()
 			return;
 		}
 
-		Memory::Write(ResolutionScanResult + 0x4, iCurrentResX);
-
-		Memory::Write(ResolutionScanResult + 0x8, iCurrentResY);
-
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "C7 40 2C 00 00 80 BF D8 3D ?? ?? ?? ?? D9 45 18 D8 65 14");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraHFOVInstructionScanResult + 0x7, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraHFOVHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0xD, CameraHFOVMidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera HFOV instruction memory address.");
 			return;
 		}
-
-		Memory::PatchBytes(CameraHFOVInstructionScanResult + 0x7, "\x90\x90\x90\x90\x90\x90", 6);
-
-		hook1 = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0xD, CameraHFOVMidHook);
 	}
 }
 

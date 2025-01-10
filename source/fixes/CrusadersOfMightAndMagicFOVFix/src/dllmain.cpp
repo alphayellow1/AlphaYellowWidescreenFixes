@@ -39,16 +39,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -140,12 +141,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -184,16 +185,35 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (eGameType == Game::COMM && FixActive == true) {
-		std::uint8_t* COMM_CameraHFOVScanResult = Memory::PatternScan(exeModule, "4C 02 00 00 00 00 80 3F C7 84 24 50");
-		spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), COMM_CameraHFOVScanResult + 0x4 - (std::uint8_t*)exeModule);
+	if (eGameType == Game::COMM && bFixActive == true)
+	{
+		fNewCameraFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
 
-		std::uint8_t* COMM_CameraVFOVScanResult = Memory::PatternScan(exeModule, "60 02 00 00 00 00 80 3F C7 84 24 64");
-		spdlog::info("Camera VFOV: Address is {:s}+{:x}", sExeName.c_str(), COMM_CameraVFOVScanResult + 0x4 - (std::uint8_t*)exeModule);
+		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "4C 02 00 00 00 00 80 3F C7 84 24 50");
+		if (CameraHFOVScanResult)
+		{
+			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 0x4 - (std::uint8_t*)exeModule);;
 
-		Memory::Write(COMM_CameraHFOVScanResult + 0x4, (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+			Memory::Write(CameraHFOVScanResult + 0x4, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV memory address.");
+			return;
+		}
 
-		Memory::Write(COMM_CameraVFOVScanResult + 0x4, (4.0f / 3.0f) / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		std::uint8_t* CameraVFOVScanResult = Memory::PatternScan(exeModule, "60 02 00 00 00 00 80 3F C7 84 24 64");
+		if (CameraVFOVScanResult)
+		{
+			spdlog::info("Camera VFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVScanResult + 0x4 - (std::uint8_t*)exeModule);
+
+			Memory::Write(CameraVFOVScanResult + 0x4, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera VFOV memory address.");
+			return;
+		}
 	}
 }
 

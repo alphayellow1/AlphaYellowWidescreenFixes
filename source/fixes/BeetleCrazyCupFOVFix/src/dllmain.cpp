@@ -39,16 +39,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOriginalCameraFOV = 0.35f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 float fNewCameraFOV;
 float fFOVFactor;
 
@@ -142,8 +143,8 @@ static void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -186,14 +187,24 @@ static bool DetectGame()
 	return false;
 }
 
-static void Fix()
+static void FOVFix()
 {
-	if (eGameType == Game::BCC && FixActive == true) {
-		std::uint8_t* BCC_CameraFOVScanResult = Memory::PatternScan(exeModule, "00 80 40 ?? ?? ?? ?? CD CC CC");
+	if (eGameType == Game::BCC && bFixActive == true)
+	{
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "00 80 40 ?? ?? ?? ?? CD CC CC");
+		if (CameraFOVScanResult)
+		{
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 0x3 - (std::uint8_t*)exeModule);
 
-		fNewCameraFOV = 0.35f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f));
+			fNewCameraFOV = fOriginalCameraFOV / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
 
-		Memory::Write(BCC_CameraFOVScanResult + 0x3, fNewCameraFOV * (1.0f / fFOVFactor));
+			Memory::Write(CameraFOVScanResult + 0x3, fNewCameraFOV * (1.0f / fFOVFactor));
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV memory address.");
+			return;
+		}
 	}
 }
 
@@ -203,7 +214,7 @@ static DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		Fix();
+		FOVFix();
 	}
 	return TRUE;
 }

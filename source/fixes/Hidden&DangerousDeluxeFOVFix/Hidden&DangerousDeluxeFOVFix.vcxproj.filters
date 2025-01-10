@@ -24,24 +24,21 @@
     <ClInclude Include="src\helper.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="external\safetyhook\safetyhook.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="external\safetyhook\Zydis.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\dllmain.h">
+    <ClInclude Include="external\safetyhook\safetyhook.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="external\safetyhook\safetyhook.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="external\safetyhook\Zydis.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="external\safetyhook\safetyhook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

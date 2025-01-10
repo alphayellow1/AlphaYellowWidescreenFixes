@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -43,11 +42,11 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Ini variables
-bool FixActive = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
+int iCurrentResX;
+int iCurrentResY;
 
 // Game detection
 enum class Game
@@ -139,12 +138,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["ResolutionFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["ResolutionFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -201,31 +200,31 @@ bool DetectGame()
 
 void ResolutionFix()
 {
-	if (eGameType == Game::APFI && FixActive == true)
+	if (eGameType == Game::APFI && bFixActive == true)
 	{
 		std::uint8_t* ResolutionsScanResult = Memory::PatternScan(dllModule2, "3D ?? ?? ?? ?? 72 4B 75 09 81 7E 08 ?? ?? ?? ?? 74 40 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 30 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 20 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 10 3D ?? ?? ?? ?? 75 5A 81 7E 08 ?? ?? ?? ?? 75 51");
 		if (ResolutionsScanResult)
 		{
 			spdlog::info("Resolutions: Address is D3DDrv.dll+{:x}", ResolutionsScanResult - (std::uint8_t*)dllModule2);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x1, iCurrentResX);
-			
+
 			Memory::Write(ResolutionsScanResult + 0xC, iCurrentResY);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x13, iCurrentResX);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x1C, iCurrentResY);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x23, iCurrentResX);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x2C, iCurrentResY);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x33, iCurrentResX);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x3C, iCurrentResY);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x43, iCurrentResX);
-			
+
 			Memory::Write(ResolutionsScanResult + 0x4C, iCurrentResY);
 		}
 		else
@@ -237,6 +236,7 @@ void ResolutionFix()
 		std::uint8_t* ResolutionScan1Result = Memory::PatternScan(dllModule3, "89 51 64 8B 55 E8");
 		if (ResolutionScan1Result) {
 			spdlog::info("Resolution 1: Address is WinDrv.dll+{:x}", ResolutionScan1Result - (std::uint8_t*)dllModule3);
+			
 			static SafetyHookMid Resolution1MidHook{};
 			Resolution1MidHook = safetyhook::create_mid(ResolutionScan1Result, [](SafetyHookContext& ctx)
 			{
@@ -253,6 +253,7 @@ void ResolutionFix()
 		if (ResolutionScan2Result)
 		{
 			spdlog::info("Resolution 2: Address is WinDrv.dll+{:x}", ResolutionScan2Result - (std::uint8_t*)dllModule3);
+			
 			static SafetyHookMid Resolution2MidHook{};
 			Resolution2MidHook = safetyhook::create_mid(ResolutionScan2Result, [](SafetyHookContext& ctx)
 			{
@@ -269,6 +270,7 @@ void ResolutionFix()
 		if (ResolutionScan3Result)
 		{
 			spdlog::info("Resolution 3: Address is WinDrv.dll+{:x}", ResolutionScan3Result - (std::uint8_t*)dllModule3);
+			
 			static SafetyHookMid Resolution3MidHook{};
 			Resolution3MidHook = safetyhook::create_mid(ResolutionScan3Result, [](SafetyHookContext& ctx)
 			{
@@ -285,6 +287,7 @@ void ResolutionFix()
 		if (ResolutionScan4Result)
 		{
 			spdlog::info("Resolution 4: Address is WinDrv.dll+{:x}", ResolutionScan4Result - (std::uint8_t*)dllModule3);
+			
 			static SafetyHookMid Resolution4MidHook{};
 			Resolution4MidHook = safetyhook::create_mid(ResolutionScan4Result, [](SafetyHookContext& ctx)
 			{

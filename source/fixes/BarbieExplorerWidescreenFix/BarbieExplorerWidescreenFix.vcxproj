@@ -102,14 +102,15 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
-      <AdditionalIncludeDirectories>external\inipp;external\spdlog\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>external\inipp;external\spdlog\include;external\safetyhook;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <DebugInformationFormat>None</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -141,10 +142,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="external\safetyhook\safetyhook.cpp" />
+    <ClCompile Include="external\safetyhook\Zydis.c" />
     <ClCompile Include="src\dllmain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="external\inipp\inipp\inipp.h" />
+    <ClInclude Include="external\safetyhook\safetyhook.hpp" />
+    <ClInclude Include="external\safetyhook\Zydis.h" />
     <ClInclude Include="src\helper.hpp" />
     <ClInclude Include="src\stdafx.h" />
   </ItemGroup>

@@ -12,7 +12,8 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
+#include <unordered_set>
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -40,19 +41,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float oldWidth = 4.0f;
-constexpr float oldHeight = 3.0f;
-constexpr float oldAspectRatio = oldWidth / oldHeight;
+constexpr float fOldWidth = 4.0f;
+constexpr float fOldHeight = 3.0f;
+constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float epsilon = 0.00001f;
 
 // Ini variables
-bool FixFOV = true;
+bool bFixActive;
 
 // Variables
-int iCurrentResX = 0;
-int iCurrentResY = 0;
-
-const float epsilon = 0.00001f;
+int iCurrentResX;
+int iCurrentResY;
 
 // Game detection
 enum class Game
@@ -144,12 +143,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixFOV);
-	spdlog_confparse(FixFOV);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Resolution"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Resolution"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -186,115 +185,101 @@ bool DetectGame()
 	return false;
 }
 
-void FOV()
+void FOVFix()
 {
-	if (eGameType == Game::EFNS) {
-		std::uint8_t* EFNS_HFOVScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
-		if (EFNS_HFOVScanResult) {
-			spdlog::info("HFOV: Address is {:s}+{:x}", sExeName.c_str(), EFNS_HFOVScanResult - (std::uint8_t*)exeModule);
-			static SafetyHookMid EFNS_HFOVMidHook{};
-			EFNS_HFOVMidHook = safetyhook::create_mid(EFNS_HFOVScanResult,
-				[](SafetyHookContext& ctx) {
-				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6234371662139893f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6211177110671997f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6191377639770508f ||
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6167963743209839f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6144379377365112f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6124579906463623f ||
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6107758283615112f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.608136534690857f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6057976484298706f ||
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.60347580909729f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.6014761924743652f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.599176287651062f ||
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5971375703811646f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5957971811294556f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5928162336349487f ||
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5907751321792603f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5884557962417603f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.586097240447998f ||
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5841171741485596f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.581795334815979f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5794367790222168f ||
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.577434778213501f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5757964849472046f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5727958679199219f ||
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.5707963705062866f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 0.4363323152065277f)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / oldAspectRatio));
+	if (eGameType == Game::EFNS && bFixActive == true)
+	{
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Define the set of valid angles
+				static const std::unordered_set<float> validAngles = {
+					1.6234371662139893f, 1.6211177110671997f, 1.6191377639770508f,
+					1.6167963743209839f, 1.6144379377365112f, 1.6124579906463623f,
+					1.6107758283615112f, 1.608136534690857f, 1.6057976484298706f,
+					1.60347580909729f,  1.6014761924743652f,  1.599176287651062f,
+					1.5971375703811646f, 1.5957971811294556f, 1.5928162336349487f,
+					1.5907751321792603f, 1.5884557962417603f, 1.586097240447998f,
+					1.5841171741485596f, 1.581795334815979f,  1.5794367790222168f,
+					1.577434778213501f,  1.5757964849472046f,  1.5727958679199219f,
+					1.5707963705062866f, 0.4363323152065277f
+				};
+
+				// Access the angle at the specified memory location
+				float& angle = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+
+				// Check if the angle is in the set of valid angles
+				if (validAngles.find(angle) != validAngles.end()) {
+					// Adjust the angle based on the aspect ratio
+					angle = 2.0f * atanf(tanf(angle / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
 				}
 			});
+		}
 
-			std::uint8_t* EFNS_VFOVScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00 89 45 C0");
-			if (EFNS_VFOVScanResult) {
-				spdlog::info("VFOV: Address is {:s}+{:x}", sExeName.c_str(), EFNS_VFOVScanResult - (std::uint8_t*)exeModule);
-				static SafetyHookMid EFNS_VFOVMidHook{};
-				EFNS_VFOVMidHook = safetyhook::create_mid(EFNS_VFOVScanResult,
-					[](SafetyHookContext& ctx) {
-					if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780973672866821f || *reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780972480773926f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1780973672866821f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780973672866821f;
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00 89 45 C0");
+		if (CameraVFOVInstructionScanResult)
+		{
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraVFOVInstructionMidHook{};
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Define a struct to hold the target value and a condition lambda
+				struct ValueCondition
+				{
+					float targetValue;
+					std::function<bool(float)> condition;
+				};
+
+				std::vector<ValueCondition> valueConditions =
+				{
+					{1.1780973672866821f, [&](float value) { return value == 1.1780973672866821f || fabs(value - (1.1780973672866821f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1780972480773926f, [&](float value) { return value == 1.1780972480773926f || fabs(value - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1757389307022095f, [&](float value) { return value == 1.1757389307022095f || fabs(value - (1.1757389307022095f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1730972528457642f, [&](float value) { return value == 1.1730972528457642f || fabs(value - (1.1730972528457642f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1714589595794678f, [&](float value) { return value == 1.1714589595794678f || fabs(value - (1.1714589595794678f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.169456958770752f, [&](float value) { return value == 1.169456958770752f || fabs(value - (1.169456958770752f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1670984029769897f, [&](float value) { return value == 1.1670984029769897f || fabs(value - (1.1670984029769897f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1647765636444092f, [&](float value) { return value == 1.1647765636444092f || fabs(value - (1.1647765636444092f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1627964973449707f, [&](float value) { return value == 1.1627964973449707f || fabs(value - (1.1627964973449707f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1604379415512085f, [&](float value) { return value == 1.1604379415512085f || fabs(value - (1.1604379415512085f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1581186056137085f, [&](float value) { return value == 1.1581186056137085f || fabs(value - (1.1581186056137085f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.15607750415802f, [&](float value) { return value == 1.15607750415802f || fabs(value - (1.15607750415802f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1530965566635132f, [&](float value) { return value == 1.1530965566635132f || fabs(value - (1.1530965566635132f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1517561674118042f, [&](float value) { return value == 1.1517561674118042f || fabs(value - (1.1517561674118042f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.149397611618042f, [&](float value) { return value == 1.149397611618042f || fabs(value - (1.149397611618042f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1474175453186035f, [&](float value) { return value == 1.1474175453186035f || fabs(value - (1.1474175453186035f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1450175046920776f, [&](float value) { return value == 1.1450175046920776f || fabs(value - (1.1450175046920776f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1430960893630981f, [&](float value) { return value == 1.1430960893630981f || fabs(value - (1.1430960893630981f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1407572031021118f, [&](float value) { return value == 1.1407572031021118f || fabs(value - (1.1407572031021118f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1381179094314575f, [&](float value) { return value == 1.1381179094314575f || fabs(value - (1.1381179094314575f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1364357471466064f, [&](float value) { return value == 1.1364357471466064f || fabs(value - (1.1364357471466064f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1344558000564575f, [&](float value) { return value == 1.1344558000564575f || fabs(value - (1.1344558000564575f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1320973634719849f, [&](float value) { return value == 1.1320973634719849f || fabs(value - (1.1320973634719849f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.129755973815918f, [&](float value) { return value == 1.129755973815918f || fabs(value - (1.129755973815918f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.127776026725769f, [&](float value) { return value == 1.127776026725769f || fabs(value - (1.127776026725769f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1254565715789795f, [&](float value) { return value == 1.1254565715789795f || fabs(value - (1.1254565715789795f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{0.3272492289543152f, [&](float value) { return value == 0.3272492289543152f || fabs(value - (0.3272492289543152f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+				};
+
+				// Access the float value at the memory address ecx + 0x19C
+				float& floatValue = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
+
+				// Loop through the value conditions
+				for (const auto& vc : valueConditions)
+				{
+					if (vc.condition(floatValue))
+					{
+						floatValue = vc.targetValue;
+						break;
 					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1757389307022095f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1757389307022095f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1757389307022095f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1730972528457642f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1730972528457642f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1730972528457642f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1714589595794678f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1714589595794678f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1714589595794678f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.169456958770752f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.169456958770752f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.169456958770752f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1670984029769897f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1670984029769897f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1670984029769897f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1647765636444092f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1647765636444092f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1647765636444092f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1627964973449707f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1627964973449707f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1627964973449707f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1604379415512085f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1604379415512085f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1604379415512085f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1581186056137085f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1581186056137085f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1581186056137085f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.15607750415802f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.15607750415802f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.15607750415802f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1530965566635132f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1530965566635132f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1530965566635132f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1517561674118042f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1517561674118042f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1517561674118042f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.149397611618042f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.149397611618042f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.149397611618042f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1474175453186035f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1474175453186035f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1474175453186035f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1450175046920776f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1450175046920776f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1450175046920776f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1430960893630981f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1430960893630981f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1430960893630981f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1407572031021118f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1407572031021118f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1407572031021118f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1381179094314575f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1381179094314575f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1381179094314575f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1364357471466064f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1364357471466064f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1364357471466064f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1344558000564575f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1344558000564575f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1344558000564575f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1320973634719849f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1320973634719849f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1320973634719849f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.129755973815918f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.129755973815918f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.129755973815918f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.127776026725769f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.127776026725769f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.127776026725769f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1254565715789795f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1254565715789795f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1254565715789795f;
-					}
-					else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.3272492289543152f || fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (0.3272492289543152f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / (4.0f / 3.0f)))) < epsilon) {
-						*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.3272492289543152f;
-					}
-				});
-			}
+				}
+			});
 		}
 	}
 }
@@ -305,7 +290,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOV();
+		FOVFix();
 	}
 	return TRUE;
 }
