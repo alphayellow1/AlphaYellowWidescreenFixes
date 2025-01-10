@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -189,23 +190,26 @@ void FOVFix()
 {
 	if (bFixActive == true)
 	{
-		std::uint8_t* CodecaveScanResult = Memory::PatternScan(dllModule2, "E9 65 17 FE FF 00 00");
-
-		std::uint8_t* CodecaveValueAddress = Memory::GetAbsolute(CodecaveScanResult + 0x2A);
-
-		Memory::PatchBytes(CodecaveScanResult + 0x7, "\x3E\xD9\x84\x24\xD0\x02\x00\x00\xD8\x0D\x28\xC9\x46\x00\xD9\x9C\x24\xD0\x02\x00\x00\x8D\x94\x24\xD0\x02\x00\x00\xE9\xCD\x17\xEB\xFF", 33);
-
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8D 94 24 A8 02 00 00 52 8D 94 24 D0 02 00 00 8D 8C 24 AC 02 00 00");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is Supreme_Game.dll+{:x}", CameraHFOVInstructionScanResult + 0x8 - (std::uint8_t*)dllModule2);
 
-		Memory::PatchBytes(CameraHFOVInstructionScanResult + 0x8, "\xE9\x14\xE8\x14\x00\x90\x90", 7);
+			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		Memory::Write(CodecaveScanResult + 0x11, CodecaveValueAddress - 0x4);
+			fNewCameraHFOV = fNewAspectRatio / fOldAspectRatio;
 
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fNewCameraHFOV = fNewAspectRatio / fOldAspectRatio;
-
-		Memory::Write(CodecaveValueAddress - 0x4, fNewCameraHFOV);
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x8, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<float*>(ctx.esp + 0x2D0) = fNewCameraHFOV;
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			return;
+		}
 	}
 }
 
