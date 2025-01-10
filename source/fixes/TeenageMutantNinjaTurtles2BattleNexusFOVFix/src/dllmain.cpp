@@ -12,7 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atan, tan
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -45,6 +45,7 @@ constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
 constexpr float fOriginalCameraFOV = 0.5f;
+constexpr float fOriginalAspectRatio = 0.75f;
 
 // Ini variables
 bool FixActive;
@@ -195,11 +196,12 @@ void FOVFix()
 	if (eGameType == Game::TMNT2BN && FixActive == true)
 	{
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 43 24 D9 53 24 8B 5B 04 85 DB 74 32 D9 54 24 10");
-		if (CameraFOVInstructionScanResult) {
+		if (CameraFOVInstructionScanResult)
+		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			static SafetyHookMid CameraFOVInstructionMidHook{};
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult,
-				[](SafetyHookContext& ctx) {
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
 				fNewCameraFOV = fOriginalCameraFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
 
 				*reinterpret_cast<float*>(ctx.ebx + 0x24) = fNewCameraFOV * fFOVFactor;
@@ -215,16 +217,16 @@ void FOVFix()
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x7 - (std::uint8_t*)exeModule);
+
+			fNewAspectRatio = fOriginalAspectRatio * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+
+			Memory::Write(AspectRatioScanResult + 0x7, fNewAspectRatio);
 		}
 		else
 		{
 			spdlog::error("Failed to locate aspect ratio memory address.");
 			return;
 		}
-
-		fNewAspectRatio = 0.75f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
-
-		Memory::Write(AspectRatioScanResult + 0x7, fNewAspectRatio);
 	}
 }
 
