@@ -255,51 +255,51 @@ static void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 		cmp eax, fOriginalCutscenesCameraFOV1
 		je FOV1
 
-		Compare2:
+		Compare1:
 		cmp eax, fOriginalCutscenesCameraFOV2
 		je FOV2
 
-		Compare3:
+		Compare2:
 		cmp eax, fOriginalCutscenesCameraFOV3
 		je FOV3
 
-		Compare4:
+		Compare3:
 		cmp eax, fOriginalCutscenesCameraFOV4
 		je FOV4
 
-		Compare5:
+		Compare4:
 		cmp eax, fOriginalCutscenesCameraFOV5
 		je FOV5
 
-		Compare6:
+		Compare5:
 		cmp eax, fOriginalCutscenesCameraFOV6
 		je FOV6
 		jmp OriginalCode
 
-		FOV1 :
+		FOV1:
 		mov eax, dword ptr ds:[fNewCutscenesCameraFOV1]
 		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare2
+		jmp Compare1
 
 		FOV2:
 		mov eax, dword ptr ds:[fNewCutscenesCameraFOV2]
 		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare3
+		jmp Compare2
 
 		FOV3:
 		mov eax, dword ptr ds:[fNewCutscenesCameraFOV3]
 		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare4
+		jmp Compare3
 
 		FOV4:
 		mov eax, dword ptr ds:[fNewCutscenesCameraFOV4]
 		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare5
+		jmp Compare4
 
 		FOV5:
 		mov eax, dword ptr ds:[fNewCutscenesCameraFOV5]
 		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare6
+		jmp Compare5
 
 		FOV6:
 		mov eax, dword ptr ds:[fNewCutscenesCameraFOV6]
