@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -25,7 +26,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "ZanZarahTheHiddenPortalWidescreenFix";
+std::string sFixName = "DarkenedSkyeFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -51,20 +52,27 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float newValue1;
-float newValue2;
-float newValue3;
-float newValue4;
-float newValue5;
-float newValue6;
-float newValue7;
-float newValue8;
-float newValue9;
+float fFOVFactor;
+float fNewAspectRatio;
+float fNewGameplayCameraFOV;
+float fNewCutscenesCameraFOV;
+
+// Function to convert degrees to radians
+float DegToRad(float degrees)
+{
+	return degrees * (fPi / 180.0f);
+}
+
+// Function to convert radians to degrees
+float RadToDeg(float radians)
+{
+	return radians * (180.0f / fPi);
+}
 
 // Game detection
 enum class Game
 {
-	ZTHP,
+	DS,
 	Unknown
 };
 
@@ -75,7 +83,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::ZTHP, {"ZanZarah: The Hidden Portal", "zanthp.exe"}},
+	{Game::DS, {"Darkened Skye", "Skye.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -151,14 +159,16 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -193,140 +203,169 @@ bool DetectGame()
 	return false;
 }
 
-void WidescreenFix()
+static SafetyHookMid GameplayCameraFOVInstructionHook{};
+
+static void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	if (eGameType == Game::ZTHP && bFixActive == true)
+	float fOriginalGameplayCameraFOV = 90.0f;
+
+	fNewGameplayCameraFOV = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+
+	_asm
 	{
-		newValue1 = 0.75f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		push eax
+		mov eax, dword ptr ds : [0x0054D014]
+		cmp eax, fOriginalGameplayCameraFOV
+		je ChangeFov
+		jmp OriginalCode
 
-		newValue2 = 0.65f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		ChangeFov :
+		mov eax, dword ptr ds : [fNewGameplayCameraFOV]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp OriginalCode
 
-		newValue3 = 0.71f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+			OriginalCode :
+		pop eax
+			fld dword ptr ds : [0x0054D014]
+	}
+}
 
-		newValue4 = 0.72f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+static SafetyHookMid CutscenesCameraFOVInstructionHook{};
 
-		newValue5 = 0.68f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+static void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float fOriginalCutscenesCameraFOV1 = 45.00003433f;
+	float fOriginalCutscenesCameraFOV2 = 30.0000248f;
+	float fOriginalCutscenesCameraFOV3 = 60.000049591064f;
+	float fOriginalCutscenesCameraFOV4 = 65.000679016113f;
+	float fOriginalCutscenesCameraFOV5 = 45.000038146973f;
+	float fOriginalCutscenesCameraFOV6 = 53.00004196167f;
 
-		newValue6 = 0.725f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+	float fNewCutscenesCameraFOV1 = 2.0f * RadToDeg(atanf(tanf(DegToRad(45.00003433f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	float fNewCutscenesCameraFOV2 = 2.0f * RadToDeg(atanf(tanf(DegToRad(30.0000248f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	float fNewCutscenesCameraFOV3 = 2.0f * RadToDeg(atanf(tanf(DegToRad(60.000049591064f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	float fNewCutscenesCameraFOV4 = 2.0f * RadToDeg(atanf(tanf(DegToRad(65.000679016113f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	float fNewCutscenesCameraFOV5 = 2.0f * RadToDeg(atanf(tanf(DegToRad(45.000038146973f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	float fNewCutscenesCameraFOV6 = 2.0f * RadToDeg(atanf(tanf(DegToRad(53.00004196167f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 
-		newValue7 = 0.685f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+	_asm
+	{
+		push eax
+		mov eax, dword ptr ds : [0x0054D014]
+		cmp eax, fOriginalCutscenesCameraFOV1
+		je FOV1
 
-		newValue8 = 0.69f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		Compare2 :
+		cmp eax, fOriginalCutscenesCameraFOV2
+			je FOV2
 
-		std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "3B 05 ?? ?? ?? ?? 74 4E 83 4D 10 FF");
-		if (Pattern1ScanResult)
+			Compare3 :
+		cmp eax, fOriginalCutscenesCameraFOV3
+			je FOV3
+
+			Compare4 :
+		cmp eax, fOriginalCutscenesCameraFOV4
+			je FOV4
+
+			Compare5 :
+		cmp eax, fOriginalCutscenesCameraFOV5
+			je FOV5
+
+			Compare6 :
+		cmp eax, fOriginalCutscenesCameraFOV6
+			je FOV6
+			jmp OriginalCode
+
+			FOV1 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV1]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare2
+
+			FOV2 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV2]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare3
+
+			FOV3 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV3]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare4
+
+			FOV4 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV4]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare5
+
+			FOV5 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV5]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare6
+
+			FOV6 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV6]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp OriginalCode
+
+			OriginalCode :
+		pop eax
+			fld dword ptr ds : [0x0054D014]
+	}
+}
+
+void FOVFix()
+{
+	if (eGameType == Game::DS && bFixActive == true)
+	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 14 D0 54 00 D8 1D 7C D1 4B 00");
+		if (GameplayCameraFOVInstructionScanResult)
 		{
-			spdlog::info("Pattern 1 detected.");
+			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(Pattern1ScanResult + 0x6, "\x90\x90", 2);
+			Memory::PatchBytes(GameplayCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult + 0x6, GameplayCameraFOVInstructionMidHook);
+
+			/*
+			static SafetyHookMid GameplayCameraFOVInstructionMidHook{};
+			GameplayCameraFOVInstructionMidHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				std::uint8_t* GameplayCameraFOVScanResult = Memory::PatternScan(exeModule, "CD CC AC 3F 9A 99 81 3F ?? ?? ?? ?? 01 00 00 00");
+
+				if (*reinterpret_cast<float*>(GameplayCameraFOVScanResult + 0x8) == 90.0f)
+				{
+					fNewGameplayCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+
+					Memory::Write(GameplayCameraFOVScanResult + 0x8, fFOVFactor * fNewGameplayCameraFOV);
+				}
+			});
+			*/
 		}
 
-		std::uint8_t* Pattern2ScanResult = Memory::PatternScan(exeModule, "8D 75 C4 F3 A5 8D 73 2C 8B CE E8 67 5C 00 00");
-		if (Pattern2ScanResult)
+		std::uint8_t* CutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 14 D0 54 00 D9 1D 7C D1 4B 00");
+		if (CutscenesCameraFOVInstructionScanResult)
 		{
-			spdlog::info("Pattern 2 detected.");
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(Pattern2ScanResult + 0x5, "\xE9\x0E\x2C\x19\x00", 5);
-		}
+			Memory::PatchBytes(CutscenesCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-		std::uint8_t* Pattern3ScanResult = Memory::PatternScan(exeModule, "8B B0 A0 5C 5A 00 89 71 08 8B B0 A4 5C 5A 00 89 71 0C 8B 80 A8 5C 5A 00 89 41 10 89 51 14 5E");
-		if (Pattern3ScanResult)
-		{
-			spdlog::info("Pattern 3 detected.");
+			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult + 0x6, CutscenesCameraFOVInstructionMidHook);
 
-			Memory::PatchBytes(Pattern3ScanResult, "\xE9\x87\xAA\x18\x00\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 31);
-		}
+			/*
+			static SafetyHookMid CutscenesCameraFOVInstructionMidHook{};
+			CutscenesCameraFOVInstructionMidHook = safetyhook::create_mid(CutscenesCameraFOVScanResult, [](SafetyHookContext& ctx)
+			{
+				std::uint8_t* CutscenesCameraFOVScanResult = Memory::PatternScan(exeModule, "B8 5D 6D 0E ?? ?? ?? ?? B0 6E 49 00 00");
 
-		std::uint8_t* Pattern4ScanResult = Memory::PatternScan(exeModule, "33 C9 8B 30 89 14 24 89 74 24 04 8B 70 04 89 74 24 08 8B 40 08 89 4C 24 14 89 4C 24 10");
-		if (Pattern4ScanResult)
-		{
-			spdlog::info("Pattern 4 detected.");
+				if (*reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 45.00003433f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 30.0000248f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 60.000049591064f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 65.000679016113f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 45.000038146973f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 53.00004196167f)
+				{
+					fNewCutscenesCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(*reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 
-			Memory::PatchBytes(Pattern4ScanResult, "\x59\x59\x59\x68\x38\x04\x00\x00\x68\x80\x07\x00\x00\x52\x33\xC9\x89\x4C\x24\x14\x89\x4C\x24\x10\xB8\x20\x00\x00\x00", 29);
-
-			Memory::Write(Pattern4ScanResult + 0x4, iCurrentResY);
-
-			Memory::Write(Pattern4ScanResult + 0x9, iCurrentResX);
-		}
-
-		std::uint8_t* Pattern6ScanResult = Memory::PatternScan(exeModule, "F9 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
-		if (Pattern6ScanResult)
-		{
-			spdlog::info("Pattern 6 detected.");
-
-			Memory::PatchBytes(Pattern6ScanResult, "\xF9\xFF\x00\x8D\x73\x2C\x8B\xCE\xC7\x44\x24\x08\x80\x07\x00\x00\xC7\x44\x24\x0C\x38\x04\x00\x00\xE9\xD8\xD3\xE6\xFF\x00\x00\x00\xC7\x41\x08\x80\x07\x00\x00\xC7\x41\x0C\x38\x04\x00\x00\xC7\x41\x10\x20\x00\x00\x00\xC7\x41\x14\x00\x00\x00\x00\x5E\xC2\x04", 63);
-		}
-
-		std::uint8_t* Pattern7ScanResult = Memory::PatternScan(exeModule, "DA E1 42 00 00 00 40 3F");
-		if (Pattern7ScanResult)
-		{
-			spdlog::info("Pattern 7 detected.");
-
-			Memory::Write(Pattern7ScanResult + 0x4, newValue1);
-		}
-
-		std::uint8_t* Pattern8ScanResult = Memory::PatternScan(exeModule, "7D 3F 66 66 26 3F 00 00");
-		if (Pattern8ScanResult)
-		{
-			spdlog::info("Pattern 8 detected.");
-
-			Memory::Write(Pattern8ScanResult + 0x2, newValue2);
-		}
-
-		std::uint8_t* Pattern9ScanResult = Memory::PatternScan(exeModule, "66 66 A6 3F 00 00 00 00 00 00 40 3F 00 00 80 3F");
-		if (Pattern9ScanResult)
-		{
-			spdlog::info("Pattern 9 detected.");
-
-			Memory::Write(Pattern9ScanResult + 0x8, newValue1);
-		}
-
-		std::uint8_t* Pattern10ScanResult = Memory::PatternScan(exeModule, "00 00 C0 BF AB AA AA 3E 66 66 E6 3F 8F C2 35 3F");
-		if (Pattern10ScanResult)
-		{
-			spdlog::info("Pattern 10 detected.");
-
-			Memory::Write(Pattern10ScanResult + 0xC, newValue3);
-		}
-
-		std::uint8_t* Pattern11ScanResult = Memory::PatternScan(exeModule, "EC 51 38 3F 7B 14 2E 3F C3 F5 08 3F A6 9B C4 3B 0A D7 23 3B CD CC 0C 3F 9A 99 39 3F 29 5C 2F 3F AD AC EF B7 17 B7 D1 37 7B 14 0E 3F 00 00 C0 3E E1 7A 14 3E D7 A3 30 3F");
-		if (Pattern11ScanResult)
-		{
-			spdlog::info("Pattern 11 detected.");
-
-			Memory::Write(Pattern11ScanResult, newValue4);
-
-			Memory::Write(Pattern11ScanResult + 0x4, newValue5);
-
-			Memory::Write(Pattern11ScanResult + 0x12, newValue6);
-
-			Memory::Write(Pattern11ScanResult + 0x1C, newValue7);
-
-			Memory::Write(Pattern11ScanResult + 0x34, newValue8);
-		}
-
-		std::uint8_t* Pattern12ScanResult = Memory::PatternScan(exeModule, "F9 FF 00 8D 73 2C 8B CE C7 44 24 08 80 07 00 00 C7 44 24 0C 38 04 00 00 E9 D8 D3 E6 FF 00 00 00 C7 41 08 80 07 00 00 C7 41 0C 38 04 00 00 C7 41 10 20 00 00 00 C7 41 14 00 00 00 00 5E C2 04");
-		if (Pattern12ScanResult)
-		{
-			spdlog::info("Pattern 12 detected.");
-
-			Memory::Write(Pattern12ScanResult + 0xC, iCurrentResX);
-
-			Memory::Write(Pattern12ScanResult + 0x14, iCurrentResY);
-
-			Memory::Write(Pattern12ScanResult + 0x23, iCurrentResX);
-
-			Memory::Write(Pattern12ScanResult + 0x2A, iCurrentResY);
-		}
-
-		std::uint8_t* Pattern13ScanResult = Memory::PatternScan(exeModule, "E1 42 00 DA E1 42 00 00 00 40 3F 00 00 00 00 00");
-		if (Pattern13ScanResult)
-		{
-			spdlog::info("Pattern 13 detected.");
-
-			newValue9 = 0.625f; // 750.0f / 1200.0f;
-
-			Memory::Write(Pattern13ScanResult + 0x7, newValue9);
+					Memory::Write(CutscenesCameraFOVScanResult + 0x4, fNewCutscenesCameraFOV);
+				}
+			});
+			*/
 		}
 	}
 }
@@ -337,7 +376,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
