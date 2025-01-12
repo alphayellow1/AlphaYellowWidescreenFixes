@@ -214,19 +214,19 @@ static void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	_asm
 	{
 		push eax
-		mov eax, dword ptr ds : [0x0054D014]
+		mov eax, dword ptr ds:[0x0054D014]
 		cmp eax, fOriginalGameplayCameraFOV
-		je ChangeFov
+		je ChangeFOV
 		jmp OriginalCode
 
-		ChangeFov :
-		mov eax, dword ptr ds : [fNewGameplayCameraFOV]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp OriginalCode
+		ChangeFOV:
+		mov eax, dword ptr ds:[fNewGameplayCameraFOV]
+		mov dword ptr ds:[0x0054D014],eax
+		jmp OriginalCode
 
-			OriginalCode :
+		OriginalCode:
 		pop eax
-			fld dword ptr ds : [0x0054D014]
+		fld dword ptr ds:[0x0054D014]
 	}
 }
 
@@ -251,64 +251,64 @@ static void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	_asm
 	{
 		push eax
-		mov eax, dword ptr ds : [0x0054D014]
+		mov eax, dword ptr ds:[0x0054D014]
 		cmp eax, fOriginalCutscenesCameraFOV1
 		je FOV1
 
-		Compare2 :
+		Compare2:
 		cmp eax, fOriginalCutscenesCameraFOV2
-			je FOV2
+		je FOV2
 
-			Compare3 :
+		Compare3:
 		cmp eax, fOriginalCutscenesCameraFOV3
-			je FOV3
+		je FOV3
 
-			Compare4 :
+		Compare4:
 		cmp eax, fOriginalCutscenesCameraFOV4
-			je FOV4
+		je FOV4
 
-			Compare5 :
+		Compare5:
 		cmp eax, fOriginalCutscenesCameraFOV5
-			je FOV5
+		je FOV5
 
-			Compare6 :
+		Compare6:
 		cmp eax, fOriginalCutscenesCameraFOV6
-			je FOV6
-			jmp OriginalCode
+	    je FOV6
+		jmp OriginalCode
 
-			FOV1 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV1]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare2
+		FOV1 :
+		mov eax, dword ptr ds:[fNewCutscenesCameraFOV1]
+		mov dword ptr ds:[0x0054D014],eax
+		jmp Compare2
 
-			FOV2 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV2]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare3
+		FOV2:
+		mov eax, dword ptr ds:[fNewCutscenesCameraFOV2]
+		mov dword ptr ds:[0x0054D014],eax
+		jmp Compare3
 
-			FOV3 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV3]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare4
+		FOV3:
+		mov eax, dword ptr ds:[fNewCutscenesCameraFOV3]
+		mov dword ptr ds:[0x0054D014],eax
+		jmp Compare4
 
-			FOV4 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV4]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare5
+		FOV4:
+		mov eax, dword ptr ds:[fNewCutscenesCameraFOV4]
+		mov dword ptr ds:[0x0054D014],eax
+		jmp Compare5
 
-			FOV5 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV5]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare6
+		FOV5:
+		mov eax, dword ptr ds:[fNewCutscenesCameraFOV5]
+		mov dword ptr ds:[0x0054D014],eax
+		jmp Compare6
 
-			FOV6 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV6]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp OriginalCode
+		FOV6:
+		mov eax, dword ptr ds:[fNewCutscenesCameraFOV6]
+		mov dword ptr ds:[0x0054D014],eax
+		jmp OriginalCode
 
-			OriginalCode :
+		OriginalCode:
 		pop eax
-			fld dword ptr ds : [0x0054D014]
+		fld dword ptr ds:[0x0054D014]
 	}
 }
 
