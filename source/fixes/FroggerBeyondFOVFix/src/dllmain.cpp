@@ -210,7 +210,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera VFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVScanResult + 0x8 - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraHFOVScanResult + 0x8, fNewCameraHFOVAndVFOV);
+			Memory::Write(CameraVFOVScanResult + 0x8, fNewCameraHFOVAndVFOV);
 		}
 		else
 		{
