@@ -273,7 +273,7 @@ static void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 		Compare6:
 		cmp eax, fOriginalCutscenesCameraFOV6
-	    je FOV6
+		je FOV6
 		jmp OriginalCode
 
 		FOV1 :
