@@ -45,8 +45,6 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float fOriginalCameraHFOV = 0.7853981853f;
-constexpr float fOriginalCameraVFOV = 0.589048624f;
 constexpr float epsilon = 0.00001f;
 
 // Ini variables
@@ -56,7 +54,6 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fNewCameraHFOV;
 
 // Game detection
 enum class Game
