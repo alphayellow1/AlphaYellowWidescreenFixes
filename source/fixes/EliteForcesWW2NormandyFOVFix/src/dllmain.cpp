@@ -200,7 +200,7 @@ void FOVFix()
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.eax + 0x150) == 1.5707963705063f || *reinterpret_cast<float*>(ctx.eax + 0x150) == 1.570796371f)
+				if (*reinterpret_cast<float*>(ctx.eax + 0x150) == 1.5707963705063f)
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x150) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x150) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
 				}
