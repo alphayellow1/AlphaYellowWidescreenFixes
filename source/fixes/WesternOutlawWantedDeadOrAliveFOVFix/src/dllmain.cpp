@@ -197,7 +197,7 @@ void FOVFix()
 			{
 				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0471975803375244f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0471999645233154f)
 				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(1.0471975803375244 / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(1.0471975803375244f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
 				}
 			});
 		}
