@@ -233,14 +233,14 @@ void FOVFix()
 			{
 				float& currentFOVValue = *reinterpret_cast<float*>(ctx.edi + 0xD0);
 
-				if (currentFOVValue == 75.0f)
+				if (currentFOVValue == 60.0f)
 				{
 					currentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
 					lastModifiedFOV = currentFOVValue;
 					return;
 				}
 
-				if (currentFOVValue != lastModifiedFOV && currentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(75.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
+				if (currentFOVValue != lastModifiedFOV && currentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(60.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
 				{
 					float modifiedHFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
 
@@ -258,15 +258,15 @@ void FOVFix()
 			return;
 		}
 
-		/*
-		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 97 DC 00 00 00 D8 8F D4 00 00 00");
+
+		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D8 B7 D4 00 00 00 D9 9F DC 00 00 00");
 		if (AspectRatioInstruction1ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction1ScanResult + 0x6 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction1MidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 0x6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.edi + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
 			});
@@ -277,17 +277,16 @@ void FOVFix()
 			return;
 		}
 
-
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(dllModule2, "D8 B7 D8 00 00 00 D9 9F E0 00 00 00");
+		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 97 E0 00 00 00 D8 8F D8 00 00 00");
 		if (AspectRatioInstruction2ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction2ScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 2: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction2ScanResult + 0x6 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction2MidHook{};
 
-			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult + 0x6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edi + 0xD8) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
+				*reinterpret_cast<float*>(ctx.edi + 0xD8) = 1.0f;
 			});
 		}
 		else
@@ -295,16 +294,15 @@ void FOVFix()
 			spdlog::error("Failed to locate second aspect ratio instruction memory address.");
 			return;
 		}
-		*/
 
-		std::uint8_t* AspectRatioInstruction3ScanResult = Memory::PatternScan(dllModule2, "D8 B7 D4 00 00 00 D9 9F DC 00 00 00");
+		std::uint8_t* AspectRatioInstruction3ScanResult = Memory::PatternScan(dllModule2, "D9 97 DC 00 00 00 D8 8F D4 00 00 00");
 		if (AspectRatioInstruction3ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 3: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction3ScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 3: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction3ScanResult + 0x6 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction3MidHook{};
 
-			AspectRatioInstruction3MidHook = safetyhook::create_mid(AspectRatioInstruction3ScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstruction3MidHook = safetyhook::create_mid(AspectRatioInstruction3ScanResult + 0x6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.edi + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
 			});
@@ -315,15 +313,14 @@ void FOVFix()
 			return;
 		}
 
-
-		std::uint8_t* AspectRatioInstruction4ScanResult = Memory::PatternScan(dllModule2, "D9 97 E0 00 00 00 D8 8F D8 00 00 00");
+		std::uint8_t* AspectRatioInstruction4ScanResult = Memory::PatternScan(dllModule2, "D8 B7 D8 00 00 00 D9 9F E0 00 00 00");
 		if (AspectRatioInstruction4ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 4: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction4ScanResult + 0x6 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 4: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction4ScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction4MidHook{};
 
-			AspectRatioInstruction4MidHook = safetyhook::create_mid(AspectRatioInstruction4ScanResult + 0x6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction4MidHook = safetyhook::create_mid(AspectRatioInstruction4ScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.edi + 0xD8) = 1.0f;
 			});
@@ -333,7 +330,6 @@ void FOVFix()
 			spdlog::error("Failed to locate fourth aspect ratio instruction memory address.");
 			return;
 		}
-
 	}
 }
 
