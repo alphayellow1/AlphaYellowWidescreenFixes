@@ -27,8 +27,8 @@ HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "CabelasBigGameHunter2004SeasonFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixName = "Cabelas4x4OffroadAdventure3FOVFix";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -55,6 +55,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fFOVFactor;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -164,8 +165,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
