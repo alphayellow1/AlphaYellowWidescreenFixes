@@ -258,6 +258,7 @@ void FOVFix()
 			return;
 		}
 
+		/*
 		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 97 DC 00 00 00 D8 8F D4 00 00 00");
 		if (AspectRatioInstruction1ScanResult)
 		{
@@ -276,7 +277,7 @@ void FOVFix()
 			return;
 		}
 
-		/*
+
 		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(dllModule2, "D8 B7 D8 00 00 00 D9 9F E0 00 00 00");
 		if (AspectRatioInstruction2ScanResult)
 		{
@@ -294,7 +295,7 @@ void FOVFix()
 			spdlog::error("Failed to locate second aspect ratio instruction memory address.");
 			return;
 		}
-
+		*/
 
 		std::uint8_t* AspectRatioInstruction3ScanResult = Memory::PatternScan(dllModule2, "D8 B7 D4 00 00 00 D9 9F DC 00 00 00");
 		if (AspectRatioInstruction3ScanResult)
@@ -324,7 +325,7 @@ void FOVFix()
 
 			AspectRatioInstruction4MidHook = safetyhook::create_mid(AspectRatioInstruction4ScanResult + 0x6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edi + 0xD8) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
+				*reinterpret_cast<float*>(ctx.edi + 0xD8) = 1.0f;
 			});
 		}
 		else
@@ -332,7 +333,7 @@ void FOVFix()
 			spdlog::error("Failed to locate fourth aspect ratio instruction memory address.");
 			return;
 		}
-		*/
+
 	}
 }
 
