@@ -60,6 +60,7 @@ float newValue6;
 float newValue7;
 float newValue8;
 float newValue9;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -197,21 +198,23 @@ void WidescreenFix()
 {
 	if (eGameType == Game::ZTHP && bFixActive == true)
 	{
-		newValue1 = 0.75f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		
+		newValue1 = 0.75f * (fOldAspectRatio / fNewAspectRatio);
 
-		newValue2 = 0.65f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		newValue2 = 0.65f * (fOldAspectRatio / fNewAspectRatio);
 
-		newValue3 = 0.71f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		newValue3 = 0.71f * (fOldAspectRatio / fNewAspectRatio);
 
-		newValue4 = 0.72f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		newValue4 = 0.72f * (fOldAspectRatio / fNewAspectRatio);
 
-		newValue5 = 0.68f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		newValue5 = 0.68f * (fOldAspectRatio / fNewAspectRatio);
 
-		newValue6 = 0.725f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		newValue6 = 0.725f * (fOldAspectRatio / fNewAspectRatio);
 
-		newValue7 = 0.685f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		newValue7 = 0.685f * (fOldAspectRatio / fNewAspectRatio);
 
-		newValue8 = 0.69f * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+		newValue8 = 0.69f * (fOldAspectRatio / fNewAspectRatio);
 
 		std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "3B 05 ?? ?? ?? ?? 74 4E 83 4D 10 FF");
 		if (Pattern1ScanResult)
