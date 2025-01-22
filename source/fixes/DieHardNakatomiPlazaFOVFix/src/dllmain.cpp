@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DieHardNakatomiPlazaFOVFix";
-std::string sFixVersion = "1.2"; // Updated version
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
