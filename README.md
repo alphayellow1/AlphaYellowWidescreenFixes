@@ -22,7 +22,7 @@ I use x86 assembly to patch the game executables, DLLs or other related files, a
 1. Download the latest release for the desired game.
 2. Locate the game directory for the game you wish to fix.
 3. Copy the corresponding fix files into the game directory.
-4. Follow any game-specific instructions provided in the release page description or inside the fixer executable.
+4. Follow any game-specific instructions provided in the release page description.
 
 ## Contributing
 Contributions are welcome! If you have a new fix for a classic game or improvements for an existing one in this repository, open a pull request with your changes or additions.
