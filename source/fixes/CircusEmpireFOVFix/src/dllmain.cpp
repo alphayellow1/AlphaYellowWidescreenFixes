@@ -54,6 +54,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -218,17 +219,33 @@ void FOVFix()
 {
 	if (eGameType == Game::CE && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
 		if (CameraFOVInstruction1ScanResult)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstruction1MidHook{};
+
+			static float lastModifiedFOV1 = 0.0f; // Tracks the last modified FOV value
+
 			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 0x11, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.edx + 0x108) == 1.22173059f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 1.256637096f)
+				float& currentFOVValue1 = *reinterpret_cast<float*>(ctx.edx + 0x108);
+
+				// Check if the current FOV value was already modified
+				if (currentFOVValue1 != lastModifiedFOV1)
 				{
-					*reinterpret_cast<float*>(ctx.edx + 0x108) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x108) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					// Calculate the new FOV based on aspect ratios
+					float modifiedFOVValue1 = fFOVFactor * (2.0f * atanf(tanf(currentFOVValue1 / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+
+					// Update the value only if the modification is meaningful
+					if (currentFOVValue1 != modifiedFOVValue1)
+					{
+						currentFOVValue1 = modifiedFOVValue1;
+						lastModifiedFOV1 = modifiedFOVValue1;
+					}
 				}
 			});
 		}
@@ -244,11 +261,25 @@ void FOVFix()
 			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstruction2MidHook{};
+
+			static float lastModifiedFOV2 = 0.0f; // Tracks the last modified FOV value
+
 			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.edx + 0x114) - 0.7853981852531433f) < epsilon)
+				float& currentFOVValue2 = *reinterpret_cast<float*>(ctx.edx + 0x114);
+
+				// Check if the current FOV value was already modified
+				if (currentFOVValue2 != lastModifiedFOV2)
 				{
-					*reinterpret_cast<float*>(ctx.edx + 0x114) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x114) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					// Calculate the new FOV based on aspect ratios
+					float modifiedFOVValue2 = fFOVFactor * (2.0f * atanf(tanf(currentFOVValue2 / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+
+					// Update the value only if the modification is meaningful
+					if (currentFOVValue2 != modifiedFOVValue2)
+					{
+						currentFOVValue2 = modifiedFOVValue2;
+						lastModifiedFOV2 = modifiedFOVValue2;
+					}
 				}
 			});
 		}

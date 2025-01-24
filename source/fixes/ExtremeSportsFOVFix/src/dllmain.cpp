@@ -192,12 +192,14 @@ void FOVFix()
 {
 	if (eGameType == Game::ES && bFixActive == true)
 	{
+		fNewAspectRatio2 = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "87 82 89 42 ?? ?? ?? ?? 00 00 00 A0");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x4 - (std::uint8_t*)exeModule);
 
-			fNewAspectRatio = (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) * 0.75f * 4.0f;
+			fNewAspectRatio1 = fNewAspectRatio2 * 0.75f * 4.0f;
 
 			Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
 		}
@@ -222,7 +224,7 @@ void FOVFix()
 
 				if (currentFOVValue == 1.428147912f)
 				{
-					currentFOVValue = (fFOVFactor * (currentFOVValue / (fOldAspectRatio / fNewAspectRatio))) / 3.0f;
+					currentFOVValue = fFOVFactor * (currentFOVValue / (fOldAspectRatio / fNewAspectRatio2));
 					lastModifiedFOV = currentFOVValue; // Update tracking variable
 					return;
 				}
@@ -231,7 +233,7 @@ void FOVFix()
 				if (currentFOVValue != lastModifiedFOV)
 				{
 					// Calculate the new FOV based on aspect ratios
-					float modifiedFOVValue = (currentFOVValue / (fOldAspectRatio / fNewAspectRatio)) / 3.0f;
+					float modifiedFOVValue = currentFOVValue / (fOldAspectRatio / fNewAspectRatio2);
 
 					// Update the value only if the modification is meaningful
 					if (currentFOVValue != modifiedFOVValue)
