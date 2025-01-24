@@ -4,6 +4,13 @@ This repository is dedicated to enhancing the experience of classic PC games. It
 ## Languages Used
 I use x86 assembly to patch the game executables, DLLs or other related files, and C++ for the DLL injection logic.
 
+## Softwares Used
+- Cheat Engine (for memory scanning/hacking and testing ASM scripts)
+- x32dbg (for debugging/comparing assembly code)
+- Ghidra (for analyzing the decompiled code)
+- HxD (for hex editing files)
+- Visual Studio 2022 Community Edition (for building the C++ DLLs and writing custom logic for the hooks)
+
 ## Features
 - **FOV Fixes:** Fix the field of view to prevent cropping or stretching, and improve immersion.
 - **HUD Adjustments:** Correct HUD elements to fit different screen resolutions and aspect ratios.
