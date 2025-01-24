@@ -1,0 +1,20 @@
+name: build
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  cmake:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+    steps:
+    - uses: actions/checkout@v4
+    - run: cmake .
+    - run: cmake --build .
+    - run: ctest -V

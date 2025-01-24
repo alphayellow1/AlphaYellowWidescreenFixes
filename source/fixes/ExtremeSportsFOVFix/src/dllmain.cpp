@@ -43,6 +43,7 @@ std::string sExeName;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float epsilon = 0.0001f;
 
 // Ini variables
 bool bFixActive;
@@ -206,23 +207,38 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 4B 30 D9 1C 24 8D 44 24 48 52 8D 4C 24 74 50 51");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 40 D8 4B 30 D9 1C 24 8D 44 24 48");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			static float lastModifiedFOV = 0.0f; // Tracks the last modified FOV value
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				static const std::unordered_set<float> validFOVMultipliers =
-				{
-				0.8000000119f, 1.0f, 1.25f, 1.25f, 1.428148031f, 1.428147912f // FOV multipliers
-				};
+				float& currentFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x40);
 
-				float* anglePtr = reinterpret_cast<float*>(ctx.ebx + 0x30);
-				if (validFOVMultipliers.find(*anglePtr) != validFOVMultipliers.end())
+				if (currentFOVValue == 1.428147912f)
 				{
-					*anglePtr = *anglePtr / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+					currentFOVValue = (fFOVFactor * (currentFOVValue / (fOldAspectRatio / fNewAspectRatio))) / 3.0f;
+					lastModifiedFOV = currentFOVValue; // Update tracking variable
+					return;
+				}
+
+				// Check if the current FOV value was already modified
+				if (currentFOVValue != lastModifiedFOV)
+				{
+					// Calculate the new FOV based on aspect ratios
+					float modifiedFOVValue = (currentFOVValue / (fOldAspectRatio / fNewAspectRatio)) / 3.0f;
+
+					// Update the value only if the modification is meaningful
+					if (currentFOVValue != modifiedFOVValue)
+					{
+						currentFOVValue = modifiedFOVValue;
+						lastModifiedFOV = modifiedFOVValue;
+					}
 				}
 			});
 		}
