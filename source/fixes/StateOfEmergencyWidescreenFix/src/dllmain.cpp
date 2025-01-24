@@ -12,8 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <unordered_set>
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -24,11 +22,10 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "RevolutionFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "StateOfEmergencyWidescreenFix";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,11 +39,9 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -55,24 +50,12 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fFOVFactor;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fNewRenderingSidesValue;
 
 // Game detection
 enum class Game
 {
-	REV,
+	SOE,
 	Unknown
 };
 
@@ -83,7 +66,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::REV, {"Revolution", "MainDll.dll"}},
+	{Game::SOE, {"State of Emergency", "KaosPC.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -159,16 +142,14 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -195,6 +176,7 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+			return true;
 		}
 		else
 		{
@@ -202,95 +184,87 @@ bool DetectGame()
 			return false;
 		}
 	}
-
-	while (!dllModule2)
-	{
-		dllModule2 = GetModuleHandleA("EngineDll.dll");
-		spdlog::info("Waiting for EngineDll.dll to load...");
-		Sleep(1000);
-	}
-
-	spdlog::info("Successfully obtained handle for EngineDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
 }
+
+SafetyHookMid RenderingSidesInstructionHook{};
+
+void RenderingSidesInstructionMidHook(SafetyHookContext& ctx)
+{
+	fNewRenderingSidesValue = fOldAspectRatio / fNewAspectRatio;
+
+	_asm
+	{
+		fld dword ptr ds : [fNewRenderingSidesValue]
+	}
+};
 
 void FOVFix()
 {
-	if (eGameType == Game::REV && bFixActive == true)
+	if (eGameType == Game::SOE && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 D0 00 00 00 D8 0D ?? ?? ?? ??");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "A3 38 DE 4D 00 E8 89 FA FF FF 6B C0 5C");
+		if (ResolutionWidthInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is EngineDll.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-			static float lastModifiedFOV = 0.0f;
+			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
-
-				if (currentFOVValue == 90.0f)
-				{
-					currentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-					lastModifiedFOV = currentFOVValue;
-					return;
-				}
-
-				if (currentFOVValue != lastModifiedFOV && currentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
-				{
-					float modifiedHFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-
-					if (currentFOVValue != modifiedHFOVValue)
-					{
-						currentFOVValue = modifiedHFOVValue;
-						lastModifiedFOV = modifiedHFOVValue;
-					}
-				}
+				ctx.eax = std::bit_cast<uint32_t>(iCurrentResX);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate resolution width instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
-		if (AspectRatioInstruction1ScanResult)
+		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(exeModule, "89 15 3C DE 4D 00 E8 74 FA FF FF 83 C4 0C");
+		if (ResolutionHeightInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll.dll+{:x}", AspectRatioInstruction1ScanResult + 0x6 - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid AspectRatioInstruction1MidHook{};
+			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 0x6, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
+				ctx.edx = std::bit_cast<uint32_t>(iCurrentResY);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate first aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate resolution height instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 83 D8 00 00 00 D9 C2 DE CA D9 C9 D8 F1");
-		if (AspectRatioInstruction2ScanResult)
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "3F 75 08 C7 44 24 48 ?? ?? ?? ?? D9 44 24 54 8B");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is EngineDll.dll+{:x}", AspectRatioInstruction2ScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid AspectRatioInstruction2MidHook{};
-
-			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<float*>(ctx.ebx + 0xD8) = 1.0f;
-			});
+			Memory::Write(AspectRatioScanResult + 0x7, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::error("Failed to locate second aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio memory address.");
+			return;
+		}
+
+		std::uint8_t* RenderingSidesInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 AC 49 4C 00 D8 4C 24 50");
+		if (RenderingSidesInstructionScanResult)
+		{
+			spdlog::info("Rendering Sides Instruction: Address is {:s}+{:x}", sExeName.c_str(), RenderingSidesInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(RenderingSidesInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			RenderingSidesInstructionHook = safetyhook::create_mid(RenderingSidesInstructionScanResult + 0x6, RenderingSidesInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate rendering sides instruction memory address.");
 			return;
 		}
 	}
