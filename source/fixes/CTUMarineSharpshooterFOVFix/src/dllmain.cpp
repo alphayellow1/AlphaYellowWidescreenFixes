@@ -212,9 +212,25 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) > 0.51f && *reinterpret_cast<float*>(ctx.ecx + 0x198) < 0.53f)
+				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.04719758f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.046400428f)
 				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ecx + 0x198) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(1.04719758f / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+				}
+			});
+		}
+
+		std::uint8_t* CameraHFOVZoomInstructionScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00 8B 45 10");
+		if (CameraHFOVZoomInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVZoomInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraHFOVZoomInstructionMidHook{};
+
+			CameraHFOVZoomInstructionMidHook = safetyhook::create_mid(CameraHFOVZoomInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				if (ctx.eax > std::bit_cast<uint32_t>(0.51f) && ctx.eax < std::bit_cast<uint32_t>(0.53f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.5235988498f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}
