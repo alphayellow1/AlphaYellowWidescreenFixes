@@ -217,6 +217,11 @@ void FOVFix()
 				}
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV scan memory address.");
+			return;
+		}
 
 		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 9C 01 00 00 89 4D B4");
 		if (CameraVFOVInstructionScanResult)
@@ -244,6 +249,11 @@ void FOVFix()
 					}
 				}
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera VFOV scan memory address.");
+			return;
 		}
 	}
 }
