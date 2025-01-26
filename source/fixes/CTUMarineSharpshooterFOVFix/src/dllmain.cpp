@@ -187,12 +187,16 @@ bool DetectGame()
 		}
 	}
 
+	Sleep(2000);
+
 	if (!dllModule2)
 	{
-		dllModule2 = GetModuleHandleA("cshell.dll");
+		dllModule2 = GetModuleHandleA("CSHELL.DLL");
 		spdlog::info("Waiting for cshell.dll to load...");
 		Sleep(1000);
 	}
+
+	spdlog::info("Successfully obtained handle for cshell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
 }
@@ -203,6 +207,7 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		/*
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -218,69 +223,31 @@ void FOVFix()
 				}
 			});
 		}
+		*/
 
-		std::uint8_t* CameraHFOVZoomInstructionScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00 8B 45 10");
+		std::uint8_t* CameraHFOVZoomInstructionScanResult = Memory::PatternScan(dllModule2, "89 86 FC 85 00 00 8D 86 78 87 00 00");
 		if (CameraHFOVZoomInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVZoomInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Zoom Instruction: Address is cshell.dll+{:x}", CameraHFOVZoomInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraHFOVZoomInstructionMidHook{};
 
 			CameraHFOVZoomInstructionMidHook = safetyhook::create_mid(CameraHFOVZoomInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (ctx.eax > std::bit_cast<uint32_t>(0.51f) && ctx.eax < std::bit_cast<uint32_t>(0.53f))
+				if (ctx.eax == std::bit_cast<uint32_t>(0.5235987902f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.5235988498f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.5235987902f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+				}
+				else if (ctx.eax == std::bit_cast<uint32_t>(0.174532935f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.174532935f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+				}
+				else if (ctx.eax == std::bit_cast<uint32_t>(0.06981316954f))
+				{
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.06981316954f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}
-
-		/*
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 D0 00 00 00 8B B0 54 01 00 00 89 B4 24 D4 00 00 00");
-		if (CameraVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-			static float lastModifiedVFOV = 0.0f; // Tracks the last value modified by the hook
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
-			{
-				float& currentVFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x154);
-
-				// Handle specific initialization cases
-				if (fabs(currentVFOVValue - (0.8835729361f / (fNewAspectRatio / 1.33150439411f))) < epsilon)
-				{
-					currentVFOVValue = 0.8835429368f;
-					lastModifiedVFOV = currentVFOVValue; // Update tracking variable
-					return;
-				}
-
-				if (fabs(currentVFOVValue - (0.7853981256f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-				{
-					currentVFOVValue = 0.7853981256f;
-					lastModifiedVFOV = currentVFOVValue; // Update tracking variable
-					return;
-				}
-
-				// Avoid recursive modifications
-				if (currentVFOVValue != lastModifiedVFOV &&
-					currentVFOVValue != 0.8835429368f &&
-					currentVFOVValue != 0.7853981256f &&
-					currentVFOVValue != 0.2293362767f)
-				{
-					float modifiedVFOVValue = currentVFOVValue / (fOldAspectRatio / fNewAspectRatio);
-
-					// Only modify if the calculated value differs
-					if (currentVFOVValue != modifiedVFOVValue)
-					{
-						currentVFOVValue = modifiedVFOVValue;
-						lastModifiedVFOV = modifiedVFOVValue; // Update tracking variable
-					}
-				}
-			});
-		}
-		*/
 	}
 }
 
