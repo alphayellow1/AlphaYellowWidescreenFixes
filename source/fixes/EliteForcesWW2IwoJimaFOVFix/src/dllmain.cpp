@@ -52,6 +52,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -192,6 +193,8 @@ void FOVFix()
 {
 	if (eGameType == Game::EFWW2IJ && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 04 01 00 00 8B B0 50 01 00 00 89 B4 24 E0 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -202,7 +205,7 @@ void FOVFix()
 			{
 				if (*reinterpret_cast<float*>(ctx.eax + 0x150) == 1.570796371f || *reinterpret_cast<float*>(ctx.eax + 0x150) == 0.8726646304f || *reinterpret_cast<float*>(ctx.eax + 0x150) == 0.7853981853f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x150) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x150) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+					*reinterpret_cast<float*>(ctx.eax + 0x150) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x150) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -224,9 +227,9 @@ void FOVFix()
 
 				std::vector<ValueCondition> valueConditions =
 				{
-					{1.1780972480773926f, [&](float value) { return value == 1.1780972480773926f || fabs(value - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }}, // Hipfire
-					{0.6544984579f, [&](float value) { return value == 0.6544984579f || fabs(value - (0.6544984579f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }}, // Weapon Zoom
-					{0.8835729361f, [&](float value) { return value == 0.8835729361f || fabs(value - (0.8835729361f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }}, // Cutscenes
+					{1.1780972480773926f, [&](float value) { return value == 1.1780972480773926f || fabs(value - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }}, // Hipfire
+					{0.6544984579f, [&](float value) { return value == 0.6544984579f || fabs(value - (0.6544984579f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }}, // Weapon Zoom
+					{0.8835729361f, [&](float value) { return value == 0.8835729361f || fabs(value - (0.8835729361f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }}, // Cutscenes
 				};
 
 				// Access the float value at the memory address eax + 0x154
