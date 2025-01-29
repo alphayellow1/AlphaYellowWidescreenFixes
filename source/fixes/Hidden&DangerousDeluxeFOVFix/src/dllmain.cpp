@@ -57,6 +57,7 @@ int iCurrentResY;
 float fNewCameraHFOV;
 float fNewCameraFOV;
 float fRenderingSidesValue;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -222,7 +223,7 @@ static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+	fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
 
 	_asm
 	{
@@ -246,6 +247,8 @@ void FOVFix()
 {
 	if (eGameType == Game::HDD && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 45 FC D8 F1 8B 4D F8 D9 1E");
 		if (CameraHFOVInstructionScanResult)
 		{
