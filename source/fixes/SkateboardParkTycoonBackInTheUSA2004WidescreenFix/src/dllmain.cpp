@@ -206,11 +206,6 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 			lastModifiedFOV = modifiedFOVValue;
 		}
 	}
-
-	_asm
-	{
-		mov ecx, currentFOVValue
-	}
 }
 
 void WidescreenFix()
