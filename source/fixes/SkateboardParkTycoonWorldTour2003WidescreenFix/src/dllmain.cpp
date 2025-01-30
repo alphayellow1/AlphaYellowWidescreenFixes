@@ -274,7 +274,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* OverviewCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 76 44 8D 43 08 ");
+		std::uint8_t* OverviewCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 76 44 8D 43 08");
 		if (OverviewCameraFOVInstructionScanResult)
 		{
 			spdlog::info("Overview Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
