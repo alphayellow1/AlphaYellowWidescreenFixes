@@ -218,11 +218,11 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0xAB8);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0xAB8);
 
-				if (currentFOVValue == 90.0f)
+				if (fCurrentFOVValue == 90.0f)
 				{
-					currentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
 				}
 			});
 		}

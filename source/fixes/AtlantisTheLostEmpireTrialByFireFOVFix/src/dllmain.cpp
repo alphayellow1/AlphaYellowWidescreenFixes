@@ -51,6 +51,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -188,39 +189,43 @@ void FOVFix()
 {
 	if (eGameType == Game::ATLETBF && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 98 01 00 00 89 94 24 FC 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				if (*reinterpret_cast<float*>(ctx.eax + 0x198) == 1.5707963705062866f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x198) / 2.0f) * ((static_cast<float>(iCurrentResX) / iCurrentResY) / fOldAspectRatio));
+					*reinterpret_cast<float*>(ctx.eax + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x198) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV memory address.");
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
 			return;
 		}
 
 		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 9C 01 00 00 89 94 24 E4 00 00 00");
 		if (CameraVFOVInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon)
+				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x19C) = 1.1780972480773926f;
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (0.849067747592926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon)
+				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (0.849067747592926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x19C) = 0.849067747592926f;
 				}
@@ -228,7 +233,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera VFOV memory address.");
+			spdlog::error("Failed to locate camera VFOV instruction memory address.");
 			return;
 		}
 	}

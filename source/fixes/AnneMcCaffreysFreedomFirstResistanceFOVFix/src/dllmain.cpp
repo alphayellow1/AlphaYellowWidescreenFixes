@@ -52,6 +52,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -191,17 +192,20 @@ void FOVFix()
 {
 	if (eGameType == Game::AMCFFR && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 87 9C 01 00 00 D8 0D E4 04 68 00");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			static SafetyHookMid CameraFOVMidHook{};
-			CameraFOVMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				if (*reinterpret_cast<float*>(ctx.edi + 0x19C) == 1.5707963705062866f)
 				{
-					*reinterpret_cast<float*>(ctx.edi + 0x19C) = fFOVFactor * (2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					*reinterpret_cast<float*>(ctx.edi + 0x19C) = fFOVFactor * (2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}

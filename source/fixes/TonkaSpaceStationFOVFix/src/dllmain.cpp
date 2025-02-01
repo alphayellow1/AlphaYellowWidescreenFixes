@@ -215,6 +215,7 @@ void FOVFix()
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.edx + 0x34) = fOriginalCameraHFOV * (fOldAspectRatio / fNewAspectRatio);

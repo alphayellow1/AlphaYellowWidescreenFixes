@@ -205,6 +205,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid Instruction1Hook{};
+
 void Instruction1MidHook(SafetyHookContext& ctx)
 {
 	_asm
@@ -214,6 +215,7 @@ void Instruction1MidHook(SafetyHookContext& ctx)
 }
 
 static SafetyHookMid Instruction2Hook{};
+
 void Instruction2MidHook(SafetyHookContext& ctx)
 {
 	_asm
@@ -223,6 +225,7 @@ void Instruction2MidHook(SafetyHookContext& ctx)
 }
 
 static SafetyHookMid Instruction3Hook{};
+
 void Instruction3MidHook(SafetyHookContext& ctx)
 {
 	_asm
@@ -234,6 +237,7 @@ void Instruction3MidHook(SafetyHookContext& ctx)
 }
 
 static SafetyHookMid Instruction4Hook{};
+
 void Instruction4MidHook(SafetyHookContext& ctx)
 {
 	_asm
@@ -253,6 +257,7 @@ void WidescreenFix()
 		if (HUDElementsScan1Result)
 		{
 			spdlog::info("(HUD) Loading Bar X Address: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan1Result + 0xC - (std::uint8_t*)exeModule);
+
 			spdlog::info("(HUD) Red Cross and Menu Text Width Address: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan1Result + 0x14 - (std::uint8_t*)exeModule);
 
 			// Loading bar X
@@ -291,9 +296,13 @@ void WidescreenFix()
 		if (HUDElementsScan3Result)
 		{
 			spdlog::info("(HUD) Compass Needle X: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan3Result + 0x4 - (std::uint8_t*)exeModule);
+
 			spdlog::info("(HUD) Objective Direction Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan3Result + 0x24 - (std::uint8_t*)exeModule);
+
 			spdlog::info("(HUD) Compass X: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan3Result + 0x30 - (std::uint8_t*)exeModule);
+
 			spdlog::info("(HUD) Compass Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan3Result + 0x38 - (std::uint8_t*)exeModule);
+
 			spdlog::info("(HUD) Weapons List Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan3Result + 0x48 - (std::uint8_t*)exeModule);
 
 			// Compass needle X
@@ -331,7 +340,9 @@ void WidescreenFix()
 		if (HUDElementsScan4Result)
 		{
 			spdlog::info("(HUD) Text Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan4Result + 0x3 - (std::uint8_t*)exeModule);
+
 			spdlog::info("(HUD) Ammo X: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan4Result + 0x2F - (std::uint8_t*)exeModule);
+
 			spdlog::info("(HUD) Ammo Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan4Result + 0x37 - (std::uint8_t*)exeModule);
 
 			// HUD text width
@@ -364,7 +375,8 @@ void WidescreenFix()
 		newHeightBig = (iCurrentResY - newHeightSmall) / 256;
 
 		std::uint8_t* ResolutionScan1Result = Memory::PatternScan(exeModule, "?? ?? ?? ?? C7 44 24 40 ?? ?? ?? ?? E8 6F 2C FF");
-		if (ResolutionScan1Result) {
+		if (ResolutionScan1Result)
+		{
 			spdlog::info("Resolution Pattern 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScan1Result - (std::uint8_t*)exeModule);
 
 			Memory::Write(ResolutionScan1Result, iCurrentResX);
@@ -385,7 +397,8 @@ void WidescreenFix()
 		}
 
 		std::uint8_t* ResolutionScan2Result = Memory::PatternScan(exeModule, "C7 44 24 50 ?? ?? ?? ?? C7 44 24 54 ?? ?? ?? ?? 89 B4 24");
-		if (ResolutionScan2Result) {
+		if (ResolutionScan2Result)
+		{
 			spdlog::info("Resolution Pattern 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScan2Result - (std::uint8_t*)exeModule);
 
 			Memory::Write(ResolutionScan2Result + 0x4, iCurrentResX);

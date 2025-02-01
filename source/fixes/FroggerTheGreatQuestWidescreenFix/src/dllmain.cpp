@@ -194,7 +194,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	if (fNewAspectRatio > 3.555f)
 	{
-		fNewCameraFOV = fFOVFactor * (((((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) * 0.5f) / 2.37037037037f) * 0.83198f));
+		fNewCameraFOV = fFOVFactor * ((((fNewAspectRatio * 0.5f) / 2.37037037037f) * 0.83198f));
 	}
 	else
 	{
@@ -221,12 +221,14 @@ static void WidescreenFix()
 			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionScanResult + 0x9 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
+
 			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uint32_t>(iCurrentResX);
 			});
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
+			
 			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionScanResult + 0x9, [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uint32_t>(iCurrentResY);

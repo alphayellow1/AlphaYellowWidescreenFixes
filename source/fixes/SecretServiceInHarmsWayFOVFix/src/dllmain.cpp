@@ -213,11 +213,11 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 static void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	constexpr float fOriginalCameraFOV1 = 90.0f;
+	constexpr float fOriginalCameraFOV = 90.0f;
 
-	float fNewCameraFOV1 = fCameraFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV1 / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	float fNewCameraFOV = fCameraFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
 
-	ctx.edx = std::bit_cast<uint32_t>(fNewCameraFOV1);
+	ctx.edx = std::bit_cast<uint32_t>(fNewCameraFOV);
 }
 
 static SafetyHookMid WeaponFOVInstructionHook{};

@@ -199,6 +199,7 @@ void FOVFix()
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionResult, [](SafetyHookContext& ctx)
 			{
 				if (*reinterpret_cast<float*>(ctx.ebx + 0x1C) == 0.7853981853f || *reinterpret_cast<float*>(ctx.ebx + 0x1C) == 0.3926990926f)
@@ -219,6 +220,7 @@ void FOVFix()
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult + 0x3 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 0x3, [](SafetyHookContext& ctx)
 			{
 				if (fabs(*reinterpret_cast<float*>(ctx.ebx + 0x20) - (0.589048624f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)

@@ -49,6 +49,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -186,6 +187,8 @@ void FOVFix()
 {
 	if (eGameType == Game::RAA && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 86 FC 09 00 00 8B 86 38 09 00 00 51 89 8E 00 0A 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
@@ -218,13 +221,13 @@ void FOVFix()
 
 				if (*reinterpret_cast<float*>(ctx.esi + 0x938) < 120.0f)
 				{
-					Memory::Write(CameraHFOVScanResult + 0x12, fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+					Memory::Write(CameraHFOVScanResult + 0x12, fOldAspectRatio / fNewAspectRatio);
 					Memory::Write(CameraVFOVScanResult + 0x7, 1.0f);
 				}
 				else if (*reinterpret_cast<float*>(ctx.esi + 0x938) == 120.0f)
 				{
-					Memory::Write(CameraHFOVScanResult + 0x12, fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
-					Memory::Write(CameraVFOVScanResult + 0x7, fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+					Memory::Write(CameraHFOVScanResult + 0x12, fOldAspectRatio / fNewAspectRatio);
+					Memory::Write(CameraVFOVScanResult + 0x7, fOldAspectRatio / fNewAspectRatio);
 				}
 			});
 		}

@@ -236,8 +236,9 @@ void ResolutionFix()
 		std::uint8_t* ResolutionScan1Result = Memory::PatternScan(dllModule3, "89 51 64 8B 55 E8");
 		if (ResolutionScan1Result) {
 			spdlog::info("Resolution 1: Address is WinDrv.dll+{:x}", ResolutionScan1Result - (std::uint8_t*)dllModule3);
-			
+
 			static SafetyHookMid Resolution1MidHook{};
+
 			Resolution1MidHook = safetyhook::create_mid(ResolutionScan1Result, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uint32_t>(iCurrentResX);
@@ -253,8 +254,9 @@ void ResolutionFix()
 		if (ResolutionScan2Result)
 		{
 			spdlog::info("Resolution 2: Address is WinDrv.dll+{:x}", ResolutionScan2Result - (std::uint8_t*)dllModule3);
-			
+
 			static SafetyHookMid Resolution2MidHook{};
+
 			Resolution2MidHook = safetyhook::create_mid(ResolutionScan2Result, [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uint32_t>(iCurrentResY);
@@ -270,8 +272,9 @@ void ResolutionFix()
 		if (ResolutionScan3Result)
 		{
 			spdlog::info("Resolution 3: Address is WinDrv.dll+{:x}", ResolutionScan3Result - (std::uint8_t*)dllModule3);
-			
+
 			static SafetyHookMid Resolution3MidHook{};
+
 			Resolution3MidHook = safetyhook::create_mid(ResolutionScan3Result, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<uint32_t*>(ctx.eax + 0x64) = iCurrentResX;
@@ -287,8 +290,9 @@ void ResolutionFix()
 		if (ResolutionScan4Result)
 		{
 			spdlog::info("Resolution 4: Address is WinDrv.dll+{:x}", ResolutionScan4Result - (std::uint8_t*)dllModule3);
-			
+
 			static SafetyHookMid Resolution4MidHook{};
+
 			Resolution4MidHook = safetyhook::create_mid(ResolutionScan4Result, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<uint32_t*>(ctx.eax + 0x68) = iCurrentResY;

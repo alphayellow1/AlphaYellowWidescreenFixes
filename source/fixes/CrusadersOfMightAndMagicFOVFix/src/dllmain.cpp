@@ -50,6 +50,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewCameraFOV;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -187,7 +188,9 @@ void FOVFix()
 {
 	if (eGameType == Game::COMM && bFixActive == true)
 	{
-		fNewCameraFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fNewCameraFOV = fOldAspectRatio / fNewAspectRatio;
 
 		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "4C 02 00 00 00 00 80 3F C7 84 24 50");
 		if (CameraHFOVScanResult)

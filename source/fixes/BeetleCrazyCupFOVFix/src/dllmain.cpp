@@ -52,6 +52,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewCameraFOV;
 float fFOVFactor;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -73,7 +74,7 @@ const std::map<Game, GameInfo> kGames = {
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
-static void Logging()
+void Logging()
 {
 	// Get path to DLL
 	WCHAR dllPath[_MAX_PATH] = { 0 };
@@ -117,7 +118,7 @@ static void Logging()
 	}
 }
 
-static void Configuration()
+void Configuration()
 {
 	// Inipp initialization
 	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
@@ -169,7 +170,7 @@ static void Configuration()
 	spdlog::info("----------");
 }
 
-static bool DetectGame()
+bool DetectGame()
 {
 	for (const auto& [type, info] : kGames)
 	{
@@ -187,18 +188,20 @@ static bool DetectGame()
 	return false;
 }
 
-static void FOVFix()
+void FOVFix()
 {
 	if (eGameType == Game::BCC && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "00 80 40 ?? ?? ?? ?? CD CC CC");
 		if (CameraFOVScanResult)
 		{
 			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 0x3 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = fOriginalCameraFOV / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+			fNewCameraFOV = (fOriginalCameraFOV / (fNewAspectRatio / fOldAspectRatio)) * (1.0f / fFOVFactor);
 
-			Memory::Write(CameraFOVScanResult + 0x3, fNewCameraFOV * (1.0f / fFOVFactor));
+			Memory::Write(CameraFOVScanResult + 0x3, fNewCameraFOV);
 		}
 		else
 		{
@@ -208,7 +211,7 @@ static void FOVFix()
 	}
 }
 
-static DWORD __stdcall Main(void*)
+DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
@@ -219,7 +222,7 @@ static DWORD __stdcall Main(void*)
 	return TRUE;
 }
 
-static BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{

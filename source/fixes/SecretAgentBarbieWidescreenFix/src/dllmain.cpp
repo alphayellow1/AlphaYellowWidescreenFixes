@@ -44,7 +44,6 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -56,6 +55,7 @@ uint8_t newWidthSmall;
 uint8_t newWidthBig;
 uint8_t newHeightSmall;
 uint8_t newHeightBig;
+float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
 float fOriginalCameraFOV;
@@ -224,6 +224,8 @@ void WidescreenFix()
 {
 	if (eGameType == Game::SAB && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 54 24 08 89 81 B0 00 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
@@ -236,19 +238,19 @@ void WidescreenFix()
 				{
 					fOriginalCameraFOV = 35.0f;
 
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))));
+					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))));
 				}
 				else if (ctx.eax == std::bit_cast<uint32_t>(90.0f))
 				{
 					fOriginalCameraFOV = 90.0f;
 
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))));
+					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))));
 				}
 				else if (ctx.eax == std::bit_cast<uint32_t>(100.0f))
 				{
 					fOriginalCameraFOV = 100.0f;
 
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))));
+					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))));
 				}
 			});
 		}

@@ -52,6 +52,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -189,6 +190,8 @@ void FOVFix()
 {
 	if (eGameType == Game::DHNP && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -213,7 +216,7 @@ void FOVFix()
 				float* anglePtr = reinterpret_cast<float*>(ctx.ecx + 0x198);
 				if (validAngles.find(*anglePtr) != validAngles.end())
 				{
-					*anglePtr = 2.0f * atanf(tanf(*anglePtr / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+					*anglePtr = 2.0f * atanf(tanf(*anglePtr / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -231,7 +234,7 @@ void FOVFix()
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon)
+				if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
 					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
 				}
@@ -407,7 +410,7 @@ void FOVFix()
 			{
 				if (ctx.eax == std::bit_cast<uint32_t>(0.4363323152065277f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}
@@ -425,7 +428,7 @@ void FOVFix()
 			static SafetyHookMid CameraZoomVFOVInstructionMidHook{};
 			CameraZoomVFOVInstructionMidHook = safetyhook::create_mid(CameraZoomVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (ctx.eax == std::bit_cast<uint32_t>(0.3272492289543152f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))
+				if (ctx.eax == std::bit_cast<uint32_t>(0.3272492289543152f / (fNewAspectRatio / fOldAspectRatio)))
 				{
 					ctx.eax = std::bit_cast<uint32_t>(0.3272492289543152f);
 				}

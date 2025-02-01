@@ -71,19 +71,19 @@ const std::map<Game, GameInfo> kGames = {
 	{Game::KPCTNC, {"KISS Psycho Circus: The Nightmare Child", "client.exe"}},
 };
 
-const GameInfo *game = nullptr;
+const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
 void Logging()
 {
 	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = {0};
+	WCHAR dllPath[_MAX_PATH] = { 0 };
 	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
 	sFixPath = dllPath;
 	sFixPath = sFixPath.remove_filename();
 
 	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = {0};
+	WCHAR exePathW[_MAX_PATH] = { 0 };
 	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
@@ -108,10 +108,10 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
-	catch (const spdlog::spdlog_ex &ex)
+	catch (const spdlog::spdlog_ex& ex)
 	{
 		AllocConsole();
-		FILE *dummy;
+		FILE* dummy;
 		freopen_s(&dummy, "CONOUT$", "w", stdout);
 		std::cout << "Log initialization failed: " << ex.what() << std::endl;
 		FreeLibraryAndExitThread(thisModule, 1);
@@ -125,7 +125,7 @@ void Configuration()
 	if (!iniFile)
 	{
 		AllocConsole();
-		FILE *dummy;
+		FILE* dummy;
 		freopen_s(&dummy, "CONOUT$", "w", stdout);
 		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
 		std::cout << "ERROR: Could not locate config file." << std::endl;
@@ -170,7 +170,7 @@ void Configuration()
 
 bool DetectGame()
 {
-	for (const auto &[type, info] : kGames)
+	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
 		{
@@ -195,96 +195,97 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t *CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 F4 00 00 00 8B B0 50 01 00 00 89 B4 24 D0 00 00 00");
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 F4 00 00 00 8B B0 50 01 00 00 89 B4 24 D0 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t *)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
-			static float lastModifiedHFOV = 0.0f;
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x7, [](SafetyHookContext &ctx)
-																  {
-				float& currentHFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x150);
+			static float fLastModifiedHFOV = 0.0f;
 
-				if (currentHFOVValue == 1.5707963268f || currentHFOVValue == 0.6254096627f)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentHFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x150);
+
+				if (fCurrentHFOVValue == 1.5707963268f || fCurrentHFOVValue == 0.6254096627f)
 				{
-					currentHFOVValue = 2.0f * atanf(tanf(currentHFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
-					lastModifiedHFOV = currentHFOVValue;
+					fCurrentHFOVValue = 2.0f * atanf(tanf(fCurrentHFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fLastModifiedHFOV = fCurrentHFOVValue;
 					return;
 				}
 
-				if (currentHFOVValue != lastModifiedHFOV && currentHFOVValue != 0.7853981853f)
+				if (fCurrentHFOVValue != fLastModifiedHFOV && fCurrentHFOVValue != 0.7853981853f)
 				{
-					float modifiedHFOVValue = 2.0f * atanf(tanf(currentHFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					float fModifiedHFOVValue = 2.0f * atanf(tanf(fCurrentHFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 
-					if (currentHFOVValue != modifiedHFOVValue)
+					if (fCurrentHFOVValue != fModifiedHFOVValue)
 					{
-						currentHFOVValue = modifiedHFOVValue;
-						lastModifiedHFOV = modifiedHFOVValue;
+						fCurrentHFOVValue = fModifiedHFOVValue;
+						fLastModifiedHFOV = fModifiedHFOVValue;
 					}
 				} });
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV scan memory address.");
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
 			return;
 		}
 
-		std::uint8_t *CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 D0 00 00 00 8B B0 54 01 00 00 89 B4 24 D4 00 00 00");
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 D0 00 00 00 8B B0 54 01 00 00 89 B4 24 D4 00 00 00");
 		if (CameraVFOVInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult + 0x7 - (std::uint8_t *)exeModule);
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			static float lastModifiedVFOV = 0.0f; // Tracks the last value modified by the hook
+			static float fLastModifiedVFOV = 0.0f; // Tracks the last value modified by the hook
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 0x7, [](SafetyHookContext &ctx)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
 			{
-				float& currentVFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				float& fCurrentVFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
 				// Handle specific initialization cases
-				if (fabs(currentVFOVValue - (0.8835729361f / (fNewAspectRatio / 1.33150439411f))) < epsilon)
+				if (fabs(fCurrentVFOVValue - (0.8835729361f / (fNewAspectRatio / 1.33150439411f))) < epsilon)
 				{
-					currentVFOVValue = 0.8835429368f;
-					lastModifiedVFOV = currentVFOVValue; // Update tracking variable
+					fCurrentVFOVValue = 0.8835429368f;
+					fLastModifiedVFOV = fCurrentVFOVValue; // Update tracking variable
 					return;
 				}
 
-				if (fabs(currentVFOVValue - (0.7853981256f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				if (fabs(fCurrentVFOVValue - (0.7853981256f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					currentVFOVValue = 0.7853981256f;
-					lastModifiedVFOV = currentVFOVValue; // Update tracking variable
+					fCurrentVFOVValue = 0.7853981256f;
+					fLastModifiedVFOV = fCurrentVFOVValue; // Update tracking variable
 					return;
 				}
 
 				// Avoid recursive modifications
-				if (currentVFOVValue != lastModifiedVFOV &&
-					currentVFOVValue != 0.8835429368f &&
-					currentVFOVValue != 0.7853981256f &&
-					currentVFOVValue != 0.2293362767f)
+				if (fCurrentVFOVValue != fLastModifiedVFOV &&
+					fCurrentVFOVValue != 0.8835429368f &&
+					fCurrentVFOVValue != 0.7853981256f &&
+					fCurrentVFOVValue != 0.2293362767f)
 				{
-					float modifiedVFOVValue = currentVFOVValue / (fOldAspectRatio / fNewAspectRatio);
+					float fModifiedVFOVValue = fCurrentVFOVValue / (fOldAspectRatio / fNewAspectRatio);
 
 					// Only modify if the calculated value differs
-					if (currentVFOVValue != modifiedVFOVValue)
+					if (fCurrentVFOVValue != fModifiedVFOVValue)
 					{
-						currentVFOVValue = modifiedVFOVValue;
-						lastModifiedVFOV = modifiedVFOVValue; // Update tracking variable
+						fCurrentVFOVValue = fModifiedVFOVValue;
+						fLastModifiedVFOV = fModifiedVFOVValue; // Update tracking variable
 					}
-			    }
+				}
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera VFOV scan memory address.");
+			spdlog::error("Failed to locate camera VFOV instruction memory address.");
 			return;
 		}
 	}
 }
 
-DWORD __stdcall Main(void *)
+DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();

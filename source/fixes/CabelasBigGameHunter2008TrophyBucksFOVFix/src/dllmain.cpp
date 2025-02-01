@@ -13,7 +13,6 @@
 #include <fstream>
 #include <filesystem>
 #include <cmath> // For atanf, tanf
-#include <unordered_set>
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -227,27 +226,28 @@ void FOVFix()
 			spdlog::info("Camera FOV Instruction: Address is EngineDll8r.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
-			static float lastModifiedFOV = 0.0f;
+
+			static float fLastModifiedFOV = 0.0f;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.edi + 0xD0);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edi + 0xD0);
 
-				if (currentFOVValue == 60.0f)
+				if (fCurrentFOVValue == 60.0f)
 				{
-					currentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-					lastModifiedFOV = currentFOVValue;
+					fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					fLastModifiedFOV = fCurrentFOVValue;
 					return;
 				}
 
-				if (currentFOVValue != lastModifiedFOV && currentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(60.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
+				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(60.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
 				{
-					float modifiedHFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					float fModifiedFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
 
-					if (currentFOVValue != modifiedHFOVValue)
+					if (fCurrentFOVValue != fModifiedFOVValue)
 					{
-						currentFOVValue = modifiedHFOVValue;
-						lastModifiedFOV = modifiedHFOVValue;
+						fCurrentFOVValue = fModifiedFOVValue;
+						fLastModifiedFOV = fModifiedFOVValue;
 					}
 				}
 			});

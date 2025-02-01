@@ -13,7 +13,6 @@
 #include <fstream>
 #include <filesystem>
 #include <cmath> // For atanf, tanf
-#include <unordered_set>
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -201,6 +200,7 @@ void FOVFix()
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
 			{
 				if (*reinterpret_cast<float*>(ctx.eax + 0x150) == 1.570796371f || *reinterpret_cast<float*>(ctx.eax + 0x150) == 0.8726646304f || *reinterpret_cast<float*>(ctx.eax + 0x150) == 0.7853981853f)
@@ -216,6 +216,7 @@ void FOVFix()
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
 			{
 				// Define a struct to hold the target value and a condition lambda

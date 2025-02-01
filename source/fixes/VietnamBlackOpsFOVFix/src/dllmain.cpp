@@ -177,6 +177,7 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+			return true;
 		}
 		else
 		{
@@ -184,8 +185,6 @@ bool DetectGame()
 			return false;
 		}
 	}
-
-	return true;
 }
 
 void FOVFix()
@@ -203,9 +202,11 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.eax + 0x138) == 1.570796371f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x138);
+
+				if (fCurrentCameraHFOV == 1.570796371f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x138) = 2.0f * atanf(tanf(1.570796371f / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentCameraHFOV = 2.0f * atanf(tanf(fCurrentCameraHFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -219,13 +220,15 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (1.178097248f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);
+
+				if (fabs(fCurrentCameraVFOV - (1.178097248f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 1.178097248f;
+					fCurrentCameraVFOV = 1.178097248f;
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x13C) - (0.13089969754219055f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				else if (fabs(fCurrentCameraVFOV - (0.13089969754219055f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x13C) = 0.13089969754219055f;
+					fCurrentCameraVFOV = 0.13089969754219055f;
 				}
 			});
 		}
@@ -236,8 +239,6 @@ void FOVFix()
 			spdlog::info("Camera HFOV Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVZoomInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVZoomInstructionMidHook{};
-
-			static float lastModifiedHFOV = 0.0f;
 
 			CameraHFOVZoomInstructionMidHook = safetyhook::create_mid(CameraHFOVZoomInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -255,13 +256,13 @@ void FOVFix()
 
 			static SafetyHookMid CameraVFOVZoomInstructionMidHook{};
 
-			static float lastModifiedVFOV = 0.0f; // Tracks the last value modified by the hook
-
 			CameraVFOVZoomInstructionMidHook = safetyhook::create_mid(CameraVFOVZoomInstructionScanResult + 0x4, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x13C) - (0.13089969754219055f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				float& fCurrentCameraVFOVZoom = *reinterpret_cast<float*>(ctx.ecx + 0x13C);
+
+				if (fabs(fCurrentCameraVFOVZoom - (0.13089969754219055f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x13C) = 0.13089969754219055f;
+					fCurrentCameraVFOVZoom = 0.13089969754219055f;
 				}
 			});
 		}

@@ -224,20 +224,20 @@ void WidescreenFix()
 
 			static SafetyHookMid CameraFOVInstructionHook{};
 
-			static float lastModifiedFOV = 0.0f; // Track the last game-set FOV
+			static float fLastModifiedFOV = 0.0f; // Track the last game-set FOV
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x44);
 
-				if (currentFOVValue != lastModifiedFOV)
+				if (fCurrentFOVValue != fLastModifiedFOV)
 				{
-					float modifiedFOVValue = fFOVFactor * (currentFOVValue / (fOldAspectRatio / fNewAspectRatio));
+					float fModifiedFOVValue = fFOVFactor * (fCurrentFOVValue / (fOldAspectRatio / fNewAspectRatio));
 
-					if (currentFOVValue != modifiedFOVValue)
+					if (fCurrentFOVValue != fModifiedFOVValue)
 					{
-						currentFOVValue = modifiedFOVValue;
-						lastModifiedFOV = modifiedFOVValue;
+						fCurrentFOVValue = fModifiedFOVValue;
+						fLastModifiedFOV = fModifiedFOVValue;
 					}
 				}
 			});

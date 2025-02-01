@@ -213,9 +213,9 @@ void CameraFOVHipfireLevelStartMidHook(SafetyHookContext& ctx)
 		mov dword ptr ds : [esi + 0x8] , [0x102F8538]
 	}
 
-	float& currentFOVValue = *reinterpret_cast<float*>(ctx.esi + 0x8);
+	float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.esi + 0x8);
 
-	currentFOVValue = fFOVFactor * (2.0f * atanf(tanf(1.2200000286102295f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+	fCurrentFOVValue = fFOVFactor * (2.0f * atanf(tanf(1.2200000286102295f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 
 	_asm
 	{

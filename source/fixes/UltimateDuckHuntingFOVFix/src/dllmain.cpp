@@ -44,7 +44,6 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.0001f;
 
 // Ini variables
 bool bFixActive;
@@ -219,11 +218,11 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x7E0);
+
 				fNewFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
 
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x7E0);
-
-				currentFOVValue = fNewFOVValue;
+				fCurrentFOVValue = fNewFOVValue;
 			});
 		}
 		else

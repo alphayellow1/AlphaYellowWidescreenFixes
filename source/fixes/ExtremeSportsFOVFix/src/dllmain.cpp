@@ -52,7 +52,8 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
-float fNewAspectRatio;
+float fNewAspectRatio1;
+float fNewAspectRatio2;
 
 // Game detection
 enum class Game
@@ -201,7 +202,7 @@ void FOVFix()
 
 			fNewAspectRatio1 = fNewAspectRatio2 * 0.75f * 4.0f;
 
-			Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
+			Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio1);
 		}
 		else
 		{
@@ -216,30 +217,30 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static float lastModifiedFOV = 0.0f; // Tracks the last modified FOV value
+			static float fLastModifiedFOV = 0.0f; // Tracks the last modified FOV value
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x40);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x40);
 
-				if (currentFOVValue == 1.428147912f)
+				if (fCurrentFOVValue == 1.428147912f)
 				{
-					currentFOVValue = fFOVFactor * (currentFOVValue / (fOldAspectRatio / fNewAspectRatio2));
-					lastModifiedFOV = currentFOVValue; // Update tracking variable
+					fCurrentFOVValue = fFOVFactor * (fCurrentFOVValue / (fOldAspectRatio / fNewAspectRatio2));
+					fLastModifiedFOV = fCurrentFOVValue; // Update tracking variable
 					return;
 				}
 
 				// Check if the current FOV value was already modified
-				if (currentFOVValue != lastModifiedFOV)
+				if (fCurrentFOVValue != fLastModifiedFOV)
 				{
 					// Calculate the new FOV based on aspect ratios
-					float modifiedFOVValue = currentFOVValue / (fOldAspectRatio / fNewAspectRatio2);
+					float fModifiedFOVValue = fCurrentFOVValue / (fOldAspectRatio / fNewAspectRatio2);
 
 					// Update the value only if the modification is meaningful
-					if (currentFOVValue != modifiedFOVValue)
+					if (fCurrentFOVValue != fLastModifiedFOV)
 					{
-						currentFOVValue = modifiedFOVValue;
-						lastModifiedFOV = modifiedFOVValue;
+						fCurrentFOVValue = fModifiedFOVValue;
+						fLastModifiedFOV = fModifiedFOVValue;
 					}
 				}
 			});

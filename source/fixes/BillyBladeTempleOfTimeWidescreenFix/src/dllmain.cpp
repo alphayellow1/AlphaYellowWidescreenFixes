@@ -207,6 +207,7 @@ static void WidescreenFix()
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid AspectRatioInstructionMidHook{};
+
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.esi + 0x34) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
@@ -224,6 +225,7 @@ static void WidescreenFix()
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.esi + 0x38) = 0.6108652949f * fFOVFactor;

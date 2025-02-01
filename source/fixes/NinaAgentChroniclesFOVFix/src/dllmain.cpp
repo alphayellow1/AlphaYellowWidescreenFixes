@@ -53,6 +53,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -204,6 +205,8 @@ void FOVFix()
 {
 	if (eGameType == Game::NAA && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* HipfireAndCutscenesHFOVInstructionScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00 8B 04 91");
 		if (HipfireAndCutscenesHFOVInstructionScanResult)
 		{
@@ -214,23 +217,23 @@ void FOVFix()
 			{
 				if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f))
 				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 				else if (ctx.esi == std::bit_cast<uint32_t>(1.483529806137085f))
 				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.483529806137085f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.483529806137085f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 				else if (ctx.esi == std::bit_cast<uint32_t>(1.7453292608261108f))
 				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.7453292608261108f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.7453292608261108f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 				else if (ctx.esi == std::bit_cast<uint32_t>(1.4169141054153442f))
 				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.4169141054153442f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.4169141054153442f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 				else if (ctx.esi == std::bit_cast<uint32_t>(1.3089969158172607f))
 				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}
@@ -250,7 +253,7 @@ void FOVFix()
 			{
 				if (ctx.eax == std::bit_cast<uint32_t>(1.3089969158172607f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.3089969158172607f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}

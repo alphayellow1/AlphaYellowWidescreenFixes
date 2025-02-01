@@ -46,7 +46,6 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -72,7 +71,7 @@ float RadToDeg(float radians)
 // Game detection
 enum class Game
 {
-	C4X4OA3,
+	CDH2005S,
 	Unknown
 };
 
@@ -83,7 +82,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::C4X4OA3, {"Cabela's Deer Hunt 2005 Season", "udh2005.exe"}},
+	{Game::CDH2005S, {"Cabela's Deer Hunt 2005 Season", "udh2005.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -217,7 +216,7 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (eGameType == Game::C4X4OA3 && bFixActive == true)
+	if (eGameType == Game::CDH2005S && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -227,27 +226,28 @@ void FOVFix()
 			spdlog::info("Camera FOV Instruction: Address is EngineDll6.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
-			static float lastModifiedFOV = 0.0f;
+
+			static float fLastModifiedFOV = 0.0f;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
 
-				if (currentFOVValue == 75.0f)
+				if (fCurrentFOVValue == 75.0f)
 				{
-					currentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-					lastModifiedFOV = currentFOVValue;
+					fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					fLastModifiedFOV = fCurrentFOVValue;
 					return;
 				}
 
-				if (currentFOVValue != lastModifiedFOV && currentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(75.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
+				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(75.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
 				{
-					float modifiedHFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					float fModifiedFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
 
-					if (currentFOVValue != modifiedHFOVValue)
+					if (fCurrentFOVValue != fModifiedFOVValue)
 					{
-						currentFOVValue = modifiedHFOVValue;
-						lastModifiedFOV = modifiedHFOVValue;
+						fCurrentFOVValue = fModifiedFOVValue;
+						fLastModifiedFOV = fModifiedFOVValue;
 					}
 				}
 			});

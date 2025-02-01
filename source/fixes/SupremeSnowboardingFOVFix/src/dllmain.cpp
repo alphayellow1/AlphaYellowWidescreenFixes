@@ -22,7 +22,7 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
-HMODULE dllModule2;
+HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
@@ -172,8 +172,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	dllModule2 = GetModuleHandleA("Supreme_Game.dll");
-
 	while (!dllModule2)
 	{
 		dllModule2 = GetModuleHandleA("Supreme_Game.dll");
@@ -200,6 +198,7 @@ void FOVFix()
 			fNewCameraHFOV = fNewAspectRatio / fOldAspectRatio;
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x8, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.esp + 0x2D0) = fNewCameraHFOV;

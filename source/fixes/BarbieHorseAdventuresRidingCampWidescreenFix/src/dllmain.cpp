@@ -220,28 +220,40 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "D9 5C 24 08 D9 40 A4 D8 4C 24 28");
-		if (AspectRatioScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 5C 24 08 D9 40 A4 D8 4C 24 28");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
-			
-			static SafetyHookMid AspectRatioMidHook{};
-			AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid AspectRatioInstructionMidHook{};
+
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.eax - 0x5C) = fNewAspectRatio;
 			});
 		}
-
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "D9 5C 24 28 D9 44 24 28 D9 5C 24 04 D9 40 A0 D9 1C 24");
-		if (CameraFOVScanResult)
+		else
 		{
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
-			
-			static SafetyHookMid CameraFOVMidHook{};
-			CameraFOVMidHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 5C 24 28 D9 44 24 28 D9 5C 24 04 D9 40 A0 D9 1C 24");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.eax - 0x60) = originalCameraFOV * fFOVFactor;
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
 		}
 	}
 }

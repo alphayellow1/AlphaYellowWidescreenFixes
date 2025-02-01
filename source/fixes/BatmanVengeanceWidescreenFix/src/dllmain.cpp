@@ -52,6 +52,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewCameraHFOV;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -192,10 +193,11 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid CameraHFOVHook{};
-void CameraHFOVMidHook(SafetyHookContext& ctx)
+static SafetyHookMid CameraHFOVInstructionHook{};
+
+void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+	fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
 
 	_asm
 	{
@@ -207,12 +209,14 @@ void WidescreenFix()
 {
 	if (eGameType == Game::BV && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* ResolutionScanResult = Memory::PatternScan(dllModule2, "80 01 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 03 00 00");
 		if (ResolutionScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 0x4 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 0x8 - (std::uint8_t*)exeModule);
 
 			Memory::Write(ResolutionScanResult + 0x4, iCurrentResX);
 
@@ -227,11 +231,11 @@ void WidescreenFix()
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "C7 40 2C 00 00 80 BF D8 3D ?? ?? ?? ?? D9 45 18 D8 65 14");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is osr_dx8_vf.dll+{:x}", CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult + 0x7, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0xD, CameraHFOVMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0xD, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

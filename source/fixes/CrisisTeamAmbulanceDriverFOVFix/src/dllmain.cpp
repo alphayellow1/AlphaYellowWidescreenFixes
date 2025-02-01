@@ -52,6 +52,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -189,17 +190,20 @@ void FOVFix()
 {
 	if (eGameType == Game::CTAD && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 0C 02 00 00 3B CB 89 94 24 B8 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				if (*reinterpret_cast<float*>(ctx.eax + 0x20C) == 1.0471975803375244f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x20C) = 2.0f * atanf(tanf(1.0471975803375244f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+					*reinterpret_cast<float*>(ctx.eax + 0x20C) = 2.0f * atanf(tanf(1.0471975803375244f / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -215,9 +219,10 @@ void FOVFix()
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x210) - (0.7853981852531433f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon)
+				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x210) - (0.7853981852531433f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x210) = 0.7853981852531433f;
 				}
