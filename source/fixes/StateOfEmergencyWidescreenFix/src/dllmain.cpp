@@ -186,7 +186,7 @@ bool DetectGame()
 	}
 }
 
-SafetyHookMid RenderingSidesInstructionHook{};
+static SafetyHookMid RenderingSidesInstructionHook{};
 
 void RenderingSidesInstructionMidHook(SafetyHookContext& ctx)
 {

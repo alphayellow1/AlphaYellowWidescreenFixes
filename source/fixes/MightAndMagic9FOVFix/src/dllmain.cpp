@@ -177,6 +177,7 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+			return true;
 		}
 		else
 		{
@@ -184,8 +185,6 @@ bool DetectGame()
 			return false;
 		}
 	}
-
-	return true;
 }
 
 void FOVFix()
@@ -200,27 +199,28 @@ void FOVFix()
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
-			static float lastModifiedHFOV = 0.0f;
+
+			static float fLastModifiedHFOV = 0.0f;
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentHFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x198);
+				float& fCurrentHFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x198);
 
-				if (currentHFOVValue != lastModifiedHFOV)
+				if (fCurrentHFOVValue != fLastModifiedHFOV)
 				{
-					float modifiedHFOVValue = 2.0f * atanf(tanf(currentHFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					float fModifiedHFOVValue = 2.0f * atanf(tanf(fCurrentHFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 
-					if (currentHFOVValue != modifiedHFOVValue)
+					if (fCurrentHFOVValue != fModifiedHFOVValue)
 					{
-						currentHFOVValue = modifiedHFOVValue;
-						lastModifiedHFOV = modifiedHFOVValue;
+						fCurrentHFOVValue = fModifiedHFOVValue;
+						fLastModifiedHFOV = fModifiedHFOVValue;
 					}
 				}
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV scan memory address.");
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
 			return;
 		}
 
@@ -231,21 +231,21 @@ void FOVFix()
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			static float lastModifiedVFOV = 0.0f; // Tracks the last value modified by the hook
+			static float fLastModifiedVFOV = 0.0f; // Tracks the last value modified by the hook
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentVFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentVFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
-				if (fabs(currentVFOVValue - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				if (fabs(fCurrentVFOVValue - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					currentVFOVValue = 1.1780972480773926f;
+					fCurrentVFOVValue = 1.1780972480773926f;
 				}
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera VFOV scan memory address.");
+			spdlog::error("Failed to locate camera VFOV instruction memory address.");
 			return;
 		}
 	}

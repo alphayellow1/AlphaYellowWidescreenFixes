@@ -53,6 +53,7 @@ int iCurrentResY;
 float fNewCameraHFOV;
 float fNewCameraFOV;
 float fFOVFactor;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -210,6 +211,8 @@ void WidescreenFix()
 {
 	if (eGameType == Game::BE && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "00 80 02 00 00 C7");
 		if (ResolutionWidthScanResult)
 		{
@@ -236,7 +239,7 @@ void WidescreenFix()
 			return;
 		}
 
-		fNewCameraHFOV = fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY));
+		fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
 
 		std::uint8_t* CameraForegroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
 		if (CameraForegroundHFOVInstructionScanResult)

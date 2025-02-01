@@ -50,6 +50,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -187,17 +188,22 @@ void FOVFix()
 {
 	if (eGameType == Game::WOWDOA && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* HipfireCameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
 		if (HipfireCameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Hipfire Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), HipfireCameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid HFOVMidHook{};
-			HFOVMidHook = safetyhook::create_mid(HipfireCameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(HipfireCameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0471975803375244f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.0471999645233154f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+
+				if (fCurrentCameraHFOV == 1.0471975803375244f || fCurrentCameraHFOV == 1.0471999645233154f)
 				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(1.0471975803375244f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+					fCurrentCameraHFOV = 2.0f * atanf(tanf(1.0471975803375244f / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -228,12 +234,14 @@ void FOVFix()
 		if (CameraZoomHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera Zoom HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
 			static SafetyHookMid CameraZoomHFOVInstructionMidHook{};
+
 			CameraZoomHFOVInstructionMidHook = safetyhook::create_mid(CameraZoomHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				if (ctx.eax == std::bit_cast<uint32_t>(0.6981329917907715f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.6981329917907715f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.6981329917907715f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}

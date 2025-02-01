@@ -51,6 +51,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -176,45 +177,50 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-
-			Sleep(2000);
-
-			dllModule = GetModuleHandleA("CShell.dll");
-			if (!dllModule)
-			{
-				spdlog::error("Failed to get handle for CShell.dll.");
-				return false;
-			}
-
-			spdlog::info("Successfully obtained handle for CShell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
-
-			return true;
+		}
+		else
+		{
+			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+			return false;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
+	if (!dllModule)
+	{
+		dllModule = GetModuleHandleA("CShell.dll");
+		spdlog::error("Failed to get handle for CShell.dll.");
+		return false;
+	}
+
+	spdlog::info("Successfully obtained handle for CShell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
+
+	return true;
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::AQBFTK && bFixActive == true) {
-		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00");
-		if (CameraHFOVScanResult) {
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult - (std::uint8_t*)dllModule);
-			
-			static SafetyHookMid CameraHFOVMidHook{};
-			CameraHFOVMidHook = safetyhook::create_mid(CameraHFOVScanResult, [](SafetyHookContext& ctx)
+	if (eGameType == Game::AQBFTK && bFixActive == true)
+	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)dllModule);
+
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f))
 				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV memory address.");
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
 			return;
 		}
 	}

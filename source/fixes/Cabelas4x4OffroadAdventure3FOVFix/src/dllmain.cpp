@@ -13,7 +13,6 @@
 #include <fstream>
 #include <filesystem>
 #include <cmath> // For atanf, tanf
-#include <unordered_set>
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -227,30 +226,36 @@ void FOVFix()
 			spdlog::info("Camera FOV Instruction: Address is EngineDll.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
-			static float lastModifiedFOV = 0.0f;
+
+			static float fLastModifiedFOV = 0.0f;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
 
-				if (currentFOVValue == 75.0f)
+				if (fCurrentFOVValue == 75.0f)
 				{
-					currentFOVValue = 2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-					lastModifiedFOV = currentFOVValue;
+					fCurrentFOVValue = 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+					fLastModifiedFOV = fCurrentFOVValue;
 					return;
 				}
 
-				if (currentFOVValue != lastModifiedFOV && currentFOVValue != 2.0f * RadToDeg(atanf(tanf(DegToRad(75.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))))
+				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != 2.0f * RadToDeg(atanf(tanf(DegToRad(75.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))))
 				{
-					float modifiedHFOVValue = 2.0f * RadToDeg(atanf(tanf(DegToRad(currentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+					float fModifiedFOVValue = 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 
-					if (currentFOVValue != modifiedHFOVValue)
+					if (fCurrentFOVValue != fModifiedFOVValue)
 					{
-						currentFOVValue = modifiedHFOVValue;
-						lastModifiedFOV = modifiedHFOVValue;
+						fCurrentFOVValue = fModifiedFOVValue;
+						fLastModifiedFOV = fModifiedFOVValue;
 					}
 				}
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
 		}
 
 		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
@@ -265,6 +270,11 @@ void FOVFix()
 				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
 			});
 		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction 1 memory address.");
+			return;
+		}
 
 		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 83 D8 00 00 00 D9 C2 DE CA D9 C9 D8 F1");
 		if (AspectRatioInstruction2ScanResult)
@@ -278,8 +288,11 @@ void FOVFix()
 				*reinterpret_cast<float*>(ctx.ebx + 0xD8) = 1.0f;
 			});
 		}
-
-
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction 2 memory address.");
+			return;
+		}
 	}
 }
 

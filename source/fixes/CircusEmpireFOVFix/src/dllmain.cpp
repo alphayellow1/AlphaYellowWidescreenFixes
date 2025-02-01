@@ -228,23 +228,23 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstruction1MidHook{};
 
-			static float lastModifiedFOV1 = 0.0f; // Tracks the last modified FOV value
+			static float fLastModifiedFOV1 = 0.0f; // Tracks the last modified FOV value
 
 			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 0x11, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue1 = *reinterpret_cast<float*>(ctx.edx + 0x108);
+				float& fCurrentFOVValue1 = *reinterpret_cast<float*>(ctx.edx + 0x108);
 
 				// Check if the current FOV value was already modified
-				if (currentFOVValue1 != lastModifiedFOV1)
+				if (fCurrentFOVValue1 != fLastModifiedFOV1)
 				{
 					// Calculate the new FOV based on aspect ratios
-					float modifiedFOVValue1 = fFOVFactor * (2.0f * atanf(tanf(currentFOVValue1 / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					float fModifiedFOVValue1 = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue1 / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 
 					// Update the value only if the modification is meaningful
-					if (currentFOVValue1 != modifiedFOVValue1)
+					if (fCurrentFOVValue1 != fModifiedFOVValue1)
 					{
-						currentFOVValue1 = modifiedFOVValue1;
-						lastModifiedFOV1 = modifiedFOVValue1;
+						fCurrentFOVValue1 = fModifiedFOVValue1;
+						fLastModifiedFOV1 = fModifiedFOVValue1;
 					}
 				}
 			});
@@ -262,23 +262,23 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstruction2MidHook{};
 
-			static float lastModifiedFOV2 = 0.0f; // Tracks the last modified FOV value
+			static float fLastModifiedFOV2 = 0.0f; // Tracks the last modified FOV value
 
 			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue2 = *reinterpret_cast<float*>(ctx.edx + 0x114);
+				float& fCurrentFOVValue2 = *reinterpret_cast<float*>(ctx.edx + 0x114);
 
 				// Check if the current FOV value was already modified
-				if (currentFOVValue2 != lastModifiedFOV2)
+				if (fCurrentFOVValue2 != fLastModifiedFOV2)
 				{
 					// Calculate the new FOV based on aspect ratios
-					float modifiedFOVValue2 = fFOVFactor * (2.0f * atanf(tanf(currentFOVValue2 / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					float fModifiedFOVValue2 = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue2 / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 
 					// Update the value only if the modification is meaningful
-					if (currentFOVValue2 != modifiedFOVValue2)
+					if (fCurrentFOVValue2 != fModifiedFOVValue2)
 					{
-						currentFOVValue2 = modifiedFOVValue2;
-						lastModifiedFOV2 = modifiedFOVValue2;
+						fCurrentFOVValue2 = fModifiedFOVValue2;
+						fLastModifiedFOV2 = fModifiedFOVValue2;
 					}
 				}
 			});

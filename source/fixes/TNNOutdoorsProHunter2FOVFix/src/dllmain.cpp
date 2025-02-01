@@ -177,6 +177,7 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+			return true;
 		}
 		else
 		{
@@ -184,8 +185,6 @@ bool DetectGame()
 			return false;
 		}
 	}
-
-	return true;
 }
 
 void FOVFix()
@@ -238,8 +237,6 @@ void FOVFix()
 			spdlog::info("Camera HFOV Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVZoomInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVZoomInstructionMidHook{};
-
-			static float lastModifiedHFOV = 0.0f;
 
 			CameraHFOVZoomInstructionMidHook = safetyhook::create_mid(CameraHFOVZoomInstructionScanResult, [](SafetyHookContext& ctx)
 			{

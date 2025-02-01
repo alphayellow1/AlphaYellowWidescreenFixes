@@ -177,7 +177,7 @@ static bool DetectGame()
 	return false;
 }
 
-static void FOVFix()
+static void ResolutionFix()
 {
 	if (eGameType == Game::MG && bFixActive == true)
 	{
@@ -185,7 +185,7 @@ static void FOVFix()
 		if (ResolutionWidthInstructionScanResult)
 		{
 			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult + 0xD - (std::uint8_t*)exeModule);
-			
+
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 0xD, [](SafetyHookContext& ctx)
 			{
@@ -202,7 +202,7 @@ static void FOVFix()
 		if (ResolutionHeightInstructionScanResult)
 		{
 			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
-			
+
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -223,7 +223,7 @@ static DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		ResolutionFix();
 	}
 	return TRUE;
 }

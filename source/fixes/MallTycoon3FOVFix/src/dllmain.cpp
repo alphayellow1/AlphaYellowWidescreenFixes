@@ -188,22 +188,22 @@ bool DetectGame()
 	}
 }
 
-SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
-static float lastModifiedFOV = 0.0f;
+static float fLastModifiedFOV = 0.0f;
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& currentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x58);
+	float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x58);
 
-	if (currentFOVValue != lastModifiedFOV)
+	if (fCurrentFOVValue != fLastModifiedFOV)
 	{
-		float modifiedFOVValue = fFOVFactor * (currentFOVValue / (fOldAspectRatio / fNewAspectRatio));
+		float fModifiedFOVValue = fFOVFactor * (fCurrentFOVValue / (fOldAspectRatio / fNewAspectRatio));
 
-		if (currentFOVValue != modifiedFOVValue)
+		if (fCurrentFOVValue != fModifiedFOVValue)
 		{
-			currentFOVValue = modifiedFOVValue;
-			lastModifiedFOV = modifiedFOVValue;
+			fCurrentFOVValue = fModifiedFOVValue;
+			fLastModifiedFOV = fModifiedFOVValue;
 		}
 	}
 }

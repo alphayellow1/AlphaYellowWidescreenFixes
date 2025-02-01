@@ -52,6 +52,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -192,17 +193,20 @@ void FOVFix()
 {
 	if (eGameType == Game::EFWW2N && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 F4 00 00 00 8B B0 50 01 00 00 89 B4 24 D0 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
 			{
 				if (*reinterpret_cast<float*>(ctx.eax + 0x150) == 1.5707963705063f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x150) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x150) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+					*reinterpret_cast<float*>(ctx.eax + 0x150) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x150) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -213,6 +217,7 @@ void FOVFix()
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
 			{
 				// Define a struct to hold the target value and a condition lambda
@@ -222,21 +227,21 @@ void FOVFix()
 					std::function<bool(float)> condition;
 				};
 
-				std::vector<ValueCondition> valueConditions =
+				std::vector<ValueCondition> vValueConditions =
 				{
-					{1.1780972480773926f, [&](float value) { return value == 1.1780972480773926f || fabs(value - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }}, // Hipfire
-					{0.88357293605804f, [&](float value) { return value == 0.88357293605804f || fabs(value - (0.88357293605804f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }}, // Cutscenes
+					{1.1780972480773926f, [&](float value) { return value == 1.1780972480773926f || fabs(value - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }}, // Hipfire
+					{0.88357293605804f, [&](float value) { return value == 0.88357293605804f || fabs(value - (0.88357293605804f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }}, // Cutscenes
 				};
 
 				// Access the float value at the memory address eax + 0x154
-				float& floatValue = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				float& fCurrentVFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
 				// Loop through the value conditions
-				for (const auto& vc : valueConditions)
+				for (const auto& vc : vValueConditions)
 				{
-					if (vc.condition(floatValue))
+					if (vc.condition(fCurrentVFOVValue))
 					{
-						floatValue = vc.targetValue;
+						fCurrentVFOVValue = vc.targetValue;
 						break;
 					}
 				}

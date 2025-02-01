@@ -51,6 +51,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewCameraHFOV;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -188,6 +189,8 @@ void WidescreenFix()
 {
 	if (eGameType == Game::BIT12DP && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "75 2F 6A 20 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? EB 1A");
 		if (ResolutionScanResult)
 		{
@@ -211,9 +214,10 @@ void WidescreenFix()
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.ecx = std::bit_cast<uint32_t>(0.5f * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+				ctx.ecx = std::bit_cast<uint32_t>(0.5f * (fNewAspectRatio / fOldAspectRatio));
 			});
 		}
 		else

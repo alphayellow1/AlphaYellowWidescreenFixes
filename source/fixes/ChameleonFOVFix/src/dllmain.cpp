@@ -53,6 +53,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fAspectRatioToCompare;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -196,6 +197,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid FCOMPInstructionHook{};
+
 void FCOMPInstructionMidHook(SafetyHookContext& ctx)
 {
 	fAspectRatioToCompare = 8.0f;
@@ -208,16 +210,20 @@ void FCOMPInstructionMidHook(SafetyHookContext& ctx)
 
 void FOVFix()
 {
-	if (eGameType == Game::CHAMELEON && bFixActive == true) {
+	if (eGameType == Game::CHAMELEON && bFixActive == true)
+	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 82 20 01 00 00 D8 1D ?? ?? ?? ??");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is LS3DF.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstructionMidHook{};
+
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edx + 0x120) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+				*reinterpret_cast<float*>(ctx.edx + 0x120) = fNewAspectRatio;
 			});
 
 			Memory::PatchBytes(AspectRatioInstructionScanResult + 0xC, "\x90\x90\x90\x90\x90\x90", 6);
@@ -236,11 +242,12 @@ void FOVFix()
 			spdlog::info("Camera FOV Instruction: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x11, [](SafetyHookContext& ctx)
 			{
 				if (*reinterpret_cast<float*>(ctx.edx + 0x108) == 1.308996916f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 1.134464025f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 2.094395161f)
 				{
-					*reinterpret_cast<float*>(ctx.edx + 0x108) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x108) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					*reinterpret_cast<float*>(ctx.edx + 0x108) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x108) / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}

@@ -22,7 +22,7 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule2;
+HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
@@ -184,9 +184,9 @@ bool DetectGame()
 		}
 	}
 
-	dllModule2 = GetModuleHandleA("LS3DF.dll");
-	if (!dllModule2)
+	while (!dllModule2)
 	{
+		dllModule2 = GetModuleHandleA("LS3DF.dll");
 		spdlog::error("Failed to get handle for LS3DF.dll.");
 		return false;
 	}
@@ -219,23 +219,23 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static float lastModifiedFOV = 0.0f; // Tracks the last modified FOV value
+			static float fLastModifiedFOV = 0.0f; // Tracks the last modified FOV value
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.edx + 0x108);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx + 0x108);
 
 				// Check if the current FOV value was already modified
-				if (currentFOVValue != lastModifiedFOV)
+				if (fCurrentFOVValue != fLastModifiedFOV)
 				{
 					// Calculate the new FOV based on aspect ratios
-					float modifiedFOVValue = fFOVFactor * (2.0f * atanf(tanf(currentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					float fModifiedFOVValue = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 
 					// Update the value only if the modification is meaningful
-					if (currentFOVValue != modifiedFOVValue)
+					if (fCurrentFOVValue != fModifiedFOVValue)
 					{
-						currentFOVValue = modifiedFOVValue;
-						lastModifiedFOV = modifiedFOVValue;
+						fCurrentFOVValue = fModifiedFOVValue;
+						fLastModifiedFOV = fModifiedFOVValue;
 					}
 				}
 			});

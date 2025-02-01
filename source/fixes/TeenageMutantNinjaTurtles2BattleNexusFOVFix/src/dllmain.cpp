@@ -54,6 +54,7 @@ bool FixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fNewAspectRatio2;
 float fNewCameraFOV;
 float fFOVFactor;
 
@@ -195,6 +196,8 @@ void FOVFix()
 {
 	if (eGameType == Game::TMNT2BN && FixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 43 24 D9 53 24 8B 5B 04 85 DB 74 32 D9 54 24 10");
 		if (CameraFOVInstructionScanResult)
 		{
@@ -202,9 +205,9 @@ void FOVFix()
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				fNewCameraFOV = fOriginalCameraFOV * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio);
+				fNewCameraFOV = (fOriginalCameraFOV * (fNewAspectRatio / fOldAspectRatio)) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ebx + 0x24) = fNewCameraFOV * fFOVFactor;
+				*reinterpret_cast<float*>(ctx.ebx + 0x24) = fNewCameraFOV;
 			});
 		}
 		else
@@ -218,9 +221,9 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x7 - (std::uint8_t*)exeModule);
 
-			fNewAspectRatio = fOriginalAspectRatio * (fOldAspectRatio / (static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)));
+			fNewAspectRatio2 = fOriginalAspectRatio * (fOldAspectRatio / fNewAspectRatio);
 
-			Memory::Write(AspectRatioScanResult + 0x7, fNewAspectRatio);
+			Memory::Write(AspectRatioScanResult + 0x7, fNewAspectRatio2);
 		}
 		else
 		{

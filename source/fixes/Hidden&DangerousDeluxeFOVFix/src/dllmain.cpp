@@ -315,7 +315,8 @@ DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
-	if (DetectGame()) {
+	if (DetectGame())
+	{
 		FOVFix();
 	}
 	return true;

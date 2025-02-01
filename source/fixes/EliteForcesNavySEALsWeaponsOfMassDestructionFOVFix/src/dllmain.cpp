@@ -51,6 +51,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 void Logging()
 {
@@ -166,6 +167,8 @@ void FOVFix()
 {
 	if (bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* HipfireCameraHFOVInstructionScanResult = Memory::PatternScan(dllModule, "8B 86 00 86 00 00 89 45 08");
 		if (HipfireCameraHFOVInstructionScanResult)
 		{
@@ -176,7 +179,7 @@ void FOVFix()
 			{
 				if (*reinterpret_cast<float*>(ctx.esi + 0x8600) == 1.0471975803375244f)
 				{
-					*reinterpret_cast<float*>(ctx.esi + 0x8600) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.esi + 0x8600) / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+					*reinterpret_cast<float*>(ctx.esi + 0x8600) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.esi + 0x8600) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -196,15 +199,15 @@ void FOVFix()
 			{
 				if (ctx.eax == std::bit_cast<uint32_t>(0.5235987902f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.5235987902f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.5235987902f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 				else if (ctx.eax == std::bit_cast<uint32_t>(0.174532935f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.174532935f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.174532935f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 				else if (ctx.eax == std::bit_cast<uint32_t>(0.06981316954f))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.06981316954f / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)));
+					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.06981316954f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 				}
 			});
 		}

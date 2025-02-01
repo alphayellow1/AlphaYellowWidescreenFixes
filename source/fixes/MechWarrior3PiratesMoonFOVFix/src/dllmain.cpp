@@ -53,6 +53,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewCameraHFOV;
+float fNewAspectRatio;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -202,7 +203,7 @@ static SafetyHookMid CameraHFOVInstructionHook{};
 
 static void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = (2.0f * RadToDeg(atanf(tanf(DegToRad(80.0f / 2.0f)) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio)))) / 160.0f;
+	fNewCameraHFOV = (2.0f * RadToDeg(atanf(tanf(DegToRad(80.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))) / 160.0f;
 
 	_asm
 	{
@@ -214,6 +215,8 @@ void FOVFix()
 {
 	if (eGameType == Game::MW3PM && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraHFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 98 EC 00 00 00 D8 0D ?? ?? ?? ?? D9 90 F0 00 00 00");
 		if (CameraHFOVInstruction1ScanResult)
 		{

@@ -201,27 +201,28 @@ void FOVFix()
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
-			static float lastModifiedFOV = 0.0f;
+
+			static float fLastModifiedFOV = 0.0f;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& currentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0x1C8);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0x1C8);
 
-				if (currentFOVValue == 1.5707963268f)
+				if (fCurrentFOVValue == 1.5707963268f)
 				{
-					currentFOVValue = fFOVFactor * (2.0f * atanf(tanf(currentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
-					lastModifiedFOV = currentFOVValue;
+					fCurrentFOVValue = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					fLastModifiedFOV = fCurrentFOVValue;
 					return;
 				}
 
-				if (currentFOVValue != lastModifiedFOV && currentFOVValue != fFOVFactor * (2.0f * atanf(tanf(1.5707963268f / 2.0f) * (fNewAspectRatio / fOldAspectRatio))))
+				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * atanf(tanf(1.5707963268f / 2.0f) * (fNewAspectRatio / fOldAspectRatio))))
 				{
-					float modifiedFOVValue = fFOVFactor * (2.0f * atanf(tanf(currentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					float modifiedFOVValue = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
 
-					if (currentFOVValue != modifiedFOVValue)
+					if (fCurrentFOVValue != modifiedFOVValue)
 					{
-						currentFOVValue = modifiedFOVValue;
-						lastModifiedFOV = modifiedFOVValue;
+						fCurrentFOVValue = modifiedFOVValue;
+						fLastModifiedFOV = modifiedFOVValue;
 					}
 				}
 			});

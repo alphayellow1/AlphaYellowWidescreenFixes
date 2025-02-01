@@ -150,10 +150,9 @@ void Configuration()
 
 void OpenGame()
 {
-	dllModule = GetModuleHandleA("client.dll");
-
 	while (!dllModule)
 	{
+		dllModule = GetModuleHandleA("client.dll");
 		spdlog::warn("Waiting for client.dll to load...");
 		Sleep(1000); // Delay to wait for the DLL to load
 	}
@@ -173,6 +172,7 @@ void FOVFix()
 			spdlog::info("Camera HFOV Instruction: Address is client.dll+{:x}", CameraHFOVInstructionScanResult - (std::uint8_t*)dllModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				if (*reinterpret_cast<float*>(ctx.eax + 0x154) == 1.5707963705062866f)
@@ -193,6 +193,7 @@ void FOVFix()
 			spdlog::info("Camera VFOV Instruction: Address is client.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)

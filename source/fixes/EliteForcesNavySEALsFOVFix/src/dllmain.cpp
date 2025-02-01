@@ -52,6 +52,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -189,6 +190,8 @@ void FOVFix()
 {
 	if (eGameType == Game::EFNS && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -216,7 +219,7 @@ void FOVFix()
 				// Check if the angle is in the set of valid angles
 				if (validAngles.find(angle) != validAngles.end()) {
 					// Adjust the angle based on the aspect ratio
-					angle = 2.0f * atanf(tanf(angle / 2.0f) * ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio));
+					angle = 2.0f * atanf(tanf(angle / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -238,33 +241,33 @@ void FOVFix()
 
 				std::vector<ValueCondition> valueConditions =
 				{
-					{1.1780973672866821f, [&](float value) { return value == 1.1780973672866821f || fabs(value - (1.1780973672866821f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1780972480773926f, [&](float value) { return value == 1.1780972480773926f || fabs(value - (1.1780972480773926f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1757389307022095f, [&](float value) { return value == 1.1757389307022095f || fabs(value - (1.1757389307022095f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1730972528457642f, [&](float value) { return value == 1.1730972528457642f || fabs(value - (1.1730972528457642f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1714589595794678f, [&](float value) { return value == 1.1714589595794678f || fabs(value - (1.1714589595794678f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.169456958770752f, [&](float value) { return value == 1.169456958770752f || fabs(value - (1.169456958770752f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1670984029769897f, [&](float value) { return value == 1.1670984029769897f || fabs(value - (1.1670984029769897f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1647765636444092f, [&](float value) { return value == 1.1647765636444092f || fabs(value - (1.1647765636444092f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1627964973449707f, [&](float value) { return value == 1.1627964973449707f || fabs(value - (1.1627964973449707f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1604379415512085f, [&](float value) { return value == 1.1604379415512085f || fabs(value - (1.1604379415512085f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1581186056137085f, [&](float value) { return value == 1.1581186056137085f || fabs(value - (1.1581186056137085f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.15607750415802f, [&](float value) { return value == 1.15607750415802f || fabs(value - (1.15607750415802f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1530965566635132f, [&](float value) { return value == 1.1530965566635132f || fabs(value - (1.1530965566635132f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1517561674118042f, [&](float value) { return value == 1.1517561674118042f || fabs(value - (1.1517561674118042f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.149397611618042f, [&](float value) { return value == 1.149397611618042f || fabs(value - (1.149397611618042f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1474175453186035f, [&](float value) { return value == 1.1474175453186035f || fabs(value - (1.1474175453186035f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1450175046920776f, [&](float value) { return value == 1.1450175046920776f || fabs(value - (1.1450175046920776f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1430960893630981f, [&](float value) { return value == 1.1430960893630981f || fabs(value - (1.1430960893630981f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1407572031021118f, [&](float value) { return value == 1.1407572031021118f || fabs(value - (1.1407572031021118f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1381179094314575f, [&](float value) { return value == 1.1381179094314575f || fabs(value - (1.1381179094314575f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1364357471466064f, [&](float value) { return value == 1.1364357471466064f || fabs(value - (1.1364357471466064f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1344558000564575f, [&](float value) { return value == 1.1344558000564575f || fabs(value - (1.1344558000564575f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1320973634719849f, [&](float value) { return value == 1.1320973634719849f || fabs(value - (1.1320973634719849f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.129755973815918f, [&](float value) { return value == 1.129755973815918f || fabs(value - (1.129755973815918f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.127776026725769f, [&](float value) { return value == 1.127776026725769f || fabs(value - (1.127776026725769f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{1.1254565715789795f, [&](float value) { return value == 1.1254565715789795f || fabs(value - (1.1254565715789795f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
-					{0.3272492289543152f, [&](float value) { return value == 0.3272492289543152f || fabs(value - (0.3272492289543152f / ((static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY)) / fOldAspectRatio))) < epsilon; }},
+					{1.1780973672866821f, [&](float value) { return value == 1.1780973672866821f || fabs(value - (1.1780973672866821f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1780972480773926f, [&](float value) { return value == 1.1780972480773926f || fabs(value - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1757389307022095f, [&](float value) { return value == 1.1757389307022095f || fabs(value - (1.1757389307022095f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1730972528457642f, [&](float value) { return value == 1.1730972528457642f || fabs(value - (1.1730972528457642f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1714589595794678f, [&](float value) { return value == 1.1714589595794678f || fabs(value - (1.1714589595794678f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.169456958770752f, [&](float value) { return value == 1.169456958770752f || fabs(value - (1.169456958770752f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1670984029769897f, [&](float value) { return value == 1.1670984029769897f || fabs(value - (1.1670984029769897f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1647765636444092f, [&](float value) { return value == 1.1647765636444092f || fabs(value - (1.1647765636444092f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1627964973449707f, [&](float value) { return value == 1.1627964973449707f || fabs(value - (1.1627964973449707f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1604379415512085f, [&](float value) { return value == 1.1604379415512085f || fabs(value - (1.1604379415512085f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1581186056137085f, [&](float value) { return value == 1.1581186056137085f || fabs(value - (1.1581186056137085f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.15607750415802f, [&](float value) { return value == 1.15607750415802f || fabs(value - (1.15607750415802f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1530965566635132f, [&](float value) { return value == 1.1530965566635132f || fabs(value - (1.1530965566635132f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1517561674118042f, [&](float value) { return value == 1.1517561674118042f || fabs(value - (1.1517561674118042f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.149397611618042f, [&](float value) { return value == 1.149397611618042f || fabs(value - (1.149397611618042f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1474175453186035f, [&](float value) { return value == 1.1474175453186035f || fabs(value - (1.1474175453186035f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1450175046920776f, [&](float value) { return value == 1.1450175046920776f || fabs(value - (1.1450175046920776f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1430960893630981f, [&](float value) { return value == 1.1430960893630981f || fabs(value - (1.1430960893630981f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1407572031021118f, [&](float value) { return value == 1.1407572031021118f || fabs(value - (1.1407572031021118f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1381179094314575f, [&](float value) { return value == 1.1381179094314575f || fabs(value - (1.1381179094314575f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1364357471466064f, [&](float value) { return value == 1.1364357471466064f || fabs(value - (1.1364357471466064f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1344558000564575f, [&](float value) { return value == 1.1344558000564575f || fabs(value - (1.1344558000564575f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1320973634719849f, [&](float value) { return value == 1.1320973634719849f || fabs(value - (1.1320973634719849f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.129755973815918f, [&](float value) { return value == 1.129755973815918f || fabs(value - (1.129755973815918f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.127776026725769f, [&](float value) { return value == 1.127776026725769f || fabs(value - (1.127776026725769f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{1.1254565715789795f, [&](float value) { return value == 1.1254565715789795f || fabs(value - (1.1254565715789795f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
+					{0.3272492289543152f, [&](float value) { return value == 0.3272492289543152f || fabs(value - (0.3272492289543152f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
 				};
 
 				// Access the float value at the memory address ecx + 0x19C
