@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{ad9dcba0-4db6-4f62-86e8-4854ad02bbab}</ProjectGuid>
-    <RootNamespace>CrazyChickenTalesFOVFix</RootNamespace>
+    <ProjectGuid>{19b885a0-78ba-4679-8182-a0b1689a87b1}</ProjectGuid>
+    <RootNamespace>CrazyChickenTalesWidescreenFix</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

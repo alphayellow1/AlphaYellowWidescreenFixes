@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "CrazyChickenTalesFOVFix";
+std::string sFixName = "CrazyChickenTalesWidescreenFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -141,7 +141,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -185,30 +185,68 @@ bool DetectGame()
 	}
 }
 
-void FOVFix()
+void WidescreenFix()
 {
 	if (eGameType == Game::CCT && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "00 CC CC CC 8B C1 8B 4C 24 04 D9 01 D9 18 D9 41 04");
-		if (AspectRatioInstructionScanResult)
+		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "89 46 70 89 7C 24 28 E8 ?? ?? ?? ?? 8D 4C 24 34");
+		if (ResolutionWidthInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 0xA - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid AspectRatioInstructionMidHook{};
+			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0xA, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.eax) == 1.538461566f)
+				ctx.eax = std::bit_cast<uint32_t>(iCurrentResX);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution width instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(exeModule, "89 46 74 89 7C 24 28 E8 ?? ?? ?? ?? 8B 4C 24 20");
+		if (ResolutionHeightInstructionScanResult)
+		{
+			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid ResolutionHeightInstructionMidHook{};
+
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				ctx.eax = std::bit_cast<uint32_t>(iCurrentResY);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution height instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "00 CC CC CC 8B C1 8B 4C 24 04 D9 01 D9 18 D9 41 04");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0xA - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0xA, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx);
+
+				if (fCurrentCameraHFOV == 1.538461566f || fCurrentCameraHFOV == 1.25f)
 				{
-					*reinterpret_cast<float*>(ctx.eax) = 1.538461566f / (fNewAspectRatio / fOldAspectRatio);
+					fCurrentCameraHFOV = fCurrentCameraHFOV / (fNewAspectRatio / fOldAspectRatio);
 				}
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
 			return;
 		}
 	}
@@ -220,7 +258,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }
