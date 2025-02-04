@@ -26,7 +26,7 @@ HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "CabelasBigGameHunter2007AlaskanAdventureFOVFix";
+std::string sFixName = "CabelasAfricanSafariFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
