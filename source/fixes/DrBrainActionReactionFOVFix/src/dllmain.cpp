@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "DrBrainActionReactionFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -226,30 +226,12 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static float fLastModifiedFOV = 0.0f;
-
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx + 0x2EC);
 
-				if (fCurrentFOVValue == 90.0f)
-				{
-					fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-					fLastModifiedFOV = fCurrentFOVValue;
-					return;
-				}
+				fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
 
-
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
-				{
-					float fModifiedFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-
-					if (fCurrentFOVValue != fModifiedFOVValue && fCurrentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
-				}
 			});
 		}
 		else
