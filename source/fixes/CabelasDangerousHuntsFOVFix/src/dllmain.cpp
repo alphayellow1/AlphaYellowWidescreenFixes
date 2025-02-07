@@ -44,7 +44,6 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -204,6 +203,11 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::CDH && bFixActive == true)
@@ -225,14 +229,14 @@ void FOVFix()
 
 				if (fCurrentFOVValue == 75.0f)
 				{
-					fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
 					fLastModifiedFOV = fCurrentFOVValue;
 					return;
 				}
 
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(75.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
+				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(75.0f))
 				{
-					float fModifiedFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
 
 					if (fCurrentFOVValue != fModifiedFOVValue)
 					{

@@ -187,6 +187,11 @@ bool DetectGame()
 	}
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::VBO && bFixActive == true)
@@ -206,7 +211,7 @@ void FOVFix()
 
 				if (fCurrentCameraHFOV == 1.570796371f)
 				{
-					fCurrentCameraHFOV = 2.0f * atanf(tanf(fCurrentCameraHFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
 				}
 			});
 		}
@@ -242,10 +247,14 @@ void FOVFix()
 
 			CameraHFOVZoomInstructionMidHook = safetyhook::create_mid(CameraHFOVZoomInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (ctx.eax == std::bit_cast<uint32_t>(0.174532935f))
+				float fCurrentCameraHFOVZoom = std::bit_cast<float>(ctx.eax);
+
+				if (fCurrentCameraHFOVZoom == 0.174532935f)
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.174532935f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					fCurrentCameraHFOVZoom = CalculateNewFOV(fCurrentCameraHFOVZoom);
 				}
+
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraHFOVZoom);
 			});
 		}
 

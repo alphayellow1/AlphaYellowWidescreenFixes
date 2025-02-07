@@ -203,30 +203,40 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewGameplayFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+}
+
+float CalculateNewCutscenesFOV(float fCurrentFOV)
+{
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
 static SafetyHookMid GameplayCameraFOVInstructionHook{};
 
 static void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float fOriginalGameplayCameraFOV = 90.0f;
 
-	fNewGameplayCameraFOV = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	fNewGameplayCameraFOV = CalculateNewGameplayFOV(fOriginalGameplayCameraFOV);
 
 	_asm
 	{
 		push eax
-		mov eax, dword ptr ds:[0x0054D014]
+		mov eax, dword ptr ds : [0x0054D014]
 		cmp eax, fOriginalGameplayCameraFOV
 		je ChangeFOV
 		jmp OriginalCode
 
-		ChangeFOV:
-		mov eax, dword ptr ds:[fNewGameplayCameraFOV]
-		mov dword ptr ds:[0x0054D014],eax
-		jmp OriginalCode
+		ChangeFOV :
+		mov eax, dword ptr ds : [fNewGameplayCameraFOV]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp OriginalCode
 
-		OriginalCode:
+			OriginalCode :
 		pop eax
-		fld dword ptr ds:[0x0054D014]
+			fld dword ptr ds : [0x0054D014]
 	}
 }
 
@@ -234,81 +244,90 @@ static SafetyHookMid CutscenesCameraFOVInstructionHook{};
 
 static void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	constexpr float fOriginalCutscenesCameraFOV1 = 45.00003433f;
-	constexpr float fOriginalCutscenesCameraFOV2 = 30.0000248f;
-	constexpr float fOriginalCutscenesCameraFOV3 = 60.000049591064f;
-	constexpr float fOriginalCutscenesCameraFOV4 = 65.000679016113f;
-	constexpr float fOriginalCutscenesCameraFOV5 = 45.000038146973f;
-	constexpr float fOriginalCutscenesCameraFOV6 = 53.00004196167f;
+	constexpr float fOriginalCutscenesCameraFOV1 = 30.0000248f;
 
-	float fNewCutscenesCameraFOV1 = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCutscenesCameraFOV1 / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-	float fNewCutscenesCameraFOV2 = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCutscenesCameraFOV2 / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-	float fNewCutscenesCameraFOV3 = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCutscenesCameraFOV3 / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-	float fNewCutscenesCameraFOV4 = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCutscenesCameraFOV4 / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-	float fNewCutscenesCameraFOV5 = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCutscenesCameraFOV5 / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-	float fNewCutscenesCameraFOV6 = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCutscenesCameraFOV6 / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	constexpr float fOriginalCutscenesCameraFOV2 = 45.00003433f;
+
+	constexpr float fOriginalCutscenesCameraFOV3 = 45.000038146973f;
+
+	constexpr float fOriginalCutscenesCameraFOV4 = 53.00004196167f;
+
+	constexpr float fOriginalCutscenesCameraFOV5 = 60.000049591064f;
+
+	constexpr float fOriginalCutscenesCameraFOV6 = 65.000679016113f;
+
+	float fNewCutscenesCameraFOV1 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV1);
+
+	float fNewCutscenesCameraFOV2 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV2);
+
+	float fNewCutscenesCameraFOV3 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV3);
+
+	float fNewCutscenesCameraFOV4 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV4);
+
+	float fNewCutscenesCameraFOV5 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV5);
+
+	float fNewCutscenesCameraFOV6 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV6);
 
 	_asm
 	{
 		push eax
-		mov eax, dword ptr ds:[0x0054D014]
+		mov eax, dword ptr ds : [0x0054D014]
 		cmp eax, fOriginalCutscenesCameraFOV1
 		je FOV1
 
-		Compare1:
+		Compare1 :
 		cmp eax, fOriginalCutscenesCameraFOV2
-		je FOV2
+			je FOV2
 
-		Compare2:
+			Compare2 :
 		cmp eax, fOriginalCutscenesCameraFOV3
-		je FOV3
+			je FOV3
 
-		Compare3:
+			Compare3 :
 		cmp eax, fOriginalCutscenesCameraFOV4
-		je FOV4
+			je FOV4
 
-		Compare4:
+			Compare4 :
 		cmp eax, fOriginalCutscenesCameraFOV5
-		je FOV5
+			je FOV5
 
-		Compare5:
+			Compare5 :
 		cmp eax, fOriginalCutscenesCameraFOV6
-		je FOV6
-		jmp OriginalCode
+			je FOV6
+			jmp OriginalCode
 
-		FOV1:
-		mov eax, dword ptr ds:[fNewCutscenesCameraFOV1]
-		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare1
+			FOV1 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV1]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare1
 
-		FOV2:
-		mov eax, dword ptr ds:[fNewCutscenesCameraFOV2]
-		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare2
+			FOV2 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV2]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare2
 
-		FOV3:
-		mov eax, dword ptr ds:[fNewCutscenesCameraFOV3]
-		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare3
+			FOV3 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV3]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare3
 
-		FOV4:
-		mov eax, dword ptr ds:[fNewCutscenesCameraFOV4]
-		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare4
+			FOV4 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV4]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare4
 
-		FOV5:
-		mov eax, dword ptr ds:[fNewCutscenesCameraFOV5]
-		mov dword ptr ds:[0x0054D014],eax
-		jmp Compare5
+			FOV5 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV5]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp Compare5
 
-		FOV6:
-		mov eax, dword ptr ds:[fNewCutscenesCameraFOV6]
-		mov dword ptr ds:[0x0054D014],eax
-		jmp OriginalCode
+			FOV6 :
+		mov eax, dword ptr ds : [fNewCutscenesCameraFOV6]
+			mov dword ptr ds : [0x0054D014] , eax
+			jmp OriginalCode
 
-		OriginalCode:
+			OriginalCode :
 		pop eax
-		fld dword ptr ds:[0x0054D014]
 	}
 }
 
@@ -323,24 +342,7 @@ void FOVFix()
 		{
 			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(GameplayCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult + 0x6, GameplayCameraFOVInstructionMidHook);
-
-			/*
-			static SafetyHookMid GameplayCameraFOVInstructionMidHook{};
-			GameplayCameraFOVInstructionMidHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				std::uint8_t* GameplayCameraFOVScanResult = Memory::PatternScan(exeModule, "CD CC AC 3F 9A 99 81 3F ?? ?? ?? ?? 01 00 00 00");
-
-				if (*reinterpret_cast<float*>(GameplayCameraFOVScanResult + 0x8) == 90.0f)
-				{
-					fNewGameplayCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-
-					Memory::Write(GameplayCameraFOVScanResult + 0x8, fFOVFactor * fNewGameplayCameraFOV);
-				}
-			});
-			*/
+			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, GameplayCameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -353,24 +355,7 @@ void FOVFix()
 		{
 			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CutscenesCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult + 0x6, CutscenesCameraFOVInstructionMidHook);
-
-			/*
-			static SafetyHookMid CutscenesCameraFOVInstructionMidHook{};
-			CutscenesCameraFOVInstructionMidHook = safetyhook::create_mid(CutscenesCameraFOVScanResult, [](SafetyHookContext& ctx)
-			{
-				std::uint8_t* CutscenesCameraFOVScanResult = Memory::PatternScan(exeModule, "B8 5D 6D 0E ?? ?? ?? ?? B0 6E 49 00 00");
-
-				if (*reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 45.00003433f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 30.0000248f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 60.000049591064f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 65.000679016113f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 45.000038146973f || *reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) == 53.00004196167f)
-				{
-					fNewCutscenesCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(*reinterpret_cast<float*>(CutscenesCameraFOVScanResult + 0x4) / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-
-					Memory::Write(CutscenesCameraFOVScanResult + 0x4, fNewCutscenesCameraFOV);
-				}
-			});
-			*/
+			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, CutscenesCameraFOVInstructionMidHook);
 		}
 		else
 		{

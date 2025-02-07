@@ -206,6 +206,11 @@ void FCOMPInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::WOW && bFixActive == true)
@@ -229,7 +234,7 @@ void FOVFix()
 				if (fCurrentFOVValue != fLastModifiedFOV)
 				{
 					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
 
 					// Update the value only if the modification is meaningful
 					if (fCurrentFOVValue != fModifiedFOVValue)

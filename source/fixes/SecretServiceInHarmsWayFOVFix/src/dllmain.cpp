@@ -198,6 +198,7 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+			return true;
 		}
 		else
 		{
@@ -205,30 +206,11 @@ bool DetectGame()
 			return false;
 		}
 	}
-
-	return true;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
-
-static void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+float CalculateNewFOV(float fCurrentFOV)
 {
-	constexpr float fOriginalCameraFOV = 90.0f;
-
-	float fNewCameraFOV = fCameraFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-
-	ctx.edx = std::bit_cast<uint32_t>(fNewCameraFOV);
-}
-
-static SafetyHookMid WeaponFOVInstructionHook{};
-
-static void WeaponFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	constexpr float fOriginalWeaponFOV = 60.0f;
-
-	float fNewWeaponFOV = fWeaponFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalWeaponFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-
-	ctx.edx = std::bit_cast<uint32_t>(fNewWeaponFOV);
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 }
 
 void FOVFix()
@@ -242,7 +224,16 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				constexpr float fOriginalCameraFOV = 90.0f;
+
+				float fNewCameraFOV = fCameraFOVFactor * CalculateNewFOV(fOriginalCameraFOV);
+
+				ctx.edx = std::bit_cast<uint32_t>(fNewCameraFOV);
+			});
 		}
 		else
 		{
@@ -255,7 +246,16 @@ void FOVFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, WeaponFOVInstructionMidHook);
+			static SafetyHookMid WeaponFOVInstructionMidHook{};
+
+			WeaponFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				constexpr float fOriginalWeaponFOV = 60.0f;
+
+				float fNewWeaponFOV = fWeaponFOVFactor * CalculateNewFOV(fOriginalWeaponFOV);
+
+				ctx.edx = std::bit_cast<uint32_t>(fNewWeaponFOV);
+			});
 		}
 		else
 		{

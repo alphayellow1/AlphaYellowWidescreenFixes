@@ -218,7 +218,9 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edx + 0x34) = fOriginalCameraHFOV * (fOldAspectRatio / fNewAspectRatio);
+				fNewCameraHFOV = fOriginalCameraHFOV * (fOldAspectRatio / fNewAspectRatio);
+
+				*reinterpret_cast<float*>(ctx.edx + 0x34) = fNewCameraHFOV;
 			});
 		}
 		else

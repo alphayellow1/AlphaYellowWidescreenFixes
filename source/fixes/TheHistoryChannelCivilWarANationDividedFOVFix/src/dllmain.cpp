@@ -201,7 +201,13 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
 SafetyHookMid CameraFOVHipfireLevelStartHook{};
+
 static float lastModifiedFOV = 0.0f;
 
 void CameraFOVHipfireLevelStartMidHook(SafetyHookContext& ctx)
@@ -215,7 +221,7 @@ void CameraFOVHipfireLevelStartMidHook(SafetyHookContext& ctx)
 
 	float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.esi + 0x8);
 
-	fCurrentFOVValue = fFOVFactor * (2.0f * atanf(tanf(1.2200000286102295f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+	fCurrentFOVValue = CalculateNewFOV(1.2200000286102295f);
 
 	_asm
 	{
@@ -254,14 +260,18 @@ void FOVFix()
 
 			CameraFOVZoomInstructionMidHook = safetyhook::create_mid(CameraFOVZoomInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (ctx.edx == std::bit_cast<uint32_t>(1.2200000286102295f))
+				float fCurrentZoomFOV = std::bit_cast<float>(ctx.edx);
+
+				if (fCurrentZoomFOV == 1.2200000286102295f)
 				{
-					ctx.edx = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * atanf(tanf(1.2200000286102295f / 2.0f) * (fNewAspectRatio / fOldAspectRatio))));
+					fCurrentZoomFOV = CalculateNewFOV(1.2200000286102295f);
 				}
 				else
 				{
-					ctx.edx = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * atanf(tanf(0.6899999976158142f / 2.0f) * (fNewAspectRatio / fOldAspectRatio))));
+					fCurrentZoomFOV = CalculateNewFOV(0.6899999976158142f);
 				}
+
+				ctx.edx = std::bit_cast<uintptr_t>(fCurrentZoomFOV);
 			});
 		}
 		else

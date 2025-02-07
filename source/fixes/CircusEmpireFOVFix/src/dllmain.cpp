@@ -215,6 +215,11 @@ void FCOMPInstruction2MidHook(SafetyHookContext& ctx)
 	}
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::CE && bFixActive == true)
@@ -224,7 +229,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
 		if (CameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstruction1ScanResult + 0x11 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstruction1MidHook{};
 
@@ -234,11 +239,16 @@ void FOVFix()
 			{
 				float& fCurrentFOVValue1 = *reinterpret_cast<float*>(ctx.edx + 0x108);
 
+				if (fCurrentFOVValue1 == 1.22173059f || fCurrentFOVValue1 == 1.256637096f || fCurrentFOVValue1 == 1.086083293f || fCurrentFOVValue1 == 1.139648318f || fCurrentFOVValue1 == 1.130296111f || fCurrentFOVValue1 == 1.087588668f || fCurrentFOVValue1 == 1.256637454f)
+				{
+					fCurrentFOVValue1 = CalculateNewFOV(fCurrentFOVValue1);
+				}
+
 				// Check if the current FOV value was already modified
-				if (fCurrentFOVValue1 != fLastModifiedFOV1)
+				if (fCurrentFOVValue1 != fLastModifiedFOV1 && fCurrentFOVValue1 != CalculateNewFOV(1.22173059f) && fCurrentFOVValue1 != CalculateNewFOV(1.256637096f) && fCurrentFOVValue1 != CalculateNewFOV(1.086083293f) && fCurrentFOVValue1 != CalculateNewFOV(1.139648318f) && fCurrentFOVValue1 != CalculateNewFOV(1.130296111f) && fCurrentFOVValue1 != CalculateNewFOV(1.087588668f) && fCurrentFOVValue1 != CalculateNewFOV(1.256637454f))
 				{
 					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue1 = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue1 / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					float fModifiedFOVValue1 = CalculateNewFOV(fCurrentFOVValue1);
 
 					// Update the value only if the modification is meaningful
 					if (fCurrentFOVValue1 != fModifiedFOVValue1)
@@ -272,7 +282,7 @@ void FOVFix()
 				if (fCurrentFOVValue2 != fLastModifiedFOV2)
 				{
 					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue2 = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue2 / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					float fModifiedFOVValue2 = CalculateNewFOV(fCurrentFOVValue2);
 
 					// Update the value only if the modification is meaningful
 					if (fCurrentFOVValue2 != fModifiedFOVValue2)

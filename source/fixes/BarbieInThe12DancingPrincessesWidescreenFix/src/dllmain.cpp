@@ -50,7 +50,7 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraHFOV;
+float fCurrentCameraHFOV;
 float fNewAspectRatio;
 
 // Game detection
@@ -217,7 +217,11 @@ void WidescreenFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.ecx = std::bit_cast<uint32_t>(0.5f * (fNewAspectRatio / fOldAspectRatio));
+				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
+
+				fCurrentCameraHFOV = 0.5f * (fNewAspectRatio / fOldAspectRatio);
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
 			});
 		}
 		else

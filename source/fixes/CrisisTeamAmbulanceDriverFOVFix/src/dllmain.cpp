@@ -40,7 +40,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
@@ -186,6 +185,11 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::CTAD && bFixActive == true)
@@ -201,9 +205,11 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.eax + 0x20C) == 1.0471975803375244f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x20C);
+
+				if (fCurrentCameraHFOV == 1.0471975803375244f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x20C) = 2.0f * atanf(tanf(1.0471975803375244f / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
 				}
 			});
 		}
@@ -222,9 +228,11 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x210) - (0.7853981852531433f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x210);
+
+				if (fabs(fCurrentCameraVFOV - (0.7853981852531433f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x210) = 0.7853981852531433f;
+					fCurrentCameraVFOV = 0.7853981852531433f;
 				}
 			});
 		}

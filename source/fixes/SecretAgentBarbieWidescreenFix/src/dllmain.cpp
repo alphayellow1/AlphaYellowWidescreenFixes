@@ -220,6 +220,11 @@ static void ResolutionHeightInstructionMidHook(SafetyHookContext& ctx)
 	*reinterpret_cast<uint32_t*>(ctx.eax + 0x44) = iCurrentResY;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
 void WidescreenFix()
 {
 	if (eGameType == Game::SAB && bFixActive == true)
@@ -234,24 +239,15 @@ void WidescreenFix()
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (ctx.eax == std::bit_cast<uint32_t>(35.0f))
-				{
-					fOriginalCameraFOV = 35.0f;
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))));
-				}
-				else if (ctx.eax == std::bit_cast<uint32_t>(90.0f))
+				if (fCurrentCameraFOV == 35.0f || fCurrentCameraFOV == 90.0f || fCurrentCameraFOV == 100.0f)
 				{
-					fOriginalCameraFOV = 90.0f;
 
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))));
+					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 				}
-				else if (ctx.eax == std::bit_cast<uint32_t>(100.0f))
-				{
-					fOriginalCameraFOV = 100.0f;
 
-					ctx.eax = std::bit_cast<uint32_t>(fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))));
-				}
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
 			});
 		}
 		else

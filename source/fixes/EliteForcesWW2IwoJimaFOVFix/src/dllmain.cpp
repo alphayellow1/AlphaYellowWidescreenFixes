@@ -203,9 +203,11 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.eax + 0x150) == 1.570796371f || *reinterpret_cast<float*>(ctx.eax + 0x150) == 0.8726646304f || *reinterpret_cast<float*>(ctx.eax + 0x150) == 0.7853981853f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
+
+				if (fCurrentCameraHFOV == 1.570796371f || fCurrentCameraHFOV == 0.8726646304f || fCurrentCameraHFOV == 0.7853981853f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x150) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x150) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentCameraHFOV = 2.0f * atanf(tanf(fCurrentCameraHFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
 			});
 		}
@@ -234,14 +236,14 @@ void FOVFix()
 				};
 
 				// Access the float value at the memory address eax + 0x154
-				float& floatValue = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				float& fCurremtCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
 				// Loop through the value conditions
 				for (const auto& vc : valueConditions)
 				{
-					if (vc.condition(floatValue))
+					if (vc.condition(fCurremtCameraVFOV))
 					{
-						floatValue = vc.targetValue;
+						fCurremtCameraVFOV = vc.targetValue;
 						break;
 					}
 				}

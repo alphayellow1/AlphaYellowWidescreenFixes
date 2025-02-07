@@ -186,6 +186,11 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::EFNS && bFixActive == true)
@@ -201,7 +206,8 @@ void FOVFix()
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Define the set of valid angles
-				static const std::unordered_set<float> validAngles = {
+				static const std::unordered_set<float> validAngles =
+				{
 					1.6234371662139893f, 1.6211177110671997f, 1.6191377639770508f,
 					1.6167963743209839f, 1.6144379377365112f, 1.6124579906463623f,
 					1.6107758283615112f, 1.608136534690857f, 1.6057976484298706f,
@@ -219,7 +225,7 @@ void FOVFix()
 				// Check if the angle is in the set of valid angles
 				if (validAngles.find(angle) != validAngles.end()) {
 					// Adjust the angle based on the aspect ratio
-					angle = 2.0f * atanf(tanf(angle / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					angle = CalculateNewFOV(angle);
 				}
 			});
 		}
