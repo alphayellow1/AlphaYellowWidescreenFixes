@@ -188,6 +188,11 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::TCGR && bFixActive == true)
@@ -207,11 +212,11 @@ void FOVFix()
 			{
 				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0x1C8);
 
-				float fMaxFOVValue = fFOVFactor * (2.0f * atanf(tanf(1.570796371f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+				float fMaxFOVValue = CalculateNewFOV(1.570796371f);
 
 				if (fCurrentFOVValue == 1.570796371f)
 				{
-					fCurrentFOVValue = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
 					fLastModifiedFOV = fCurrentFOVValue;
 					return;
 				}
@@ -223,9 +228,9 @@ void FOVFix()
 					return;
 				}
 
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * atanf(tanf(1.570796371f / 2.0f) * (fNewAspectRatio / fOldAspectRatio))) && fCurrentFOVValue != fFOVFactor * (2.0f * atanf(tanf(0.927295208f / 2.0f) * (fNewAspectRatio / fOldAspectRatio))))
+				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(1.570796371f) && fCurrentFOVValue != CalculateNewFOV(0.927295208f))
 				{
-					float fModifiedFOVValue = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
 
 					if (fCurrentFOVValue != fModifiedFOVValue)
 					{

@@ -5,7 +5,6 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
-#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -186,9 +185,9 @@ static void FOVFix()
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
-			
+
 			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-			
+
 			Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
 		}
 		else

@@ -213,6 +213,11 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::REV && bFixActive == true)
@@ -234,14 +239,14 @@ void FOVFix()
 
 				if (fCurrentFOVValue == 90.0f)
 				{
-					fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
 					fLastModifiedFOV = fCurrentFOVValue;
 					return;
 				}
 
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
+				if (fCurrentFOVValue != fLastModifiedFOV && CalculateNewFOV(90.0f))
 				{
-					float fModifiedHFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+					float fModifiedHFOVValue = CalculateNewFOV(fCurrentFOVValue);
 
 					if (fCurrentFOVValue != fModifiedHFOVValue)
 					{

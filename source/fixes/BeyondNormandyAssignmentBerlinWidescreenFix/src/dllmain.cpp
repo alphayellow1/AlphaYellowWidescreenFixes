@@ -250,8 +250,11 @@ void Instruction4MidHook(SafetyHookContext& ctx)
 
 void WidescreenFix()
 {
-	if (eGameType == Game::BNAB && bFixActive == true) {
+	if (eGameType == Game::BNAB && bFixActive == true)
+	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fHUDWidth = 600.0f * fNewAspectRatio;
 
 		std::uint8_t* HUDElementsScan1Result = Memory::PatternScan(exeModule, "00 00 1C 42 00 80 B1 43 00 00 50 42 00 00 5E 43 0E 74 DA 3A 0A D7 A3 3A 23 20 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 20 25 73 0A 00 00");
 		if (HUDElementsScan1Result)
@@ -332,7 +335,7 @@ void WidescreenFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate HUD left margin memory address.");
+			spdlog::error("Failed to locate Compass needle X, Objective direction width, Compass X, Compass width and Weapons list width memory address.");
 			return;
 		}
 
@@ -458,8 +461,6 @@ void WidescreenFix()
 
 			// Field of view
 			fNewCameraFOV = 0.75f * fNewAspectRatio * fFOVFactor;
-
-			fHUDWidth = 600.0f * fNewAspectRatio;
 
 			Instruction3Hook = safetyhook::create_mid(Instruction3ScanResult + 0x4, Instruction3MidHook);
 

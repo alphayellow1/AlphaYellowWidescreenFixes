@@ -213,6 +213,11 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::MTGB && bFixActive == true)
@@ -230,7 +235,7 @@ void FOVFix()
 			{
 				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x208);
 
-				fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(85.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+				fCurrentFOVValue = CalculateNewFOV(85.0f);
 			});
 		}
 		else

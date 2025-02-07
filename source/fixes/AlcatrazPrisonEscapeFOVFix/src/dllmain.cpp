@@ -195,7 +195,7 @@ void FOVFix()
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
+
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
@@ -216,16 +216,16 @@ void FOVFix()
 		if (CameraVFOVInstructionScanResult)
 		{
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
+
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x19C) - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x19C) = 1.1780972480773926f; // Gameplay VFOV
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (0.849067747592926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x19C) - (0.849067747592926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
 					*reinterpret_cast<float*>(ctx.eax + 0x19C) = 0.849067747592926f; // Cutscenes VFOV
 				}

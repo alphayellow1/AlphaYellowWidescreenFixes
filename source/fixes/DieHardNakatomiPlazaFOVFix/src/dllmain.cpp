@@ -53,6 +53,8 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fCurrentZoomCameraHFOV;
+float fCurrentZoomCameraVFOV;
 
 // Game detection
 enum class Game
@@ -186,6 +188,11 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateFOV(float currentfov)
+{
+	return 2.0f * atanf(tanf(currentfov / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::DHNP && bFixActive == true)
@@ -198,25 +205,27 @@ void FOVFix()
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				static const std::unordered_set<float> validAngles =
 				{
-				1.5707963705062866f, 1.5700000524520874f, 0.5585054159164429f, 0.4886922240257263f,
-				1.0471975803375244f, 0.5235987901687622f, 0.3490658700466156f, 0.8726646900177002f,
-				0.1745329350233078f, 1.1344640254974365f, 0.2617993950843811f, 0.06981317698955536f,
-				0.13962635397911072f, 1.3962634801864624f, 0.7853981852531433f, 1.2217305898666382f,
-				0.6981317400932312f, 1.5312644243240356f, 1.4747148752212524f, 1.448533296585083f,
-				1.4223518371582031f, 1.3919837474822998f, 1.3613520860671997f, 1.3307284116744995f,
-				1.3045469522476196f, 1.2783653736114502f, 1.2521837949752808f, 1.2260023355484009f,
-				1.1953785419464111f, 1.1691970825195312f, 1.1430155038833618f, 1.1168339252471924f,
-				1.0906524658203125f, 1.0602843761444092f, 0.4363323152065277f
+					1.5707963705062866f, 0.5585054159164429f, 0.4886922240257263f,
+					1.0471975803375244f, 0.5235987901687622f, 0.3490658700466156f, 0.8726646900177002f,
+					0.1745329350233078f, 1.1344640254974365f, 0.2617993950843811f, 0.06981317698955536f,
+					0.13962635397911072f, 1.3962634801864624f, 0.7853981852531433f, 1.2217305898666382f,
+					0.6981317400932312f, 1.5312644243240356f, 1.4747148752212524f, 1.448533296585083f,
+					1.4223518371582031f, 1.3919837474822998f, 1.3613520860671997f, 1.3307284116744995f,
+					1.3045469522476196f, 1.2783653736114502f, 1.2521837949752808f, 1.2260023355484009f,
+					1.1953785419464111f, 1.1691970825195312f, 1.1430155038833618f, 1.1168339252471924f,
+					1.0906524658203125f, 1.0602843761444092f, 0.4363323152065277f
 				};
 
 				float* anglePtr = reinterpret_cast<float*>(ctx.ecx + 0x198);
+
 				if (validAngles.find(*anglePtr) != validAngles.end())
 				{
-					*anglePtr = 2.0f * atanf(tanf(*anglePtr / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					*anglePtr = CalculateFOV(*anglePtr);
 				}
 			});
 		}
@@ -232,166 +241,15 @@ void FOVFix()
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x19C) - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
+
+				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
+					fCurrentCameraVFOV = 1.1780972480773926f;
 				}
-				/*
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887909173965454f)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887909173965454f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.36651918292045593f)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.36651918292045593f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853981852531433f)
-				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853981852531433f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.39269909262657166f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.2617994248867035f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.2617994248867035f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.6544985175132751f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.6544985175132751f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.13089971244335175f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.13089971244335175f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8508480191230774f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8508480191230774f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.19634954631328583f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.19634954631328583f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.05235988646745682f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.05235988646745682f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.10471977293491364f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.10471977293491364f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.41887906193733215f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.41887906193733215f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.39269909262657166f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.39269909262657166f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.047197699546814f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.047197699546814f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7853982448577881f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7853982448577881f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.5890486240386963f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.5890486240386963f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9162979125976562f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9162979125976562f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.523598849773407f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.523598849773407f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1484483480453491f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1484483480453491f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1060361862182617f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1060361862182617f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0863999128341675f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0863999128341675f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0667638778686523f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0667638778686523f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0439878702163696f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0439878702163696f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.0210140943527222f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.0210140943527222f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.998046338558197f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.998046338558197f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9784102439880371f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9784102439880371f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.9587740302085876f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.9587740302085876f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.939137876033783f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.939137876033783f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.919501781463623f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.919501781463623f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8965339064598083f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8965339064598083f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8768978118896484f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8768978118896484f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8572616577148438f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8572616577148438f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8376254439353943f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8376254439353943f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.8179893493652344f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.8179893493652344f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.7952132821083069f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.7952132821083069f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780973672866821f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780973672866821f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 1.1780972480773926f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 1.1780972480773926f;
-				}
-				else if (*reinterpret_cast<float*>(ctx.ecx + 0x19C) == 0.3272492289543152f)
-                {
-					*reinterpret_cast<float*>(ctx.ecx + 0x19C) = 0.3272492289543152f;
-				}
-				*/
 			});
 		}
 		else
@@ -406,12 +264,17 @@ void FOVFix()
 			spdlog::info("Camera Zoom HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraZoomHFOVInstructionMidHook{};
+
 			CameraZoomHFOVInstructionMidHook = safetyhook::create_mid(CameraZoomHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (ctx.eax == std::bit_cast<uint32_t>(0.4363323152065277f))
+				fCurrentZoomCameraHFOV = std::bit_cast<float>(ctx.eax);
+
+				if (fCurrentZoomCameraHFOV == 0.4363323152065277f)
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.4363323152065277f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					fCurrentZoomCameraHFOV = 2.0f * atanf(tanf(fCurrentZoomCameraHFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 				}
+
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentZoomCameraHFOV);
 			});
 		}
 		else
@@ -426,12 +289,17 @@ void FOVFix()
 			spdlog::info("Camera Zoom VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraZoomVFOVInstructionMidHook{};
+
 			CameraZoomVFOVInstructionMidHook = safetyhook::create_mid(CameraZoomVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (ctx.eax == std::bit_cast<uint32_t>(0.3272492289543152f / (fNewAspectRatio / fOldAspectRatio)))
+				fCurrentZoomCameraVFOV = std::bit_cast<float>(ctx.eax);
+
+				if (fCurrentZoomCameraVFOV == 0.3272492289543152f / (fNewAspectRatio / fOldAspectRatio))
 				{
-					ctx.eax = std::bit_cast<uint32_t>(0.3272492289543152f);
+					fCurrentZoomCameraVFOV = 0.3272492289543152f;
 				}
+
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentZoomCameraVFOV);
 			});
 		}
 		else

@@ -185,6 +185,11 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::ATLETBF && bFixActive == true)
@@ -200,9 +205,11 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.eax + 0x198) == 1.5707963705062866f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
+
+				if (fCurrentCameraHFOV == 1.5707963705062866f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x198) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x198) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
 				}
 			});
 		}
@@ -221,13 +228,15 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+
+				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x19C) = 1.1780972480773926f;
+					fCurrentCameraVFOV = 1.1780972480773926f;
 				}
-				else if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (0.849067747592926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				else if (fabs(fCurrentCameraVFOV - (0.849067747592926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x19C) = 0.849067747592926f;
+					fCurrentCameraVFOV = 0.849067747592926f;
 				}
 			});
 		}

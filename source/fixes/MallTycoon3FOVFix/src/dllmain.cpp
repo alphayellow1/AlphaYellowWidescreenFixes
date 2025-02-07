@@ -188,26 +188,6 @@ bool DetectGame()
 	}
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
-
-static float fLastModifiedFOV = 0.0f;
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x58);
-
-	if (fCurrentFOVValue != fLastModifiedFOV)
-	{
-		float fModifiedFOVValue = fFOVFactor * (fCurrentFOVValue / (fOldAspectRatio / fNewAspectRatio));
-
-		if (fCurrentFOVValue != fModifiedFOVValue)
-		{
-			fCurrentFOVValue = fModifiedFOVValue;
-			fLastModifiedFOV = fModifiedFOVValue;
-		}
-	}
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::MT3 && bFixActive == true)
@@ -237,7 +217,25 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			static SafetyHookMid CameraFOVInstructionHook{};
+
+			static float fLastModifiedFOV = 0.0f;
+
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x58);
+
+				if (fCurrentFOVValue != fLastModifiedFOV)
+				{
+					float fModifiedFOVValue = fFOVFactor * (fCurrentFOVValue / (fOldAspectRatio / fNewAspectRatio));
+
+					if (fCurrentFOVValue != fModifiedFOVValue)
+					{
+						fCurrentFOVValue = fModifiedFOVValue;
+						fLastModifiedFOV = fModifiedFOVValue;
+					}
+				}
+			});
 		}
 		else
 		{

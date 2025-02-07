@@ -238,7 +238,7 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx);
 
-				if (fCurrentCameraHFOV == 1.538461566f || fCurrentCameraHFOV == 1.25f)
+				if (fCurrentCameraHFOV == 1.538461566f /* Singleplayer */ || fCurrentCameraHFOV == 1.25f /* Multiplayer */)
 				{
 					fCurrentCameraHFOV = fCurrentCameraHFOV / (fNewAspectRatio / fOldAspectRatio);
 				}

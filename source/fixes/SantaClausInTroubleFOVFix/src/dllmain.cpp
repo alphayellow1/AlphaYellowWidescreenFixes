@@ -41,6 +41,9 @@ std::string sExeName;
 // Ini variables
 bool bFixActive;
 
+// Constants
+constexpr float fOriginalCameraFOV = 0.8999999761581421f;
+
 // Variables
 int iCurrentResX;
 int iCurrentResY;
@@ -208,7 +211,11 @@ static void FOVFix()
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x5, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(0.8999999761581421f * (1.0f / fFOVFactor));
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+
+				fCurrentCameraFOV = fOriginalCameraFOV * (1.0f / fFOVFactor);
+
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
 			});
 		}
 		else

@@ -208,6 +208,11 @@ void FCOMPInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::CHAMELEON && bFixActive == true)
@@ -239,15 +244,32 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult + 0x11 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
+			static float fLastModifiedFOV = 0.0f;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x11, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.edx + 0x108) == 1.308996916f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 1.134464025f || *reinterpret_cast<float*>(ctx.edx + 0x108) == 2.094395161f)
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx + 0x108);
+
+				if (fCurrentFOVValue = 1.308996916f)
 				{
-					*reinterpret_cast<float*>(ctx.edx + 0x108) = fFOVFactor * (2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.edx + 0x108) / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
+					fLastModifiedFOV = fCurrentFOVValue;
+					return;
+				}
+
+				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(1.308996916f))
+				{
+					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
+
+					if (fCurrentFOVValue != fModifiedFOVValue)
+					{
+						fCurrentFOVValue = fModifiedFOVValue;
+						fLastModifiedFOV = fModifiedFOVValue;
+					}
 				}
 			});
 		}

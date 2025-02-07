@@ -197,6 +197,11 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::AQBFTK && bFixActive == true)
@@ -212,10 +217,14 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (ctx.esi == std::bit_cast<uint32_t>(1.5707963705062866f))
+				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.esi);
+
+				if (fCurrentCameraHFOV == 1.5707963705062866f) // 90 degrees
 				{
-					ctx.esi = std::bit_cast<uint32_t>(2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
 				}
+
+				ctx.esi = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
 			});
 		}
 		else

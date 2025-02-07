@@ -43,7 +43,7 @@ std::string sExeName;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float originalCameraFOV = 1.169370532f;
+constexpr float fOriginalCameraFOV = 1.169370532f;
 
 // Ini variables
 bool bFixActive;
@@ -247,7 +247,7 @@ void WidescreenFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.eax - 0x60) = originalCameraFOV * fFOVFactor;
+				*reinterpret_cast<float*>(ctx.eax - 0x60) = fOriginalCameraFOV * fFOVFactor;
 			});
 		}
 		else

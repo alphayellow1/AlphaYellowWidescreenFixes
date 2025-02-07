@@ -189,6 +189,11 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::EFWW2N && bFixActive == true)
@@ -204,11 +209,18 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.eax + 0x150) == 1.5707963705063f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
+
+				if (fCurrentCameraHFOV == 1.5707963705063f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x150) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.eax + 0x150) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
 				}
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			return;
 		}
 
 		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 D0 00 00 00 8B B0 54 01 00 00 89 B4 24 D4 00 00 00");
@@ -234,18 +246,23 @@ void FOVFix()
 				};
 
 				// Access the float value at the memory address eax + 0x154
-				float& fCurrentVFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
 				// Loop through the value conditions
 				for (const auto& vc : vValueConditions)
 				{
-					if (vc.condition(fCurrentVFOVValue))
+					if (vc.condition(fCurrentCameraVFOV))
 					{
-						fCurrentVFOVValue = vc.targetValue;
+						fCurrentCameraVFOV = vc.targetValue;
 						break;
 					}
 				}
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			return;
 		}
 	}
 }

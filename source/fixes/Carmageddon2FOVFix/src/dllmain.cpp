@@ -45,6 +45,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -184,6 +185,8 @@ static void FOVFix()
 {
 	if (eGameType == Game::REGULAR_C2 || eGameType == Game::C2_GOG_WITH_MUSIC && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 0C 51 52 51 8B 46 10");
 		if (AspectRatioInstructionScanResult)
 		{
@@ -192,7 +195,7 @@ static void FOVFix()
 			static SafetyHookMid AspectRatioInstructionMidHook{};
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.esi + 0x10) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+				*reinterpret_cast<float*>(ctx.esi + 0x10) = fNewAspectRatio;
 			});
 		}
 		else

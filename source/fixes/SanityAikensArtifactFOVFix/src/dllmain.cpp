@@ -21,6 +21,7 @@
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
+HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
@@ -40,7 +41,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
@@ -53,6 +53,26 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+
+// Game detection
+enum class Game
+{
+	SAA,
+	Unknown
+};
+
+struct GameInfo
+{
+	std::string GameTitle;
+	std::string ExeName;
+};
+
+const std::map<Game, GameInfo> kGames = {
+	{Game::SAA, {"Sanity: Aiken's Artifact", "client.dll"}},
+};
+
+const GameInfo* game = nullptr;
+Game eGameType = Game::Unknown;
 
 void Logging()
 {
@@ -148,36 +168,51 @@ void Configuration()
 	spdlog::info("----------");
 }
 
-void OpenGame()
+bool DetectGame()
 {
-	while (!dllModule)
+	for (const auto& [type, info] : kGames)
 	{
-		dllModule = GetModuleHandleA("client.dll");
-		spdlog::warn("Waiting for client.dll to load...");
-		Sleep(1000); // Delay to wait for the DLL to load
+		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		{
+			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
+			spdlog::info("----------");
+			eGameType = type;
+			game = &info;
+			return true;
+		}
+		else
+		{
+			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+			return false;
+		}
 	}
+}
 
-	spdlog::info("Successfully obtained handle for client.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 }
 
 void FOVFix()
 {
-	if (bFixActive == true)
+	if (eGameType == Game::SAA && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is client.dll+{:x}", CameraHFOVInstructionScanResult - (std::uint8_t*)dllModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)dllModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.eax + 0x154) == 1.5707963705062866f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
+
+				if (fCurrentCameraHFOV == 1.5707963705062866f)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x154) = 2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
 				}
 			});
 		}
@@ -187,25 +222,21 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(dllModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
 		if (CameraVFOVInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV Instruction: Address is client.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule);
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.eax + 0x158) - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x158);
+
+				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
-					*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.1780972480773926f;
+					fCurrentCameraVFOV = 1.1780972480773926f;
 				}
-				/*
-				else if (*reinterpret_cast<float*>(ctx.eax + 0x158) == 1.5707963705062866f) // Main Menu/Pause Menu VFOV
-				{
-					*reinterpret_cast<float*>(ctx.eax + 0x158) = 1.5707963705062866f;
-				}
-				*/
 			});
 		}
 		else
@@ -220,8 +251,10 @@ DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
-	OpenGame();
-	FOVFix();
+	if (DetectGame())
+	{
+		FOVFix();
+	}
 	return TRUE;
 }
 

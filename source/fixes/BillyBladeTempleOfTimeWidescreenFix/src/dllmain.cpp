@@ -41,10 +41,14 @@ std::string sExeName;
 // Ini variables
 bool bFixActive;
 
+// Constants
+constexpr float fOriginalCameraFOV = 0.6108652949f;
+
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -184,6 +188,8 @@ static void WidescreenFix()
 {
 	if (eGameType == Game::BBTOT && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "C8 00 00 00 FF 00 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 00 00 00");
 		if (ResolutionScanResult)
 		{
@@ -210,7 +216,7 @@ static void WidescreenFix()
 
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.esi + 0x34) = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+				*reinterpret_cast<float*>(ctx.esi + 0x34) = fNewAspectRatio;
 			});
 		}
 		else
@@ -228,7 +234,9 @@ static void WidescreenFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.esi + 0x38) = 0.6108652949f * fFOVFactor;
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x38);
+
+				fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
 			});
 		}
 		else
