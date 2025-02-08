@@ -217,7 +217,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 41 08 D8 0D D4 D5 42 00 D8 0D A0 D6 42 00");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
@@ -255,7 +255,7 @@ void FOVFix()
 		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 48 08 E8 ?? ?? ?? ?? E9 ?? ?? ?? ??");
 		if (WeaponFOVInstructionScanResult)
 		{
-			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid WeaponFOVInstructionMidHook{};
 
