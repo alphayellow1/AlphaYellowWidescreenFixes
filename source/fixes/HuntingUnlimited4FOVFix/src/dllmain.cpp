@@ -45,7 +45,6 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float fOriginalBinocularsFOV = 60.0f;
 
 // Ini variables
 bool bFixActive;
@@ -72,7 +71,7 @@ float RadToDeg(float radians)
 // Game detection
 enum class Game
 {
-	HU3,
+	HU4,
 	Unknown
 };
 
@@ -83,7 +82,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::HU3, {"Hunting Unlimited 4", "prism3d.exe"}},
+	{Game::HU4, {"Hunting Unlimited 4", "prism3d.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -223,7 +222,7 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void FOVFix()
 {
-	if (eGameType == Game::HU3 && bFixActive == true)
+	if (eGameType == Game::HU4 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
