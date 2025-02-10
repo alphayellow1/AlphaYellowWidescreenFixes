@@ -54,7 +54,6 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fNewBinocularsFOV;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -71,7 +70,7 @@ float RadToDeg(float radians)
 // Game detection
 enum class Game
 {
-	HU2008,
+	HU2009,
 	Unknown
 };
 
