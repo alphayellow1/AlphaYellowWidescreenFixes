@@ -38,5 +38,8 @@
     <ClCompile Include="..\external\safetyhook\Zydis.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\fixes\USMostWantedNowhereToHideFOVFix\dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
