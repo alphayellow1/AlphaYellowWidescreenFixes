@@ -182,13 +182,18 @@ bool DetectGame()
 			eGameType = type;
 			game = &info;
 		}
+		else
+		{
+			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+			return false;
+		}
 	}
 
 	while (!dllModule2)
 	{
 		dllModule2 = GetModuleHandleA("LS3DF.dll");
-		spdlog::error("Failed to get handle for LS3DF.dll.");
-		return false;
+		spdlog::info("Waiting for LS3DF.dll to load...");
+		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for LS3DF.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
