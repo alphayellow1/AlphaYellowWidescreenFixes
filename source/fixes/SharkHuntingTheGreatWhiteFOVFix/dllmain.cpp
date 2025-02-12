@@ -71,7 +71,7 @@ float RadToDeg(float radians)
 // Game detection
 enum class Game
 {
-	WOSPTTM,
+	SHTGW,
 	Unknown
 };
 
@@ -82,7 +82,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::WOSPTTM, {"Shark! Hunting The Great White", "prism3d.exe"}},
+	{Game::SHTGW, {"Shark! Hunting The Great White", "prism3d.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -237,7 +237,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 void FOVFix()
 {
-	if (eGameType == Game::WOSPTTM && bFixActive == true)
+	if (eGameType == Game::SHTGW && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
