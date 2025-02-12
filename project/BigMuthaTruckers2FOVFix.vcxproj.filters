@@ -21,5 +21,8 @@
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\fixes\BigMuthaTruckers2FOVFix\dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

@@ -38,5 +38,8 @@
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\fixes\AlcatrazPrisonEscapeFOVFix\dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
