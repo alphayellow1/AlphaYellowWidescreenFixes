@@ -23,9 +23,10 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
+HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "18WheelsOfSteelAcrossAmericaFOVFix";
+std::string sFixName = "18WheelsOfSteelPedalToTheMetalFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -69,7 +70,7 @@ float RadToDeg(float radians)
 // Game detection
 enum class Game
 {
-	WOSAA,
+	WOSPTTM,
 	Unknown
 };
 
@@ -80,7 +81,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::WOSAA, {"18 Wheels of Steel: Across America", "prism3d.exe"}},
+	{Game::WOSPTTM, {"18 Wheels of Steel: Pedal to the Metal", "prism3d.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -192,7 +193,6 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			return true;
 		}
 		else
 		{
@@ -200,6 +200,17 @@ bool DetectGame()
 			return false;
 		}
 	}
+
+	while (!dllModule2)
+	{
+		dllModule2 = GetModuleHandleA("game.dll");
+		spdlog::info("Waiting for game.dll to load...");
+		Sleep(1000);
+	}
+
+	spdlog::info("Successfully obtained handle for game.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
+	return true;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
@@ -209,45 +220,60 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void FOVFix()
 {
-	if (eGameType == Game::WOSAA && bFixActive == true)
+	if (eGameType == Game::WOSPTTM && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 74 24 0C D9 5C 24 10 D9 41 08");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* MainMenuCameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 85 AC 01 00 00 83 C4 0C 51 89 54 24 68");
+		if (MainMenuCameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Main Menu Camera FOV Instruction: Address is game.dll+{:x}", MainMenuCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static float fLastModifiedFOV = 0.0f;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x8, [](SafetyHookContext& ctx)
+			CameraFOVInstructionMidHook = safetyhook::create_mid(MainMenuCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x8);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebp + 0x1AC);
 
-				if (fCurrentFOVValue == 60.0f || fCurrentFOVValue == 70.0f)
+				if (fCurrentFOVValue == 50.0f)
 				{
 					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-					fLastModifiedFOV = fCurrentFOVValue;
-					return;
-				}
-
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != 60.0f && fCurrentFOVValue != CalculateNewFOV(60.0f) && fCurrentFOVValue != 70.0f && fCurrentFOVValue != CalculateNewFOV(70.0f))
-				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
-
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
 				}
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate main menu camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* GameplayCameraFOVsScanResult = Memory::PatternScan(dllModule2, "C7 86 20 02 00 00 00 00 80 42 A1 ?? ?? ?? ?? 89 86 24 02 00 00 C7 86 28 02 00 00 00 00 48 42");
+		if (GameplayCameraFOVsScanResult)
+		{
+			spdlog::info("Gameplay Camera FOVs: Address is game.dll+{:x}", GameplayCameraFOVsScanResult - (std::uint8_t*)dllModule2);
+
+			Memory::Write(GameplayCameraFOVsScanResult + 0x6, CalculateNewFOV(64.0f));
+
+			Memory::Write(GameplayCameraFOVsScanResult + 0x1B, CalculateNewFOV(50.0f));
+		}
+		else
+		{
+			spdlog::error("Failed to locate gameplay camera FOVs memory address.");
+			return;
+		}
+
+		std::uint8_t* GameplayCameraFOVsScan2Result = Memory::PatternScan(dllModule2, "C7 44 24 74 00 00 80 41 C7 44 24 78 00 50 C3 46 C7 44 24 7C 00 00 48 42 C6 84 24 80 00 00 00 00 C6 84 24 81 00 00 00 00");
+		if (GameplayCameraFOVsScan2Result)
+		{
+			spdlog::info("Gameplay Camera FOVs Scan 2: Address is game.dll+{:x}", GameplayCameraFOVsScan2Result - (std::uint8_t*)dllModule2);
+
+			Memory::Write(GameplayCameraFOVsScan2Result + 0x4, CalculateNewFOV(16.0f));
+
+			Memory::Write(GameplayCameraFOVsScan2Result + 0x14, CalculateNewFOV(50.0f));
+		}
+		else
+		{
+			spdlog::error("Failed to locate gameplay camera FOVs scan 2 memory address.");
 			return;
 		}
 	}
