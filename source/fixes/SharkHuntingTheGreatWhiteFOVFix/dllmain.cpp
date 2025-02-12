@@ -194,7 +194,6 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-
 		}
 		else
 		{
