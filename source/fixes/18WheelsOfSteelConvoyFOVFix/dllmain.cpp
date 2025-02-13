@@ -237,7 +237,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "83 EC 0C 8B 44 24 14 D9 00 D8 60 04 D9 E1 D9 1C 24 D9 40 0C D8 60 08 D9 E1 D9 5C 24 04 D9 04 24 D8 5C 24 04 D9 44 24 20 D8 0D ?? ?? ?? ?? DF E0 D8 0D ?? ?? ?? ?? F6 C4 41 D9 F2 DD D8 D8 4C 24 18 75 1B D9 54 24 14 D9 E0 D9 5C 24 08 D9 44 24 04 D8 34 24 D8 4C 24 14 D9 C0 D9 E0 EB 17 D9 C0 D9 E0 D9 04 24 D8 74 24 04 D8 CA D9 54 24 14 D9 E0 D9 5C 24 08 D9 44 24 18 8B 44 24 10 DC C0 33 C9 D9 44 24 14 D8 64 24 08 D9 C1 D8 F1 D9 18 D9 C3 D8 E3 89 48 10 89 48 20 89 48 30 89 48 04 D9 5C 24 10 D9 C9 D8 74 24 10 D9 58 14 D9 44 24 08 D8 44 24 14 89 48 24 89 48 34 D8 F1 D9 58 08 DD D8 D8 C1 D8 74 24 10 D9 58 18 DD D8 D9 44 24 18 D8 64 24 1C D9 44 24 18 D8 44 24 1C D8 F1 D9 58 28 D9 44 24 18 D8 4C 24 1C C7 40 38 00 00 80 BF 89 48 0C 89 48 1C");
 		if (CameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is p3core.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is p3core.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstruction1MidHook{};
 
