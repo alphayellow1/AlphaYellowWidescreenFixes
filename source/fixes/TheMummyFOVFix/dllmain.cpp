@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TheMummyFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -206,7 +206,7 @@ static void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "44 24 30 ?? ?? ?? ?? D9 C9 D9");
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "44 24 30 00 00 80 3F D9 C9 D9");
 		if (CameraFOVScanResult)
 		{
 			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 0x3 - (std::uint8_t*)exeModule);
