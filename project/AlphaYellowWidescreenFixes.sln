@@ -253,6 +253,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ZanZarahTheHiddenPortalWide
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SharkHuntingTheGreatWhiteFOVFix", "SharkHuntingTheGreatWhiteFOVFix.vcxproj", "{D1759FBF-B6F4-4C73-95C6-C88DE8B9073B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheMummyFOVFix", "TheMummyFOVFix.vcxproj", "{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "18WheelsOfSteelConvoyFOVFix", "18WheelsOfSteelConvoyFOVFix.vcxproj", "{BC54AC7B-E2FF-446C-97B4-32F3468752D3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1261,6 +1265,22 @@ Global
 		{D1759FBF-B6F4-4C73-95C6-C88DE8B9073B}.Release|x64.Build.0 = Release|x64
 		{D1759FBF-B6F4-4C73-95C6-C88DE8B9073B}.Release|x86.ActiveCfg = Release|Win32
 		{D1759FBF-B6F4-4C73-95C6-C88DE8B9073B}.Release|x86.Build.0 = Release|Win32
+		{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}.Debug|x64.ActiveCfg = Debug|x64
+		{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}.Debug|x64.Build.0 = Debug|x64
+		{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}.Debug|x86.ActiveCfg = Debug|Win32
+		{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}.Debug|x86.Build.0 = Debug|Win32
+		{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}.Release|x64.ActiveCfg = Release|x64
+		{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}.Release|x64.Build.0 = Release|x64
+		{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}.Release|x86.ActiveCfg = Release|Win32
+		{B4E4225E-F79F-4E06-AB5C-F1616D5826A0}.Release|x86.Build.0 = Release|Win32
+		{BC54AC7B-E2FF-446C-97B4-32F3468752D3}.Debug|x64.ActiveCfg = Debug|x64
+		{BC54AC7B-E2FF-446C-97B4-32F3468752D3}.Debug|x64.Build.0 = Debug|x64
+		{BC54AC7B-E2FF-446C-97B4-32F3468752D3}.Debug|x86.ActiveCfg = Debug|Win32
+		{BC54AC7B-E2FF-446C-97B4-32F3468752D3}.Debug|x86.Build.0 = Debug|Win32
+		{BC54AC7B-E2FF-446C-97B4-32F3468752D3}.Release|x64.ActiveCfg = Release|x64
+		{BC54AC7B-E2FF-446C-97B4-32F3468752D3}.Release|x64.Build.0 = Release|x64
+		{BC54AC7B-E2FF-446C-97B4-32F3468752D3}.Release|x86.ActiveCfg = Release|Win32
+		{BC54AC7B-E2FF-446C-97B4-32F3468752D3}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

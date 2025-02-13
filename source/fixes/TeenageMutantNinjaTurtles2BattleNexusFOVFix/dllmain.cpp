@@ -48,7 +48,7 @@ constexpr float fOriginalCameraFOV = 0.5f;
 constexpr float fOriginalAspectRatio = 0.75f;
 
 // Ini variables
-bool FixActive;
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
@@ -148,8 +148,8 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", FixActive);
-	spdlog_confparse(FixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
@@ -194,7 +194,7 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (eGameType == Game::TMNT2BN && FixActive == true)
+	if (eGameType == Game::TMNT2BN && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
