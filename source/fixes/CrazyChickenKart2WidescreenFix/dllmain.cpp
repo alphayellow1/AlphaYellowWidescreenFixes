@@ -190,21 +190,21 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 8B 57 04");
-		if (ResolutionWidthInstructionScanResult)
+		std::uint8_t* ResolutionWidthInstruction1ScanResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 8B 57 04");
+		if (ResolutionWidthInstruction1ScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid ResolutionWidthInstructionMidHook{};
+			static SafetyHookMid ResolutionWidthInstruction1MidHook{};
 
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction1MidHook = safetyhook::create_mid(ResolutionWidthInstruction1ScanResult, [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uint32_t>(iCurrentResX);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution width instruction memory address.");
+			spdlog::error("Failed to locate resolution width instruction 1 memory address.");
 			return;
 		}
 
@@ -273,6 +273,8 @@ void WidescreenFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
+			static float fLastModifiedHFOV = 0.0f;
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x68);
@@ -282,6 +284,21 @@ void WidescreenFix()
 					fCurrentCameraHFOV == 1.473236918 || fCurrentCameraHFOV == 4.195850849)
 				{
 					fCurrentCameraHFOV = fCurrentCameraHFOV / (fOldAspectRatio / fNewAspectRatio);
+					fLastModifiedHFOV = fCurrentCameraHFOV; // Update tracking variable
+					return;
+				}
+
+				// Avoid recursive modifications
+				if (fCurrentCameraHFOV != fLastModifiedHFOV)
+				{
+					float fModifiedHFOVValue = fCurrentCameraHFOV / (fOldAspectRatio / fNewAspectRatio);
+
+					// Only modify if the calculated value differs
+					if (fCurrentCameraHFOV != fModifiedHFOVValue)
+					{
+						fCurrentCameraHFOV = fModifiedHFOVValue;
+						fLastModifiedHFOV = fModifiedHFOVValue; // Update tracking variable
+					}
 				}
 			});
 		}
@@ -298,6 +315,8 @@ void WidescreenFix()
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
+			static float fLastModifiedVFOV = 0.0f;
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x6C);
@@ -309,6 +328,21 @@ void WidescreenFix()
 					fabs(fCurrentCameraVFOV - (0.2999999821f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
 					fCurrentCameraVFOV = fCurrentCameraVFOV / (fOldAspectRatio / fNewAspectRatio);
+					fLastModifiedVFOV = fCurrentCameraVFOV; // Update tracking variable
+					return;
+				}
+
+				// Avoid recursive modifications
+				if (fCurrentCameraVFOV != fLastModifiedVFOV)
+				{
+					float fModifiedVFOVValue = fCurrentCameraVFOV / (fOldAspectRatio / fNewAspectRatio);
+
+					// Only modify if the calculated value differs
+					if (fCurrentCameraVFOV != fModifiedVFOVValue)
+					{
+						fCurrentCameraVFOV = fModifiedVFOVValue;
+						fLastModifiedVFOV = fModifiedVFOVValue; // Update tracking variable
+					}
 				}
 			});
 		}
