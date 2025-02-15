@@ -42,6 +42,7 @@ std::string sExeName;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -276,7 +277,9 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x68);
 
-				if (fCurrentCameraHFOV == 0.8000000119f)
+				if (fCurrentCameraHFOV == 0.8000000119f || fCurrentCameraHFOV == 1.502011418f || fCurrentCameraHFOV == 1.447989464f ||
+					fCurrentCameraHFOV == 1.444800019f || fCurrentCameraHFOV == 1.480409503 || fCurrentCameraHFOV == 1.4628793 || fCurrentCameraHFOV == 1.447989464 ||
+					fCurrentCameraHFOV == 1.473236918 || fCurrentCameraHFOV == 4.195850849)
 				{
 					fCurrentCameraHFOV = fCurrentCameraHFOV / (fOldAspectRatio / fNewAspectRatio);
 				}
@@ -299,7 +302,11 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x6C);
 
-				if (fCurrentCameraVFOV == 0.14999999105930328f)
+				if (fabs(fCurrentCameraVFOV - (0.5999999642f / (fNewAspectRatio / fOldAspectRatio))) < epsilon ||
+					fabs(fCurrentCameraVFOV - (1.502011418f / (fNewAspectRatio / fOldAspectRatio))) < epsilon ||
+					fabs(fCurrentCameraVFOV - (1.502011418f / (fNewAspectRatio / fOldAspectRatio))) < epsilon ||
+					fabs(fCurrentCameraVFOV - (1.447989464f / (fNewAspectRatio / fOldAspectRatio))) < epsilon ||
+					fabs(fCurrentCameraVFOV - (0.2999999821f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{
 					fCurrentCameraVFOV = fCurrentCameraVFOV / (fOldAspectRatio / fNewAspectRatio);
 				}
