@@ -231,6 +231,10 @@ void FOVFix()
 				{
 					fCurrentCameraHFOV = CalculateNewHFOV(34.70804977f);
 				}
+				else if (fCurrentCameraHFOV == 79.61114502f)
+				{
+					fCurrentCameraHFOV = CalculateNewHFOV(50.229099f);
+				}
 			});
 		}
 		else
