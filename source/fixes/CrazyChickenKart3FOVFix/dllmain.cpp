@@ -202,21 +202,12 @@ bool DetectGame()
 
 float CalculateNewVFOV(float fCurrentFOV)
 {
-	// Multiply fFOVFactor inside the atanf, not after converting back to degrees.
 	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fFOVFactor));
 }
 
 float CalculateNewHFOV(float fCurrentFOV)
 {
-	// First, calculate the new VFOV with the proper scaling.
-	float newVFOV = CalculateNewVFOV(fCurrentFOV);
-
-	// Then, derive the new horizontal FOV from that, adjusting by the ratio of aspect ratios.
-	float newHFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(newVFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-
-	float correctedHFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(newHFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-
-	return correctedHFOV;
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(CalculateNewVFOV(fCurrentFOV) / 2.0f)) * fNewAspectRatio));
 }
 
 void FOVFix()
