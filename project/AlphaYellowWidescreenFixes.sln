@@ -269,6 +269,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CrazyChickenKart4FOVFix", "
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IndianaJonesAndTheInfernalMachineFOVFix", "IndianaJonesAndTheInfernalMachineFOVFix.vcxproj", "{5B064B31-2E9D-46FF-BAA9-8F22BEBEFC49}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PacManAdventuresInTimeFOVFix", "PacManAdventuresInTimeFOVFix.vcxproj", "{499BEF3F-805A-486C-A603-2D5F70D9D512}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1341,6 +1343,14 @@ Global
 		{5B064B31-2E9D-46FF-BAA9-8F22BEBEFC49}.Release|x64.Build.0 = Release|x64
 		{5B064B31-2E9D-46FF-BAA9-8F22BEBEFC49}.Release|x86.ActiveCfg = Release|Win32
 		{5B064B31-2E9D-46FF-BAA9-8F22BEBEFC49}.Release|x86.Build.0 = Release|Win32
+		{499BEF3F-805A-486C-A603-2D5F70D9D512}.Debug|x64.ActiveCfg = Debug|x64
+		{499BEF3F-805A-486C-A603-2D5F70D9D512}.Debug|x64.Build.0 = Debug|x64
+		{499BEF3F-805A-486C-A603-2D5F70D9D512}.Debug|x86.ActiveCfg = Debug|Win32
+		{499BEF3F-805A-486C-A603-2D5F70D9D512}.Debug|x86.Build.0 = Debug|Win32
+		{499BEF3F-805A-486C-A603-2D5F70D9D512}.Release|x64.ActiveCfg = Release|x64
+		{499BEF3F-805A-486C-A603-2D5F70D9D512}.Release|x64.Build.0 = Release|x64
+		{499BEF3F-805A-486C-A603-2D5F70D9D512}.Release|x86.ActiveCfg = Release|Win32
+		{499BEF3F-805A-486C-A603-2D5F70D9D512}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
