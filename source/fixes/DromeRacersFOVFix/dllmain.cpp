@@ -203,7 +203,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 }
 
 void FOVFix()
@@ -212,7 +212,7 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 93 98 00 00 00 8B 43 60 89 44 24 1C 8B 73 64 89 74 24 20");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 02 DE CB D9 CA D8 0D ?? ?? ?? ?? D9 FE");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -223,11 +223,11 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0x98);
+				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx);
 
 				if (fCurrentFOVValue != fLastModifiedFOV)
 				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
+					float fModifiedFOVValue = fFOVFactor * CalculateNewFOV(fCurrentFOVValue);
 
 					if (fCurrentFOVValue != fModifiedFOVValue)
 					{
@@ -239,7 +239,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate main menu camera FOV instruction memory address.");
 			return;
 		}
 	}
