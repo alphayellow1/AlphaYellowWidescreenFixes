@@ -239,7 +239,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate main menu camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
