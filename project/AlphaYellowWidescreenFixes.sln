@@ -277,6 +277,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DromeRacersFOVFix", "DromeR
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SplatMagazineRenegadePaintballFOVFix", "SplatMagazineRenegadePaintballFOVFix.vcxproj", "{1FD6BF12-A9E0-43D4-A960-80E3C27E40BB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DaveMirraFreestyleBMXWidescreenFix", "DaveMirraFreestyleBMXWidescreenFix.vcxproj", "{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1381,6 +1383,14 @@ Global
 		{1FD6BF12-A9E0-43D4-A960-80E3C27E40BB}.Release|x64.Build.0 = Release|x64
 		{1FD6BF12-A9E0-43D4-A960-80E3C27E40BB}.Release|x86.ActiveCfg = Release|Win32
 		{1FD6BF12-A9E0-43D4-A960-80E3C27E40BB}.Release|x86.Build.0 = Release|Win32
+		{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}.Debug|x64.ActiveCfg = Debug|x64
+		{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}.Debug|x64.Build.0 = Debug|x64
+		{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}.Debug|x86.ActiveCfg = Debug|Win32
+		{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}.Debug|x86.Build.0 = Debug|Win32
+		{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}.Release|x64.ActiveCfg = Release|x64
+		{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}.Release|x64.Build.0 = Release|x64
+		{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}.Release|x86.ActiveCfg = Release|Win32
+		{1DFD47B8-1C7F-4D11-BCEE-CB38C2A1674C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
