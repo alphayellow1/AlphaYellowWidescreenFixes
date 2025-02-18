@@ -283,6 +283,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IndianaJackFOVFix", "Indian
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PetRacerWidescreenFix", "PetRacerWidescreenFix.vcxproj", "{50581BA3-A2D8-420F-8889-31900D0EC3F3}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PetSoccerWidescreenFix", "PetSoccerWidescreenFix.vcxproj", "{B1013F36-C70B-4410-A25B-12AB967B7F25}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1411,6 +1413,14 @@ Global
 		{50581BA3-A2D8-420F-8889-31900D0EC3F3}.Release|x64.Build.0 = Release|x64
 		{50581BA3-A2D8-420F-8889-31900D0EC3F3}.Release|x86.ActiveCfg = Release|Win32
 		{50581BA3-A2D8-420F-8889-31900D0EC3F3}.Release|x86.Build.0 = Release|Win32
+		{B1013F36-C70B-4410-A25B-12AB967B7F25}.Debug|x64.ActiveCfg = Debug|x64
+		{B1013F36-C70B-4410-A25B-12AB967B7F25}.Debug|x64.Build.0 = Debug|x64
+		{B1013F36-C70B-4410-A25B-12AB967B7F25}.Debug|x86.ActiveCfg = Debug|Win32
+		{B1013F36-C70B-4410-A25B-12AB967B7F25}.Debug|x86.Build.0 = Debug|Win32
+		{B1013F36-C70B-4410-A25B-12AB967B7F25}.Release|x64.ActiveCfg = Release|x64
+		{B1013F36-C70B-4410-A25B-12AB967B7F25}.Release|x64.Build.0 = Release|x64
+		{B1013F36-C70B-4410-A25B-12AB967B7F25}.Release|x86.ActiveCfg = Release|Win32
+		{B1013F36-C70B-4410-A25B-12AB967B7F25}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
