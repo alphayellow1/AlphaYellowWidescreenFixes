@@ -68,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::PR, {"PetRacer", "PetRacer.exe"}},
+	{Game::PR, {"Pet Racer", "PetRacer.exe"}},
 };
 
 const GameInfo* game = nullptr;
