@@ -57,7 +57,7 @@ float fFOVFactor;
 // Game detection
 enum class Game
 {
-	PR,
+	PS,
 	Unknown
 };
 
@@ -68,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::PR, {"Pet Soccer", "petsoccer.bum"}},
+	{Game::PS, {"Pet Soccer", "petsoccer.bum"}},
 };
 
 const GameInfo* game = nullptr;
@@ -207,7 +207,7 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void WidescreenFix()
 {
-	if (eGameType == Game::PR && bFixActive == true)
+	if (eGameType == Game::PS && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -258,7 +258,7 @@ void WidescreenFix()
 			{
 				float fCurrentFOVValue = std::bit_cast<float>(ctx.eax);
 
-				if (fCurrentFOVValue == 1.308996916f)
+				if (fCurrentFOVValue == 1.308996916f || fCurrentFOVValue == 1.919862151f)
 				{
 					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
 				}
