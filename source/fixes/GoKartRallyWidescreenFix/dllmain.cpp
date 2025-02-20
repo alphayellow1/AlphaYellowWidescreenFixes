@@ -145,7 +145,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -234,21 +234,6 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 F2 D9 18");
-		if (CameraHFOVInstructionScanResult)
-		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x6, CameraHFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
-			return;
-		}
-
 		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? 8B 44 24 10 D8 F1 D9 59 54");
 		if (CameraVFOVInstructionScanResult)
 		{
@@ -261,6 +246,21 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 F2 D9 18");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x6, CameraHFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
 			return;
 		}
 	}
