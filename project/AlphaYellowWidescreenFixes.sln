@@ -295,6 +295,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GoKartRallyWidescreenFix", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FIMSpeedwayGrandPrixWidescreenFix", "FIMSpeedwayGrandPrixWidescreenFix.vcxproj", "{96A9D351-5B65-46F0-B7AB-55FB804832E4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NikitaTheMysteryOfTheHiddenTreasureFOVFix", "NikitaTheMysteryOfTheHiddenTreasureFOVFix.vcxproj", "{9243C9D8-2E50-4308-9428-1862421DC551}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1471,6 +1473,14 @@ Global
 		{96A9D351-5B65-46F0-B7AB-55FB804832E4}.Release|x64.Build.0 = Release|x64
 		{96A9D351-5B65-46F0-B7AB-55FB804832E4}.Release|x86.ActiveCfg = Release|Win32
 		{96A9D351-5B65-46F0-B7AB-55FB804832E4}.Release|x86.Build.0 = Release|Win32
+		{9243C9D8-2E50-4308-9428-1862421DC551}.Debug|x64.ActiveCfg = Debug|x64
+		{9243C9D8-2E50-4308-9428-1862421DC551}.Debug|x64.Build.0 = Debug|x64
+		{9243C9D8-2E50-4308-9428-1862421DC551}.Debug|x86.ActiveCfg = Debug|Win32
+		{9243C9D8-2E50-4308-9428-1862421DC551}.Debug|x86.Build.0 = Debug|Win32
+		{9243C9D8-2E50-4308-9428-1862421DC551}.Release|x64.ActiveCfg = Release|x64
+		{9243C9D8-2E50-4308-9428-1862421DC551}.Release|x64.Build.0 = Release|x64
+		{9243C9D8-2E50-4308-9428-1862421DC551}.Release|x86.ActiveCfg = Release|Win32
+		{9243C9D8-2E50-4308-9428-1862421DC551}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
