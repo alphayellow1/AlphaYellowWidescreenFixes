@@ -229,14 +229,14 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* Resolution512x384Scan3Result = Memory::PatternScan(exeModule, "00 50 68 80 01 00 00 68 00 02 00 00 51 EB 76 8B");
+		std::uint8_t* Resolution512x384Scan3Result = Memory::PatternScan(exeModule, "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 50 68 80 01 00 00 68 00 02 00 00");
 		if (Resolution512x384Scan3Result)
 		{
 			spdlog::info("Resolution 512x384 Scan 3: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384Scan3Result - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384Scan3Result + 0x3, iCurrentResY);
+			Memory::Write(Resolution512x384Scan3Result + 0xD, iCurrentResY);
 
-			Memory::Write(Resolution512x384Scan3Result + 0x8, iCurrentResX);
+			Memory::Write(Resolution512x384Scan3Result + 0x12, iCurrentResX);
 		}
 		else
 		{
