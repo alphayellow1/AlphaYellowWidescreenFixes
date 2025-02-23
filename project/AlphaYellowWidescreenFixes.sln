@@ -297,6 +297,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FIMSpeedwayGrandPrixWidescr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NikitaTheMysteryOfTheHiddenTreasureFOVFix", "NikitaTheMysteryOfTheHiddenTreasureFOVFix.vcxproj", "{9243C9D8-2E50-4308-9428-1862421DC551}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FIMSpeedwayGrandPrix4FOVFix", "FIMSpeedwayGrandPrix4FOVFix.vcxproj", "{573C8431-2261-4818-82A9-34A9E9704067}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1481,6 +1483,14 @@ Global
 		{9243C9D8-2E50-4308-9428-1862421DC551}.Release|x64.Build.0 = Release|x64
 		{9243C9D8-2E50-4308-9428-1862421DC551}.Release|x86.ActiveCfg = Release|Win32
 		{9243C9D8-2E50-4308-9428-1862421DC551}.Release|x86.Build.0 = Release|Win32
+		{573C8431-2261-4818-82A9-34A9E9704067}.Debug|x64.ActiveCfg = Debug|x64
+		{573C8431-2261-4818-82A9-34A9E9704067}.Debug|x64.Build.0 = Debug|x64
+		{573C8431-2261-4818-82A9-34A9E9704067}.Debug|x86.ActiveCfg = Debug|Win32
+		{573C8431-2261-4818-82A9-34A9E9704067}.Debug|x86.Build.0 = Debug|Win32
+		{573C8431-2261-4818-82A9-34A9E9704067}.Release|x64.ActiveCfg = Release|x64
+		{573C8431-2261-4818-82A9-34A9E9704067}.Release|x64.Build.0 = Release|x64
+		{573C8431-2261-4818-82A9-34A9E9704067}.Release|x86.ActiveCfg = Release|Win32
+		{573C8431-2261-4818-82A9-34A9E9704067}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
