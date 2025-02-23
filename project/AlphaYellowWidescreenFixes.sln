@@ -301,6 +301,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FIMSpeedwayGrandPrix4FOVFix
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheGladiatorsOfRomeFOVFix", "TheGladiatorsOfRomeFOVFix.vcxproj", "{FBE687A0-DE0B-4B0E-BE8C-4951202D35C4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GeneTroopersFOVFix", "GeneTroopersFOVFix.vcxproj", "{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1501,6 +1503,14 @@ Global
 		{FBE687A0-DE0B-4B0E-BE8C-4951202D35C4}.Release|x64.Build.0 = Release|x64
 		{FBE687A0-DE0B-4B0E-BE8C-4951202D35C4}.Release|x86.ActiveCfg = Release|Win32
 		{FBE687A0-DE0B-4B0E-BE8C-4951202D35C4}.Release|x86.Build.0 = Release|Win32
+		{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}.Debug|x64.ActiveCfg = Debug|x64
+		{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}.Debug|x64.Build.0 = Debug|x64
+		{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}.Debug|x86.ActiveCfg = Debug|Win32
+		{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}.Debug|x86.Build.0 = Debug|Win32
+		{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}.Release|x64.ActiveCfg = Release|x64
+		{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}.Release|x64.Build.0 = Release|x64
+		{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}.Release|x86.ActiveCfg = Release|Win32
+		{531467B0-71D0-468E-8CD7-F8CE8BDDBD87}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
