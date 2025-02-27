@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{8b7eb1ad-6bc7-4020-87cb-1671e7f72152}</ProjectGuid>
-    <RootNamespace>AmericanMcGeePresentsBadDayLAFOVfix</RootNamespace>
+    <ProjectGuid>{9f9b7aec-c25c-4dc1-8b8b-1e124c219590}</ProjectGuid>
+    <RootNamespace>AmericanMcGeePresentsBadDayLAFOVFix</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

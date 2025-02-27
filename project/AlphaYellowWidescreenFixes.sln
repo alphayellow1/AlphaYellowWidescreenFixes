@@ -315,7 +315,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LegoRacers2WidescreenFix", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RestaurantEmpireFOVFix", "RestaurantEmpireFOVFix.vcxproj", "{3655EEEA-815C-4265-BF20-18B21D38391F}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AmericanMcGeePresentsBadDayLAFOVfix", "AmericanMcGeePresentsBadDayLAFOVfix.vcxproj", "{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AmericanMcGeePresentsBadDayLAFOVFix", "AmericanMcGeePresentsBadDayLAFOVFix.vcxproj", "{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -1573,14 +1573,14 @@ Global
 		{3655EEEA-815C-4265-BF20-18B21D38391F}.Release|x64.Build.0 = Release|x64
 		{3655EEEA-815C-4265-BF20-18B21D38391F}.Release|x86.ActiveCfg = Release|Win32
 		{3655EEEA-815C-4265-BF20-18B21D38391F}.Release|x86.Build.0 = Release|Win32
-		{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}.Debug|x64.ActiveCfg = Debug|x64
-		{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}.Debug|x64.Build.0 = Debug|x64
-		{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}.Debug|x86.ActiveCfg = Debug|Win32
-		{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}.Debug|x86.Build.0 = Debug|Win32
-		{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}.Release|x64.ActiveCfg = Release|x64
-		{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}.Release|x64.Build.0 = Release|x64
-		{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}.Release|x86.ActiveCfg = Release|Win32
-		{8B7EB1AD-6BC7-4020-87CB-1671E7F72152}.Release|x86.Build.0 = Release|Win32
+		{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}.Debug|x64.ActiveCfg = Debug|x64
+		{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}.Debug|x64.Build.0 = Debug|x64
+		{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}.Debug|x86.ActiveCfg = Debug|Win32
+		{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}.Debug|x86.Build.0 = Debug|Win32
+		{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}.Release|x64.ActiveCfg = Release|x64
+		{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}.Release|x64.Build.0 = Release|x64
+		{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}.Release|x86.ActiveCfg = Release|Win32
+		{9F9B7AEC-C25C-4DC1-8B8B-1E124C219590}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
