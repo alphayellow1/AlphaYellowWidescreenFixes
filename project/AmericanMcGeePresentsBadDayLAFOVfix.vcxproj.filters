@@ -18,10 +18,10 @@
     <ClCompile Include="..\source\fixes\AmericanMcGeePresentsBadDayLAFOVfix\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\external\safetyhook\Zydis.c">
+    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
+    <ClCompile Include="..\external\safetyhook\Zydis.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
