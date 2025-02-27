@@ -246,9 +246,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera Foreground HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundHFOVInstructionScanResult + 0x3 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraForegroundHFOVInstructionScanResult + 0x3, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraForegroundHFOVHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 0x9, CameraForegroundHFOVMidHook);
+			CameraForegroundHFOVHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 0x3, CameraForegroundHFOVMidHook);
 		}
 		else
 		{

@@ -15,13 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\fixes\WarsAndWarriorsJoanOfArcWidescreenFix\dllmain.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
+    <ClCompile Include="..\source\fixes\WarsAndWarriorsJoanOfArcFOVFix\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
