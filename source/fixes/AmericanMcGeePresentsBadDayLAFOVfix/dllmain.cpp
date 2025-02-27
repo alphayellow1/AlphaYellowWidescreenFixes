@@ -228,7 +228,7 @@ void FOVFix()
 
 				if (fCurrentFOVValue == 0.9238795042f)
 				{
-					fCurrentFOVValue *= fFOVFactor;
+					fCurrentFOVValue *= (1.0f / fFOVFactor);
 				}
 			});
 		}
