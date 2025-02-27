@@ -25,7 +25,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "WarsAndWarriorsJoanOfArcWidescreenFix";
+std::string sFixName = "WarsAndWarriorsJoanOfArcFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -181,106 +181,19 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
+
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
-}
-
-void WidescreenFix()
+void FOVFix()
 {
 	if (eGameType == Game::WAWJOA && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionScan1Result = Memory::PatternScan(exeModule, "00 00 00 04 00 00 8B 4D FC C7 81 86 00 00 00 00 03 00 00 8B 55 FC");
-		if (ResolutionScan1Result)
-		{
-			spdlog::info("Resolution Scan 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScan1Result - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionScan1Result + 0x2, iCurrentResX);
-
-			Memory::Write(ResolutionScan1Result + 0xF, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution scan 1 memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionScan2Result = Memory::PatternScan(exeModule, "C7 45 F4 00 04 00 00 C7 45 F0 00 03 00 00 C7 45 EC 00");
-		if (ResolutionScan2Result)
-		{
-			spdlog::info("Resolution Scan 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScan2Result - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionScan2Result + 0x3, iCurrentResX);
-
-			Memory::Write(ResolutionScan2Result + 0xA, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution scan 2 memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionScan3Result = Memory::PatternScan(exeModule, "23 34 00 00 00 04 8B 45 FC 66 C7 80 25 34 00 00 00 03 EB 18");
-		if (ResolutionScan3Result)
-		{
-			spdlog::info("Resolution Scan 3: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScan3Result - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionScan3Result + 0x4, iCurrentResX);
-
-			Memory::Write(ResolutionScan3Result + 0x10, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution scan 3 memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionScan4Result = Memory::PatternScan(exeModule, "23 34 00 00 00 04 8B 55 FC 66 C7 82 25 34 00 00 00 03 C7 45 F8 00");
-		if (ResolutionScan4Result)
-		{
-			spdlog::info("Resolution Scan 4: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScan4Result - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionScan4Result + 0x4, iCurrentResX);
-
-			Memory::Write(ResolutionScan4Result + 0x10, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution scan 4 memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionScan5Result = Memory::PatternScan(exeModule, "00 00 04 00 00 00 03 00 00 10 00 00 00 00 00 00 00 00 00 00 00 FF 03 00 00 FF 02 00 00 00 00 00 00 64 00 00 00 00 00 00 00 00 00 00 00 FF 03 00 00 FF 02 00 00 00 04 00 00 00 03 00 00");
-		if (ResolutionScan5Result)
-		{
-			spdlog::info("Resolution Scan 5: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScan5Result - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionScan5Result + 0x1, iCurrentResX);
-
-			Memory::Write(ResolutionScan5Result + 0x5, iCurrentResY);
-
-			Memory::Write(ResolutionScan5Result + 0x35, iCurrentResX);
-
-			Memory::Write(ResolutionScan5Result + 0x39, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution scan 5 memory address.");
-			return;
-		}
-
-		/*
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 45 0C 8B 45 08 D8 75 FC");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 45 0C 8B 45 08 D8 75 FC D9");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -304,7 +217,29 @@ void WidescreenFix()
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
-		*/
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "FC D9 45 10 D8 F9");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 0x1 - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid AspectRatioInstructionMidHook{};
+
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x1, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ebp + 0x10);
+
+				if (fCurrentCameraHFOV == 1.333333373f)
+				{
+					fCurrentCameraHFOV = fNewAspectRatio;
+				}
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
 	}
 }
 
@@ -314,7 +249,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
