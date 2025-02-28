@@ -319,6 +319,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AmericanMcGeePresentsBadDay
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WarsAndWarriorsJoanOfArcFOVFix", "WarsAndWarriorsJoanOfArcFOVFix.vcxproj", "{DAE6ACC6-B9B9-4B6C-82B3-33F85EB74E0A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KillSwitchFOVFix", "KillSwitchFOVFix.vcxproj", "{A2908C26-8043-4EF4-A048-88CABD212CDA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1591,6 +1593,14 @@ Global
 		{DAE6ACC6-B9B9-4B6C-82B3-33F85EB74E0A}.Release|x64.Build.0 = Release|x64
 		{DAE6ACC6-B9B9-4B6C-82B3-33F85EB74E0A}.Release|x86.ActiveCfg = Release|Win32
 		{DAE6ACC6-B9B9-4B6C-82B3-33F85EB74E0A}.Release|x86.Build.0 = Release|Win32
+		{A2908C26-8043-4EF4-A048-88CABD212CDA}.Debug|x64.ActiveCfg = Debug|x64
+		{A2908C26-8043-4EF4-A048-88CABD212CDA}.Debug|x64.Build.0 = Debug|x64
+		{A2908C26-8043-4EF4-A048-88CABD212CDA}.Debug|x86.ActiveCfg = Debug|Win32
+		{A2908C26-8043-4EF4-A048-88CABD212CDA}.Debug|x86.Build.0 = Debug|Win32
+		{A2908C26-8043-4EF4-A048-88CABD212CDA}.Release|x64.ActiveCfg = Release|x64
+		{A2908C26-8043-4EF4-A048-88CABD212CDA}.Release|x64.Build.0 = Release|x64
+		{A2908C26-8043-4EF4-A048-88CABD212CDA}.Release|x86.ActiveCfg = Release|Win32
+		{A2908C26-8043-4EF4-A048-88CABD212CDA}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
