@@ -25,8 +25,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "SecretAgentBarbieWidescreenFix";
-std::string sFixVersion = "1.2";
+std::string sFixName = "PopLifeFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,7 +40,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
@@ -51,31 +50,13 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-uint8_t newWidthSmall;
-uint8_t newWidthBig;
-uint8_t newHeightSmall;
-uint8_t newHeightBig;
 float fNewAspectRatio;
-float fNewCameraFOV;
 float fFOVFactor;
-float fOriginalCameraFOV;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
 {
-	SAB,
+	PL,
 	Unknown
 };
 
@@ -86,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SAB, {"Secret Agent Barbie", "SecretAgent.exe"}},
+	{Game::PL, {"Pop Life", "JoinTheBand.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -162,7 +143,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -206,47 +187,50 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid ResolutionWidthInstructionHook{};
-
-static void ResolutionWidthInstructionMidHook(SafetyHookContext& ctx)
+void FOVFix()
 {
-	*reinterpret_cast<uint32_t*>(ctx.eax + 0x40) = iCurrentResX;
-}
-
-static SafetyHookMid ResolutionHeightInstructionHook{};
-
-static void ResolutionHeightInstructionMidHook(SafetyHookContext& ctx)
-{
-	*reinterpret_cast<uint32_t*>(ctx.eax + 0x44) = iCurrentResY;
-}
-
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
-}
-
-void WidescreenFix()
-{
-	if (eGameType == Game::SAB && bFixActive == true)
+	if (eGameType == Game::PL && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 54 24 08 89 81 B0 00 00 00");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 96 BC 00 00 00 50");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is{:s} + {:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid AspectRatioInstructionMidHook{};
+
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentAspectRatioValue = *reinterpret_cast<float*>(ctx.esi + 0xBC);
+
+				if (fCurrentAspectRatioValue == 1.333299994f || fCurrentAspectRatioValue == 1.333333373f)
+				{
+					fCurrentAspectRatioValue = fNewAspectRatio;
+				}
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 86 B8 00 00 00 51 52 50");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				float& fCurrentCameraFOVValue = *reinterpret_cast<float*>(ctx.esi + 0xB8);
 
-				if (fCurrentCameraFOV == 35.0f || fCurrentCameraFOV == 90.0f || fCurrentCameraFOV == 100.0f)
+				if (fCurrentCameraFOVValue == 0.7853981853f)
 				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fCurrentCameraFOVValue *= fFOVFactor;
 				}
-
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
 			});
 		}
 		else
@@ -254,45 +238,6 @@ void WidescreenFix()
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
-
-		std::uint8_t* ResolutionsInstructionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 04 8B 54 24 08 89 48 40 8B 4C 24 0C 89 50 44 8B 54 24 10 89 48 48 89 50 4C");
-		if (ResolutionsInstructionScanResult)
-		{
-			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult + 0x8 - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult + 0xF - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(ResolutionsInstructionScanResult + 0x8, "\x90\x90\x90", 3);
-
-			Memory::PatchBytes(ResolutionsInstructionScanResult + 0xF, "\x90\x90\x90", 3);
-
-			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionsInstructionScanResult + 0xB, ResolutionWidthInstructionMidHook);
-
-			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionsInstructionScanResult + 0x12, ResolutionHeightInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolutions instruction memory address.");
-			return;
-		}
-
-		/*
-		newWidthSmall = iCurrentResX % 256;
-
-		newWidthBig = (iCurrentResX - newWidthSmall) / 256;
-
-		newHeightSmall = iCurrentResY % 256;
-
-		newHeightBig = (iCurrentResY - newHeightSmall) / 256;
-
-		Memory::Write(NewCodecaveScanResult + 0x3, newWidthSmall);
-
-		Memory::Write(NewCodecaveScanResult + 0x4, newWidthBig);
-
-		Memory::Write(NewCodecaveScanResult + 0xE, newHeightSmall);
-
-		Memory::Write(NewCodecaveScanResult + 0xF, newHeightBig);
-		*/
 	}
 }
 
@@ -302,7 +247,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
