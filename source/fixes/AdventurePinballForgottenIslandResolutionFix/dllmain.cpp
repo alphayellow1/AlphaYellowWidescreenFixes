@@ -22,8 +22,8 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
-HMODULE dllModule2;
-HMODULE dllModule3;
+HMODULE dllModule2 = nullptr;
+HMODULE dllModule3 = nullptr;
 HMODULE thisModule;
 
 // Fix details
@@ -172,36 +172,26 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+			return true;
 		}
 	}
 
-	Sleep(1000);
-
-	dllModule2 = GetModuleHandleA("D3DDrv.dll");
-	if (!dllModule2)
-	{
-		spdlog::error("Failed to get handle for D3DDrv.dll.");
-		return false;
-	}
-
-	spdlog::info("Successfully obtained handle for D3DDrv.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	dllModule3 = GetModuleHandleA("WinDrv.dll");
-	if (!dllModule2)
-	{
-		spdlog::error("Failed to get handle for WinDrv.dll.");
-		return false;
-	}
-
-	spdlog::info("Successfully obtained handle for WinDrv.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 void ResolutionFix()
 {
 	if (eGameType == Game::APFI && bFixActive == true)
 	{
+		while (!dllModule2)
+		{
+			dllModule2 = GetModuleHandleA("D3DDrv.dll");
+			spdlog::warn("Trying to obtain handle for D3DDrv.dll...");
+		}
+
+		spdlog::info("Successfully obtained handle for D3DDrv.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
 		std::uint8_t* ResolutionsScanResult = Memory::PatternScan(dllModule2, "3D ?? ?? ?? ?? 72 4B 75 09 81 7E 08 ?? ?? ?? ?? 74 40 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 30 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 20 3D ?? ?? ?? ?? 75 09 81 7E 08 ?? ?? ?? ?? 74 10 3D ?? ?? ?? ?? 75 5A 81 7E 08 ?? ?? ?? ?? 75 51");
 		if (ResolutionsScanResult)
 		{
@@ -233,8 +223,17 @@ void ResolutionFix()
 			return;
 		}
 
+		while (!dllModule3)
+		{
+			dllModule3 = GetModuleHandleA("WinDrv.dll");
+			spdlog::warn("Trying to obtain handle for WinDrv.dll...");
+		}
+
+		spdlog::info("Successfully obtained handle for WinDrv.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+
 		std::uint8_t* ResolutionScan1Result = Memory::PatternScan(dllModule3, "89 51 64 8B 55 E8");
-		if (ResolutionScan1Result) {
+		if (ResolutionScan1Result)
+		{
 			spdlog::info("Resolution 1: Address is WinDrv.dll+{:x}", ResolutionScan1Result - (std::uint8_t*)dllModule3);
 
 			static SafetyHookMid Resolution1MidHook{};

@@ -59,32 +59,6 @@ void HandleChoiceInput(int& choice)
 	}
 }
 
-void HandleFOVInput(double& customFOV)
-{
-	do
-	{
-		// Reads the input as a string
-		cin >> input;
-
-		// Replaces all commas with dots
-		replace(input.begin(), input.end(), ',', '.');
-
-		// Parses the string to a double
-		customFOV = stod(input);
-
-		if (cin.fail())
-		{
-			cin.clear();                                         // Clears error flags
-			cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignores invalid input
-			cout << "Invalid input. Please enter a numeric value." << endl;
-		}
-		else if (customFOV <= 0)
-		{
-			cout << "Please enter a valid number for the FOV multiplier (greater than 0)." << endl;
-		}
-	} while (customFOV <= 0);
-}
-
 // Function to handle user input in resolution
 uint32_t HandleResolutionInput()
 {
