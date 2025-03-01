@@ -55,6 +55,7 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fCurrentZoomCameraHFOV;
 float fCurrentZoomCameraVFOV;
+float fModifiedHFOVValue;
 
 // Game detection
 enum class Game
@@ -188,7 +189,7 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateFOV(float currentfov)
+float CalculateNewFOV(float currentfov)
 {
 	return 2.0f * atanf(tanf(currentfov / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 }
@@ -206,27 +207,35 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
+			static float fLastModifiedHFOV = 0.0f;
+
+			static std::vector<float> computedHFOVs;
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				static const std::unordered_set<float> validAngles =
-				{
-					1.5707963705062866f, 0.5585054159164429f, 0.4886922240257263f,
-					1.0471975803375244f, 0.5235987901687622f, 0.3490658700466156f, 0.8726646900177002f,
-					0.1745329350233078f, 1.1344640254974365f, 0.2617993950843811f, 0.06981317698955536f,
-					0.13962635397911072f, 1.3962634801864624f, 0.7853981852531433f, 1.2217305898666382f,
-					0.6981317400932312f, 1.5312644243240356f, 1.4747148752212524f, 1.448533296585083f,
-					1.4223518371582031f, 1.3919837474822998f, 1.3613520860671997f, 1.3307284116744995f,
-					1.3045469522476196f, 1.2783653736114502f, 1.2521837949752808f, 1.2260023355484009f,
-					1.1953785419464111f, 1.1691970825195312f, 1.1430155038833618f, 1.1168339252471924f,
-					1.0906524658203125f, 1.0602843761444092f, 0.4363323152065277f
-				};
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
 
-				float* anglePtr = reinterpret_cast<float*>(ctx.ecx + 0x198);
-
-				if (validAngles.find(*anglePtr) != validAngles.end())
+				// Checks if this FOV has already been computed
+				if (std::find(computedHFOVs.begin(), computedHFOVs.end(), fCurrentCameraHFOV) != computedHFOVs.end())
 				{
-					*anglePtr = CalculateFOV(*anglePtr);
+					// Value already processed, then skips the calculations
+					return;
 				}
+
+				if (fCurrentCameraHFOV != 0.4363323152065277f)
+				{
+					fModifiedHFOVValue = CalculateNewFOV(fCurrentCameraHFOV);
+				}
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraHFOV != fModifiedHFOVValue)
+				{
+					fCurrentCameraHFOV = fModifiedHFOVValue;
+					fLastModifiedHFOV = fModifiedHFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				computedHFOVs.push_back(fModifiedHFOVValue);
 			});
 		}
 		else
@@ -271,7 +280,7 @@ void FOVFix()
 
 				if (fCurrentZoomCameraHFOV == 0.4363323152065277f)
 				{
-					fCurrentZoomCameraHFOV = 2.0f * atanf(tanf(fCurrentZoomCameraHFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentZoomCameraHFOV = CalculateNewFOV(fCurrentZoomCameraHFOV);
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fCurrentZoomCameraHFOV);
