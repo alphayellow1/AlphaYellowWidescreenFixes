@@ -327,6 +327,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PopLifeFOVFix", "PopLifeFOV
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HeavyweightThunderWidescreenFix", "HeavyweightThunderWidescreenFix.vcxproj", "{DFF9F748-4077-4DF3-9F7D-8C44F434B3D4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MuscleCar3IllegalStreetFOVFix", "MuscleCar3IllegalStreetFOVFix.vcxproj", "{EBFD5E28-13F2-4674-990A-D6D551708697}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1631,6 +1633,14 @@ Global
 		{DFF9F748-4077-4DF3-9F7D-8C44F434B3D4}.Release|x64.Build.0 = Release|x64
 		{DFF9F748-4077-4DF3-9F7D-8C44F434B3D4}.Release|x86.ActiveCfg = Release|Win32
 		{DFF9F748-4077-4DF3-9F7D-8C44F434B3D4}.Release|x86.Build.0 = Release|Win32
+		{EBFD5E28-13F2-4674-990A-D6D551708697}.Debug|x64.ActiveCfg = Debug|x64
+		{EBFD5E28-13F2-4674-990A-D6D551708697}.Debug|x64.Build.0 = Debug|x64
+		{EBFD5E28-13F2-4674-990A-D6D551708697}.Debug|x86.ActiveCfg = Debug|Win32
+		{EBFD5E28-13F2-4674-990A-D6D551708697}.Debug|x86.Build.0 = Debug|Win32
+		{EBFD5E28-13F2-4674-990A-D6D551708697}.Release|x64.ActiveCfg = Release|x64
+		{EBFD5E28-13F2-4674-990A-D6D551708697}.Release|x64.Build.0 = Release|x64
+		{EBFD5E28-13F2-4674-990A-D6D551708697}.Release|x86.ActiveCfg = Release|Win32
+		{EBFD5E28-13F2-4674-990A-D6D551708697}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
