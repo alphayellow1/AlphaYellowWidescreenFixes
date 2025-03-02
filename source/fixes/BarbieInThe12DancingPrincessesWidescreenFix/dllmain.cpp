@@ -185,6 +185,11 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewCameraHFOV(float fCurrentCameraHFOV)
+{
+	return fCurrentCameraHFOV * (fNewAspectRatio / fOldAspectRatio);
+}
+
 void WidescreenFix()
 {
 	if (eGameType == Game::BIT12DP && bFixActive == true)
@@ -219,7 +224,7 @@ void WidescreenFix()
 			{
 				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				fCurrentCameraHFOV = 0.5f * (fNewAspectRatio / fOldAspectRatio);
+				fCurrentCameraHFOV = CalculateNewCameraHFOV(0.5f);
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
 			});

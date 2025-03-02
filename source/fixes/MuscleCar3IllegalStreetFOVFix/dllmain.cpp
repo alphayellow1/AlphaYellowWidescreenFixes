@@ -185,7 +185,7 @@ bool DetectGame()
 
 float CalculateNewCameraHFOV(float fCurrentCameraHFOV)
 {
-	return fFOVFactor * (fCurrentCameraHFOV * (fNewAspectRatio / fOldAspectRatio));
+	return fCurrentCameraHFOV * (fNewAspectRatio / fOldAspectRatio);
 }
 
 float CalculateNewHUDHFOV(float fCurrentHUDHFOV)
@@ -193,6 +193,7 @@ float CalculateNewHUDHFOV(float fCurrentHUDHFOV)
 	return fCurrentHUDHFOV * (fOldAspectRatio / fNewAspectRatio);
 }
 
+/*
 static SafetyHookMid CameraFOVInstruction1Hook{};
 
 void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
@@ -216,6 +217,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 		fstp dword ptr ds : [eax + 0x4]
 	}
 }
+*/
 
 void FOVFix()
 {
