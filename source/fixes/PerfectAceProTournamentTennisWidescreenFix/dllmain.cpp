@@ -265,10 +265,6 @@ void WidescreenFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> computedFOVs;
-
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xAC);
