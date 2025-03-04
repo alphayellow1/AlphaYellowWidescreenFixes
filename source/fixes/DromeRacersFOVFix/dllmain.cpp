@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -54,6 +55,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fModifiedFOVValue;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -221,20 +223,30 @@ void FOVFix()
 
 			static float fLastModifiedFOV = 0.0f;
 
+			static std::vector<float> computedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx);
 
-				if (fCurrentFOVValue != fLastModifiedFOV)
+				// Checks if this FOV has already been computed
+				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
 				{
-					float fModifiedFOVValue = fFOVFactor * CalculateNewFOV(fCurrentFOVValue);
-
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
+					// Value already processed, then skips the calculations
+					return;
 				}
+
+				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				computedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
