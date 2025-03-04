@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <AdditionalIncludeDirectories>
+      $(AdditionalIncludeDirectories);
+      $(SolutionDir)..\external\inipp;
+      $(SolutionDir)..\external\safetyhook;
+      $(SolutionDir)..\external\spdlog\include;
+      $(SolutionDir)..\includes
+    </AdditionalIncludeDirectories>
+  </PropertyGroup>
+</Project>
