@@ -236,17 +236,17 @@ void FOVFix()
 					return;
 				}
 
-				float damping = 0.3f;
+				float damping = 0.3f; // Just the smoothing factor
 
-				float effectiveFOVFactor = powf(fFOVFactor, damping);
+				float effectiveFOVFactor = powf(fFOVFactor, damping); // This makes the FOV change be less aggressive and more gradual, since when speed is maxed out during races, the FOV is already pretty high in 4:3 (120 degrees max), FOV while idle is 70
 
-				if (fCurrentCameraFOV == 90.0f)
+				if (fCurrentCameraFOV == 90.0f) // Car selection, garage (career mode), menus background
 				{
 					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
 				}
 				else
 				{
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * effectiveFOVFactor;
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * effectiveFOVFactor; // Only applies the FOV factor during races
 				}
 
 				// If the new computed value is different, updates the FOV value
