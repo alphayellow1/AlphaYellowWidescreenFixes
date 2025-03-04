@@ -72,8 +72,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetExt>.asi</TargetExt>
-    <IncludePath>$(IncludePath)</IncludePath>
-    <SourcePath>..\external\safetyhook;$(SourcePath)</SourcePath>
+    <IncludePath>..\external\inipp;..\external\safetyhook;..\external\spdlog\include;..\includes;$(IncludePath)</IncludePath>
+    <SourcePath>$(SourcePath)</SourcePath>
     <PublicIncludeDirectories>$(PublicIncludeDirectories)</PublicIncludeDirectories>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -138,6 +138,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\external\safetyhook\safetyhook.cpp" />
+    <ClCompile Include="..\external\safetyhook\Zydis.c" />
     <ClCompile Include="..\source\fixes\SplatMagazineRenegadePaintballFOVFix\dllmain.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

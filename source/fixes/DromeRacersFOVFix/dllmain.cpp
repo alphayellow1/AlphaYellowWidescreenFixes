@@ -236,7 +236,18 @@ void FOVFix()
 					return;
 				}
 
-				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				float damping = 0.3f;
+
+				float effectiveFOVFactor = powf(fFOVFactor, damping);
+
+				if (fCurrentCameraFOV == 90.0f)
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+				}
+				else
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * effectiveFOVFactor;
+				}
 
 				// If the new computed value is different, updates the FOV value
 				if (fCurrentCameraFOV != fModifiedFOVValue)
