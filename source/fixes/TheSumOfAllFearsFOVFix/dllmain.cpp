@@ -54,6 +54,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
+float fModifiedFOVValue;
 
 // Game detection
 enum class Game
@@ -189,6 +190,11 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::SOAF && bFixActive == true)
@@ -204,27 +210,38 @@ void FOVFix()
 
 			static float fLastModifiedFOV = 0.0f;
 
+			static std::vector<float> computedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0x1C8);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x1C8);
 
-				if (fCurrentFOVValue == 1.5707963268f)
+				// Checks if this FOV has already been computed
+				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
 				{
-					fCurrentFOVValue = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
-					fLastModifiedFOV = fCurrentFOVValue;
+					// Value already processed, then skips the calculations
 					return;
 				}
 
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * atanf(tanf(1.5707963268f / 2.0f) * (fNewAspectRatio / fOldAspectRatio))))
+				if (fCurrentCameraFOV == 1.5707963268f)
 				{
-					float modifiedFOVValue = fFOVFactor * (2.0f * atanf(tanf(fCurrentFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
-
-					if (fCurrentFOVValue != modifiedFOVValue)
-					{
-						fCurrentFOVValue = modifiedFOVValue;
-						fLastModifiedFOV = modifiedFOVValue;
-					}
+					// Computes the new FOV value if the current FOV is different from the last modified FOV
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 				}
+				else
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+				}
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				computedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
