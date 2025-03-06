@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -23,11 +22,10 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "TheHistoryChannelCivilWarANationDividedFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "InternationalTennisProFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,26 +38,25 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
-
 // Ini variables
 bool bFixActive;
+
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
 float fModifiedFOVValue;
+static float fCurrentCameraFOV;
 
 // Game detection
 enum class Game
 {
-	THCCWAND,
+	ITP,
 	Unknown
 };
 
@@ -70,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::THCCWAND, {"The History Channel: Civil War - A Nation Divided", "cw.exe"}},
+	{Game::ITP, {"International Tennis Pro", "ITPro.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -182,82 +179,122 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			return true;
 		}
 	}
 
-	while (!dllModule2)
-	{
-		dllModule2 = GetModuleHandleA("CloakNTEngine.dll");
-		spdlog::info("Waiting for CloakNTEngine.dll to load...");
-	}
-
-	spdlog::info("Successfully obtained handle for CloakNTEngine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::THCCWAND && bFixActive == true)
+	if (eGameType == Game::ITP && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 96 B0 00 00 00 89 54 24 08 8A 8E BE 00 00 00 84 C9");
-		if (CameraFOVInstructionScanResult)
+		/*
+		std::uint8_t* CutscenesAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "89 86 24 01 00 00 8B 3D 1C 59 5D 00 DB 47 08 D8 0D 24 B6 55 00");
+		if (CutscenesAspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			static SafetyHookMid CutscenesAspectRatioInstructionMidHook{};
 
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> computedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CutscenesAspectRatioInstructionMidHook = safetyhook::create_mid(CutscenesAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xB0);
-
-				// Checks if this FOV has already been computed
-				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				if (fCurrentCameraFOV == 1.220000029f)
-				{
-					// Computes the new FOV value if the current FOV is different from the last modified FOV
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-				}
-				else
-				{
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
-				}
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentCameraFOV != fModifiedFOVValue)
-				{
-					fCurrentCameraFOV = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				computedFOVs.push_back(fModifiedFOVValue);
+				0, 6666666865
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::info("Cannot locate the cutscenes aspect ratio instruction memory address.");
+			return;
+		}
+		*/
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 B4 81 1C 01 00 00 D9 5C 24 08 8B 44 81 70 50 E8 65 6F 0F 00 83 C4 10");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid AspectRatioInstructionMidHook{};
+
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fAspectRatio = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0x11C);
+
+				if (fAspectRatio == 1.333333373f)
+				{
+					fAspectRatio = fNewAspectRatio;
+				}
+				else if (fAspectRatio == 0.7254335284f || fAspectRatio == 2.720375538f || fAspectRatio == 2.901734114f)
+				{
+					fAspectRatio = 7.0f;
+				}
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 8C 81 C0 00 00 00 52");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xC0);
+
+				float& fCurrentCameraFOVReference = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xC0);
+
+				if (fCurrentCameraFOVReference == 0.349999994f)
+				{
+					fCurrentCameraFOVReference = CalculateNewFOV(fCurrentCameraFOVReference);
+				}
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOV2InstructionScanResult = Memory::PatternScan(exeModule, "D9 84 81 DC 00 00 00 8D 14 24");
+		if (CameraFOV2InstructionScanResult)
+		{
+			spdlog::info("Camera FOV 2 Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOV2InstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraFOV2InstructionMidHook{};
+
+			CameraFOV2InstructionMidHook = safetyhook::create_mid(CameraFOV2InstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xDC);
+
+				if (fCurrentCameraFOV == 0.4149999917f || fCurrentCameraFOV == 0.283769995f || fCurrentCameraFOV == 0.3048000038f)
+				{
+					fCurrentCameraFOV2 = (fNewAspectRatio / fOldAspectRatio) * fFOVFactor;
+				}
+				else
+				{
+					fCurrentCameraFOV2 = fNewAspectRatio / fOldAspectRatio;
+				}
+
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera FOV 2 instruction memory address.");
 			return;
 		}
 	}
