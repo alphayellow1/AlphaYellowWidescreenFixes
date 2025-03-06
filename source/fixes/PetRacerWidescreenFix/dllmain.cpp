@@ -53,6 +53,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fModifiedFOVValue;
 
 // Game detection
 enum class Game
@@ -254,20 +255,42 @@ void WidescreenFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
+			static float fLastModifiedFOV = 0.0f;
+
+			static std::vector<float> computedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentFOVValue = std::bit_cast<float>(ctx.eax);
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-				if (fCurrentFOVValue == 1.04719758f || fCurrentFOVValue == 0.6981316805f || fCurrentFOVValue == 0.7598267198f)
+				// Checks if this FOV has already been computed
+				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
 				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-				}
-				else if (fCurrentFOVValue == 1.6580627894f)
-				{
-					fCurrentFOVValue = fFOVFactor * CalculateNewFOV(fCurrentFOVValue);
+					// Value already processed, then skips the calculations
+					return;
 				}
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentFOVValue);
+				if (fCurrentCameraFOV == 1.6580627894f)
+				{
+					// Computes the new FOV value if the current FOV is different from the last modified FOV
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				}
+				else
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+				}
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				computedFOVs.push_back(fModifiedFOVValue);
+
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
 			});
 		}
 		else
