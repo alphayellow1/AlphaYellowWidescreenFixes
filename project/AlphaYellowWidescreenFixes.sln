@@ -339,6 +339,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PerfectAceProTournamentTenn
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "InternationalTennisProFOVFix", "InternationalTennisProFOVFix.vcxproj", "{98A73D55-A811-4629-A532-0C5017711A8B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheHistoryChannelCivilWarSecretMissionsFOVChanger", "TheHistoryChannelCivilWarSecretMissionsFOVChanger.vcxproj", "{ABFF1F30-A129-4638-AC2C-965A94660084}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1691,6 +1693,14 @@ Global
 		{98A73D55-A811-4629-A532-0C5017711A8B}.Release|x64.Build.0 = Release|x64
 		{98A73D55-A811-4629-A532-0C5017711A8B}.Release|x86.ActiveCfg = Release|Win32
 		{98A73D55-A811-4629-A532-0C5017711A8B}.Release|x86.Build.0 = Release|Win32
+		{ABFF1F30-A129-4638-AC2C-965A94660084}.Debug|x64.ActiveCfg = Debug|x64
+		{ABFF1F30-A129-4638-AC2C-965A94660084}.Debug|x64.Build.0 = Debug|x64
+		{ABFF1F30-A129-4638-AC2C-965A94660084}.Debug|x86.ActiveCfg = Debug|Win32
+		{ABFF1F30-A129-4638-AC2C-965A94660084}.Debug|x86.Build.0 = Debug|Win32
+		{ABFF1F30-A129-4638-AC2C-965A94660084}.Release|x64.ActiveCfg = Release|x64
+		{ABFF1F30-A129-4638-AC2C-965A94660084}.Release|x64.Build.0 = Release|x64
+		{ABFF1F30-A129-4638-AC2C-965A94660084}.Release|x86.ActiveCfg = Release|Win32
+		{ABFF1F30-A129-4638-AC2C-965A94660084}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
