@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -55,6 +56,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fModifiedFOVValue;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -206,7 +208,6 @@ bool DetectGame()
 	{
 		dllModule2 = GetModuleHandleA("EngineDll.dll");
 		spdlog::info("Waiting for EngineDll.dll to load...");
-		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for EngineDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -234,27 +235,30 @@ void FOVFix()
 
 			static float fLastModifiedFOV = 0.0f;
 
+			static std::vector<float> computedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
 
-				if (fCurrentFOVValue == 75.0f)
+				// Checks if this FOV has already been computed
+				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
 				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-					fLastModifiedFOV = fCurrentFOVValue;
+					// Value already processed, then skips the calculations
 					return;
 				}
 
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(75.0f))
-				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
+				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
 
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
 				}
+
+				// Stores the new value so future calls can skip re-calculations
+				computedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
