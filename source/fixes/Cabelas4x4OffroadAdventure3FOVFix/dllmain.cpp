@@ -25,6 +25,7 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
+HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "Cabelas4x4OffroadAdventure3FOVFix";
@@ -46,7 +47,6 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -57,6 +57,7 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fModifiedFOVValue;
+float fNewWeaponZoomFOV;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -212,12 +213,30 @@ bool DetectGame()
 
 	spdlog::info("Successfully obtained handle for EngineDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
+	while (!dllModule3)
+	{
+		dllModule3 = GetModuleHandleA("GameDll.dll");
+		spdlog::info("Waiting for GameDll.dll to load...");
+	}
+
+	spdlog::info("Successfully obtaiend handle for GameDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+
 	return true;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
+static SafetyHookMid WeaponZoomFOVInstruction1Hook{};
+
+void WeaponZoomFOVInstruction1MidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fcomp dword ptr ds : [fNewWeaponZoomFOV]
+	}
 }
 
 void FOVFix()
@@ -226,7 +245,9 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 D0 00 00 00 D8 0D ?? ?? ?? ??");
+		fNewWeaponZoomFOV = 30.0f;
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 D0 00 00 00 D8 0D ?? ?? ?? ?? D9 F2 DD D8");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is EngineDll.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
@@ -235,20 +256,25 @@ void FOVFix()
 
 			static float fLastModifiedFOV = 0.0f;
 
-			static std::vector<float> computedFOVs;
+			static std::vector<float> vComputedFOVs;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
 
 				// Checks if this FOV has already been computed
-				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
 				{
 					// Value already processed, then skips the calculations
 					return;
 				}
 
-				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+
+				if (fModifiedFOVValue > CalculateNewFOV(75.0f) * fFOVFactor)
+				{
+					fModifiedFOVValue = CalculateNewFOV(75.0f) * fFOVFactor;
+				}
 
 				// If the new computed value is different, updates the FOV value
 				if (fCurrentCameraFOV != fModifiedFOVValue)
@@ -258,7 +284,7 @@ void FOVFix()
 				}
 
 				// Stores the new value so future calls can skip re-calculations
-				computedFOVs.push_back(fModifiedFOVValue);
+				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
@@ -267,14 +293,42 @@ void FOVFix()
 			return;
 		}
 
+		std::uint8_t* WeaponZoomFOVInstruction1ScanResult = Memory::PatternScan(dllModule3, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 01 74 0B");
+		if (WeaponZoomFOVInstruction1ScanResult)
+		{
+			spdlog::info("Weapon Zoom FOV Instruction 1: Address is GameDll.dll+{:x}", WeaponZoomFOVInstruction1ScanResult - (std::uint8_t*)dllModule3);
+
+			Memory::PatchBytes(WeaponZoomFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			WeaponZoomFOVInstruction1Hook = safetyhook::create_mid(WeaponZoomFOVInstruction1ScanResult + 6, WeaponZoomFOVInstruction1MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate weapon zoom FOV instruction 1 memory address.");
+			return;
+		}
+
+		std::uint8_t* WeaponZoomFOVInstruction2ScanResult = Memory::PatternScan(dllModule3, "C7 41 2C 00 00 8C 42 C6 41 24 03 D9 41 2C 83 EC 08");
+		if (WeaponZoomFOVInstruction2ScanResult)
+		{
+			spdlog::info("Weapon Zoom FOV Instruction 2: Address is GameDll.dll+{:x}", WeaponZoomFOVInstruction2ScanResult - (std::uint8_t*)dllModule3);
+
+			Memory::Write(WeaponZoomFOVInstruction2ScanResult + 3, fNewWeaponZoomFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate weapon zoom FOV instruction 2 memory address.");
+			return;
+		}
+
 		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
 		if (AspectRatioInstruction1ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll.dll+{:x}", AspectRatioInstruction1ScanResult + 0x6 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll.dll+{:x}", AspectRatioInstruction1ScanResult + 6 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction1MidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 0x6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
 			});

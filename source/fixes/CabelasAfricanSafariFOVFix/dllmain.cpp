@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -54,6 +55,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fModifiedFOVValue;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -205,12 +207,16 @@ bool DetectGame()
 	{
 		dllModule2 = GetModuleHandleA("EngineDll.dll");
 		spdlog::info("Waiting for EngineDll.dll to load...");
-		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for EngineDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
+}
+
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 }
 
 void FOVFix()
@@ -228,27 +234,37 @@ void FOVFix()
 
 			static float fLastModifiedFOV = 0.0f;
 
+			static std::vector<float> computedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebp + 0xD0);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xD0);
 
-				if (fCurrentFOVValue == 60.0f)
+				// Checks if this FOV has already been computed
+				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
 				{
-					fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-					fLastModifiedFOV = fCurrentFOVValue;
+					// Value already processed, then skips the calculations
 					return;
 				}
 
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(60.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))))
+				if (fCurrentCameraFOV == 60.0f)
 				{
-					float fModifiedFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOVValue / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
+					fModifiedFOVValue = fFOVFactor * CalculateNewFOV(fCurrentCameraFOV);
 				}
+				else
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+				}
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				computedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
