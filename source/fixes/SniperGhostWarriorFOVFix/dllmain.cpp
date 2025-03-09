@@ -27,7 +27,7 @@ HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "SniperGhostWarriorFOVChanger";
+std::string sFixName = "SniperGhostWarriorFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -52,6 +52,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fModifiedFOVValue;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -143,12 +144,28 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVChanger"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
+	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	spdlog_confparse(iCurrentResX);
+	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
+
+	// If resolution not specified, use desktop resolution
+	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	{
+		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
+		// Implement Util::GetPhysicalDesktopDimensions() accordingly
+		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
+		iCurrentResX = desktopDimensions.first;
+		iCurrentResY = desktopDimensions.second;
+		spdlog_confparse(iCurrentResX);
+		spdlog_confparse(iCurrentResY);
+	}
 
 	spdlog::info("----------");
 }
@@ -182,10 +199,17 @@ bool DetectGame()
 	return true;
 }
 
-void FOVChanger()
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+}
+
+void FOVFix()
 {
 	if (eGameType == Game::SGW && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "08 D9 86 14 01 00 00 D9 5C 24 04 D9 86 28 03 00 00 D9 1C 24 FF D2");
 		if (CameraFOVInstructionScanResult)
 		{
@@ -208,7 +232,14 @@ void FOVChanger()
 					return;
 				}
 
-				fModifiedFOVValue = fCurrentCameraFOV * fFOVFactor;
+				if (fCurrentCameraFOV == 0.2094303071f)
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+				}
+				else
+				{
+					fModifiedFOVValue = fCurrentCameraFOV * fFOVFactor;
+				}
 
 				// If the new computed value is different, updates the FOV value
 				if (fCurrentCameraFOV != fModifiedFOVValue)
@@ -235,7 +266,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVChanger();
+		FOVFix();
 	}
 	return TRUE;
 }
