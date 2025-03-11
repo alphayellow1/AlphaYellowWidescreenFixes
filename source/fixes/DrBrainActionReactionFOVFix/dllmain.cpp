@@ -205,12 +205,16 @@ bool DetectGame()
 	{
 		dllModule2 = GetModuleHandleA("Engine.dll");
 		spdlog::info("Waiting for Engine.dll to load...");
-		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for Engine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
+}
+
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 }
 
 void FOVFix()
@@ -230,8 +234,7 @@ void FOVFix()
 			{
 				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx + 0x2EC);
 
-				fCurrentFOVValue = fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(90.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-
+				fCurrentFOVValue = fFOVFactor * CalculateNewFOV(90.0f);
 			});
 		}
 		else

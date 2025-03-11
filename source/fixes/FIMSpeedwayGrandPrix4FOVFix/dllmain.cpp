@@ -231,11 +231,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "DB 44 24 28 DA B0 80 00 00 00 D8 05 ?? ?? ?? ?? D8 C9");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is ChromeEngine3.dll+{:x}", CameraHFOVInstructionScanResult + 0xA - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera HFOV Instruction: Address is ChromeEngine3.dll+{:x}", CameraHFOVInstructionScanResult + 10 - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult + 0xA, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstructionScanResult + 10, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x10, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 16, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

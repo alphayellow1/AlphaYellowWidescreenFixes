@@ -192,10 +192,11 @@ static void WidescreenFix()
 		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "A1 98 7F 4A 00 89 15 54 7F 4A 00");
 		if (ResolutionWidthInstructionScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult + 0x5 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult + 5 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 0x5, [](SafetyHookContext& ctx)
+
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 5, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uint32_t>(iCurrentResX);
 			});
@@ -212,6 +213,7 @@ static void WidescreenFix()
 			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
+
 			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uint32_t>(iCurrentResY);
@@ -229,6 +231,7 @@ static void WidescreenFix()
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid AspectRatioInstructionMidHook{};
+
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);

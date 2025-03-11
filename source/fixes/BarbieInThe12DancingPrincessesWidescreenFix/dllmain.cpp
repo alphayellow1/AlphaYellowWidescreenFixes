@@ -201,11 +201,11 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0x5 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0xA - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 10 - (std::uint8_t*)exeModule);
 
 			Memory::Write(ResolutionScanResult + 0x5, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 0xA, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 10, iCurrentResY);
 		}
 		else
 		{

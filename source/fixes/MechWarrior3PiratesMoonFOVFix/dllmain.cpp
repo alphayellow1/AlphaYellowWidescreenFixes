@@ -269,7 +269,7 @@ static SafetyHookMid CameraHFOVInstruction6Hook{};
 static void CameraHFOVInstruction6MidHook(SafetyHookContext& ctx)
 {
 	fNewCameraHFOV = CalculateNewHFOV(80.0f);
-
+	
 	_asm
 	{
 		fmul dword ptr ds : [fNewCameraHFOV]
@@ -285,11 +285,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 98 EC 00 00 00 D8 0D ?? ?? ?? ?? D9 90 F0 00 00 00");
 		if (CameraHFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction1ScanResult + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction1ScanResult + 6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction1ScanResult + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction1ScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstruction1ScanResult + 0xC, CameraHFOVInstruction1MidHook);
+			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstruction1ScanResult + 12, CameraHFOVInstruction1MidHook);
 		}
 		else
 		{
@@ -300,11 +300,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "C7 81 38 01 00 00 01 00 00 00 D8 0D ?? ?? ?? ?? C7 81 F8 00 00 00 01 00 00 00");
 		if (CameraHFOVInstruction2ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction2ScanResult + 0xA - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction2ScanResult + 10 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction2ScanResult + 0xA, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction2ScanResult + 10, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstruction2ScanResult + 0x10, CameraHFOVInstruction2MidHook);
+			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstruction2ScanResult + 16, CameraHFOVInstruction2MidHook);
 		}
 		else
 		{
@@ -315,11 +315,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "D9 81 EC 00 00 00 D8 0D ?? ?? ?? ?? D9 54 24 08");
 		if (CameraHFOVInstruction3ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction3ScanResult + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction3ScanResult + 6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction3ScanResult + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction3ScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstruction3ScanResult + 0xC, CameraHFOVInstruction3MidHook);
+			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstruction3ScanResult + 12, CameraHFOVInstruction3MidHook);
 		}
 		else
 		{
@@ -330,11 +330,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstruction4ScanResult = Memory::PatternScan(exeModule, "89 BE F8 00 00 00 D8 0D ?? ?? ?? ?? 89 BE FC 00 00 00");
 		if (CameraHFOVInstruction4ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction4ScanResult + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction4ScanResult + 6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction4ScanResult + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction4ScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstruction4ScanResult + 0xC, CameraHFOVInstruction4MidHook);
+			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstruction4ScanResult + 12, CameraHFOVInstruction4MidHook);
 		}
 		else
 		{
@@ -345,11 +345,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstruction5ScanResult = Memory::PatternScan(exeModule, "C7 45 D0 00 00 00 00 D8 0D ?? ?? ?? ?? C7 45 D4 00 00 00 00");
 		if (CameraHFOVInstruction5ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction5ScanResult + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction5ScanResult + 7 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction5ScanResult + 0x7, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction5ScanResult + 7, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction5Hook = safetyhook::create_mid(CameraHFOVInstruction5ScanResult + 0xD, CameraHFOVInstruction5MidHook);
+			CameraHFOVInstruction5Hook = safetyhook::create_mid(CameraHFOVInstruction5ScanResult + 13, CameraHFOVInstruction5MidHook);
 		}
 		else
 		{
@@ -360,11 +360,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstruction6ScanResult = Memory::PatternScan(exeModule, "D9 40 04 D8 0D ?? ?? ?? ?? 8B 45 08");
 		if (CameraHFOVInstruction6ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction6ScanResult + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction6ScanResult + 3 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction6ScanResult + 0x3, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction6ScanResult + 3, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction6Hook = safetyhook::create_mid(CameraHFOVInstruction6ScanResult + 0x9, CameraHFOVInstruction6MidHook);
+			CameraHFOVInstruction6Hook = safetyhook::create_mid(CameraHFOVInstruction6ScanResult + 9, CameraHFOVInstruction6MidHook);
 		}
 		else
 		{

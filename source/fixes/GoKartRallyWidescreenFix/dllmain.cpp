@@ -224,9 +224,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionScanResult + 0x4, iCurrentResX);
+			Memory::Write(ResolutionScanResult + 4, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 0xC, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 12, iCurrentResY);
 		}
 		else
 		{
@@ -241,7 +241,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 0x6, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, CameraVFOVInstructionMidHook);
 		}
 		else
 		{
@@ -256,7 +256,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x6, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

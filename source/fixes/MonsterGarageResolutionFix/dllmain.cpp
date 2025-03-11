@@ -184,10 +184,10 @@ static void ResolutionFix()
 		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "8B 86 7C 01 00 00 8B 6C 24 2C 50 8B CE 89 BE 74 01 00 00");
 		if (ResolutionWidthInstructionScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult + 0xD - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult + 13 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 0xD, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 13, [](SafetyHookContext& ctx)
 			{
 				ctx.edi = std::bit_cast<uint32_t>(iCurrentResX);
 			});
@@ -204,6 +204,7 @@ static void ResolutionFix()
 			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
+			
 			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				ctx.ebp = std::bit_cast<uint32_t>(iCurrentResY);

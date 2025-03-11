@@ -273,17 +273,17 @@ static void FOVFix()
 		std::uint8_t* CameraHFOVInstruction1And2Result = Memory::PatternScan(exeModule, "D9 82 E8 00 00 00 D8 0D ?? ?? ?? ?? D9 C9 D8 0D ?? ?? ?? ?? D9 C9");
 		if (CameraHFOVInstruction1And2Result)
 		{
-			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction1And2Result + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction1And2Result + 6 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction1And2Result + 0xE - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction1And2Result + 14 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction1And2Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction1And2Result + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			Memory::PatchBytes(CameraHFOVInstruction1And2Result + 0xE, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction1And2Result + 14, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstruction1And2Result + 0xC, CameraHFOVInstruction1MidHook);
+			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstruction1And2Result + 12, CameraHFOVInstruction1MidHook);
 
-			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstruction1And2Result + 0x14, CameraHFOVInstruction2MidHook);
+			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstruction1And2Result + 20, CameraHFOVInstruction2MidHook);
 		}
 		else
 		{
@@ -294,11 +294,11 @@ static void FOVFix()
 		std::uint8_t* CameraHFOVInstruction3Result = Memory::PatternScan(exeModule, "D9 C9 D8 0D ?? ?? ?? ?? D9 44 24 10 D9 CA");
 		if (CameraHFOVInstruction3Result)
 		{
-			spdlog::info("Camera HFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction3Result + 0x2 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction3Result + 2 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction3Result + 0x2, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction3Result + 2, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstruction3Result + 0x8, CameraHFOVInstruction3MidHook);
+			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstruction3Result + 8, CameraHFOVInstruction3MidHook);
 		}
 		else
 		{
@@ -309,11 +309,11 @@ static void FOVFix()
 		std::uint8_t* CameraHFOVInstruction4Result = Memory::PatternScan(exeModule, "D9 86 E8 00 00 00 D8 0D ?? ?? ?? ?? 89 BE F8 00 00 00");
 		if (CameraHFOVInstruction4Result)
 		{
-			spdlog::info("Camera HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction4Result + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction4Result + 6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction4Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction4Result + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstruction4Result + 0xC, CameraHFOVInstruction4MidHook);
+			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstruction4Result + 12, CameraHFOVInstruction4MidHook);
 		}
 		else
 		{
@@ -324,11 +324,11 @@ static void FOVFix()
 		std::uint8_t* CameraHFOVInstruction5Result = Memory::PatternScan(exeModule, "D9 86 EC 00 00 00 D8 0D ?? ?? ?? ?? D9 F2");
 		if (CameraHFOVInstruction5Result)
 		{
-			spdlog::info("Camera HFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction5Result + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction5Result + 6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstruction5Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction5Result + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction5Hook = safetyhook::create_mid(CameraHFOVInstruction5Result + 0xC, CameraHFOVInstruction5MidHook);
+			CameraHFOVInstruction5Hook = safetyhook::create_mid(CameraHFOVInstruction5Result + 12, CameraHFOVInstruction5MidHook);
 		}
 		else
 		{

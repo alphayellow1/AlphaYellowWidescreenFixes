@@ -252,9 +252,9 @@ void FOVFix()
 		{
 			spdlog::info("Gameplay Camera FOVs: Address is game.dll+{:x}", GameplayCameraFOVsScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::Write(GameplayCameraFOVsScanResult + 0x6, CalculateNewFOV(64.0f));
+			Memory::Write(GameplayCameraFOVsScanResult + 6, CalculateNewFOV(64.0f));
 
-			Memory::Write(GameplayCameraFOVsScanResult + 0x1B, CalculateNewFOV(50.0f));
+			Memory::Write(GameplayCameraFOVsScanResult + 27, CalculateNewFOV(50.0f));
 		}
 		else
 		{

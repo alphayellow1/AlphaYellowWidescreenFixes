@@ -262,13 +262,13 @@ void FOVFix()
 		std::uint8_t* CameraVFOVZoomInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 08 D9 99 3C 01 00 00");
 		if (CameraVFOVZoomInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVZoomInstructionScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera VFOV Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVZoomInstructionScanResult + 4 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraVFOVZoomInstructionMidHook{};
 
 			static float lastModifiedVFOV = 0.0f; // Tracks the last value modified by the hook
 
-			CameraVFOVZoomInstructionMidHook = safetyhook::create_mid(CameraVFOVZoomInstructionScanResult + 0x4, [](SafetyHookContext& ctx)
+			CameraVFOVZoomInstructionMidHook = safetyhook::create_mid(CameraVFOVZoomInstructionScanResult + 4, [](SafetyHookContext& ctx)
 			{
 				if (fabs(*reinterpret_cast<float*>(ctx.ecx + 0x13C) - (0.13089969754219055f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
 				{

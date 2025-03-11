@@ -238,11 +238,11 @@ void FOVFix()
 		std::uint8_t* MainMenuCameraFOVScanResult = Memory::PatternScan(dllModule3, "C7 44 24 74 00 00 48 42 8D 54 24 54 55 52 C6 84 24 94 00 00 00 00");
 		if (MainMenuCameraFOVScanResult)
 		{
-			spdlog::info("Main Menu Camera FOV: Address is game.dll+{:x}", MainMenuCameraFOVScanResult + 0x4 - (std::uint8_t*)dllModule3);
+			spdlog::info("Main Menu Camera FOV: Address is game.dll+{:x}", MainMenuCameraFOVScanResult + 4 - (std::uint8_t*)dllModule3);
 
 			fNewMainMenuCameraFOV = CalculateNewFOV(50.0f);
 
-			Memory::Write(MainMenuCameraFOVScanResult + 0x4, fNewMainMenuCameraFOV);
+			Memory::Write(MainMenuCameraFOVScanResult + 4, fNewMainMenuCameraFOV);
 		}
 		else
 		{
@@ -276,11 +276,11 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(dllModule3, "8B 74 24 08 8B 46 4C 8B 4E 20 8B 56 1C");
 		if (CameraFOVInstruction2ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 2: Address is game.dll+{:x}", CameraFOVInstruction2ScanResult + 0x7 - (std::uint8_t*)dllModule3);
+			spdlog::info("Camera FOV Instruction 2: Address is game.dll+{:x}", CameraFOVInstruction2ScanResult + 7 - (std::uint8_t*)dllModule3);
 
 			static SafetyHookMid CameraFOVInstruction2MidHook{};
 
-			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 0x7, [](SafetyHookContext& ctx)
+			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 7, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOV2Value = *reinterpret_cast<float*>(ctx.esi + 0x20);
 
@@ -299,11 +299,11 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstruction3ScanResult = Memory::PatternScan(dllModule3, "8B 56 4C 8B 46 20 8B 4E 1C");
 		if (CameraFOVInstruction3ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 3: Address is game.dll+{:x}", CameraFOVInstruction3ScanResult + 0x3 - (std::uint8_t*)dllModule3);
+			spdlog::info("Camera FOV Instruction 3: Address is game.dll+{:x}", CameraFOVInstruction3ScanResult + 3 - (std::uint8_t*)dllModule3);
 
 			static SafetyHookMid CameraFOVInstruction3MidHook{};
 
-			CameraFOVInstruction3MidHook = safetyhook::create_mid(CameraFOVInstruction3ScanResult + 0x3, [](SafetyHookContext& ctx)
+			CameraFOVInstruction3MidHook = safetyhook::create_mid(CameraFOVInstruction3ScanResult + 3, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOV3Value = *reinterpret_cast<float*>(ctx.esi + 0x20);
 
@@ -322,11 +322,11 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstruction4ScanResult = Memory::PatternScan(dllModule3, "8B 4E 4C 8B 56 20 8B 46 1C");
 		if (CameraFOVInstruction4ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 4: Address is game.dll+{:x}", CameraFOVInstruction4ScanResult + 0x3 - (std::uint8_t*)dllModule3);
+			spdlog::info("Camera FOV Instruction 4: Address is game.dll+{:x}", CameraFOVInstruction4ScanResult + 3 - (std::uint8_t*)dllModule3);
 
 			static SafetyHookMid CameraFOVInstruction4MidHook{};
 
-			CameraFOVInstruction4MidHook = safetyhook::create_mid(CameraFOVInstruction4ScanResult + 0x3, [](SafetyHookContext& ctx)
+			CameraFOVInstruction4MidHook = safetyhook::create_mid(CameraFOVInstruction4ScanResult + 3, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOV4Value = *reinterpret_cast<float*>(ctx.esi + 0x20);
 
@@ -345,11 +345,11 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstruction5ScanResult = Memory::PatternScan(dllModule3, "8B 46 4C 8B 4E 20 8B 56 1C 83 C4 48 50 8B 46 18");
 		if (CameraFOVInstruction5ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 5: Address is game.dll+{:x}", CameraFOVInstruction5ScanResult + 0x3 - (std::uint8_t*)dllModule3);
+			spdlog::info("Camera FOV Instruction 5: Address is game.dll+{:x}", CameraFOVInstruction5ScanResult + 3 - (std::uint8_t*)dllModule3);
 
 			static SafetyHookMid CameraFOVInstruction5MidHook{};
 
-			CameraFOVInstruction5MidHook = safetyhook::create_mid(CameraFOVInstruction5ScanResult + 0x3, [](SafetyHookContext& ctx)
+			CameraFOVInstruction5MidHook = safetyhook::create_mid(CameraFOVInstruction5ScanResult + 3, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOV5Value = *reinterpret_cast<float*>(ctx.esi + 0x20);
 

@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -23,8 +24,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "CrusadersOfMightAndMagicFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "RealMadridTheGameWidescreenFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -37,24 +38,20 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-
 // Ini variables
 bool bFixActive;
+
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraFOV;
-float fNewAspectRatio;
 
 // Game detection
 enum class Game
 {
-	COMM,
+	RMTG,
 	Unknown
 };
 
@@ -65,7 +62,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::COMM, {"Crusaders of Might and Magic", "crusaders.exe"}},
+	{Game::RMTG, {"Real Madrid: The Game", "Game.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -141,7 +138,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -183,37 +180,67 @@ bool DetectGame()
 	return false;
 }
 
-void FOVFix()
+void WidescreenFix()
 {
-	if (eGameType == Game::COMM && bFixActive == true)
+	if (eGameType == Game::RMTG && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fNewCameraFOV = fOldAspectRatio / fNewAspectRatio;
-
-		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "4C 02 00 00 00 00 80 3F C7 84 24 50");
-		if (CameraHFOVScanResult)
+		std::uint8_t* Resolution1ScanResult = Memory::PatternScan(exeModule, "20 A3 59 00 11 00 00 00 20 03 00 00 58 02 00 00 3C 00 00 00");
+		if (Resolution1ScanResult)
 		{
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 4 - (std::uint8_t*)exeModule);;
+			spdlog::info("Resolution 1: Address is {:s}+{:x}", sExeName.c_str(), Resolution1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraHFOVScanResult + 4, fNewCameraFOV);
+			Memory::Write(Resolution1ScanResult + 8, iCurrentResX);
+
+			Memory::Write(Resolution1ScanResult + 12, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV memory address.");
+			spdlog::info("Cannot locate the resolution 1 memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraVFOVScanResult = Memory::PatternScan(exeModule, "60 02 00 00 00 00 80 3F C7 84 24 64");
-		if (CameraVFOVScanResult)
+		std::uint8_t* Resolution2ScanResult = Memory::PatternScan(exeModule, "00 01 00 00 00 20 03 00 00 58 02 00 00 00 00 00 00 01 00 00 00 00 04 00 00 00 03 00");
+		if (Resolution2ScanResult)
 		{
-			spdlog::info("Camera VFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVScanResult + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 2: Address is {:s}+{:x}", sExeName.c_str(), Resolution2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraVFOVScanResult + 4, fNewCameraFOV);
+			Memory::Write(Resolution2ScanResult + 5, iCurrentResX);
+
+			Memory::Write(Resolution2ScanResult + 9, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera VFOV memory address.");
+			spdlog::info("Cannot locate the resolution 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* Resolution3ScanResult = Memory::PatternScan(exeModule, "00 00 00 00 00 20 03 00 00 58 02 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 03 00 00 00 00");
+		if (Resolution3ScanResult)
+		{
+			spdlog::info("Resolution 3: Address is {:s}+{:x}", sExeName.c_str(), Resolution3ScanResult - (std::uint8_t*)exeModule);
+
+			Memory::Write(Resolution3ScanResult + 5, iCurrentResX);
+
+			Memory::Write(Resolution3ScanResult + 9, iCurrentResY);
+		}
+		else
+		{
+			spdlog::info("Cannot locate the resolution 3 memory address.");
+			return;
+		}
+
+		std::uint8_t* Resolution4ScanResult = Memory::PatternScan(exeModule, "00 00 00 00 00 00 20 03 00 00 58 02 00 00 3C 00 00 00 00 00 00 00 00 04 00 00 00 03 00 00 3C 00");
+		if (Resolution4ScanResult)
+		{
+			spdlog::info("Resolution 4: Address is {:s}+{:x}", sExeName.c_str(), Resolution4ScanResult - (std::uint8_t*)exeModule);
+
+			Memory::Write(Resolution4ScanResult + 6, iCurrentResX);
+
+			Memory::Write(Resolution4ScanResult + 10, iCurrentResY);
+		}
+		else
+		{
+			spdlog::info("Cannot locate the resolution 4 memory address.");
 			return;
 		}
 	}
@@ -225,7 +252,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }

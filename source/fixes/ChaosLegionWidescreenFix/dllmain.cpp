@@ -199,7 +199,7 @@ void FOVFix()
 
 			Memory::Write(ResolutionScanResult, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 0x4, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 4, iCurrentResY);
 		}
 		else
 		{

@@ -216,9 +216,9 @@ void WidescreenFix()
 		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "00 80 02 00 00 C7");
 		if (ResolutionWidthScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 1 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionWidthScanResult + 0x1, iCurrentResX);
+			Memory::Write(ResolutionWidthScanResult + 1, iCurrentResX);
 		}
 		else
 		{
@@ -229,9 +229,9 @@ void WidescreenFix()
 		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "00 E0 01 00 00 C7");
 		if (ResolutionHeightScanResult)
 		{
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 1 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionHeightScanResult + 0x1, iCurrentResY);
+			Memory::Write(ResolutionHeightScanResult + 1, iCurrentResY);
 		}
 		else
 		{
@@ -244,9 +244,9 @@ void WidescreenFix()
 		std::uint8_t* CameraForegroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
 		if (CameraForegroundHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera Foreground HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundHFOVInstructionScanResult + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera Foreground HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundHFOVInstructionScanResult + 3 - (std::uint8_t*)exeModule);
 
-			CameraForegroundHFOVHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 0x3, CameraForegroundHFOVMidHook);
+			CameraForegroundHFOVHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 3, CameraForegroundHFOVMidHook);
 		}
 		else
 		{
@@ -261,7 +261,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraBackgroundHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraBackgroundHFOVHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult + 0x6, CameraBackgroundHFOVMidHook);
+			CameraBackgroundHFOVHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult + 6, CameraBackgroundHFOVMidHook);
 		}
 		else
 		{

@@ -225,9 +225,9 @@ void WidescreenFix()
 		std::uint8_t* ResolutionWidth1ScanResult = Memory::PatternScan(exeModule, "7C 24 1C 20 03 00 00 74 42 E9 A0 00 00 00");
 		if (ResolutionWidth1ScanResult)
 		{
-			spdlog::info("Resolution Width 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidth1ScanResult + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidth1ScanResult + 3 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionWidth1ScanResult + 0x3, iCurrentResX);
+			Memory::Write(ResolutionWidth1ScanResult + 3, iCurrentResX);
 		}
 		else
 		{
@@ -238,9 +238,9 @@ void WidescreenFix()
 		std::uint8_t* ResolutionWidth2ScanResult = Memory::PatternScan(exeModule, "24 14 3D 20 03 00 00 74 42 E9");
 		if (ResolutionWidth2ScanResult)
 		{
-			spdlog::info("Resolution Width 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidth2ScanResult + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidth2ScanResult + 3 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionWidth2ScanResult + 0x3, iCurrentResX);
+			Memory::Write(ResolutionWidth2ScanResult + 3, iCurrentResX);
 		}
 		else
 		{
@@ -251,9 +251,9 @@ void WidescreenFix()
 		std::uint8_t* ResolutionHeight1ScanResult = Memory::PatternScan(exeModule, "00 00 81 F9 58 02 00 00 75 0F 81");
 		if (ResolutionHeight1ScanResult)
 		{
-			spdlog::info("Resolution Height 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeight1ScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeight1ScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionHeight1ScanResult + 0x4, iCurrentResY);
+			Memory::Write(ResolutionHeight1ScanResult + 4, iCurrentResY);
 		}
 		else
 		{
@@ -266,7 +266,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Height 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeight2ScanResult + 0x3 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionHeight2ScanResult + 0x3, iCurrentResY);
+			Memory::Write(ResolutionHeight2ScanResult + 3, iCurrentResY);
 		}
 		else
 		{
@@ -281,7 +281,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x6, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, AspectRatioInstructionMidHook);
 		}
 		else
 		{
@@ -296,7 +296,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x6, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
 		}
 		else
 		{

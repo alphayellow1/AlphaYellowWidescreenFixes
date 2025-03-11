@@ -17,6 +17,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -51,6 +52,8 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fModifiedHFOVValue;
+float fModifiedVFOVValue;
 
 // Game detection
 enum class Game
@@ -275,30 +278,31 @@ void WidescreenFix()
 
 			static float fLastModifiedHFOV = 0.0f;
 
+			static std::vector<float> vComputedHFOVs;
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x68);
 
-				if (fCurrentCameraHFOV == 5.610000134f || fCurrentCameraHFOV == 4.950000286f || fCurrentCameraHFOV == 0.513210535f ||
-					fCurrentCameraHFOV == 0.8000000119f || fCurrentCameraHFOV == 0.5142856836f)
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedHFOVs.begin(), vComputedHFOVs.end(), fCurrentCameraHFOV) != vComputedHFOVs.end())
 				{
-					fCurrentCameraHFOV = fCurrentCameraHFOV / (fOldAspectRatio / fNewAspectRatio);
-					fLastModifiedHFOV = fCurrentCameraHFOV; // Update tracking variable
+					// Value already processed, then skips the calculations
 					return;
 				}
 
-				// Avoid recursive modifications
-				if (fCurrentCameraHFOV != fLastModifiedHFOV)
-				{
-					float fModifiedHFOVValue = fCurrentCameraHFOV / (fOldAspectRatio / fNewAspectRatio);
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedHFOVValue = fCurrentCameraHFOV / (fOldAspectRatio / fNewAspectRatio);
 
-					// Only modify if the calculated value differs
-					if (fCurrentCameraHFOV != fModifiedHFOVValue)
-					{
-						fCurrentCameraHFOV = fModifiedHFOVValue;
-						fLastModifiedHFOV = fModifiedHFOVValue; // Update tracking variable
-					}
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraHFOV != fModifiedHFOVValue)
+				{
+					fCurrentCameraHFOV = fModifiedHFOVValue;
+					fLastModifiedHFOV = fModifiedHFOVValue;
 				}
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedHFOVs.push_back(fModifiedHFOVValue);
 			});
 		}
 		else
@@ -316,33 +320,31 @@ void WidescreenFix()
 
 			static float fLastModifiedVFOV = 0.0f;
 
+			static std::vector<float> vComputedVFOVs;
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x6C);
 
-				if (fabs(fCurrentCameraVFOV - (0.5999999642f / (fNewAspectRatio / fOldAspectRatio))) < epsilon ||
-					fabs(fCurrentCameraVFOV - (5.610000134f / (fNewAspectRatio / fOldAspectRatio))) < epsilon ||
-					fabs(fCurrentCameraVFOV - (4.950000286f / (fNewAspectRatio / fOldAspectRatio))) < epsilon ||
-					fabs(fCurrentCameraVFOV - (0.3857142627f / (fNewAspectRatio / fOldAspectRatio))) < epsilon ||
-					fabs(fCurrentCameraVFOV - (0.513210535f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedVFOVs.begin(), vComputedVFOVs.end(), fCurrentCameraVFOV) != vComputedVFOVs.end())
 				{
-					fCurrentCameraVFOV = fCurrentCameraVFOV / (fOldAspectRatio / fNewAspectRatio);
-					fLastModifiedVFOV = fCurrentCameraVFOV; // Update tracking variable
+					// Value already processed, then skips the calculations
 					return;
 				}
 
-				// Avoid recursive modifications
-				if (fCurrentCameraVFOV != fLastModifiedVFOV)
-				{
-					float fModifiedVFOVValue = fCurrentCameraVFOV / (fOldAspectRatio / fNewAspectRatio);
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedVFOVValue = fCurrentCameraVFOV / (fOldAspectRatio / fNewAspectRatio);
 
-					// Only modify if the calculated value differs
-					if (fCurrentCameraVFOV != fModifiedVFOVValue)
-					{
-						fCurrentCameraVFOV = fModifiedVFOVValue;
-						fLastModifiedVFOV = fModifiedVFOVValue; // Update tracking variable
-					}
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraVFOV != fModifiedVFOVValue)
+				{
+					fCurrentCameraVFOV = fModifiedVFOVValue;
+					fLastModifiedVFOV = fModifiedVFOVValue;
 				}
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedVFOVs.push_back(fModifiedVFOVValue);
 			});
 		}
 		else

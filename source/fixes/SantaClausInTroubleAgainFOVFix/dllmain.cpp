@@ -181,14 +181,14 @@ static void FOVFix()
 {
 	if (eGameType == Game::SCITA && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "89 46 54 68 ?? ?? ?? ?? 8D 86 B0 00 00 00 50");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
-
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-			Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio);
+			
+			Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{

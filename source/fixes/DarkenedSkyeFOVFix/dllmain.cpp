@@ -54,8 +54,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
-float fNewGameplayCameraFOV;
-float fNewCutscenesCameraFOV;
+float fModifiedFOVValue;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -203,132 +202,9 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewGameplayFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-}
-
-float CalculateNewCutscenesFOV(float fCurrentFOV)
+float CalculateNewFOV(float fCurrentFOV)
 {
 	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-}
-
-static SafetyHookMid GameplayCameraFOVInstructionHook{};
-
-static void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float fOriginalGameplayCameraFOV = 90.0f;
-
-	fNewGameplayCameraFOV = CalculateNewGameplayFOV(fOriginalGameplayCameraFOV);
-
-	_asm
-	{
-		push eax
-		mov eax, dword ptr ds : [0x0054D014]
-		cmp eax, fOriginalGameplayCameraFOV
-		je ChangeFOV
-		jmp OriginalCode
-
-		ChangeFOV :
-		mov eax, dword ptr ds : [fNewGameplayCameraFOV]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp OriginalCode
-
-			OriginalCode :
-		pop eax
-			fld dword ptr ds : [0x0054D014]
-	}
-}
-
-static SafetyHookMid CutscenesCameraFOVInstructionHook{};
-
-static void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	constexpr float fOriginalCutscenesCameraFOV1 = 30.0000248f;
-
-	constexpr float fOriginalCutscenesCameraFOV2 = 45.00003433f;
-
-	constexpr float fOriginalCutscenesCameraFOV3 = 45.000038146973f;
-
-	constexpr float fOriginalCutscenesCameraFOV4 = 53.00004196167f;
-
-	constexpr float fOriginalCutscenesCameraFOV5 = 60.000049591064f;
-
-	constexpr float fOriginalCutscenesCameraFOV6 = 65.000679016113f;
-
-	float fNewCutscenesCameraFOV1 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV1);
-
-	float fNewCutscenesCameraFOV2 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV2);
-
-	float fNewCutscenesCameraFOV3 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV3);
-
-	float fNewCutscenesCameraFOV4 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV4);
-
-	float fNewCutscenesCameraFOV5 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV5);
-
-	float fNewCutscenesCameraFOV6 = CalculateNewCutscenesFOV(fOriginalCutscenesCameraFOV6);
-
-	_asm
-	{
-		push eax
-		mov eax, dword ptr ds : [0x0054D014]
-		cmp eax, fOriginalCutscenesCameraFOV1
-		je FOV1
-
-		Compare1 :
-		cmp eax, fOriginalCutscenesCameraFOV2
-			je FOV2
-
-			Compare2 :
-		cmp eax, fOriginalCutscenesCameraFOV3
-			je FOV3
-
-			Compare3 :
-		cmp eax, fOriginalCutscenesCameraFOV4
-			je FOV4
-
-			Compare4 :
-		cmp eax, fOriginalCutscenesCameraFOV5
-			je FOV5
-
-			Compare5 :
-		cmp eax, fOriginalCutscenesCameraFOV6
-			je FOV6
-			jmp OriginalCode
-
-			FOV1 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV1]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare1
-
-			FOV2 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV2]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare2
-
-			FOV3 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV3]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare3
-
-			FOV4 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV4]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare4
-
-			FOV5 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV5]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp Compare5
-
-			FOV6 :
-		mov eax, dword ptr ds : [fNewCutscenesCameraFOV6]
-			mov dword ptr ds : [0x0054D014] , eax
-			jmp OriginalCode
-
-			OriginalCode :
-		pop eax
-	}
 }
 
 void FOVFix()
@@ -337,29 +213,52 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 14 D0 54 00 D8 1D 7C D1 4B 00");
-		if (GameplayCameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 14 D0 54 00 D8 1D 7C D1 4B 00");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, GameplayCameraFOVInstructionMidHook);
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			static float fLastModifiedFOV = 0.0f;
+
+			static std::vector<float> vComputedFOVs;
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Read the current value from the target memory address.
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x0054D014);
+
+				// If this FOV has already been computed, skip further processing.
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
+				{
+					return;
+				}
+
+				// Compute the new FOV value.
+				if (fCurrentCameraFOV == 90.0f)
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				}
+				else
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+				}
+
+				// If the computed value differs, update our current FOV and record it.
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+
+				// Record this computed value to avoid recalculations later.
+				vComputedFOVs.push_back(fModifiedFOVValue);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate gameplay camera FOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 14 D0 54 00 D9 1D 7C D1 4B 00");
-		if (CutscenesCameraFOVInstructionScanResult)
-		{
-			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, CutscenesCameraFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate cutsenes camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}

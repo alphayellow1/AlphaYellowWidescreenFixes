@@ -245,11 +245,11 @@ void WidescreenFix()
 		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(dllModule2, "8B 4C 24 20 89 8B 44 01 00 00 8B 55 0C");
 		if (ResolutionHeightInstructionScanResult)
 		{
-			spdlog::info("Resolution Height Instruction: Address is EngineDll8r.dll+{:x}", ResolutionHeightInstructionScanResult + 0xA - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Height Instruction: Address is EngineDll8r.dll+{:x}", ResolutionHeightInstructionScanResult + 10 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult + 0xA, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult + 10, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<uint32_t*>(ctx.ebp + 0xC) = iCurrentResY;
 			});
@@ -302,11 +302,11 @@ void WidescreenFix()
 		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 5C 24 40 D9 44 24 40 D9 97 DC 00 00 00 D8 8F D4 00 00 00");
 		if (AspectRatioInstruction1ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction1ScanResult + 0xE - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction1ScanResult + 14 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction1MidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 0xE, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 14, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.edi + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
 			});

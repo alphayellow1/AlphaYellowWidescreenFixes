@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -56,9 +57,8 @@ uint8_t newWidthBig;
 uint8_t newHeightSmall;
 uint8_t newHeightBig;
 float fNewAspectRatio;
-float fNewCameraFOV;
 float fFOVFactor;
-float fOriginalCameraFOV;
+float fModifiedFOVValue;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -206,20 +206,6 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid ResolutionWidthInstructionHook{};
-
-static void ResolutionWidthInstructionMidHook(SafetyHookContext& ctx)
-{
-	*reinterpret_cast<uint32_t*>(ctx.eax + 0x40) = iCurrentResX;
-}
-
-static SafetyHookMid ResolutionHeightInstructionHook{};
-
-static void ResolutionHeightInstructionMidHook(SafetyHookContext& ctx)
-{
-	*reinterpret_cast<uint32_t*>(ctx.eax + 0x44) = iCurrentResY;
-}
-
 float CalculateNewFOV(float fCurrentFOV)
 {
 	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
@@ -237,14 +223,34 @@ void WidescreenFix()
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			static float fLastModifiedFOV = 0.0f;
+
+			static std::vector<float> computedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-				if (fCurrentCameraFOV == 35.0f || fCurrentCameraFOV == 90.0f || fCurrentCameraFOV == 100.0f)
+				// Checks if this FOV has already been computed
+				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
 				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					// Value already processed, then skips the calculations
+					return;
 				}
+
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				computedFOVs.push_back(fModifiedFOVValue);
 
 				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
 			});
@@ -258,17 +264,27 @@ void WidescreenFix()
 		std::uint8_t* ResolutionsInstructionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 04 8B 54 24 08 89 48 40 8B 4C 24 0C 89 50 44 8B 54 24 10 89 48 48 89 50 4C");
 		if (ResolutionsInstructionScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult + 8 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult + 0xF - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult + 15 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionsInstructionScanResult + 0x8, "\x90\x90\x90", 3);
+			Memory::PatchBytes(ResolutionsInstructionScanResult + 8, "\x90\x90\x90", 3);
 
-			Memory::PatchBytes(ResolutionsInstructionScanResult + 0xF, "\x90\x90\x90", 3);
+			Memory::PatchBytes(ResolutionsInstructionScanResult + 15, "\x90\x90\x90", 3);
 
-			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionsInstructionScanResult + 0xB, ResolutionWidthInstructionMidHook);
+			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
-			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionsInstructionScanResult + 0x12, ResolutionHeightInstructionMidHook);
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionsInstructionScanResult + 11, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<uint32_t*>(ctx.eax + 0x40) = iCurrentResX;
+			});
+
+			static SafetyHookMid ResolutionHeightInstructionMidHook{};
+
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionsInstructionScanResult + 18, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<uint32_t*>(ctx.eax + 0x44) = iCurrentResY;
+			});
 		}
 		else
 		{
@@ -285,13 +301,13 @@ void WidescreenFix()
 
 		newHeightBig = (iCurrentResY - newHeightSmall) / 256;
 
-		Memory::Write(NewCodecaveScanResult + 0x3, newWidthSmall);
+		Memory::Write(NewCodecaveScanResult + 3, newWidthSmall);
 
-		Memory::Write(NewCodecaveScanResult + 0x4, newWidthBig);
+		Memory::Write(NewCodecaveScanResult + 4, newWidthBig);
 
-		Memory::Write(NewCodecaveScanResult + 0xE, newHeightSmall);
+		Memory::Write(NewCodecaveScanResult + 14, newHeightSmall);
 
-		Memory::Write(NewCodecaveScanResult + 0xF, newHeightBig);
+		Memory::Write(NewCodecaveScanResult + 15, newHeightBig);
 		*/
 	}
 }

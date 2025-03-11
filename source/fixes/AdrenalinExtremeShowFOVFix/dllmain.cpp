@@ -210,7 +210,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScan1Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScan1Result + 0xC, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScan1Result + 12, CameraHFOVInstructionMidHook);
 		}
 		else
 		{
@@ -240,7 +240,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScan3Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScan3Result + 0xC, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScan3Result + 12, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

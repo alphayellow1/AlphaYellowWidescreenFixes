@@ -179,12 +179,10 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
+	
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
@@ -261,11 +259,11 @@ void FOVFix()
 		std::uint8_t* CameraVFOVZoomInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 08 D9 99 3C 01 00 00");
 		if (CameraVFOVZoomInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVZoomInstructionScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera VFOV Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVZoomInstructionScanResult + 4 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraVFOVZoomInstructionMidHook{};
 
-			CameraVFOVZoomInstructionMidHook = safetyhook::create_mid(CameraVFOVZoomInstructionScanResult + 0x4, [](SafetyHookContext& ctx)
+			CameraVFOVZoomInstructionMidHook = safetyhook::create_mid(CameraVFOVZoomInstructionScanResult + 4, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraVFOVZoom = *reinterpret_cast<float*>(ctx.ecx + 0x13C);
 

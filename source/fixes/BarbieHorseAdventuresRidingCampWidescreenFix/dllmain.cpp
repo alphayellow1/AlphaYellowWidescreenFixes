@@ -197,9 +197,9 @@ void WidescreenFix()
 		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "78 05 00 00 89 1D E8 C5 5F 00 B8 00 04 00 00 B9");
 		if (ResolutionWidthScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 0xB - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 11 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionWidthScanResult + 0xB, iCurrentResX);
+			Memory::Write(ResolutionWidthScanResult + 11, iCurrentResX);
 		}
 		else
 		{
@@ -210,9 +210,9 @@ void WidescreenFix()
 		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "B9 00 03 00 00 73 08 8D 41 20 B9");
 		if (ResolutionHeightScanResult)
 		{
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 1 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionHeightScanResult + 0x1, iCurrentResY);
+			Memory::Write(ResolutionHeightScanResult + 1, iCurrentResY);
 		}
 		else
 		{

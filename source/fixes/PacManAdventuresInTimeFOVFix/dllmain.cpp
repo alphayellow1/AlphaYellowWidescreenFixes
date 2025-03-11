@@ -195,9 +195,9 @@ void FOVFix()
 		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "C7 44 24 34 00 00 40 3F 8B 0D 84 3E");
 		if (CameraHFOVScanResult)
 		{
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 0x4 - (std::uint8_t*)exeModule);;
+			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 4 - (std::uint8_t*)exeModule);;
 
-			Memory::Write(CameraHFOVScanResult + 0x4, fNewCameraFOV);
+			Memory::Write(CameraHFOVScanResult + 4, fNewCameraFOV);
 		}
 		else
 		{

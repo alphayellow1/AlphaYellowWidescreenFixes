@@ -233,11 +233,11 @@ void FOVFix()
 		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "C7 44 24 0C 00 00 00 00 56 57 68 00 00 80 3F 6A 00 6A 00 6A 00 6A");
 		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 0xB - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 11 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = fNewAspectRatio * 0.75f;
+			fNewCameraFOV = (fNewAspectRatio * 0.75f) * fCameraFOVFactor;
 
-			Memory::Write(CameraFOVScanResult + 0xB, fNewCameraFOV * fCameraFOVFactor);
+			Memory::Write(CameraFOVScanResult + 11, fNewCameraFOV);
 		}
 		else
 		{
@@ -252,9 +252,9 @@ void FOVFix()
 			std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "00 00 E0 3F 00 00 80 40 33 33 B3 3F");
 			if (AspectRatioScanResult)
 			{
-				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x4 - (std::uint8_t*)exeModule);
+				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 4 - (std::uint8_t*)exeModule);
 
-				Memory::Write(AspectRatioScanResult + 0x4, fNewAspectRatio2);
+				Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio2);
 			}
 			else
 			{
@@ -267,9 +267,9 @@ void FOVFix()
 			std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "00 00 E0 3F 00 00 00 40 00 00 80 40 CD CC 4C 3D");
 			if (AspectRatioScanResult)
 			{
-				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x8 - (std::uint8_t*)exeModule);
+				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 8 - (std::uint8_t*)exeModule);
 
-				Memory::Write(AspectRatioScanResult + 0x8, fNewAspectRatio2);
+				Memory::Write(AspectRatioScanResult + 8, fNewAspectRatio2);
 			}
 			else
 			{
@@ -281,11 +281,11 @@ void FOVFix()
 		std::uint8_t* WeaponFOVScanResult = Memory::PatternScan(exeModule, "9A 99 19 44 00 00 00 40 52 C1 E0 3F 56 55 85 3F");
 		if (WeaponFOVScanResult)
 		{
-			spdlog::info("Weapon FOV: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Weapon FOV: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVScanResult + 8 - (std::uint8_t*)exeModule);
 
 			fNewWeaponFOV = fOriginalWeaponFOV * fWeaponFOVFactor;
 
-			Memory::Write(WeaponFOVScanResult + 0x8, fNewWeaponFOV);
+			Memory::Write(WeaponFOVScanResult + 8, fNewWeaponFOV);
 		}
 		else
 		{
