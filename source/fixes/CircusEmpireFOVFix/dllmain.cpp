@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -183,13 +184,17 @@ bool DetectGame()
 			eGameType = type;
 			game = &info;
 		}
+		else
+		{
+			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+			return false;
+		}
 	}
 
-	dllModule2 = GetModuleHandleA("LS3DF.dll");
 	if (!dllModule2)
 	{
-		spdlog::error("Failed to get handle for LS3DF.dll.");
-		return false;
+		dllModule2 = GetModuleHandleA("LS3DF.dll");
+		spdlog::warn("Trying to get handle for LS3DF.dll...");
 	}
 
 	spdlog::info("Successfully obtained handle for LS3DF.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -198,6 +203,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid FCOMPInstructionHook{};
+
 void FCOMPInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
@@ -207,6 +213,7 @@ void FCOMPInstructionMidHook(SafetyHookContext& ctx)
 }
 
 static SafetyHookMid FCOMPInstruction2Hook{};
+
 void FCOMPInstruction2MidHook(SafetyHookContext& ctx)
 {
 	_asm
@@ -217,7 +224,7 @@ void FCOMPInstruction2MidHook(SafetyHookContext& ctx)
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 }
 
 void FOVFix()
@@ -229,34 +236,37 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
 		if (CameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstruction1ScanResult + 0x11 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstruction1ScanResult + 17 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstruction1MidHook{};
 
-			static float fLastModifiedFOV1 = 0.0f; // Tracks the last modified FOV value
+			static float fLastModifiedFOV = 0.0f;
+			
+			static std::vector<float> vComputedFOVs;
 
-			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 0x11, [](SafetyHookContext& ctx)
+			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 17, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOVValue1 = *reinterpret_cast<float*>(ctx.edx + 0x108);
 
-				if (fCurrentFOVValue1 == 1.22173059f || fCurrentFOVValue1 == 1.256637096f || fCurrentFOVValue1 == 1.086083293f || fCurrentFOVValue1 == 1.139648318f || fCurrentFOVValue1 == 1.130296111f || fCurrentFOVValue1 == 1.087588668f || fCurrentFOVValue1 == 1.256637454f)
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentFOVValue1) != vComputedFOVs.end())
 				{
-					fCurrentFOVValue1 = CalculateNewFOV(fCurrentFOVValue1);
+					// Value already processed, then skips the calculations
+					return;
 				}
-
-				// Check if the current FOV value was already modified
-				if (fCurrentFOVValue1 != fLastModifiedFOV1 && fCurrentFOVValue1 != CalculateNewFOV(1.22173059f) && fCurrentFOVValue1 != CalculateNewFOV(1.256637096f) && fCurrentFOVValue1 != CalculateNewFOV(1.086083293f) && fCurrentFOVValue1 != CalculateNewFOV(1.139648318f) && fCurrentFOVValue1 != CalculateNewFOV(1.130296111f) && fCurrentFOVValue1 != CalculateNewFOV(1.087588668f) && fCurrentFOVValue1 != CalculateNewFOV(1.256637454f))
+				
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue1) * fFOVFactor;
+				
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentFOVValue1 != fModifiedFOVValue)
 				{
-					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue1 = CalculateNewFOV(fCurrentFOVValue1);
-
-					// Update the value only if the modification is meaningful
-					if (fCurrentFOVValue1 != fModifiedFOVValue1)
-					{
-						fCurrentFOVValue1 = fModifiedFOVValue1;
-						fLastModifiedFOV1 = fModifiedFOVValue1;
-					}
+					fCurrentFOVValue1 = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
 				}
+				
+				// Stores the new value so future calls can skip re-calculations
+				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
@@ -272,25 +282,33 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstruction2MidHook{};
 
-			static float fLastModifiedFOV2 = 0.0f; // Tracks the last modified FOV value
+			static float fLastModifiedFOV2 = 0.0f;
+
+			static std::vector<float> vComputedFOVs;
 
 			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOVValue2 = *reinterpret_cast<float*>(ctx.edx + 0x114);
 
-				// Check if the current FOV value was already modified
-				if (fCurrentFOVValue2 != fLastModifiedFOV2)
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentFOVValue2) != vComputedFOVs.end())
 				{
-					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue2 = CalculateNewFOV(fCurrentFOVValue2);
-
-					// Update the value only if the modification is meaningful
-					if (fCurrentFOVValue2 != fModifiedFOVValue2)
-					{
-						fCurrentFOVValue2 = fModifiedFOVValue2;
-						fLastModifiedFOV2 = fModifiedFOVValue2;
-					}
+					// Value already processed, then skips the calculations
+					return;
 				}
+				
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue2);
+				
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentFOVValue2 != fModifiedFOVValue)
+				{
+					fCurrentFOVValue2 = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+				
+				// Stores the new value so future calls can skip re-calculations
+				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
@@ -306,7 +324,7 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioComparisonInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioComparisonInstruction1ScanResult + 0x6, FCOMPInstructionMidHook);
+			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioComparisonInstruction1ScanResult + 6, FCOMPInstructionMidHook);
 		}
 		else
 		{
@@ -321,7 +339,7 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioComparisonInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			FCOMPInstruction2Hook = safetyhook::create_mid(AspectRatioComparisonInstruction2ScanResult + 0x6, FCOMPInstruction2MidHook);
+			FCOMPInstruction2Hook = safetyhook::create_mid(AspectRatioComparisonInstruction2ScanResult + 6, FCOMPInstruction2MidHook);
 		}
 		else
 		{

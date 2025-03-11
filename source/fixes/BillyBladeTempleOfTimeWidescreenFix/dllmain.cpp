@@ -193,13 +193,13 @@ static void WidescreenFix()
 		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "C8 00 00 00 FF 00 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 00 00 00");
 		if (ResolutionScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 8 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 0xC - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 12 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionScanResult + 0x8, iCurrentResX);
+			Memory::Write(ResolutionScanResult + 8, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 0xC, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 12, iCurrentResY);
 		}
 		else
 		{

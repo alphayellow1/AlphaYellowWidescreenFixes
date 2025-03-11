@@ -234,14 +234,14 @@ void FOVFix()
 
 			static float fLastModifiedFOV = 0.0f;
 
-			static std::vector<float> computedFOVs;
+			static std::vector<float> vComputedFOVs;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xD0);
 
 				// Checks if this FOV has already been computed
-				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
 				{
 					// Value already processed, then skips the calculations
 					return;
@@ -264,7 +264,7 @@ void FOVFix()
 				}
 
 				// Stores the new value so future calls can skip re-calculations
-				computedFOVs.push_back(fModifiedFOVValue);
+				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
@@ -276,11 +276,11 @@ void FOVFix()
 		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "DD D8 D9 95 DC 00 00 00 D9 85 D4 00 00 00");
 		if (AspectRatioInstruction1ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll.dll+{:x}", AspectRatioInstruction1ScanResult + 0x8 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll.dll+{:x}", AspectRatioInstruction1ScanResult + 8 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction1MidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 0x8, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 8, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebp + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
 			});

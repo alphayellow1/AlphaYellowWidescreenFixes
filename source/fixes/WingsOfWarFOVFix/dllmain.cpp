@@ -193,7 +193,6 @@ bool DetectGame()
 	{
 		dllModule2 = GetModuleHandleA("LS3DF.dll");
 		spdlog::info("Waiting for LS3DF.dll to load...");
-		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for LS3DF.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -261,9 +260,9 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Comparison Instruction: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(AspectRatioComparisonInstructionScanResult + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioComparisonInstructionScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioComparisonInstructionScanResult + 0xC, FCOMPInstructionMidHook);
+			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioComparisonInstructionScanResult + 12, FCOMPInstructionMidHook);
 		}
 		else
 		{

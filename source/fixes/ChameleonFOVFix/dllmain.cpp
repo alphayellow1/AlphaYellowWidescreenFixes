@@ -22,7 +22,7 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule2;
+HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
@@ -54,6 +54,7 @@ int iCurrentResY;
 float fFOVFactor;
 float fAspectRatioToCompare;
 float fNewAspectRatio;
+float fModifiedFOVValue;
 
 // Game detection
 enum class Game
@@ -182,13 +183,17 @@ bool DetectGame()
 			eGameType = type;
 			game = &info;
 		}
+		else
+		{
+			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+			return false;
+		}
 	}
 
-	dllModule2 = GetModuleHandleA("LS3DF.dll");
 	if (!dllModule2)
 	{
-		spdlog::error("Failed to get handle for LS3DF.dll.");
-		return false;
+		dllModule2 = GetModuleHandleA("LS3DF.dll");
+		spdlog::warn("Trying to get handle for LS3DF.dll...");
 	}
 
 	spdlog::info("Successfully obtained handle for LS3DF.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -226,14 +231,14 @@ void FOVFix()
 
 			static SafetyHookMid AspectRatioInstructionMidHook{};
 
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x6, [](SafetyHookContext& ctx)
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.edx + 0x120) = fNewAspectRatio;
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult + 0xC, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioInstructionScanResult + 12, "\x90\x90\x90\x90\x90\x90", 6);
 
-			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x12, FCOMPInstructionMidHook);
+			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 18, FCOMPInstructionMidHook);
 		}
 		else
 		{
@@ -244,33 +249,37 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult + 0x11 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult + 17 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			static float fLastModifiedFOV = 0.0f;
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x11, [](SafetyHookContext& ctx)
+			static std::vector<float> vComputedFOVs;
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 17, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx + 0x108);
 
-				if (fCurrentFOVValue = 1.308996916f)
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
 				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-					fLastModifiedFOV = fCurrentFOVValue;
+					// Value already processed, then skips the calculations
 					return;
 				}
 
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(1.308996916f))
-				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
 
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
 				}
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else

@@ -195,7 +195,6 @@ bool DetectGame()
 	{
 		dllModule2 = GetModuleHandleA("CloakNTEngine.dll");
 		spdlog::info("Waiting for CloakNTEngine.dll to load...");
-		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for CloakNTEngine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));

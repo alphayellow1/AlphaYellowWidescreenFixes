@@ -221,7 +221,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 1 detected.");
 
-			Memory::PatchBytes(Pattern1ScanResult + 0x6, "\x90\x90", 2);
+			Memory::PatchBytes(Pattern1ScanResult + 6, "\x90\x90", 2);
 		}
 		else
 		{
@@ -233,7 +233,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 2 detected.");
 
-			Memory::PatchBytes(Pattern2ScanResult + 0x5, "\xE9\x0E\x2C\x19\x00", 5);
+			Memory::PatchBytes(Pattern2ScanResult + 5, "\xE9\x0E\x2C\x19\x00", 5);
 		}
 		else
 		{
@@ -259,9 +259,9 @@ void WidescreenFix()
 
 			Memory::PatchBytes(Pattern4ScanResult, "\x59\x59\x59\x68\x38\x04\x00\x00\x68\x80\x07\x00\x00\x52\x33\xC9\x89\x4C\x24\x14\x89\x4C\x24\x10\xB8\x20\x00\x00\x00", 29);
 
-			Memory::Write(Pattern4ScanResult + 0x4, iCurrentResY);
+			Memory::Write(Pattern4ScanResult + 4, iCurrentResY);
 
-			Memory::Write(Pattern4ScanResult + 0x9, iCurrentResX);
+			Memory::Write(Pattern4ScanResult + 9, iCurrentResX);
 		}
 		else
 		{
@@ -285,7 +285,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 6 detected.");
 
-			Memory::Write(Pattern6ScanResult + 0x4, fNewValue1);
+			Memory::Write(Pattern6ScanResult + 4, fNewValue1);
 		}
 		else
 		{
@@ -297,7 +297,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 7 detected.");
 
-			Memory::Write(Pattern7ScanResult + 0x2, fNewValue2);
+			Memory::Write(Pattern7ScanResult + 2, fNewValue2);
 		}
 		else
 		{
@@ -309,7 +309,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 8 detected.");
 
-			Memory::Write(Pattern8ScanResult + 0x8, fNewValue1);
+			Memory::Write(Pattern8ScanResult + 8, fNewValue1);
 		}
 		else
 		{
@@ -321,7 +321,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 9 detected.");
 
-			Memory::Write(Pattern9ScanResult + 0xC, fNewValue3);
+			Memory::Write(Pattern9ScanResult + 12, fNewValue3);
 		}
 		else
 		{
@@ -335,13 +335,13 @@ void WidescreenFix()
 
 			Memory::Write(Pattern10ScanResult, fNewValue4);
 
-			Memory::Write(Pattern10ScanResult + 0x4, fNewValue5);
+			Memory::Write(Pattern10ScanResult + 4, fNewValue5);
 
-			Memory::Write(Pattern10ScanResult + 0x12, fNewValue6);
+			Memory::Write(Pattern10ScanResult + 18, fNewValue6);
 
-			Memory::Write(Pattern10ScanResult + 0x1C, fNewValue7);
+			Memory::Write(Pattern10ScanResult + 28, fNewValue7);
 
-			Memory::Write(Pattern10ScanResult + 0x34, fNewValue8);
+			Memory::Write(Pattern10ScanResult + 52, fNewValue8);
 		}
 		else
 		{
@@ -353,13 +353,13 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 11 detected.");
 
-			Memory::Write(Pattern11ScanResult + 0xC, iCurrentResX);
+			Memory::Write(Pattern11ScanResult + 12, iCurrentResX);
 
-			Memory::Write(Pattern11ScanResult + 0x14, iCurrentResY);
+			Memory::Write(Pattern11ScanResult + 20, iCurrentResY);
 
-			Memory::Write(Pattern11ScanResult + 0x23, iCurrentResX);
+			Memory::Write(Pattern11ScanResult + 35, iCurrentResX);
 
-			Memory::Write(Pattern11ScanResult + 0x2A, iCurrentResY);
+			Memory::Write(Pattern11ScanResult + 42, iCurrentResY);
 		}
 		else
 		{
@@ -373,7 +373,7 @@ void WidescreenFix()
 
 			fNewValue9 = 0.625f; // 750.0f / 1200.0f;
 
-			Memory::Write(Pattern12ScanResult + 0x7, fNewValue9);
+			Memory::Write(Pattern12ScanResult + 7, fNewValue9);
 		}
 		else
 		{

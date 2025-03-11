@@ -216,13 +216,13 @@ void WidescreenFix()
 		std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(exeModule, "53 3D 20 03 00 00 75 0A 81 FD 58 02 00 00 74 44");
 		if (Resolution800x600ScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult + 0x2 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult + 2 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult + 0xA - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult + 10 - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution800x600ScanResult + 0x2, iCurrentResX);
+			Memory::Write(Resolution800x600ScanResult + 2, iCurrentResX);
 
-			Memory::Write(Resolution800x600ScanResult + 0xA, iCurrentResY);
+			Memory::Write(Resolution800x600ScanResult + 10, iCurrentResY);
 		}
 		else
 		{
@@ -233,11 +233,11 @@ void WidescreenFix()
 		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "83 A4 01 00 00 00 00 B4 42 8B 54 24 1C 8D");
 		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 0x5 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 5 - (std::uint8_t*)exeModule);
 
 			fNewCameraFOV = CalculateNewFOV(fOriginalCameraFOV);
 
-			Memory::Write(CameraFOVScanResult + 0x5, fNewCameraFOV);
+			Memory::Write(CameraFOVScanResult + 5, fNewCameraFOV);
 		}
 		else
 		{

@@ -214,13 +214,13 @@ void WidescreenFix()
 		std::uint8_t* ResolutionScanResult = Memory::PatternScan(dllModule2, "80 01 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 03 00 00");
 		if (ResolutionScanResult)
 		{
-			spdlog::info("Resolution Width: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 4 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 8 - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionScanResult + 0x4, iCurrentResX);
+			Memory::Write(ResolutionScanResult + 4, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 0x8, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 8, iCurrentResY);
 		}
 		else
 		{
@@ -231,11 +231,11 @@ void WidescreenFix()
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "C7 40 2C 00 00 80 BF D8 3D ?? ?? ?? ?? D9 45 18 D8 65 14");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is osr_dx8_vf.dll+{:x}", CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is osr_dx8_vf.dll+{:x}", CameraHFOVInstructionScanResult + 7 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult + 0x7, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstructionScanResult + 7, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0xD, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 13, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

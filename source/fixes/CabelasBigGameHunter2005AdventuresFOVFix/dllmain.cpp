@@ -46,7 +46,6 @@ constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -271,7 +270,7 @@ void FOVFix()
 
 			static SafetyHookMid AspectRatioInstruction1MidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 0x6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
 			});

@@ -223,22 +223,22 @@ void FOVFix()
 
 			static float fLastModifiedFOV = 0.0f;
 
-			static std::vector<float> computedFOVs;
+			static std::vector<float> vComputedFOVs;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx);
 
 				// Checks if this FOV has already been computed
-				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCameraFOV) != computedFOVs.end())
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
 				{
 					// Value already processed, then skips the calculations
 					return;
 				}
 
-				float damping = 0.3f; // Just the smoothing factor
+				float fDamping = 0.3f; // Just the smoothing factor
 
-				float effectiveFOVFactor = powf(fFOVFactor, damping); // This makes the FOV change be less aggressive and more gradual, since when speed is maxed out during races, the FOV is already pretty high in 4:3 (120 degrees max), FOV while idle is 70
+				float fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual, since when speed is maxed out during races, the FOV is already pretty high in 4:3 (120 degrees max), FOV while idle is 70
 
 				if (fCurrentCameraFOV == 90.0f) // Car selection, garage (career mode), menus background
 				{
@@ -246,7 +246,7 @@ void FOVFix()
 				}
 				else
 				{
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * effectiveFOVFactor; // Only applies the FOV factor during races
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fEffectiveFOVFactor; // Only applies the FOV factor during races
 				}
 
 				// If the new computed value is different, updates the FOV value
@@ -257,7 +257,7 @@ void FOVFix()
 				}
 
 				// Stores the new value so future calls can skip re-calculations
-				computedFOVs.push_back(fModifiedFOVValue);
+				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else

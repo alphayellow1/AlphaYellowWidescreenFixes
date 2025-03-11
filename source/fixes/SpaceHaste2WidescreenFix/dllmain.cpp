@@ -204,9 +204,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 512x384: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384ScanResult + 0x2, iCurrentResY);
+			Memory::Write(Resolution512x384ScanResult + 2, iCurrentResY);
 
-			Memory::Write(Resolution512x384ScanResult + 0x7, iCurrentResX);
+			Memory::Write(Resolution512x384ScanResult + 7, iCurrentResX);
 		}
 		else
 		{
@@ -219,9 +219,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 512x384 Scan 2: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384Scan2Result - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384Scan2Result + 0x3, iCurrentResY);
+			Memory::Write(Resolution512x384Scan2Result + 3, iCurrentResY);
 
-			Memory::Write(Resolution512x384Scan2Result + 0x8, iCurrentResX);
+			Memory::Write(Resolution512x384Scan2Result + 8, iCurrentResX);
 		}
 		else
 		{
@@ -234,9 +234,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 512x384 Scan 3: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384Scan3Result - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384Scan3Result + 0xD, iCurrentResY);
+			Memory::Write(Resolution512x384Scan3Result + 13, iCurrentResY);
 
-			Memory::Write(Resolution512x384Scan3Result + 0x12, iCurrentResX);
+			Memory::Write(Resolution512x384Scan3Result + 18, iCurrentResX);
 		}
 		else
 		{
@@ -249,9 +249,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 512x384 Scan 4: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384Scan4Result - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384Scan4Result + 0x4, iCurrentResY);
+			Memory::Write(Resolution512x384Scan4Result + 4, iCurrentResY);
 
-			Memory::Write(Resolution512x384Scan4Result + 0x9, iCurrentResX);
+			Memory::Write(Resolution512x384Scan4Result + 9, iCurrentResX);
 		}
 		else
 		{
@@ -264,9 +264,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 640x480: Address is {:s}+{:x}", sExeName.c_str(), Resolution640x480ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution640x480ScanResult + 0x2, iCurrentResY);
+			Memory::Write(Resolution640x480ScanResult + 2, iCurrentResY);
 
-			Memory::Write(Resolution640x480ScanResult + 0x7, iCurrentResX);
+			Memory::Write(Resolution640x480ScanResult + 7, iCurrentResX);
 		}
 		else
 		{
@@ -279,9 +279,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 800x600: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution800x600ScanResult + 0x2, iCurrentResY);
+			Memory::Write(Resolution800x600ScanResult + 2, iCurrentResY);
 
-			Memory::Write(Resolution800x600ScanResult + 0x7, iCurrentResX);
+			Memory::Write(Resolution800x600ScanResult + 7, iCurrentResX);
 		}
 		else
 		{
@@ -294,9 +294,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 800x600: Address is {:s}+{:x}", sExeName.c_str(), Resolution1024x768ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution1024x768ScanResult + 0x2, iCurrentResY);
+			Memory::Write(Resolution1024x768ScanResult + 2, iCurrentResY);
 
-			Memory::Write(Resolution1024x768ScanResult + 0x7, iCurrentResX);
+			Memory::Write(Resolution1024x768ScanResult + 7, iCurrentResX);
 		}
 		else
 		{
@@ -309,9 +309,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 1280x1024: Address is {:s}+{:x}", sExeName.c_str(), Resolution1280x1024ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution1280x1024ScanResult + 0x2, iCurrentResY);
+			Memory::Write(Resolution1280x1024ScanResult + 2, iCurrentResY);
 
-			Memory::Write(Resolution1280x1024ScanResult + 0x7, iCurrentResX);
+			Memory::Write(Resolution1280x1024ScanResult + 7, iCurrentResX);
 		}
 		else
 		{
@@ -324,9 +324,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 1600x1200: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution1600x1200ScanResult + 0x2, iCurrentResY);
+			Memory::Write(Resolution1600x1200ScanResult + 2, iCurrentResY);
 
-			Memory::Write(Resolution1600x1200ScanResult + 0x7, iCurrentResX);
+			Memory::Write(Resolution1600x1200ScanResult + 7, iCurrentResX);
 		}
 		else
 		{
@@ -338,7 +338,6 @@ void WidescreenFix()
 		{
 			dllModule2 = GetModuleHandleA("trend.dll");
 			spdlog::info("Waiting for trend.dll to load...");
-			Sleep(1000);
 		}
 
 		spdlog::info("Successfully obtained handle for trend.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));

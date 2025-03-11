@@ -201,9 +201,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Scan 1: Address is {:s}+{:x}", sExeName.c_str(), Resolution1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution1ScanResult + 0x3, iCurrentResX);
+			Memory::Write(Resolution1ScanResult + 3, iCurrentResX);
 
-			Memory::Write(Resolution1ScanResult + 0xD, iCurrentResY);
+			Memory::Write(Resolution1ScanResult + 13, iCurrentResY);
 		}
 		else
 		{
@@ -216,9 +216,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Scan 2: Address is {:s}+{:x}", sExeName.c_str(), Resolution2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution2ScanResult + 0x10, iCurrentResX);
+			Memory::Write(Resolution2ScanResult + 16, iCurrentResX);
 
-			Memory::Write(Resolution2ScanResult + 0x14, iCurrentResY);
+			Memory::Write(Resolution2ScanResult + 20, iCurrentResY);
 		}
 		else
 		{
@@ -229,9 +229,9 @@ void WidescreenFix()
 		std::uint8_t* AspectRatioScan1Result = Memory::PatternScan(exeModule, "8B 15 64 A9 6A 00 68 AB AA AA 3F");
 		if (AspectRatioScan1Result)
 		{
-			spdlog::info("Aspect Ratio Scan 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan1Result + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Scan 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan1Result + 7 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan1Result + 0x7, fNewAspectRatio);
+			Memory::Write(AspectRatioScan1Result + 7, fNewAspectRatio);
 		}
 		else
 		{
@@ -242,9 +242,9 @@ void WidescreenFix()
 		std::uint8_t* AspectRatioScan2Result = Memory::PatternScan(exeModule, "8B 0D 60 A9 6A 00 68 AB AA AA 3F");
 		if (AspectRatioScan2Result)
 		{
-			spdlog::info("Aspect Ratio Scan 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan2Result + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Scan 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan2Result + 7 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan2Result + 0x7, fNewAspectRatio);
+			Memory::Write(AspectRatioScan2Result + 7, fNewAspectRatio);
 		}
 		else
 		{
@@ -255,9 +255,9 @@ void WidescreenFix()
 		std::uint8_t* AspectRatioScan3Result = Memory::PatternScan(exeModule, "8B 0D 88 F1 6B 00 68 AB AA AA 3F");
 		if (AspectRatioScan3Result)
 		{
-			spdlog::info("Aspect Ratio Scan 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan3Result + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Scan 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan3Result + 7 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan3Result + 0x7, fNewAspectRatio);
+			Memory::Write(AspectRatioScan3Result + 7, fNewAspectRatio);
 		}
 		else
 		{
@@ -268,9 +268,9 @@ void WidescreenFix()
 		std::uint8_t* CameraFOVScan1Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 50 56 C7 44 24 14 00 00 00 00");
 		if (CameraFOVScan1Result)
 		{
-			spdlog::info("Camera FOV Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan1Result + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan1Result + 1 - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraFOVScan1Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan1Result + 1, fNewCameraFOV);
 		}
 		else
 		{
@@ -281,9 +281,9 @@ void WidescreenFix()
 		std::uint8_t* CameraFOVScan2Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 6A 01 50 51 E8 45 4E FF FF 83");
 		if (CameraFOVScan2Result)
 		{
-			spdlog::info("Camera FOV Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan2Result + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan2Result + 1 - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraFOVScan2Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan2Result + 1, fNewCameraFOV);
 		}
 		else
 		{
@@ -294,9 +294,9 @@ void WidescreenFix()
 		std::uint8_t* CameraFOVScan3Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 50 E8 B2 A1 FB FF 50 E8 09 4F");
 		if (CameraFOVScan3Result)
 		{
-			spdlog::info("Camera FOV Scan 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan3Result + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Scan 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan3Result + 1 - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraFOVScan3Result + 0x1, fNewCameraFOV);
+			Memory::Write(CameraFOVScan3Result + 1, fNewCameraFOV);
 		}
 		else
 		{

@@ -192,15 +192,12 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			return true;
 		}
 	}
 
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
@@ -255,11 +252,11 @@ void FOVFix()
 		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
 		if (AspectRatioInstruction1ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult + 6 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid AspectRatioInstruction1MidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 0x6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
 			});

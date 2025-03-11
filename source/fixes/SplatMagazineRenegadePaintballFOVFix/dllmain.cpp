@@ -285,7 +285,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraZoomFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraZoomFOVInstructionHook = safetyhook::create_mid(CameraZoomFOVInstructionScanResult + 0x6, CameraZoomFOVInstructionMidHook);
+			CameraZoomFOVInstructionHook = safetyhook::create_mid(CameraZoomFOVInstructionScanResult + 6, CameraZoomFOVInstructionMidHook);
 		}
 		else
 		{
@@ -316,9 +316,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio1ScanResult = Memory::PatternScan(exeModule, "C7 40 64 AB AA AA 3F DD 05 B0 B7 8A");
 		if (AspectRatio1ScanResult)
 		{
-			spdlog::info("Aspect Ratio 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio1ScanResult + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio1ScanResult + 3 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio1ScanResult + 0x3, fNewAspectRatio);
+			Memory::Write(AspectRatio1ScanResult + 3, fNewAspectRatio);
 		}
 		else
 		{
@@ -329,9 +329,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio2ScanResult = Memory::PatternScan(exeModule, "00 C7 43 64 AB AA AA 3F 8B 80 00 01 00");
 		if (AspectRatio2ScanResult)
 		{
-			spdlog::info("Aspect Ratio 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio2ScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio2ScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio2ScanResult + 0x4, fNewAspectRatio);
+			Memory::Write(AspectRatio2ScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{
@@ -342,9 +342,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio3ScanResult = Memory::PatternScan(exeModule, "14 C7 42 64 AB AA AA 3F 8B 06 8B 54");
 		if (AspectRatio3ScanResult)
 		{
-			spdlog::info("Aspect Ratio 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio3ScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio3ScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio3ScanResult + 0x4, fNewAspectRatio);
+			Memory::Write(AspectRatio3ScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{
@@ -355,9 +355,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio4ScanResult = Memory::PatternScan(exeModule, "00 C7 41 64 AB AA AA 3F EB 16 A1 64 6C A0");
 		if (AspectRatio4ScanResult)
 		{
-			spdlog::info("Aspect Ratio 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio4ScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio4ScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio4ScanResult + 0x4, fNewAspectRatio);
+			Memory::Write(AspectRatio4ScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{
@@ -368,9 +368,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio5ScanResult = Memory::PatternScan(exeModule, "24 8C 00 00 00 AB AA AA 3F C6 84 24");
 		if (AspectRatio5ScanResult)
 		{
-			spdlog::info("Aspect Ratio 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio5ScanResult + 0x5 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio5ScanResult + 5 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio5ScanResult + 0x5, fNewAspectRatio);
+			Memory::Write(AspectRatio5ScanResult + 5, fNewAspectRatio);
 		}
 		else
 		{
@@ -381,9 +381,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio6ScanResult = Memory::PatternScan(exeModule, "64 FC FF C7 40 64 AB AA AA 3F DD 05 F0 B4 8A");
 		if (AspectRatio6ScanResult)
 		{
-			spdlog::info("Aspect Ratio 6: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio6ScanResult + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 6: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio6ScanResult + 6 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio6ScanResult + 0x6, fNewAspectRatio);
+			Memory::Write(AspectRatio6ScanResult + 6, fNewAspectRatio);
 		}
 		else
 		{
@@ -394,9 +394,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio7ScanResult = Memory::PatternScan(exeModule, "4C C7 41 3C AB AA AA 3F 8B 55 4C 8D 86 EC");
 		if (AspectRatio7ScanResult)
 		{
-			spdlog::info("Aspect Ratio 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio7ScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio7ScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio7ScanResult + 0x4, fNewAspectRatio);
+			Memory::Write(AspectRatio7ScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{
@@ -407,9 +407,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio8ScanResult = Memory::PatternScan(exeModule, "00 C7 40 3C AB AA AA 3F 8B 45 50 8B 54 24");
 		if (AspectRatio8ScanResult)
 		{
-			spdlog::info("Aspect Ratio 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio8ScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio8ScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio8ScanResult + 0x4, fNewAspectRatio);
+			Memory::Write(AspectRatio8ScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{
@@ -420,9 +420,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio9ScanResult = Memory::PatternScan(exeModule, "74 C7 43 3C AB AA AA 3F D8 0D 38 B0 8A");
 		if (AspectRatio9ScanResult)
 		{
-			spdlog::info("Aspect Ratio 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio9ScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio9ScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio9ScanResult + 0x4, fNewAspectRatio);
+			Memory::Write(AspectRatio9ScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{
@@ -433,9 +433,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio10ScanResult = Memory::PatternScan(exeModule, "C7 42 3C AB AA AA 3F 8B C8 89 4A 48 89 4A");
 		if (AspectRatio10ScanResult)
 		{
-			spdlog::info("Aspect Ratio 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio10ScanResult + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio10ScanResult + 3 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio10ScanResult + 0x3, fNewAspectRatio);
+			Memory::Write(AspectRatio10ScanResult + 3, fNewAspectRatio);
 		}
 		else
 		{
@@ -446,9 +446,9 @@ void FOVFix()
 		std::uint8_t* AspectRatio11ScanResult = Memory::PatternScan(exeModule, "6C 16 AD 3F AB AA AA 3F 35 58 A8 3F");
 		if (AspectRatio11ScanResult)
 		{
-			spdlog::info("Aspect Ratio 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio11ScanResult + 0x4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatio11ScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatio11ScanResult + 0x4, fNewAspectRatio);
+			Memory::Write(AspectRatio11ScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{

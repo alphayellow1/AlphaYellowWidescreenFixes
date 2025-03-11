@@ -197,25 +197,25 @@ void ResolutionFix()
 		{
 			spdlog::info("Resolutions: Address is D3DDrv.dll+{:x}", ResolutionsScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::Write(ResolutionsScanResult + 0x1, iCurrentResX);
+			Memory::Write(ResolutionsScanResult + 1, iCurrentResX);
 
-			Memory::Write(ResolutionsScanResult + 0xC, iCurrentResY);
+			Memory::Write(ResolutionsScanResult + 12, iCurrentResY);
 
-			Memory::Write(ResolutionsScanResult + 0x13, iCurrentResX);
+			Memory::Write(ResolutionsScanResult + 19, iCurrentResX);
 
-			Memory::Write(ResolutionsScanResult + 0x1C, iCurrentResY);
+			Memory::Write(ResolutionsScanResult + 28, iCurrentResY);
 
-			Memory::Write(ResolutionsScanResult + 0x23, iCurrentResX);
+			Memory::Write(ResolutionsScanResult + 35, iCurrentResX);
 
-			Memory::Write(ResolutionsScanResult + 0x2C, iCurrentResY);
+			Memory::Write(ResolutionsScanResult + 44, iCurrentResY);
 
-			Memory::Write(ResolutionsScanResult + 0x33, iCurrentResX);
+			Memory::Write(ResolutionsScanResult + 51, iCurrentResX);
 
-			Memory::Write(ResolutionsScanResult + 0x3C, iCurrentResY);
+			Memory::Write(ResolutionsScanResult + 60, iCurrentResY);
 
-			Memory::Write(ResolutionsScanResult + 0x43, iCurrentResX);
+			Memory::Write(ResolutionsScanResult + 67, iCurrentResX);
 
-			Memory::Write(ResolutionsScanResult + 0x4C, iCurrentResY);
+			Memory::Write(ResolutionsScanResult + 76, iCurrentResY);
 		}
 		else
 		{

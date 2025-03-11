@@ -237,6 +237,7 @@ void FOVFix()
 		else
 		{
 			spdlog::info("Cannot locate the menu camera FOV instruction memory address.");
+			return;
 		}
 
 		std::uint8_t* MenuAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 B4 81 E8 00 00 00 D9 5C 24 08 8B 44 81 68 50 E8 8E BF 13 00 83 C4 10");
@@ -256,6 +257,7 @@ void FOVFix()
 		else
 		{
 			spdlog::info("Cannot locate the menu aspect ratio instruction memory address.");
+			return;
 		}
 
 		// Gameplay
@@ -298,6 +300,7 @@ void FOVFix()
 		else
 		{
 			spdlog::info("Cannot locate the gameplay camera FOV instruction memory address.");
+			return;
 		}
 
 		std::uint8_t* GameplayAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 B4 86 E8 00 00 00 D9 5C 24 1C 8B 54 86 68 52 E8 2A 9A 13 00 83 C4 08");
@@ -317,6 +320,7 @@ void FOVFix()
 		else
 		{
 			spdlog::info("Cannot locate the gameplay aspect ratio instruction memory address.");
+			return;
 		}
 
 		// Cutscenes
@@ -359,6 +363,7 @@ void FOVFix()
 		else
 		{
 			spdlog::info("Cannot locate the cutscenes camera FOV instruction memory address.");
+			return;
 		}
 
 		std::uint8_t* CutscenesAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 B4 85 E8 00 00 00 D9 5C 24 1C 8B 44 85 68 50 E8 65 71 13 00");
@@ -378,6 +383,7 @@ void FOVFix()
 		else
 		{
 			spdlog::info("Cannot locate the cutscenes aspect ratio instruction memory address.");
+			return;
 		}
 	}
 }

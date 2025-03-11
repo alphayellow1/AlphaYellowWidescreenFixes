@@ -201,7 +201,7 @@ void FOVFix()
 
 			static SafetyHookMid AspectRatioInstructionMidHook{};
 
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x10, [](SafetyHookContext& ctx)
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 16, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ecx + 0x3C) = fNewAspectRatio;
 			});

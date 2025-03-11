@@ -205,7 +205,6 @@ bool DetectGame()
 	{
 		dllModule2 = GetModuleHandleA("EngineDll8r.dll");
 		spdlog::info("Waiting for EngineDll8r.dll to load...");
-		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for EngineDll8r.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -284,11 +283,11 @@ void FOVFix()
 		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 97 E0 00 00 00 D8 8F D8 00 00 00");
 		if (AspectRatioInstruction2ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction2ScanResult + 0x6 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 2: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction2ScanResult + 6 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction2MidHook{};
 
-			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult + 0x6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.edi + 0xD8) = 1.0f;
 			});

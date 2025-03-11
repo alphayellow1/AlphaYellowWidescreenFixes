@@ -232,11 +232,11 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 F2 DD D8 D8 3D ?? ?? ?? ?? D9 C0");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 8 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 0x4, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 4, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0xA, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 10, CameraFOVInstructionMidHook);
 		}
 		else
 		{

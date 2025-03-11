@@ -230,11 +230,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstructionScan1Result = Memory::PatternScan(exeModule, "D8 4E 74 D9 05 ?? ?? ?? ?? D8 F9 D9 1C 24 D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ??");
 		if (CameraHFOVInstructionScan1Result)
 		{
-			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScan1Result + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScan1Result + 3 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScan1Result + 0x3, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstructionScan1Result + 3, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook1 = safetyhook::create_mid(CameraHFOVInstructionScan1Result + 0x9, CameraHFOVInstructionMidHook1);
+			CameraHFOVInstructionHook1 = safetyhook::create_mid(CameraHFOVInstructionScan1Result + 9, CameraHFOVInstructionMidHook1);
 		}
 		else
 		{
@@ -247,9 +247,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScan2Result + 0x6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScan2Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstructionScan2Result + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook2 = safetyhook::create_mid(CameraHFOVInstructionScan2Result + 0xC, CameraHFOVInstructionMidHook2);
+			CameraHFOVInstructionHook2 = safetyhook::create_mid(CameraHFOVInstructionScan2Result + 12, CameraHFOVInstructionMidHook2);
 		}
 		else
 		{
@@ -264,7 +264,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScan3Result + 0x6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook3 = safetyhook::create_mid(CameraHFOVInstructionScan3Result + 0xC, CameraHFOVInstructionMidHook3);
+			CameraHFOVInstructionHook3 = safetyhook::create_mid(CameraHFOVInstructionScan3Result + 12, CameraHFOVInstructionMidHook3);
 		}
 		else
 		{

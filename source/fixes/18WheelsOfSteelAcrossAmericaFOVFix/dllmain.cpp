@@ -216,13 +216,13 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 74 24 0C D9 5C 24 10 D9 41 08");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 8 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			static float fLastModifiedFOV = 0.0f;
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x8, [](SafetyHookContext& ctx)
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 8, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x8);
 

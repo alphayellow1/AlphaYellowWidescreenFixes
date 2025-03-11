@@ -190,10 +190,11 @@ static void FOVFix()
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 0C 51 52 51 8B 46 10");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 6 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid AspectRatioInstructionMidHook{};
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x6, [](SafetyHookContext& ctx)
+
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.esi + 0x10) = fNewAspectRatio;
 			});

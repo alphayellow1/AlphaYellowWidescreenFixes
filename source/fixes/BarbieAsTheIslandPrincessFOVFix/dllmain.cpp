@@ -189,9 +189,9 @@ void FOVFix()
 
 			fNewCameraHFOV = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-			Memory::Write(CameraHFOVScanResult + 0xC, fNewCameraHFOV);
+			Memory::Write(CameraHFOVScanResult + 12, fNewCameraHFOV);
 
-			Memory::Write(CameraHFOVScanResult + 0x10, fNewCameraHFOV);
+			Memory::Write(CameraHFOVScanResult + 16, fNewCameraHFOV);
 		}
 		else
 		{

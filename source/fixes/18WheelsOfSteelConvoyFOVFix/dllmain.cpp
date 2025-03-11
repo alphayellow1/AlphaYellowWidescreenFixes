@@ -241,7 +241,7 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstruction1MidHook{};
 
-			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 0x24, [](SafetyHookContext& ctx)
+			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 36, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOV1Value = *reinterpret_cast<float*>(ctx.esp + 0x20);
 

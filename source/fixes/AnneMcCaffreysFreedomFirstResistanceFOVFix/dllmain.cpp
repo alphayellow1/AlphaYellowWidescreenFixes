@@ -188,6 +188,11 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::AMCFFR && bFixActive == true)
@@ -203,9 +208,11 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.edi + 0x19C) == 1.5707963705062866f)
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edi + 0x19C);
+
+				if (fCurrentCameraFOV == 1.5707963705062866f)
 				{
-					*reinterpret_cast<float*>(ctx.edi + 0x19C) = fFOVFactor * (2.0f * atanf(tanf(1.5707963705062866f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 				}
 			});
 		}

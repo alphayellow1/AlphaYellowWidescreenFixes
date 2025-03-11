@@ -215,7 +215,7 @@ void WidescreenFix()
 		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(dllModule2, "89 51 10 C2 08 00 90 90 90 90 90 90 90 90 90");
 		if (ResolutionHeightInstructionScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is ChromeEngine.dll+{:x}", ResolutionHeightInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Height Instruction: Address is ChromeEngine.dll+{:x}", ResolutionHeightInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
@@ -233,11 +233,11 @@ void WidescreenFix()
 		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(dllModule2, "EE 4E 15 10 90 90 90 90 8B 44 24 04 8B 54 24 08 89 41 0C");
 		if (ResolutionWidthInstructionScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is ChromeEngine.dll+{:x}", ResolutionWidthInstructionScanResult + 0x10 - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Width Instruction: Address is ChromeEngine.dll+{:x}", ResolutionWidthInstructionScanResult + 16 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 0x10, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 16, [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uint32_t>(iCurrentResX);
 			});

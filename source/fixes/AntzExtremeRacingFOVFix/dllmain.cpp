@@ -254,9 +254,9 @@ void FOVFix()
 		{
 			spdlog::info("Menu Aspect Ratio & FOV: Address is {:s}+{:x}", sExeName.c_str(), MenuAspectRatioAndFOVScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(MenuAspectRatioAndFOVScanResult + 0x1, fNewAspectRatio);
+			Memory::Write(MenuAspectRatioAndFOVScanResult + 1, fNewAspectRatio);
 
-			Memory::Write(MenuAspectRatioAndFOVScanResult + 0x6, fNewMenuFOV);
+			Memory::Write(MenuAspectRatioAndFOVScanResult + 6, fNewMenuFOV);
 		}
 		else
 		{
@@ -269,9 +269,9 @@ void FOVFix()
 		{
 			spdlog::info("Menu Aspect Ratio & FOV 2: Address is {:s}+{:x}", sExeName.c_str(), MenuAspectRatioAndFOV2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(MenuAspectRatioAndFOV2ScanResult + 0x1, fNewAspectRatio);
+			Memory::Write(MenuAspectRatioAndFOV2ScanResult + 1, fNewAspectRatio);
 
-			Memory::Write(MenuAspectRatioAndFOV2ScanResult + 0x6, fNewMenuFOV);
+			Memory::Write(MenuAspectRatioAndFOV2ScanResult + 6, fNewMenuFOV);
 		}
 		else
 		{
@@ -286,7 +286,7 @@ void FOVFix()
 
 			fValue1 = 1.6f * (fNewAspectRatio / fOldAspectRatio);
 
-			Memory::Write(Value1ScanResult + 0x7, fValue1);
+			Memory::Write(Value1ScanResult + 7, fValue1);
 		}
 		else
 		{
@@ -301,7 +301,7 @@ void FOVFix()
 
 			fValue2 = 1.0f * (fNewAspectRatio / fOldAspectRatio);
 
-			Memory::Write(Value2ScanResult + 0x5, fValue2);
+			Memory::Write(Value2ScanResult + 5, fValue2);
 		}
 		else
 		{
@@ -316,7 +316,7 @@ void FOVFix()
 
 			fValue3 = 1.0f * (fNewAspectRatio / fOldAspectRatio);
 
-			Memory::Write(Value3ScanResult + 0x5, fValue3);
+			Memory::Write(Value3ScanResult + 5, fValue3);
 		}
 		else
 		{
@@ -331,7 +331,7 @@ void FOVFix()
 
 			fValue4 = 2.0f * RadToDeg(atanf(tanf(DegToRad(60.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 
-			Memory::Write(Value4ScanResult + 0x1, fValue4);
+			Memory::Write(Value4ScanResult + 1, fValue4);
 		}
 		else
 		{

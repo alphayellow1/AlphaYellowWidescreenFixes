@@ -220,9 +220,9 @@ void FOVFix()
 		std::uint8_t* GameplayCameraFOVScanResult = Memory::PatternScan(hModule, "C7 45 EC ?? ?? ?? ?? EB 17 D9");
 		if (GameplayCameraFOVScanResult)
 		{
-			spdlog::info("Gameplay Camera FOV: Address is fgamex86.dll+{:x}", GameplayCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
+			spdlog::info("Gameplay Camera FOV: Address is fgamex86.dll+{:x}", GameplayCameraFOVScanResult + 3 - (std::uint8_t*)hModule);
 
-			Memory::Write(GameplayCameraFOVScanResult + 0x3, fNewCameraFOV * fFOVFactor);
+			Memory::Write(GameplayCameraFOVScanResult + 3, fNewCameraFOV * fFOVFactor);
 		}
 		else
 		{
@@ -233,9 +233,9 @@ void FOVFix()
 		std::uint8_t* CutscenesCameraFOVScanResult = Memory::PatternScan(hModule, "88 18 B9 ?? ?? ?? ?? B8 00 00");
 		if (CutscenesCameraFOVScanResult)
 		{
-			spdlog::info("Cutscenes Camera FOV: Address is fgamex86.dll+{:x}", CutscenesCameraFOVScanResult + 0x3 - (std::uint8_t*)hModule);
+			spdlog::info("Cutscenes Camera FOV: Address is fgamex86.dll+{:x}", CutscenesCameraFOVScanResult + 3 - (std::uint8_t*)hModule);
 
-			Memory::Write(CutscenesCameraFOVScanResult + 0x3, fNewCameraFOV);
+			Memory::Write(CutscenesCameraFOVScanResult + 3, fNewCameraFOV);
 		}
 		else
 		{
