@@ -56,6 +56,8 @@ float fNewCameraHFOV;
 float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
+float fModifiedHFOVValue;
+float fModifiedFOVValue;
 
 // Game detection
 enum class Game
@@ -191,24 +193,53 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::NPB && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "52 DA 74 24 14 D9 C1 DE C9 D8 70 14");
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0 D9 5E 70");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
+			static float fLastModifiedHFOV = 0.0f;
+
+			static std::vector<float> vComputedHFOVs;
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				fNewCameraHFOV = fOriginalCameraHFOV * (fOldAspectRatio / fNewAspectRatio);
+				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				*reinterpret_cast<float*>(ctx.edx + 0x34) = fNewCameraHFOV;
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedHFOVs.begin(), vComputedHFOVs.end(), fCurrentCameraHFOV) != vComputedHFOVs.end())
+				{
+					// Value already processed, then skips the calculations
+					return;
+				}
+
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedHFOVValue = CalculateNewFOV(fCurrentCameraHFOV);
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraHFOV != fModifiedHFOVValue)
+				{
+					fCurrentCameraHFOV = fModifiedHFOVValue;
+					fLastModifiedHFOV = fModifiedHFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedHFOVs.push_back(fModifiedHFOVValue);
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
 			});
 		}
 		else
@@ -220,9 +251,38 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 18 D9 F2 66 8B 48 10 66 8B 50 12 89 4C 24 0C 8D 4C 24 00 51");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
+			static SafetyHookMid CameraFOVInstructionMidHook{};
 
+			static float fLastModifiedFOV = 0.0f;
+
+			static std::vector<float> vComputedFOVs;
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x18);
+
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
+				{
+					// Value already processed, then skips the calculations
+					return;
+				}
+
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedFOVValue = fCurrentCameraFOV * fFOVFactor;
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedHFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedFOVs.push_back(fModifiedFOVValue);
+			});
 		}
 		else
 		{
