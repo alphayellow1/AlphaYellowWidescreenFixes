@@ -43,6 +43,7 @@ bool bFixActive;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalCameraFOVMultiplier = 1.0f;
 
 // Variables
 int iCurrentResX;
@@ -50,7 +51,7 @@ int iCurrentResY;
 float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
-float fModifiedFOVValue;
+float fModifiedHFOVValue;
 static float fCurrentCameraFOV;
 
 // Game detection
@@ -198,50 +199,45 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		/*
-		std::uint8_t* CutscenesAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "89 86 24 01 00 00 8B 3D 1C 59 5D 00 DB 47 08 D8 0D 24 B6 55 00");
-		if (CutscenesAspectRatioInstructionScanResult)
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 37 8B 46 04 83 C4 08 85 C0 5F 5B");
+		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CutscenesAspectRatioInstructionMidHook{};
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CutscenesAspectRatioInstructionMidHook = safetyhook::create_mid(CutscenesAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			static float fLastModifiedHFOV = 0.0f;
+
+			static std::vector<float> vComputedHFOVs;
+
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				0, 6666666865
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.edi);
+
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedHFOVs.begin(), vComputedHFOVs.end(), fCurrentCameraHFOV) != vComputedHFOVs.end())
+				{
+					// Value already processed, then skips the calculations
+					return;
+				}
+
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fModifiedHFOVValue = CalculateNewFOV(fCurrentCameraHFOV);
+
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraHFOV != fModifiedHFOVValue)
+				{
+					fCurrentCameraHFOV = fModifiedHFOVValue;
+					fLastModifiedHFOV = fModifiedHFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedHFOVs.push_back(fModifiedHFOVValue);
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the cutscenes aspect ratio instruction memory address.");
-			return;
-		}
-		*/
-
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 B4 81 1C 01 00 00 D9 5C 24 08 8B 44 81 70 50 E8 65 6F 0F 00 83 C4 10");
-		if (AspectRatioInstructionScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid AspectRatioInstructionMidHook{};
-
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fAspectRatio = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0x11C);
-
-				if (fAspectRatio == 1.333333373f)
-				{
-					fAspectRatio = fNewAspectRatio;
-				}
-				else if (fAspectRatio == 0.7254335284f || fAspectRatio == 2.720375538f || fAspectRatio == 2.901734114f)
-				{
-					fAspectRatio = 7.0f;
-				}
-			});
-		}
-		else
-		{
-			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
+			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
 			return;
 		}
 
@@ -255,13 +251,6 @@ void FOVFix()
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xC0);
-
-				float& fCurrentCameraFOVReference = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xC0);
-
-				if (fCurrentCameraFOVReference == 0.349999994f)
-				{
-					fCurrentCameraFOVReference = CalculateNewFOV(fCurrentCameraFOVReference);
-				}
 			});
 		}
 		else
@@ -279,17 +268,16 @@ void FOVFix()
 
 			CameraFOV2InstructionMidHook = safetyhook::create_mid(CameraFOV2InstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xDC);
+				float& fCurrentCameraFOVMultiplier = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xDC);
 
 				if (fCurrentCameraFOV == 0.4149999917f || fCurrentCameraFOV == 0.283769995f || fCurrentCameraFOV == 0.3048000038f)
 				{
-					fCurrentCameraFOV2 = (fNewAspectRatio / fOldAspectRatio) * fFOVFactor;
+					fCurrentCameraFOVMultiplier = fOriginalCameraFOVMultiplier * fFOVFactor;
 				}
 				else
 				{
-					fCurrentCameraFOV2 = fNewAspectRatio / fOldAspectRatio;
+					fCurrentCameraFOVMultiplier = fOriginalCameraFOVMultiplier;
 				}
-
 			});
 		}
 		else
