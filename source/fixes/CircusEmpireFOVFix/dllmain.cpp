@@ -56,6 +56,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
+float fModifiedFOVValue;
+float fModifiedFOVValue2;
 
 // Game detection
 enum class Game
@@ -241,7 +243,7 @@ void FOVFix()
 			static SafetyHookMid CameraFOVInstruction1MidHook{};
 
 			static float fLastModifiedFOV = 0.0f;
-			
+
 			static std::vector<float> vComputedFOVs;
 
 			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 17, [](SafetyHookContext& ctx)
@@ -254,17 +256,17 @@ void FOVFix()
 					// Value already processed, then skips the calculations
 					return;
 				}
-				
+
 				// Computes the new FOV value if the current FOV is different from the last modified FOV
 				fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue1) * fFOVFactor;
-				
+
 				// If the new computed value is different, updates the FOV value
 				if (fCurrentFOVValue1 != fModifiedFOVValue)
 				{
 					fCurrentFOVValue1 = fModifiedFOVValue;
 					fLastModifiedFOV = fModifiedFOVValue;
 				}
-				
+
 				// Stores the new value so future calls can skip re-calculations
 				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
@@ -296,17 +298,17 @@ void FOVFix()
 					// Value already processed, then skips the calculations
 					return;
 				}
-				
+
 				// Computes the new FOV value if the current FOV is different from the last modified FOV
-				fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue2);
-				
+				fModifiedFOVValue2 = CalculateNewFOV(fCurrentFOVValue2);
+
 				// If the new computed value is different, updates the FOV value
-				if (fCurrentFOVValue2 != fModifiedFOVValue)
+				if (fCurrentFOVValue2 != fModifiedFOVValue2)
 				{
-					fCurrentFOVValue2 = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
+					fCurrentFOVValue2 = fModifiedFOVValue2;
+					fLastModifiedFOV2 = fModifiedFOVValue2;
 				}
-				
+
 				// Stores the new value so future calls can skip re-calculations
 				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
