@@ -52,6 +52,7 @@ int iCurrentResY;
 float fNewCameraHFOV;
 float fFOVFactor;
 float fNewAspectRatio;
+uint16_t GameVersionCheckValue;
 
 // Game detection
 enum class Game
@@ -197,25 +198,71 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
+uint16_t GameVersionCheck()
+{
+	std::uint8_t* GameVersionCheckValueScanResult = Memory::PatternScan(exeModule, "00 00 00 ?? 09 00 00 0E 1F BA 0E 00 B4 09");
+
+	uint16_t CheckValue = *reinterpret_cast<uint16_t*>(GameVersionCheckValueScanResult + 3);
+
+	switch (CheckValue)
+	{
+	case 2368:
+		spdlog::info("Version 1 detected.");
+		break;
+
+	case 2320:
+		spdlog::info("Version 2 detected.");
+		break;
+
+	default:
+		spdlog::info("Unknown version detected. Exiting the fix...");
+		return 0;
+	}
+
+	return CheckValue;
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::RHDOTC && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? F3 A5 B9 10 00 00 00");
-		if (CameraHFOVInstructionScanResult)
+		GameVersionCheckValue = GameVersionCheck();
+
+		if (GameVersionCheckValue == 2368)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? F3 A5 B9 10 00 00 00");
+			if (CameraHFOVInstructionScanResult)
+			{
+				spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, CameraHFOVInstructionMidHook);
+				CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, CameraHFOVInstructionMidHook);
+			}
+			else
+			{
+				spdlog::error("Failed to locate camera HFOV instruction memory address.");
+				return;
+			}
 		}
-		else
+		else if (GameVersionCheckValue == 2320)
 		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
-			return;
+			std::uint8_t* CameraHFOVInstructionScan2Result = Memory::PatternScan(exeModule, "D9 5C 24 58 56 E8 D3 55 00 00 D8 7C 24 5C B9 10 00 00 00 BE 80 FE 67 00 BF 10 01 68 00 D9 1D 94 01 68 00 D9 05 A0 E3 52 00 D8 35 94 01 68 00 D9 1D 9C 01 68 00 D9 05 94 01 68 00 D8 0D 9C E6 52 00");
+			if (CameraHFOVInstructionScan2Result)
+			{
+				spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScan2Result - (std::uint8_t*)exeModule);
+
+				Memory::PatchBytes(CameraHFOVInstructionScan2Result + 59, "\x90\x90\x90\x90\x90\x90", 6);
+
+				CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScan2Result + 65, CameraHFOVInstructionMidHook);
+			}
+			else
+			{
+				spdlog::error("Failed to locate camera HFOV instruction memory address.");
+				return;
+			}
 		}
 	}
 }
