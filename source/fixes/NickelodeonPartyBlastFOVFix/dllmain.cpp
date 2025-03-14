@@ -43,8 +43,6 @@ std::string sExeName;
 constexpr float fOldWidth = 4.0f;
 constexpr float fOldHeight = 3.0f;
 constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float fOriginalCameraHFOV = 0.75f;
-constexpr float fOriginalCameraFOV = 1.0f;
 
 // Ini variables
 bool bFixActive;
@@ -52,8 +50,6 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraHFOV;
-float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
 float fModifiedHFOVValue;
@@ -261,7 +257,7 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x18);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x18);
 
 				// Checks if this FOV has already been computed
 				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
@@ -270,8 +266,14 @@ void FOVFix()
 					return;
 				}
 
-				// Computes the new FOV value if the current FOV is different from the last modified FOV
-				fModifiedFOVValue = fCurrentCameraFOV * fFOVFactor;
+				float fDamping = 0.5f; // Just the smoothing factor
+
+				float fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual, since when speed is maxed out during races, the FOV is already pretty high in 4:3 (120 degrees max), FOV while idle is 70
+
+				if (fCurrentCameraFOV = 0.6981317401f)
+				{
+					fModifiedFOVValue = fCurrentCameraFOV * fEffectiveFOVFactor;
+				}
 
 				// If the new computed value is different, updates the FOV value
 				if (fCurrentCameraFOV != fModifiedHFOVValue)
