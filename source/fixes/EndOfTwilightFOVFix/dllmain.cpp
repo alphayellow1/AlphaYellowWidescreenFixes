@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -22,11 +21,11 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
+HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "FIMSpeedwayGrandPrix4FOVFix";
+std::string sFixName = "EndOfTwilightFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -40,26 +39,24 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-
 // Ini variables
 bool bFixActive;
+
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
+float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fModifiedFOVValue;
 
 // Game detection
 enum class Game
 {
-	FIMSGP4,
+	EOT,
 	Unknown
 };
 
@@ -70,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::FIMSGP4, {"FIM Speedway Grand Prix 4", "SGP4.exe"}},
+	{Game::EOT, {"End of Twilight", "mol.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -192,97 +189,99 @@ bool DetectGame()
 
 	while (!dllModule2)
 	{
-		dllModule2 = GetModuleHandleA("ChromeEngine3.dll");
-		spdlog::info("Waiting for ChromeEngine3.dll to load...");
+		dllModule2 = GetModuleHandleA("driver.dll");
+		spdlog::warn("Trying to get handle for driver.dll...");
 	}
 
-	spdlog::info("Successfully obtained handle for ChromeEngine3.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	spdlog::info("Successfully obtained handle for driver.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
+
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
-}
-
-static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	if (fNewAspectRatio == 16.0f / 10.0f)
-	{
-		fNewCameraHFOV = 1.035f;
-	}
-
-	_asm
-	{
-		fadd dword ptr ds : [fNewCameraHFOV]
-	}
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::FIMSGP4 && bFixActive == true)
+	if (eGameType == Game::EOT && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "DB 44 24 28 DA B0 80 00 00 00 D8 05 ?? ?? ?? ?? D8 C9");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "8B 95 A4 02 00 00 89 44 24 20 8D 43 4C 89 54 24 24 8B 54 24 3C 89 08 8B 4C 24 40");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is ChromeEngine3.dll+{:x}", CameraHFOVInstructionScanResult + 10 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction: Address is driver.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult + 10, "\x90\x90\x90\x90\x90\x90", 6);
+			static SafetyHookMid AspectRatioInstructionMidHook{};
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 16, CameraHFOVInstructionMidHook);
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fAspectRatio = *reinterpret_cast<float*>(ctx.ebp + 0x2A4);
+
+				if (fAspectRatio == 1.333333373f)
+				{
+					fAspectRatio = fNewAspectRatio;
+				}
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 96 5C 04 00 00 53 88 86 64 04 00 00 55");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 8E 80 00 00 00 8B 50 04 89 4C 24 5C 8B 4C 24 38 89 54 24 1C");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is ChromeEngine3.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is driver.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			static float fLastModifiedFOV = 0.0f;
 
+			static std::vector<float> vComputedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentFOVValue = std::bit_cast<float>(ctx.edx);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x80);
 
-				if (fNewAspectRatio > 16.0f / 9.0f)
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
 				{
-					// Check if the current FOV value was already modified
-					if (fCurrentFOVValue != fLastModifiedFOV)
-					{
-						// Calculate the new FOV based on aspect ratios
-						float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
+					// Value already processed, then skips the calculations
+					return;
+				}
 
-						// Update the value only if the modification is meaningful
-						if (fCurrentFOVValue != fModifiedFOVValue)
-						{
-							fCurrentFOVValue = fModifiedFOVValue;
-							fLastModifiedFOV = fModifiedFOVValue;
-						}
-					}
+				float fDamping = 0.5f; // Just the smoothing factor
 
+				float fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual
+
+				if (fCurrentCameraFOV == 1.222000003f)
+				{
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fEffectiveFOVFactor;
 				}
 				else
 				{
-					fCurrentFOVValue *= fFOVFactor;
+					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
 				}
 
-				ctx.edx = std::bit_cast<uintptr_t>(fCurrentFOVValue);
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
+				}
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
 		}
 	}
