@@ -268,7 +268,7 @@ void FOVFix()
 
 				float fDamping = 0.5f; // Just the smoothing factor
 
-				float fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual, since when speed is maxed out during races, the FOV is already pretty high in 4:3 (120 degrees max), FOV while idle is 70
+				float fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual
 
 				if (fCurrentCameraFOV = 0.6981317401f)
 				{

@@ -351,6 +351,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RobinHoodDefenderOfTheCrown
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "102DalmatiansPuppiesToTheRescueFOVFix", "102DalmatiansPuppiesToTheRescueFOVFix.vcxproj", "{053D7E30-350C-4972-A9E7-8609BD6DA7B1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EndOfTwilightFOVFix", "EndOfTwilightFOVFix.vcxproj", "{11250E6F-3A53-4C88-BA62-82B3CC3283BA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1751,6 +1753,14 @@ Global
 		{053D7E30-350C-4972-A9E7-8609BD6DA7B1}.Release|x64.Build.0 = Release|x64
 		{053D7E30-350C-4972-A9E7-8609BD6DA7B1}.Release|x86.ActiveCfg = Release|Win32
 		{053D7E30-350C-4972-A9E7-8609BD6DA7B1}.Release|x86.Build.0 = Release|Win32
+		{11250E6F-3A53-4C88-BA62-82B3CC3283BA}.Debug|x64.ActiveCfg = Debug|x64
+		{11250E6F-3A53-4C88-BA62-82B3CC3283BA}.Debug|x64.Build.0 = Debug|x64
+		{11250E6F-3A53-4C88-BA62-82B3CC3283BA}.Debug|x86.ActiveCfg = Debug|Win32
+		{11250E6F-3A53-4C88-BA62-82B3CC3283BA}.Debug|x86.Build.0 = Debug|Win32
+		{11250E6F-3A53-4C88-BA62-82B3CC3283BA}.Release|x64.ActiveCfg = Release|x64
+		{11250E6F-3A53-4C88-BA62-82B3CC3283BA}.Release|x64.Build.0 = Release|x64
+		{11250E6F-3A53-4C88-BA62-82B3CC3283BA}.Release|x86.ActiveCfg = Release|Win32
+		{11250E6F-3A53-4C88-BA62-82B3CC3283BA}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
