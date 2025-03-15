@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "EaracheExtremeMetalRacingFOVFix";
+std::string sFixName = "ActionGirlzRacingFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -49,12 +49,13 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fModifiedHFOVValue;
+float fModifiedFOVValue;
 float fFOVFactor;
 
 // Game detection
 enum class Game
 {
-	EEMR,
+	AGR,
 	Unknown
 };
 
@@ -65,7 +66,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::EEMR, {"Earache Extreme Metal Racing", "Earache Extreme Metal Racing.exe"}},
+	{Game::AGR, {"Action Girlz Racing", "Action Girlz Racing.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -192,7 +193,7 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void FOVFix()
 {
-	if (eGameType == Game::EEMR && bFixActive == true)
+	if (eGameType == Game::AGR && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -240,7 +241,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 18 E8 D5 B0 03 00 D9 5C 24 08 0F B7 46 10 0F B7 4E 12");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 18 D9 F2 66 8B 46 10 66 8B 4E 12 89 44 24 10");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -251,14 +252,10 @@ void FOVFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x18);
 
-				float fDamping = 0.25f; // Just the smoothing factor
-
-				float fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual
-
-				if (fCurrentCameraFOV != 0.556599319f && fCurrentCameraFOV != 0.6057697535f && fCurrentCameraFOV != 0.5f)
+				if (fCurrentCameraFOV == 0.8999999762f)
 				{
 					// Computes the new FOV value if the current FOV is different from the last modified FOV
-					fCurrentCameraFOV = fCurrentCameraFOV * fEffectiveFOVFactor;
+					fCurrentCameraFOV = fCurrentCameraFOV * fFOVFactor;
 				}
 			});
 		}
