@@ -15,13 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\source\fixes\FroggersAdventuresTheRescueFOVFix\dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\fixes\FroggersAdventuresTheRescueWidescreenFix\dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
