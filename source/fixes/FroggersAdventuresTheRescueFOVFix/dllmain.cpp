@@ -25,7 +25,7 @@ HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "FroggersAdventuresTheRescueWidescreenFix";
+std::string sFixName = "FroggersAdventuresTheRescueFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -145,16 +145,14 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -194,100 +192,11 @@ float CalculateNewFOV(float fCurrentCameraHFOV)
 	return fCurrentCameraHFOV * (fNewAspectRatio / fOldAspectRatio);
 }
 
-void WidescreenFix()
+void FOVFix()
 {
 	if (eGameType == Game::FATR && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		std::uint8_t* RendererResolutionScanResult = Memory::PatternScan(exeModule, "00 6A 20 68 E0 01 00 00 68 80 02 00 00 8B 4D FC 51 E8");
-		if (RendererResolutionScanResult)
-		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), RendererResolutionScanResult + 9 - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), RendererResolutionScanResult + 4 - (std::uint8_t*)exeModule);
-
-			Memory::Write(RendererResolutionScanResult + 9, iCurrentResX);
-
-			Memory::Write(RendererResolutionScanResult + 4, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate renderer resolution scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ViewportResolutionHeightInstructionScanResult = Memory::PatternScan(exeModule, "8B 40 10 89 54 24 54 89 44 24 58 A1 E0 A1 13 02");
-		if (ViewportResolutionHeightInstructionScanResult)
-		{
-			spdlog::info("Viewport Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ViewportResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid ViewportResolutionHeightInstructionMidHook{};
-
-			ViewportResolutionHeightInstructionMidHook = safetyhook::create_mid(ViewportResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<uint32_t*>(ctx.eax + 0x10) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate viewport resolution height instruction scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ViewportResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "0F BF 50 1C 0F BF 48 1E 89 54 24 4C 8B 50 0C");
-		if (ViewportResolutionWidthInstructionScanResult)
-		{
-			spdlog::info("Viewport Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ViewportResolutionWidthInstructionScanResult + 12 - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid ViewportResolutionWidthInstructionMidHook{};
-
-			ViewportResolutionWidthInstructionMidHook = safetyhook::create_mid(ViewportResolutionWidthInstructionScanResult + 12, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<uint32_t*>(ctx.eax + 0xC) = iCurrentResX;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate viewport resolution width instruction scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ViewportResolutionWidthInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 50 0C 89 54 24 34");
-		if (ViewportResolutionWidthInstruction2ScanResult)
-		{
-			spdlog::info("Viewport Resolution Width Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), ViewportResolutionWidthInstruction2ScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid ViewportResolutionWidthInstruction2MidHook{};
-
-			ViewportResolutionWidthInstruction2MidHook = safetyhook::create_mid(ViewportResolutionWidthInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<uint32_t*>(ctx.eax + 0xC) = iCurrentResX;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate viewport resolution width instruction 2 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ViewportResolutionHeightInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 40 10 89 44 24 38");
-		if (ViewportResolutionHeightInstruction2ScanResult)
-		{
-			spdlog::info("Viewport Resolution Height Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), ViewportResolutionHeightInstruction2ScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid ViewportResolutionHeightInstruction2MidHook{};
-
-			ViewportResolutionHeightInstruction2MidHook = safetyhook::create_mid(ViewportResolutionHeightInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<uint32_t*>(ctx.eax + 0x10) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate viewport resolution height instruction 2 scan memory address.");
-			return;
-		}
 
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0 D9 5E 70");
 		if (CameraHFOVInstructionScanResult)
@@ -341,7 +250,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
