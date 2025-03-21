@@ -375,6 +375,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArmyMenSargesWarFOVFix", "A
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Yourself!FitnessFOVFix", "Yourself!FitnessFOVFix.vcxproj", "{1544AFB7-880B-465D-936E-C8A83C5E97BD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TrivialPursuitUnhingedWidescreenFix", "TrivialPursuitUnhingedWidescreenFix.vcxproj", "{76468539-E823-4FC4-B895-F959081D30D8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1871,6 +1873,14 @@ Global
 		{1544AFB7-880B-465D-936E-C8A83C5E97BD}.Release|x64.Build.0 = Release|x64
 		{1544AFB7-880B-465D-936E-C8A83C5E97BD}.Release|x86.ActiveCfg = Release|Win32
 		{1544AFB7-880B-465D-936E-C8A83C5E97BD}.Release|x86.Build.0 = Release|Win32
+		{76468539-E823-4FC4-B895-F959081D30D8}.Debug|x64.ActiveCfg = Debug|x64
+		{76468539-E823-4FC4-B895-F959081D30D8}.Debug|x64.Build.0 = Debug|x64
+		{76468539-E823-4FC4-B895-F959081D30D8}.Debug|x86.ActiveCfg = Debug|Win32
+		{76468539-E823-4FC4-B895-F959081D30D8}.Debug|x86.Build.0 = Debug|Win32
+		{76468539-E823-4FC4-B895-F959081D30D8}.Release|x64.ActiveCfg = Release|x64
+		{76468539-E823-4FC4-B895-F959081D30D8}.Release|x64.Build.0 = Release|x64
+		{76468539-E823-4FC4-B895-F959081D30D8}.Release|x86.ActiveCfg = Release|Win32
+		{76468539-E823-4FC4-B895-F959081D30D8}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
