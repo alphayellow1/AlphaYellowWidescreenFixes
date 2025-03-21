@@ -196,8 +196,6 @@ void WidescreenFix()
 	if (eGameType == Game::TPUENG || eGameType == Game::TPUF || eGameType == Game::TPUG || eGameType == Game::TPUI || eGameType == Game::TPUS || eGameType == Game::TPUUK)
 		if (bFixActive == true)
 		{
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
 			std::uint8_t* Resolution1ScanResult = Memory::PatternScan(exeModule, "24 38 58 02 00 00 89 5C 24 30 C7 44 24 34 20 03 00 00 89 5C");
 			if (Resolution1ScanResult)
 			{
@@ -247,6 +245,8 @@ void WidescreenFix()
 			if (AspectRatioScanResult)
 			{
 				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+
+				fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 				Memory::Write(AspectRatioScanResult + 0x3, fNewAspectRatio);
 			}
