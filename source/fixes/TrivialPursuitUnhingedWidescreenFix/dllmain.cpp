@@ -193,68 +193,69 @@ bool DetectGame()
 
 void WidescreenFix()
 {
-	if (eGameType == Game::TPUENG || eGameType == Game::TPUF || eGameType == Game::TPUG || eGameType == Game::TPUI || eGameType == Game::TPUS || eGameType == Game::TPUUK && bFixActive == true)
-	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		std::uint8_t* Resolution1ScanResult = Memory::PatternScan(exeModule, "24 38 58 02 00 00 89 5C 24 30 C7 44 24 34 20 03 00 00 89 5C");
-		if (Resolution1ScanResult)
+	if (eGameType == Game::TPUENG || eGameType == Game::TPUF || eGameType == Game::TPUG || eGameType == Game::TPUI || eGameType == Game::TPUS || eGameType == Game::TPUUK)
+		if (bFixActive == true)
 		{
-			spdlog::info("Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1ScanResult - (std::uint8_t*)exeModule);
+			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-			Memory::Write(Resolution1ScanResult + 14, iCurrentResX);
+			std::uint8_t* Resolution1ScanResult = Memory::PatternScan(exeModule, "24 38 58 02 00 00 89 5C 24 30 C7 44 24 34 20 03 00 00 89 5C");
+			if (Resolution1ScanResult)
+			{
+				spdlog::info("Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution1ScanResult + 2, iCurrentResY);
+				Memory::Write(Resolution1ScanResult + 14, iCurrentResX);
+
+				Memory::Write(Resolution1ScanResult + 2, iCurrentResY);
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution 1 scan memory address.");
+				return;
+			}
+
+			std::uint8_t* Resolution2ScanResult = Memory::PatternScan(exeModule, "6A 18 68 58 02 00 00 68 20 03 00 00 52 E8 85");
+			if (Resolution2ScanResult)
+			{
+				spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution2ScanResult - (std::uint8_t*)exeModule);
+
+				Memory::Write(Resolution2ScanResult + 8, iCurrentResX);
+
+				Memory::Write(Resolution2ScanResult + 3, iCurrentResY);
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution 2 scan memory address.");
+				return;
+			}
+
+			std::uint8_t* Resolution3ScanResult = Memory::PatternScan(exeModule, "6A 18 68 58 02 00 00 68 20 03 00 00 89 44 24");
+			if (Resolution3ScanResult)
+			{
+				spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution3ScanResult - (std::uint8_t*)exeModule);
+
+				Memory::Write(Resolution3ScanResult + 8, iCurrentResX);
+
+				Memory::Write(Resolution3ScanResult + 3, iCurrentResY);
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution 3 scan memory address.");
+				return;
+			}
+
+			std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "CE C7 06 AB AA AA 3F C7 46 04");
+			if (AspectRatioScanResult)
+			{
+				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+
+				Memory::Write(AspectRatioScanResult + 0x3, fNewAspectRatio);
+			}
+			else
+			{
+				spdlog::error("Failed to locate aspect ratio memory address.");
+				return;
+			}
 		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 1 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* Resolution2ScanResult = Memory::PatternScan(exeModule, "6A 18 68 58 02 00 00 68 20 03 00 00 52 E8 85");
-		if (Resolution2ScanResult)
-		{
-			spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution2ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(Resolution2ScanResult + 8, iCurrentResX);
-
-			Memory::Write(Resolution2ScanResult + 3, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 2 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* Resolution3ScanResult = Memory::PatternScan(exeModule, "6A 18 68 58 02 00 00 68 20 03 00 00 89 44 24");
-		if (Resolution3ScanResult)
-		{
-			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution3ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(Resolution3ScanResult + 8, iCurrentResX);
-
-			Memory::Write(Resolution3ScanResult + 3, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 3 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "CE C7 06 AB AA AA 3F C7 46 04");
-		if (AspectRatioScanResult)
-		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(AspectRatioScanResult + 0x3, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
-			return;
-		}
-	}
 }
 
 DWORD __stdcall Main(void*)
