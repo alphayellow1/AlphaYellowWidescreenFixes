@@ -69,11 +69,11 @@ struct GameInfo
 
 const std::map<Game, GameInfo> kGames = {
 	{Game::TPUENG, {"Trivial Pursuit: Unhinged", "TrivialPursuitPC.exe"}},
-	{Game::TPUF, {"Trivial Pursuit: Unhinged", "TPPCFremch.exe"}},
-	{Game::TPUG, {"Trivial Pursuit: Unhinged", "TPPCGerman.exe"}},
-	{Game::TPUI, {"Trivial Pursuit: Unhinged", "TTPCItalian.exe"}},
-	{Game::TPUS, {"Trivial Pursuit: Unhinged", "TPPCSpanish.exe"}},
-	{Game::TPUUK, {"Trivial Pursuit: Unhinged", "TPPCUK.exe"}},
+	{Game::TPUF, {"Trivial Pursuit: Unhinged (French version)", "TPPCFrench.exe"}},
+	{Game::TPUG, {"Trivial Pursuit: Unhinged (German version)", "TPPCGerman.exe"}},
+	{Game::TPUI, {"Trivial Pursuit: Unhinged (Italian version)", "TTPCItalian.exe"}},
+	{Game::TPUS, {"Trivial Pursuit: Unhinged (Spanish version)", "TPPCSpanish.exe"}},
+	{Game::TPUUK, {"Trivial Pursuit: Unhinged (UK version)", "TPPCUK.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -254,8 +254,6 @@ void WidescreenFix()
 			spdlog::error("Failed to locate aspect ratio memory address.");
 			return;
 		}
-
-
 	}
 }
 
