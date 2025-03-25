@@ -211,15 +211,15 @@ void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 		fmul dword ptr ds : [0x0060E2E8]
 		fistp dword ptr ds : [0x007B260C]
 		cmp dword ptr ds : [0x007B2600] , 0x3FE38E39
-		jg Value1
-		jmp Continuecode
+		jg firstvalue
+		jmp continuecode
 
-		Value1 :
+		firstvalue :
 		mov dword ptr ds : [0x007B2610] , 0x3F520000
 			mov dword ptr ds : [0x007B2618] , 0x3DF00000
-			jmp Continuecode2
+			jmp continuecode2
 
-			Continuecode :
+			continuecode :
 		fld dword ptr ds : [0x007B2604]
 			fsub dword ptr ds : [0x0060E2E4]
 			fmul dword ptr ds : [0x0060E2E8]
@@ -232,17 +232,17 @@ void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 			fsub dword ptr ds : [0x007B2610]
 			fstp dword ptr ds : [0x007B2618]
 
-			Continuecode2 :
+			continuecode2 :
 			cmp dword ptr ds : [0x007B2600] , 0x3FE38E39
-			jl Value2
+			jl value2
 			jmp Continuecode3
 
-			Value2 :
+			value2 :
 		mov dword ptr ds : [0x007B2614] , 0x3F200000
 			mov dword ptr ds : [0x007B261C] , 0
-			jmp BackToOriginalCode
+			jmp backtooriginalcode
 
-			Continuecode3 :
+			continuecode3 :
 		fld dword ptr ds : [0x007B2604]
 			fdiv dword ptr ds : [0x0060E5F4]
 			fsub dword ptr ds : [0x0060E2E4]
@@ -256,7 +256,7 @@ void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 			fsub dword ptr ds : [0x007B2614]
 			fstp dword ptr ds : [0x007B261C]
 
-			BackToOriginalCode :
+			backtooriginalcode :
 			mov dword ptr ss : [esp + 0xC] , edx
 	}
 }
@@ -356,8 +356,6 @@ void WidescreenFix()
 {
 	if (eGameType == Game::CONSTANTINE && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 91 48 9F 0E 00 89 54 24 0C 0F 57 C0 8B 49 04 F3 0F 11 44 24 10");
 		if (AspectRatioInstructionScanResult)
 		{
