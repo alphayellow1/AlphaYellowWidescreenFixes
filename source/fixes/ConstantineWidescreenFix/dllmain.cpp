@@ -194,8 +194,6 @@ static SafetyHookMid AspectRatioInstructionHook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	float fNewAspectRatio2 = fNewAspectRatio / fOldAspectRatio;
-
 	_asm
 	{
 		mov edx, dword ptr ds : [ecx + 0xE9F48]
@@ -345,9 +343,12 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
+	fNewCameraFOV = 1.0f / fFOVFactor;
+
 	_asm
 	{
 		fdiv dword ptr ds : [0x007B2604]
+		fmul dword ptr ds : [fNewCameraFOV]
 	}
 }
 
