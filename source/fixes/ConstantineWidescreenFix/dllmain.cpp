@@ -55,10 +55,6 @@ float fNewAspectRatio;
 float fNewAspectRatio2;
 float fFOVFactor;
 float fNewCameraFOV;
-int iOldHeight;
-float fMultiplierValue;
-int iHUDOffset;
-int iHUDWidth;
 
 // Game detection
 enum class Game
@@ -198,74 +194,72 @@ static SafetyHookMid AspectRatioInstructionHook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	float fValue1 = 1.0f;
-	float fValue2 = 0.9375f;
-	float fValue3 = 0.625f;
+	float fNewAspectRatio2 = fNewAspectRatio / fOldAspectRatio;
 
 	_asm
 	{
 		mov edx, dword ptr ds : [ecx + 0xE9F48]
 		fild dword ptr ds : [ecx + 0xE9F44]
 		fidiv dword ptr ds : [ecx + 0xE9F48]
-		fstp dword ptr ds : [fNewAspectRatio]
-		fld dword ptr ds : [fNewAspectRatio]
-		fdiv dword ptr ds : [fOldAspectRatio]
-		fstp dword ptr ds : [fNewAspectRatio2]
-		fild dword ptr ds : [iOldHeight]
-		fmul dword ptr ds : [fNewAspectRatio2]
-		fistp dword ptr ds : [iHUDWidth]
-		fild dword ptr ds : [iHUDWidth]
-		fisub dword ptr ds : [iOldHeight]
-		fmul dword ptr ds : [fMultiplierValue]
-		fistp dword ptr ds : [iHUDOffset]
-		cmp dword ptr ds : [fNewAspectRatio] , 0x3FE38E39
-		jg firstvalue
+		fstp dword ptr ds : [0x007B2600]
+		fld dword ptr ds : [0x007B2600]
+		fdiv dword ptr ds : [0x0060E5F4]
+		fstp dword ptr ds : [0x007B2604]
+		fild dword ptr ds : [0x005C5895]
+		fmul dword ptr ds : [0x007B2604]
+		fistp dword ptr ds : [0x007B2608]
+		fild dword ptr ds : [0x007B2608]
+		fisub dword ptr ds : [0x005C5895]
+		fmul dword ptr ds : [0x0060E2E8]
+		fistp dword ptr ds : [0x007B260C]
+		cmp dword ptr ds : [0x007B2600] , 0x3FE38E39
+		jg Value1
 		jmp Continuecode
 
-		firstvalue :
+		Value1 :
 		mov dword ptr ds : [0x007B2610] , 0x3F520000
 			mov dword ptr ds : [0x007B2618] , 0x3DF00000
 			jmp Continuecode2
 
 			Continuecode :
-		fld dword ptr ds : [fNewAspectRatio2]
-			fsub dword ptr ds : [fValue1]
-			fmul dword ptr ds : [fMultiplierValue]
-			fadd dword ptr ds : [fValue1]
+		fld dword ptr ds : [0x007B2604]
+			fsub dword ptr ds : [0x0060E2E4]
+			fmul dword ptr ds : [0x0060E2E8]
+			fadd dword ptr ds : [0x0060E2E4]
 			fstp dword ptr ds : [0x007B2620]
-			fld dword ptr ds : [fValue2]
+			fld dword ptr ds : [0x006879A4]
 			fdiv dword ptr ds : [0x007B2620]
 			fstp dword ptr ds : [0x007B2610]
-			fld dword ptr ds : [fValue2]
+			fld dword ptr ds : [0x006879A4]
 			fsub dword ptr ds : [0x007B2610]
 			fstp dword ptr ds : [0x007B2618]
 
 			Continuecode2 :
-			cmp dword ptr ds : [fNewAspectRatio] , 0x3FE38E39
-			jl secondvalue
+			cmp dword ptr ds : [0x007B2600] , 0x3FE38E39
+			jl Value2
 			jmp Continuecode3
 
-			secondvalue :
+			Value2 :
 		mov dword ptr ds : [0x007B2614] , 0x3F200000
 			mov dword ptr ds : [0x007B261C] , 0
 			jmp BackToOriginalCode
 
 			Continuecode3 :
-		fld dword ptr ds : [fNewAspectRatio2]
-			fdiv dword ptr ds : [fOldAspectRatio]
-			fsub dword ptr ds : [fValue1]
-			fmul dword ptr ds : [fMultiplierValue]
-			fadd dword ptr ds : [fValue1]
+		fld dword ptr ds : [0x007B2604]
+			fdiv dword ptr ds : [0x0060E5F4]
+			fsub dword ptr ds : [0x0060E2E4]
+			fmul dword ptr ds : [0x0060E2E8]
+			fadd dword ptr ds : [0x0060E2E4]
 			fstp dword ptr ds : [0x007B2624]
-			fld dword ptr ds : [fValue3]
+			fld dword ptr ds : [0x0061A5D8]
 			fmul dword ptr ds : [0x007B2624]
 			fstp dword ptr ds : [0x007B2614]
-			fld dword ptr ds : [fValue3]
+			fld dword ptr ds : [0x0061A5D8]
 			fsub dword ptr ds : [0x007B2614]
 			fstp dword ptr ds : [0x007B261C]
 
 			BackToOriginalCode :
-			mov dword ptr ss : [esp + 0xC] , edx
+			mov eax, dword ptr ds : [ecx + 0xE9F48]
 	}
 }
 
@@ -289,7 +283,7 @@ void InterfaceScalePrimaryInstructionMidHook(SafetyHookContext& ctx)
 	_asm
 	{
 		fld dword ptr ds : [esi + 0xEA048]
-		fmul dword ptr ds : [fNewAspectRatio2]
+		fmul dword ptr ds : [0x007B2604]
 		fstp dword ptr ds : [esi + 0xEA048]
 	}
 }
@@ -300,7 +294,7 @@ void InterfaceScaleSecondaryInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		mov ecx, dword ptr ds : [iHUDWidth]
+		mov ecx, dword ptr ds : [0x007B2608]
 		mov dword ptr ds : [edi + 0xE9900] , ecx
 		mov ecx, 0
 		cvtsi2ss xmm1, dword ptr ds : [edi + 0xE9900]
@@ -314,7 +308,7 @@ void MoveInterfaceInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		mov ecx, dword ptr ds : [iHUDOffset]
+		mov ecx, dword ptr ds : [0x007B260C]
 		add dword ptr ss : [esp + 0x78] , ecx
 		mov ecx, 0
 		cvtsi2ss xmm0, dword ptr ss : [esp + 0x78]
@@ -328,7 +322,7 @@ void HealthBarScaleInstructionMidHook(SafetyHookContext& ctx)
 	_asm
 	{
 		fld dword ptr ds : [edi + 0xEA048]
-		fmul dword ptr ds : [fNewAspectRatio2]
+		fmul dword ptr ds : [0x007B2604]
 		fstp dword ptr ds : [edi + 0xEA048]
 	}
 }
@@ -339,7 +333,7 @@ void TextScaleInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		mov edx, dword ptr ds : [iHUDWidth]
+		mov edx, dword ptr ds : [0x007B2608]
 		mov dword ptr ds : [edi + 0xE9900] , edx
 		mov edx, 0x4
 		cvtsi2ss xmm7, dword ptr ds : [edi + 0xE9900]
@@ -353,7 +347,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fdiv dword ptr ds : [fNewAspectRatio2]
+		fdiv dword ptr ds : [0x007B2604]
 	}
 }
 
@@ -363,24 +357,14 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewAspectRatio2 = fNewAspectRatio / fOldAspectRatio;
-
-		iOldHeight = 640;
-
-		fMultiplierValue = 0.5f;
-
-		iHUDOffset = 1;
-
-		iHUDWidth = 100;
-
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 91 48 9F 0E 00 89 54 24 0C 0F 57 C0 8B 49 04 F3 0F 11 44 24 10");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 10);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 10, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, AspectRatioInstructionMidHook);
 		}
 		else
 		{
