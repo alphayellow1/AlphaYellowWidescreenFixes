@@ -257,7 +257,7 @@ void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 			fstp dword ptr ds : [0x007B261C]
 
 			BackToOriginalCode :
-			mov eax, dword ptr ds : [ecx + 0xE9F48]
+			mov dword ptr ss : [esp + 0xC] , edx
 	}
 }
 
@@ -363,9 +363,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 10);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 10, AspectRatioInstructionMidHook);
 		}
 		else
 		{
