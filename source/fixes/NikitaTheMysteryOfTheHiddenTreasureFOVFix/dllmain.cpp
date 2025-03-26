@@ -41,9 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +51,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fModifiedFOVValue;
 
 // Game detection
 enum class Game
@@ -192,7 +191,6 @@ bool DetectGame()
 	{
 		dllModule2 = GetModuleHandleA("ChromeEngine2.dll");
 		spdlog::info("Waiting for ChromeEngine2.dll to load...");
-		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for ChromeEngine2.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -220,28 +218,30 @@ void FOVFix()
 
 			static float fLastModifiedFOV = 0.0f;
 
+			static std::vector<float> vComputedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.esi + 0x484);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x484);
 
-				if (fCurrentFOVValue == 1.308996797 || fCurrentFOVValue == 1.553343058f || fCurrentFOVValue == 1.308996916f || fCurrentFOVValue == 1.04719758f || fCurrentFOVValue == 1.553343058f || fCurrentFOVValue == 1.692969322f)
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
 				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
+					// Value already processed, then skips the calculations
+					return;
 				}
 
-				// Check if the current FOV value was already modified
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(1.308996797f) && fCurrentFOVValue != CalculateNewFOV(1.553343058f) && fCurrentFOVValue != CalculateNewFOV(1.308996916f) && fCurrentFOVValue != CalculateNewFOV(1.04719758f) && fCurrentFOVValue != CalculateNewFOV(1.553343058f) && fCurrentFOVValue != CalculateNewFOV(1.692969322f))
-				{
-					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
+				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 
-					// Update the value only if the modification is meaningful
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
+				// If the new computed value is different, updates the FOV value
+				if (fCurrentCameraFOV != fModifiedFOVValue)
+				{
+					fCurrentCameraFOV = fModifiedFOVValue;
+					fLastModifiedFOV = fModifiedFOVValue;
 				}
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedFOVs.push_back(fModifiedFOVValue);
 			});
 		}
 		else
