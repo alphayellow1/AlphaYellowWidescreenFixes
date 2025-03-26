@@ -44,9 +44,8 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float tolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
@@ -56,8 +55,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fModifiedFOVValue;
 float fNewWeaponZoomFOV;
+static uint32_t iInsideCar;
+float fMaxCameraFOV;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -219,7 +219,7 @@ bool DetectGame()
 		spdlog::info("Waiting for GameDll.dll to load...");
 	}
 
-	spdlog::info("Successfully obtaiend handle for GameDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+	spdlog::info("Successfully obtained handle for GameDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
 
 	return true;
 }
@@ -247,6 +247,24 @@ void FOVFix()
 
 		fNewWeaponZoomFOV = 30.0f;
 
+		std::uint8_t* InsideCarTriggerInstructionScanResult = Memory::PatternScan(exeModule, "39 1D 28 86 44 00 75 17 8B 8E 64 1C 00 00 8B 86 68 1C 00 00 3B C8 C7 45 EC 01 00 00 00");
+		if (InsideCarTriggerInstructionScanResult)
+		{
+			spdlog::info("Inside Car Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), InsideCarTriggerInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid InsideCarTriggerInstructionMidHook{};
+
+			InsideCarTriggerInstructionMidHook = safetyhook::create_mid(InsideCarTriggerInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				iInsideCar = *reinterpret_cast<uint32_t*>(0x00448628);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate inside car trigger instruction memory address.");
+			return;
+		}
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 D0 00 00 00 D8 0D ?? ?? ?? ?? D9 F2 DD D8");
 		if (CameraFOVInstructionScanResult)
 		{
@@ -254,37 +272,41 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static float fLastModifiedFOV = 0.0f;
-
 			static std::vector<float> vComputedFOVs;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
 
-				// Checks if this FOV has already been computed
-				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
+				// Skip processing if a similar VFOV (within tolerance) has already been computed
+				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
+					[&](float computedValue) {
+					return std::fabs(computedValue - fCurrentCameraFOV) < tolerance;
+				});
+
+				if (alreadyComputed)
 				{
-					// Value already processed, then skips the calculations
 					return;
 				}
 
-				fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 
-				if (fModifiedFOVValue > CalculateNewFOV(75.0f) * fFOVFactor)
+				if (iInsideCar == 0)
 				{
-					fModifiedFOVValue = CalculateNewFOV(75.0f) * fFOVFactor;
+					fMaxCameraFOV = CalculateNewFOV(75.0f) * fFOVFactor;
+				}
+				else if (iInsideCar == 1)
+				{
+					fMaxCameraFOV = CalculateNewFOV(90.0f) * fFOVFactor;
 				}
 
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentCameraFOV != fModifiedFOVValue)
+				if (fCurrentCameraFOV > fMaxCameraFOV)
 				{
-					fCurrentCameraFOV = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
+					fCurrentCameraFOV = fMaxCameraFOV;
 				}
 
 				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fModifiedFOVValue);
+				vComputedFOVs.push_back(fCurrentCameraFOV);
 			});
 		}
 		else

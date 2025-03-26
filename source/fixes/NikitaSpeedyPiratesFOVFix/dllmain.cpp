@@ -42,6 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float tolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
@@ -224,10 +225,13 @@ void FOVFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x484);
 
-				// Checks if this FOV has already been computed
-				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
+				// Skip processing if a similar VFOV (within tolerance) has already been computed
+				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
+					[&](float computedValue) {
+					return std::fabs(computedValue - fCurrentCameraFOV) < tolerance;
+				});
+				if (alreadyComputed)
 				{
-					// Value already processed, then skips the calculations
 					return;
 				}
 
@@ -237,22 +241,15 @@ void FOVFix()
 
 				if (fCurrentCameraFOV == 1.745329261f)
 				{
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
+					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 				}
 				else
 				{
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fEffectiveFOVFactor;
-				}
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentCameraFOV != fModifiedFOVValue)
-				{
-					fCurrentCameraFOV = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
+					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fEffectiveFOVFactor;
 				}
 
 				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fModifiedFOVValue);
+				vComputedFOVs.push_back(fCurrentCameraFOV);
 			});
 		}
 		else
