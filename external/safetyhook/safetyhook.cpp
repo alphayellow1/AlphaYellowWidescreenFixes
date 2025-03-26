@@ -14,87 +14,6 @@
 #include <limits>
 
 
-//
-// Header: safetyhook/os.hpp
-//
-
-// This is the OS abstraction layer.
-#pragma once
-
-#ifndef SAFETYHOOK_USE_CXXMODULES
-#include <cstdint>
-#include <expected>
-#include <functional>
-#else
-import std.compat;
-#endif
-
-namespace safetyhook {
-
-enum class OsError {
-    FAILED_TO_ALLOCATE,
-    FAILED_TO_PROTECT,
-    FAILED_TO_QUERY,
-    FAILED_TO_GET_NEXT_THREAD,
-    FAILED_TO_GET_THREAD_CONTEXT,
-    FAILED_TO_SET_THREAD_CONTEXT,
-    FAILED_TO_FREEZE_THREAD,
-    FAILED_TO_UNFREEZE_THREAD,
-    FAILED_TO_GET_THREAD_ID,
-};
-
-struct VmAccess {
-    bool read : 1;
-    bool write : 1;
-    bool execute : 1;
-
-    constexpr bool operator==(const VmAccess& other) const {
-        return read == other.read && write == other.write && execute == other.execute;
-    }
-};
-
-constexpr VmAccess VM_ACCESS_R{.read = true, .write = false, .execute = false};
-constexpr VmAccess VM_ACCESS_RW{.read = true, .write = true, .execute = false};
-constexpr VmAccess VM_ACCESS_RX{.read = true, .write = false, .execute = true};
-constexpr VmAccess VM_ACCESS_RWX{.read = true, .write = true, .execute = true};
-
-struct VmBasicInfo {
-    uint8_t* address;
-    size_t size;
-    VmAccess access;
-    bool is_free;
-};
-
-std::expected<uint8_t*, OsError> vm_allocate(uint8_t* address, size_t size, VmAccess access);
-void vm_free(uint8_t* address);
-std::expected<uint32_t, OsError> vm_protect(uint8_t* address, size_t size, VmAccess access);
-std::expected<uint32_t, OsError> vm_protect(uint8_t* address, size_t size, uint32_t access);
-std::expected<VmBasicInfo, OsError> vm_query(uint8_t* address);
-bool vm_is_readable(uint8_t* address, size_t size);
-bool vm_is_writable(uint8_t* address, size_t size);
-bool vm_is_executable(uint8_t* address);
-
-struct SystemInfo {
-    uint32_t page_size;
-    uint32_t allocation_granularity;
-    uint8_t* min_address;
-    uint8_t* max_address;
-};
-
-SystemInfo system_info();
-
-using ThreadContext = void*;
-
-void trap_threads(uint8_t* from, uint8_t* to, size_t len, const std::function<void()>& run_fn);
-
-/// @brief Will modify the context of a thread's IP to point to a new address if its IP is at the old address.
-/// @param ctx The thread context to modify.
-/// @param old_ip The old IP address.
-/// @param new_ip The new IP address.
-void fix_ip(ThreadContext ctx, uint8_t* old_ip, uint8_t* new_ip);
-
-} // namespace safetyhook
-
 
 
 namespace safetyhook {
@@ -354,7 +273,7 @@ std::expected<uint8_t*, Allocator::Error> Allocator::allocate_nearby_memory(
 }
 
 bool Allocator::in_range(uint8_t* address, const std::vector<uint8_t*>& desired_addresses, size_t max_distance) {
-    return std::ranges::all_of(desired_addresses, [&](const auto& desired_address) {
+    return std::all_of(desired_addresses.begin(), desired_addresses.end(), [&](const auto& desired_address) {
         const size_t delta = (address > desired_address) ? address - desired_address : desired_address - address;
         return delta <= max_distance;
     });
@@ -1130,12 +1049,8 @@ std::expected<VmBasicInfo, OsError> vm_query(uint8_t* address) {
             &inode, path);
 
         if (last_end < start && addr >= last_end && addr < start) {
-            info = {
-                .address = reinterpret_cast<uint8_t*>(last_end),
-                .size = start - last_end,
-                .access = VmAccess{},
-                .is_free = true,
-            };
+            info = std::make_optional<VmBasicInfo>(
+                {reinterpret_cast<uint8_t*>(last_end), start - last_end, VmAccess{}, true});
 
             break;
         }
@@ -1143,12 +1058,7 @@ std::expected<VmBasicInfo, OsError> vm_query(uint8_t* address) {
         last_end = end;
 
         if (addr >= start && addr < end) {
-            info = {
-                .address = reinterpret_cast<uint8_t*>(start),
-                .size = end - start,
-                .access = VmAccess{},
-                .is_free = false,
-            };
+            info = std::make_optional<VmBasicInfo>({reinterpret_cast<uint8_t*>(start), end - start, VmAccess{}, false});
 
             if (perms[0] == 'r') {
                 info->access.read = true;
@@ -1190,12 +1100,13 @@ bool vm_is_executable(uint8_t* address) {
 SystemInfo system_info() {
     auto page_size = static_cast<uint32_t>(sysconf(_SC_PAGESIZE));
 
-    return {
-        .page_size = page_size,
-        .allocation_granularity = page_size,
-        .min_address = reinterpret_cast<uint8_t*>(0x10000),
-        .max_address = reinterpret_cast<uint8_t*>(1ull << 47),
-    };
+    SystemInfo info{};
+    info.page_size = page_size;
+    info.allocation_granularity = page_size;
+    info.min_address = reinterpret_cast<uint8_t*>(0x10000);
+    info.max_address = reinterpret_cast<uint8_t*>(1ull << 47);
+
+    return info;
 }
 
 void trap_threads([[maybe_unused]] uint8_t* from, [[maybe_unused]] uint8_t* to, [[maybe_unused]] size_t len,
@@ -1300,18 +1211,18 @@ std::expected<VmBasicInfo, OsError> vm_query(uint8_t* address) {
         return std::unexpected{OsError::FAILED_TO_QUERY};
     }
 
-    VmAccess access{
-        .read = (mbi.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)) != 0,
-        .write = (mbi.Protect & (PAGE_READWRITE | PAGE_EXECUTE_READWRITE)) != 0,
-        .execute = (mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)) != 0,
-    };
+    VmAccess access{};
+    access.read = (mbi.Protect & (PAGE_READONLY | PAGE_READWRITE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)) != 0;
+    access.write = (mbi.Protect & (PAGE_READWRITE | PAGE_EXECUTE_READWRITE)) != 0;
+    access.execute = (mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE)) != 0;
 
-    return VmBasicInfo{
-        .address = static_cast<uint8_t*>(mbi.AllocationBase),
-        .size = mbi.RegionSize,
-        .access = access,
-        .is_free = mbi.State == MEM_FREE,
-    };
+    VmBasicInfo info{};
+    info.address = static_cast<uint8_t*>(mbi.AllocationBase);
+    info.size = mbi.RegionSize;
+    info.access = access;
+    info.is_free = mbi.State == MEM_FREE;
+
+    return info;
 }
 
 bool vm_is_readable(uint8_t* address, size_t size) {
@@ -1383,12 +1294,14 @@ class TrapManager final {
 public:
     static std::mutex mutex;
     static std::unique_ptr<TrapManager> instance;
+    static bool is_destructed;
 
     TrapManager() { m_trap_veh = AddVectoredExceptionHandler(1, trap_handler); }
     ~TrapManager() {
         if (m_trap_veh != nullptr) {
             RemoveVectoredExceptionHandler(m_trap_veh);
         }
+        is_destructed = true;
     }
 
     TrapInfo* find_trap(uint8_t* address) {
@@ -1424,13 +1337,16 @@ public:
     }
 
     void add_trap(uint8_t* from, uint8_t* to, size_t len) {
-        m_traps.insert_or_assign(from, TrapInfo{.from_page_start = align_down(from, 0x1000),
-                                           .from_page_end = align_up(from + len, 0x1000),
-                                           .from = from,
-                                           .to_page_start = align_down(to, 0x1000),
-                                           .to_page_end = align_up(to + len, 0x1000),
-                                           .to = to,
-                                           .len = len});
+        TrapInfo info{};
+        info.from_page_start = align_down(from, 0x1000);
+        info.from_page_end = align_up(from + len, 0x1000);
+        info.from = from;
+        info.to_page_start = align_down(to, 0x1000);
+        info.to_page_end = align_up(to + len, 0x1000);
+        info.to = to;
+        info.len = len;
+
+        m_traps.insert_or_assign(from, std::move(info));
     }
 
 private:
@@ -1468,6 +1384,7 @@ private:
 
 std::mutex TrapManager::mutex;
 std::unique_ptr<TrapManager> TrapManager::instance;
+bool TrapManager::is_destructed = false;
 
 void find_me() {
 }
@@ -1487,13 +1404,25 @@ void trap_threads(uint8_t* from, uint8_t* to, size_t len, const std::function<vo
         new_protect = PAGE_EXECUTE_READWRITE;
     }
 
-    std::scoped_lock lock{TrapManager::mutex};
+    auto si = system_info();
+    auto* from_page_start = align_down(from, si.page_size);
+    auto* from_page_end = align_up(from + len, si.page_size);
+    auto* vp_start = reinterpret_cast<uint8_t*>(&VirtualProtect);
+    auto* vp_end = vp_start + 0x20;
 
-    if (TrapManager::instance == nullptr) {
-        TrapManager::instance = std::make_unique<TrapManager>();
+    if (!(from_page_end < vp_start || vp_end < from_page_start)) {
+        new_protect = PAGE_EXECUTE_READWRITE;
     }
 
-    TrapManager::instance->add_trap(from, to, len);
+    if (!TrapManager::is_destructed) {
+        std::scoped_lock lock{TrapManager::mutex};
+
+        if (TrapManager::instance == nullptr) {
+            TrapManager::instance = std::make_unique<TrapManager>();
+        }
+
+        TrapManager::instance->add_trap(from, to, len);
+    }
 
     DWORD from_protect;
     DWORD to_protect;
