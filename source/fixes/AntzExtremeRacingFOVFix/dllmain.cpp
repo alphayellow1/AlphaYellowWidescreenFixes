@@ -56,6 +56,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fNewMenuFOV;
+float fFOVFactor;
 float fValue1;
 float fValue2;
 float fValue3;
@@ -169,8 +170,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -220,7 +223,7 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.eax + 0x3C) = fOriginalCameraHFOV * (fNewAspectRatio / fOldAspectRatio);
+				*reinterpret_cast<float*>(ctx.eax + 0x3C) = fFOVFactor * (fOriginalCameraHFOV * (fNewAspectRatio / fOldAspectRatio));
 			});
 		}
 		else
@@ -238,7 +241,7 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edx + 0x40) = fOriginalCameraVFOV * (fNewAspectRatio / fOldAspectRatio);
+				*reinterpret_cast<float*>(ctx.edx + 0x40) = fFOVFactor * (fOriginalCameraVFOV * (fNewAspectRatio / fOldAspectRatio));
 			});
 		}
 		else
