@@ -395,6 +395,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HugoCannonCruiseWidescreenF
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NikitaSpeedyPiratesFOVFix", "NikitaSpeedyPiratesFOVFix.vcxproj", "{D0476A6D-6E7F-476F-B1EB-EA8EA819A3B1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TerroristTakedownFOVFix", "TerroristTakedownFOVFix.vcxproj", "{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -1971,6 +1973,14 @@ Global
 		{D0476A6D-6E7F-476F-B1EB-EA8EA819A3B1}.Release|x64.Build.0 = Release|x64
 		{D0476A6D-6E7F-476F-B1EB-EA8EA819A3B1}.Release|x86.ActiveCfg = Release|Win32
 		{D0476A6D-6E7F-476F-B1EB-EA8EA819A3B1}.Release|x86.Build.0 = Release|Win32
+		{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}.Debug|x64.ActiveCfg = Debug|x64
+		{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}.Debug|x64.Build.0 = Debug|x64
+		{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}.Debug|x86.ActiveCfg = Debug|Win32
+		{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}.Debug|x86.Build.0 = Debug|Win32
+		{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}.Release|x64.ActiveCfg = Release|x64
+		{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}.Release|x64.Build.0 = Release|x64
+		{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}.Release|x86.ActiveCfg = Release|Win32
+		{DD4A1724-F049-47FB-9DA9-EB66D1D33C8C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
