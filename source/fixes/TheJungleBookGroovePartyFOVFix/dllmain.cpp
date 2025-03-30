@@ -17,17 +17,20 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <algorithm>
+#include <cmath>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
+HMODULE dllModule2 = nullptr;
+HMODULE dllModule3 = nullptr;
 
 // Fix details
-std::string sFixName = "BatmanVengeanceWidescreenFix";
-std::string sFixVersion = "1.3";
+std::string sFixName = "TheJungleBookGroovePartyFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,24 +43,24 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-
 // Ini variables
 bool bFixActive;
+
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraHFOV;
 float fNewAspectRatio;
+float fNewCameraVFOV;
+float fNewCameraFOV;
+float fFOVFactor;
 
 // Game detection
 enum class Game
 {
-	BV,
+	TJBGP,
 	Unknown
 };
 
@@ -68,7 +71,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::BV, {"Batman Vengeance", "Batman.exe"}},
+	{Game::TJBGP, {"The Jungle Book: Groove Party", "Jungle_vr.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -84,7 +87,7 @@ void Logging()
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
+	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
@@ -104,7 +107,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -144,14 +147,16 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -186,64 +191,75 @@ bool DetectGame()
 		}
 	}
 
-	if (!dllModule2)
+	while ((dllModule2 = GetModuleHandleA("osr_dx7.dll")) == nullptr)
 	{
-		dllModule2 = GetModuleHandleA("osr_dx8_vf.dll");
-		spdlog::error("Failed to get handle for osr_dx8_vf.dll.");
+		spdlog::warn("osr_dx7.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
-	spdlog::info("Successfully obtained handle for osr_dx8_vf.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	spdlog::info("Successfully obtained handle for osr_dx7.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
+	while ((dllModule3 = GetModuleHandleA("enginecore_vr.dll")) == nullptr)
+	{
+		spdlog::warn("enginecore_vr.dll not loaded yet. Waiting...");
+		Sleep(100);
+	}
+
+	spdlog::info("Successfully obtained handle for enginecore_vr.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
 
 	return true;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
 
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
+void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
+	fNewCameraVFOV = fNewAspectRatio / fOldAspectRatio;
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraHFOV]
+		fdivr dword ptr ds : [fNewCameraVFOV]
 	}
 }
 
-void WidescreenFix()
+void FOVFix()
 {
-	if (eGameType == Game::BV && bFixActive == true)
+	if (eGameType == Game::TJBGP && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionScanResult = Memory::PatternScan(dllModule2, "80 01 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 03 00 00");
-		if (ResolutionScanResult)
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D8 3D ?? ?? ?? ?? D9 5D FC D9 05 ?? ?? ?? ?? D9 C1 D8 4D 1C D8 C9 D9 18");
+		if (CameraVFOVInstructionScanResult)
 		{
-			spdlog::info("Resolution Width: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera VFOV Instruction: Address is osr_dx7.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Resolution Height: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 8 - (std::uint8_t*)exeModule);
+			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			Memory::Write(ResolutionScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionScanResult + 8, iCurrentResY);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, CameraVFOVInstructionMidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution memory address.");
+			spdlog::info("Cannot locate the camera VFOV instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "C7 40 2C 00 00 80 BF D8 3D ?? ?? ?? ?? D9 45 18 D8 65 14");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule3, "D8 4C 24 0C D9 5C 24 20 D9 44 24 24 8B 54 24 20 D8 74 24 28 D8 4C 24 20 D9 5C 24 24");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is osr_dx8_vf.dll+{:x}", CameraHFOVInstructionScanResult + 7 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is enginecore_vr.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult + 7, "\x90\x90\x90\x90\x90\x90", 6);
+			fNewCameraFOV = fFOVFactor * (fNewAspectRatio / fOldAspectRatio);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 13, CameraHFOVInstructionMidHook);
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<float*>(ctx.esp + 0xC) = fNewCameraFOV;
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
@@ -255,7 +271,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
