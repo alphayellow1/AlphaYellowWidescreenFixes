@@ -26,7 +26,7 @@ HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "PetSoccerWidescreenFix";
+std::string sFixName = "CrazySoccerMundialWidescreenFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -41,9 +41,8 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float tolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,11 +52,12 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fCurrentCameraFOV;
 
 // Game detection
 enum class Game
 {
-	PS,
+	CSM,
 	Unknown
 };
 
@@ -68,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::PS, {"Pet Soccer", "petsoccer.bum"}},
+	{Game::CSM, {"Crazy Soccer Mundial", "PetSoccer.bum"}},
 };
 
 const GameInfo* game = nullptr;
@@ -192,7 +192,6 @@ bool DetectGame()
 	{
 		dllModule2 = GetModuleHandleA("ChromeEngine.dll");
 		spdlog::info("Waiting for ChromeEngine.dll to load...");
-		Sleep(1000);
 	}
 
 	spdlog::info("Successfully obtained handle for ChromeEngine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -207,43 +206,32 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void WidescreenFix()
 {
-	if (eGameType == Game::PS && bFixActive == true)
+	if (eGameType == Game::CSM && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(dllModule2, "89 51 10 C2 08 00 90 90 90 90 90 90 90 90 90");
-		if (ResolutionHeightInstructionScanResult)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(dllModule2, "03 8D 49 00 FA 9E 14 10 01 9F 14 10 08 9F 14 10 0F 9F 14 10 8B 44 24 04 8B 54 24 08 89 41 0C 89 51 10");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is ChromeEngine.dll+{:x}", ResolutionHeightInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Instructions Scan: Address is ChromeEngine.dll+{:x}", ResolutionInstructionsScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 31, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uint32_t>(iCurrentResY);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution height instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(dllModule2, "15 10 4E 35 15 10 90 90 90 90 8B 44 24 04 8B 54 24 08 89 41 0C");
-		if (ResolutionWidthInstructionScanResult)
-		{
-			spdlog::info("Resolution Width Instruction: Address is ChromeEngine.dll+{:x}", ResolutionWidthInstructionScanResult + 18 - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 18, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 28, [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uint32_t>(iCurrentResX);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution width instruction memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 
@@ -254,20 +242,37 @@ void WidescreenFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
+			static std::vector<float> vComputedFOVs;
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentFOVValue = std::bit_cast<float>(ctx.eax);
+				// Store the value of ECX register value to a float variable
+				fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-				if (fCurrentFOVValue == 1.308996916f || fCurrentFOVValue == 1.919862151f)
+				// Skip processing if a similar FOV (within tolerance) has already been computed
+				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
+					[&](float computedValue) {
+					return std::fabs(computedValue - fCurrentCameraFOV) < tolerance;
+				});
+
+				if (alreadyComputed)
 				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-				}
-				else if (fCurrentFOVValue == 1.04719758f)
-				{
-					fCurrentFOVValue = fFOVFactor * CalculateNewFOV(fCurrentFOVValue);
+					return;
 				}
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentFOVValue);
+				if (fCurrentCameraFOV == 1.308996916f || fCurrentCameraFOV == 1.919862151f)
+				{
+					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+				}
+				else
+				{
+					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				}
+
+				// Record the computed FOV for future calls
+				vComputedFOVs.push_back(fCurrentCameraFOV);
+
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
 			});
 		}
 		else
