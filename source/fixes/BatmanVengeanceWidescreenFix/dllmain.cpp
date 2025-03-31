@@ -232,28 +232,26 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionScanResult = Memory::PatternScan(dllModule2, "00 00 00 00 02 00 00 80 01 00 00 80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00 3C 00 00 00");
-		if (ResolutionScanResult)
+		std::uint8_t* ResolutionsScanResult = Memory::PatternScan(dllModule2, "00 00 00 00 02 00 00 80 01 00 00 80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00 3C 00 00 00");
+		if (ResolutionsScanResult)
 		{
-			spdlog::info("Resolution Width: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolutions Scan: Address is osr_dx8_vf.dll+{:x}", ResolutionsScanResult - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height: Address is osr_dx8_vf.dll+{:x}", ResolutionScanResult + 8 - (std::uint8_t*)exeModule);
+			Memory::Write(ResolutionsScanResult + 11, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 11, iCurrentResX);
+			Memory::Write(ResolutionsScanResult + 15, iCurrentResY);
 
-			Memory::Write(ResolutionScanResult + 15, iCurrentResY);
+			Memory::Write(ResolutionsScanResult + 19, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 19, iCurrentResX);
+			Memory::Write(ResolutionsScanResult + 23, iCurrentResY);
 
-			Memory::Write(ResolutionScanResult + 23, iCurrentResY);
+			Memory::Write(ResolutionsScanResult + 27, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 27, iCurrentResX);
-
-			Memory::Write(ResolutionScanResult + 31, iCurrentResY);
+			Memory::Write(ResolutionsScanResult + 31, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution memory address.");
+			spdlog::error("Failed to locate resolutions scan memory address.");
 			return;
 		}
 
