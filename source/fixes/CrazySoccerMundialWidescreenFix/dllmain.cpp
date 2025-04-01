@@ -43,6 +43,7 @@ std::string sExeName;
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float tolerance = 0.0001f;
+constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -260,14 +261,7 @@ void WidescreenFix()
 					return;
 				}
 
-				if (fCurrentCameraFOV == 1.308996916f || fCurrentCameraFOV == 1.919862151f)
-				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
-				}
-				else
-				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-				}
+				fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 
 				// Record the computed FOV for future calls
 				vComputedFOVs.push_back(fCurrentCameraFOV);
