@@ -42,9 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -56,13 +54,13 @@ float fNewCameraHFOV;
 float fNewAspectRatio;
 
 // Function to convert degrees to radians
-static float DegToRad(float degrees)
+float DegToRad(float degrees)
 {
 	return degrees * (fPi / 180.0f);
 }
 
 // Function to convert radians to degrees
-static float RadToDeg(float radians)
+float RadToDeg(float radians)
 {
 	return radians * (180.0f / fPi);
 }
@@ -87,7 +85,7 @@ const std::map<Game, GameInfo> kGames = {
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
-static void Logging()
+void Logging()
 {
 	// Get path to DLL
 	WCHAR dllPath[_MAX_PATH] = { 0 };
@@ -131,7 +129,7 @@ static void Logging()
 	}
 }
 
-static void Configuration()
+void Configuration()
 {
 	// Inipp initialization
 	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
@@ -181,7 +179,7 @@ static void Configuration()
 	spdlog::info("----------");
 }
 
-static bool DetectGame()
+bool DetectGame()
 {
 	for (const auto& [type, info] : kGames)
 	{
@@ -206,7 +204,7 @@ float CalculateNewHFOV(float fCurrentFOV)
 
 static SafetyHookMid CameraHFOVInstruction1Hook{};
 
-static void CameraHFOVInstruction1MidHook(SafetyHookContext& ctx)
+void CameraHFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
@@ -216,7 +214,7 @@ static void CameraHFOVInstruction1MidHook(SafetyHookContext& ctx)
 
 static SafetyHookMid CameraHFOVInstruction2Hook{};
 
-static void CameraHFOVInstruction2MidHook(SafetyHookContext& ctx)
+void CameraHFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
@@ -236,7 +234,7 @@ static void CameraHFOVInstruction3MidHook(SafetyHookContext& ctx)
 
 static SafetyHookMid CameraHFOVInstruction4Hook{};
 
-static void CameraHFOVInstruction4MidHook(SafetyHookContext& ctx)
+void CameraHFOVInstruction4MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
@@ -246,7 +244,7 @@ static void CameraHFOVInstruction4MidHook(SafetyHookContext& ctx)
 
 static SafetyHookMid CameraHFOVInstruction5Hook{};
 
-static void CameraHFOVInstruction5MidHook(SafetyHookContext& ctx)
+void CameraHFOVInstruction5MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
@@ -254,7 +252,7 @@ static void CameraHFOVInstruction5MidHook(SafetyHookContext& ctx)
 	}
 }
 
-static void FOVFix()
+void FOVFix()
 {
 	if (eGameType == Game::MW3 && bFixActive == true)
 	{
@@ -330,7 +328,7 @@ static void FOVFix()
 	}
 }
 
-static DWORD __stdcall Main(void*)
+DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
