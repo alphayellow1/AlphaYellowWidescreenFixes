@@ -42,7 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float tolerance = 0.0001f;
+constexpr float fTolerance = 0.0001f;
 constexpr float epsilon = 0.00001f;
 
 // Ini variables
@@ -253,7 +253,7 @@ void WidescreenFix()
 				// Skip processing if a similar FOV (within tolerance) has already been computed
 				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
 					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraFOV) < tolerance;
+					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
 				});
 
 				if (alreadyComputed)
