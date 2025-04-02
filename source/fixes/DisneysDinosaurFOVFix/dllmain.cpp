@@ -25,8 +25,8 @@ HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "LargoWinchEmpireUnderThreatFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "DisneysDinosaurFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -67,7 +67,7 @@ float RadToDeg(float radians)
 // Game detection
 enum class Game
 {
-	LWEUT,
+	DD,
 	Unknown
 };
 
@@ -78,7 +78,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::LWEUT, {"Largo Winch: Empire Under Threat", "LargoWinch.exe"}},
+	{Game::DD, {"Disney's Dinosaur", "Dinosaur.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -198,14 +198,14 @@ bool DetectGame()
 
 float CalculateNewHFOV(float fCurrentFOV)
 {
-	return (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))) / 108.86444854736328125f;
+	return (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))) / 160.42817990455482015459916016938027345091158f;
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = CalculateNewHFOV(54.432224273681640625f);
+	fNewCameraHFOV = CalculateNewHFOV(80.21408995227741007729958008469013672545f);
 
 	_asm
 	{
@@ -215,11 +215,11 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 
 void FOVFix()
 {
-	if (eGameType == Game::LWEUT && bFixActive == true)
+	if (eGameType == Game::DD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 48 71 4F 00 89 54 24 10 D9 F2 DD D8 DD 05 40 71 4F 00 D8 F1");
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 64 B3 4A 00 89 54 24 10 D9 F2 DD D8 DD 05 70 B4 4A 00 D8 F1");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
