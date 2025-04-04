@@ -28,7 +28,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{96f90f87-6877-477d-82a6-99cb64e5d25a}</ProjectGuid>
     <RootNamespace>SkiResortExtremeFOVFix</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

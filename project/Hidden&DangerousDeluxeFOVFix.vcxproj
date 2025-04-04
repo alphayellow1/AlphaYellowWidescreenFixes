@@ -28,7 +28,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{d49c5c1e-a9f1-4bd3-9e86-b4dcaafca695}</ProjectGuid>
     <RootNamespace>HiddenDangerousDeluxeFOVFix</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

@@ -28,7 +28,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{d84c0700-b6cf-4ef4-8949-1412a9a85797}</ProjectGuid>
     <RootNamespace>Cabelas4x4OffroadAdventure3FOVFix</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

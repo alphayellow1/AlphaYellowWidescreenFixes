@@ -51,6 +51,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraHFOV;
+static float fCurrentCameraHFOV;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -198,14 +199,14 @@ bool DetectGame()
 
 float CalculateNewHFOV(float fCurrentFOV)
 {
-	return (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))) / 160.42817990455482015459916016938027345091158f;
+	return (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)))) / (fCurrentFOV * 2.0f);
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = CalculateNewHFOV(80.21408995227741007729958008469013672545f);
+	fNewCameraHFOV = CalculateNewHFOV(RadToDeg(fCurrentCameraHFOV));
 
 	_asm
 	{
@@ -231,6 +232,24 @@ void FOVFix()
 		else
 		{
 			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraHFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 58 7C 0F 85 00 02 00 00 D9 40 58");
+		if (CameraHFOVInstruction2ScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraHFOVInstruction2MidHook{};
+
+			CameraHFOVInstruction2MidHook = safetyhook::create_mid(CameraHFOVInstruction2ScanResult + 9, [](SafetyHookContext& ctx)
+			{
+				fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x58);
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera HFOV instruction 2 memory address.");
 			return;
 		}
 	}

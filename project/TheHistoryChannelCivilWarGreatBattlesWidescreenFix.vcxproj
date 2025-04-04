@@ -28,7 +28,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{6d6dd019-5dd2-4b7c-8817-9a47dd3e52c7}</ProjectGuid>
     <RootNamespace>TheHistoryChannelCivilWarGreatBattlesWidescreenFix</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
