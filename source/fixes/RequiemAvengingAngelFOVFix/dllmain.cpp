@@ -198,6 +198,8 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 0x6, [](SafetyHookContext& ctx)
 			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x938);
+
 				std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "00 57 8D 94 24 B0 03 00 00 8B CF C7 84 24 B0 03 00 00 ?? ?? ?? ?? C7 84 24 B4 03 00 00 00 00 00 00 C7 84 24 B8 03 00 00 00 00 00 00 C7 84 24 BC");
 				if (CameraHFOVScanResult)
 				{
@@ -220,15 +222,13 @@ void FOVFix()
 					return;
 				}
 
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x938);
-
-				if (fCurrentCameraFOV < 120.0f)
+				if (fCurrentCameraFOV < 120.0f) // Hell levels
 				{
 					Memory::Write(CameraHFOVScanResult + 0x12, fOldAspectRatio / fNewAspectRatio);
 
 					Memory::Write(CameraVFOVScanResult + 0x7, 1.0f);
 				}
-				else if (fCurrentCameraFOV == 120.0f)
+				else if (fCurrentCameraFOV == 120.0f) // City/Earth levels
 				{
 					Memory::Write(CameraHFOVScanResult + 0x12, fOldAspectRatio / fNewAspectRatio);
 
