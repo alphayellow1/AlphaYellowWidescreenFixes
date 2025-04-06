@@ -228,6 +228,7 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 		
+		/*
 		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "8B 3D 68 10 49 00 8B 74 24 10 8B 0D 00 E2 49 00");
 		if (ResolutionWidthInstructionScanResult)
 		{
@@ -236,9 +237,9 @@ void WidescreenFix()
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
 			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
-				{
+			{
 					*reinterpret_cast<uint32_t*>(0x00491068) = iCurrentResX;
-				});
+			});
 		}
 		else
 		{
@@ -254,15 +255,16 @@ void WidescreenFix()
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
 			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
-				{
+			{
 					*reinterpret_cast<uint32_t*>(0x0049106C) = iCurrentResY;
-				});
+			});
 		}
 		else
 		{
 			spdlog::error("Failed to locate resolution height instruction memory address.");
 			return;
 		}
+		*/
 
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 18 59 48 00 D8 8E 6C 02 00 00 D9 9E 1C 01 00 00 D9 96 30 01 00 00");
 		if (AspectRatioInstructionScanResult)
