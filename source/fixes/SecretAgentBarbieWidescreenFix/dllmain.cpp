@@ -50,10 +50,6 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-uint8_t newWidthSmall;
-uint8_t newWidthBig;
-uint8_t newHeightSmall;
-uint8_t newHeightBig;
 float fNewAspectRatio;
 float fFOVFactor;
 float fModifiedFOVValue;
@@ -280,24 +276,6 @@ void WidescreenFix()
 			spdlog::error("Failed to locate resolutions instruction memory address.");
 			return;
 		}
-
-		/*
-		newWidthSmall = iCurrentResX % 256;
-
-		newWidthBig = (iCurrentResX - newWidthSmall) / 256;
-
-		newHeightSmall = iCurrentResY % 256;
-
-		newHeightBig = (iCurrentResY - newHeightSmall) / 256;
-
-		Memory::Write(NewCodecaveScanResult + 3, newWidthSmall);
-
-		Memory::Write(NewCodecaveScanResult + 4, newWidthBig);
-
-		Memory::Write(NewCodecaveScanResult + 14, newHeightSmall);
-
-		Memory::Write(NewCodecaveScanResult + 15, newHeightBig);
-		*/
 	}
 }
 
