@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -22,11 +21,11 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "RockosQuestFOVFix";
+std::string sFixName = "BarbieDiariesHighSchoolMysteryFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -41,9 +40,8 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
+constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraHFOV = 0.5f;
-constexpr float fOriginalCameraVFOV = 2.0f;
 
 // Ini variables
 bool bFixActive;
@@ -52,16 +50,26 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
-bool bInitializationFailed = false;
+float fFOVFactor;
 
 // Game detection
 enum class Game
 {
-	RQ,
+	BDHSM,
 	Unknown
 };
+
+// Function to convert degrees to radians
+float DegToRad(float degrees)
+{
+	return degrees * (fPi / 180.0f);
+}
+
+// Function to convert radians to degrees
+float RadToDeg(float radians)
+{
+	return radians * (180.0f / fPi);
+}
 
 struct GameInfo
 {
@@ -70,7 +78,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::RQ, {"Rocko's Quest", "Rocko.exe"}},
+	{Game::BDHSM, {"Barbie Diaries: High School Mystery", "game.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -86,7 +94,7 @@ void Logging()
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
+	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
@@ -94,11 +102,10 @@ void Logging()
 	// Spdlog initialization
 	try
 	{
-		// Existing spdlog setup...
 		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
 		spdlog::set_default_logger(logger);
 		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug);
+		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
 
 		spdlog::info("----------");
 		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
@@ -107,7 +114,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -117,7 +124,7 @@ void Logging()
 		FILE* dummy;
 		freopen_s(&dummy, "CONOUT$", "w", stdout);
 		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		bInitializationFailed = true;
+		FreeLibraryAndExitThread(thisModule, 1);
 	}
 }
 
@@ -130,10 +137,11 @@ void Configuration()
 		AllocConsole();
 		FILE* dummy;
 		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName << " v" << sFixVersion << " loaded.\n";
-		std::cout << "ERROR: Could not locate config file: " << sFixPath.string() + "\\" + sConfigFile << "\n";
-		bInitializationFailed = true;
-		return;
+		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
+		std::cout << "ERROR: Could not locate config file." << std::endl;
+		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
+		spdlog::shutdown();
+		FreeLibraryAndExitThread(thisModule, 1);
 	}
 	else
 	{
@@ -152,8 +160,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -188,63 +198,80 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
+float CalculateNewFOV(float fCurrentFOV)
 {
-	fNewCameraHFOV = fOriginalCameraHFOV / (fNewAspectRatio / fOldAspectRatio);
-
-	_asm
-	{
-		fmul dword ptr ds : [fNewCameraHFOV]
-	}
-}
-
-static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewCameraVFOV = fOriginalCameraVFOV / (fNewAspectRatio / fOldAspectRatio);
-
-	_asm
-	{
-		fdivr dword ptr ds : [fNewCameraVFOV]
-	}
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::RQ && bFixActive == true)
+	if (eGameType == Game::BDHSM && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 54 24 10");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 86 2C 01 00 00 51 D9 5C 24 28 D9 44 24 28");
+		if (CameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			static SafetyHookMid CameraFOVInstruction1MidHook{};
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, CameraHFOVInstructionMidHook);
+			static std::vector<float> vComputedFOVs1;
+
+			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x12C);
+
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedFOVs1.begin(), vComputedFOVs1.end(), fCurrentCameraFOV1) != vComputedFOVs1.end())
+				{
+					// Value already processed, then skips the calculations
+					return;
+				}
+
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fCurrentCameraFOV1 = fFOVFactor * CalculateNewFOV(fCurrentCameraFOV1);
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedFOVs1.push_back(fCurrentCameraFOV1);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "DA 4C 24 04 D9 15 ?? ?? ?? ?? DC C0 D8 35 ?? ?? ?? ?? D8 3D ?? ?? ?? ?? D9 05 ?? ?? ?? ??");
-		if (CameraVFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 D9 91 50 02 00 00 D9 91 B4 00 00 00 D9 99 30 01 00 00");
+		if (CameraFOVInstruction2ScanResult)
 		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraVFOVInstructionScanResult + 18, "\x90\x90\x90\x90\x90\x90", 6);
+			static SafetyHookMid CameraFOVInstruction2MidHook{};
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 24, CameraVFOVInstructionMidHook);
+			static std::vector<float> vComputedFOVs2;
+
+			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esp + 0x4);
+
+				// Checks if this FOV has already been computed
+				if (std::find(vComputedFOVs2.begin(), vComputedFOVs2.end(), fCurrentCameraFOV2) != vComputedFOVs2.end())
+				{
+					// Value already processed, then skips the calculations
+					return;
+				}
+
+				// Computes the new FOV value if the current FOV is different from the last modified FOV
+				fCurrentCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedFOVs2.push_back(fCurrentCameraFOV2);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
 			return;
 		}
 	}
@@ -253,17 +280,7 @@ void FOVFix()
 DWORD __stdcall Main(void*)
 {
 	Logging();
-	if (bInitializationFailed)
-	{
-		return FALSE;
-	}
-
 	Configuration();
-	if (bInitializationFailed)
-	{
-		return FALSE;
-	}
-
 	if (DetectGame())
 	{
 		FOVFix();
@@ -276,26 +293,19 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
+	{
 		thisModule = hModule;
+		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
+		if (mainHandle)
 		{
-			HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-			if (mainHandle)
-			{
-				SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-				CloseHandle(mainHandle);
-			}
-			break;
-		}
-	case DLL_PROCESS_DETACH:
-		if (!bInitializationFailed)
-		{
-			spdlog::info("DLL has been successfully unloaded.");
-			spdlog::shutdown();
-			// Hooks go out of scope and clean up automatically
+			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
+			CloseHandle(mainHandle);
 		}
 		break;
+	}
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
+	case DLL_PROCESS_DETACH:
 		break;
 	}
 	return TRUE;

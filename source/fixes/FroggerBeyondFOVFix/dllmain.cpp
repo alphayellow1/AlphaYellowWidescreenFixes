@@ -195,9 +195,9 @@ void FOVFix()
 		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "C7 45 DC 33 33 33 3F 83 7D 08");
 		if (CameraHFOVScanResult)
 		{
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 3 - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraHFOVScanResult + 0x3, fNewCameraHFOVAndVFOV);
+			Memory::Write(CameraHFOVScanResult + 3, fNewCameraHFOVAndVFOV);
 		}
 		else
 		{
@@ -208,9 +208,9 @@ void FOVFix()
 		std::uint8_t* CameraVFOVScanResult = Memory::PatternScan(exeModule, "F8 3A 40 00 00 00 00 00 33 33 33 3F 00 00 87 43 00 00 00 00");
 		if (CameraVFOVScanResult)
 		{
-			spdlog::info("Camera VFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVScanResult + 0x8 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera VFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVScanResult + 8 - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraVFOVScanResult + 0x8, fNewCameraHFOVAndVFOV);
+			Memory::Write(CameraVFOVScanResult + 8, fNewCameraHFOVAndVFOV);
 		}
 		else
 		{
