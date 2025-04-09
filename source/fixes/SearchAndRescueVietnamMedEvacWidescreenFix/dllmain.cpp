@@ -17,9 +17,8 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include <algorithm>
-#include <cmath>
-#include <bit>
+#include <locale>
+#include <string>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -27,8 +26,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "CurseTheEyeOfIsisFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixName = "SearchAndRescueVietnamMedEvacWidescreenFix";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,26 +40,37 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Ini variables
-bool bFixActive;
-
 // Constants
+constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float tolerance = 0.0001f;
+
+// Ini variables
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fNewCameraFOV;
+float fNewAspectRatio;
 float fFOVFactor;
-static float fCurrentCameraHFOV;
-float fCurrentCameraVFOV;
+
+// Function to convert degrees to radians
+float DegToRad(float degrees)
+{
+	return degrees * (fPi / 180.0f);
+}
+
+// Function to convert radians to degrees
+float RadToDeg(float radians)
+{
+	return radians * (180.0f / fPi);
+}
 
 // Game detection
 enum class Game
 {
-	CTEOI,
+	SARVME,
 	Unknown
 };
 
@@ -71,7 +81,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::CTEOI, {"Curse: The Eye of Isis", "Curse.exe"}},
+	{Game::SARVME, {"Search & Rescue: Vietnam MedEvac", "Vr.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -147,7 +157,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -191,17 +201,103 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+// Function that writes an integer as a series of char8_t digits
+void WriteIntAsChar8Digits(std::uint8_t* baseAddress, int value)
 {
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
+	std::string strValue = std::to_string(value);
+
+	for (char ch : strValue)
+	{
+		char8_t char8Value = static_cast<char8_t>(ch);
+
+		Memory::Write(baseAddress, char8Value);
+
+		baseAddress += sizeof(char8_t);
+	}
 }
 
-void FOVFix()
+// Function that returns the amount of digits of a given number
+int digitCount(int number)
 {
-	if (eGameType == Game::CTEOI && bFixActive == true)
+	int count = 0;
+
+	do
+	{
+		number /= 10;
+		++count;
+	} while (number != 0);
+
+	return count;
+}
+
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (fCurrentFOV * (fNewAspectRatio / fOldAspectRatio));
+}
+
+void WidescreenFix()
+{
+	if (eGameType == Game::SARVME && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		// If both width and height values have 4 digits, then write the resolution values in place of the 1600x1200 one
+		if (digitCount(iCurrentResX) == 4 && digitCount(iCurrentResY) == 4)
+		{
+			std::uint8_t* Resolution1600x1200ScanResult = Memory::PatternScan(exeModule, "31 36 30 30 20 78 20 31 32 30 30 20 78 20 33 32");
+			if (Resolution1600x1200ScanResult)
+			{
+				spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
+
+				WriteIntAsChar8Digits(Resolution1600x1200ScanResult, iCurrentResX);
+
+				WriteIntAsChar8Digits(Resolution1600x1200ScanResult + 7, iCurrentResY);
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution 1600x1200 scan memory address.");
+				return;
+			}
+		}
+
+		// If width has 4 digits and height has 3 digits, then write the resolution values in place of the 1280x960 one
+		if (digitCount(iCurrentResX) == 4 && digitCount(iCurrentResY) == 3)
+		{
+			std::uint8_t* Resolution1280x960ScanResult = Memory::PatternScan(exeModule, "31 32 38 30 20 78 20 39 36 30 20 78 20 33 32");
+			if (Resolution1280x960ScanResult)
+			{
+				spdlog::info("Resolution 1280x960 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1280x960ScanResult - (std::uint8_t*)exeModule);
+
+				WriteIntAsChar8Digits(Resolution1280x960ScanResult, iCurrentResX);
+
+				WriteIntAsChar8Digits(Resolution1280x960ScanResult + 7, iCurrentResY);
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution 1280x960 scan memory address.");
+				return;
+			}
+		}
+
+		// If both width and height values have 3 digits, then write the resolution values in place of the 800x600 one
+		if (digitCount(iCurrentResX) == 3 && digitCount(iCurrentResY) == 3)
+		{
+			std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(exeModule, "38 30 30 20 78 20 36 30 30 20 78 20 33 32");
+			if (Resolution800x600ScanResult)
+			{
+				spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult - (std::uint8_t*)exeModule);
+				
+				WriteIntAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
+
+				WriteIntAsChar8Digits(Resolution800x600ScanResult + 6, iCurrentResY);
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution 800x600 scan memory address.");
+				return;
+			}
+		}
+		
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -212,29 +308,29 @@ void FOVFix()
 			static std::vector<float> vComputedHFOVs;
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Convert the ECX register value to float
-				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
-
-				// Skip processing if a similar HFOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraHFOV) < tolerance;
-				});
-				if (alreadyComputed)
 				{
-					return;
-				}
+					// Convert the ECX register value to float
+					float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				// Compute the new HFOV value
-				fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+					// Skip processing if a similar HFOV (within tolerance) has already been computed
+					bool alreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+						[&](float computedValue) {
+							return std::fabs(computedValue - fCurrentCameraHFOV) < tolerance;
+						});
+					if (alreadyComputed)
+					{
+						return;
+					}
 
-				// Record the computed HFOV for future calls
-				vComputedHFOVs.push_back(fCurrentCameraHFOV);
+					// Compute the new HFOV value
+					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
 
-				// Update the ECX register with the new HFOV value
-				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-			});
+					// Record the computed HFOV for future calls
+					vComputedHFOVs.push_back(fCurrentCameraHFOV);
+
+					// Update the ECX register with the new HFOV value
+					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
+				});
 		}
 		else
 		{
@@ -252,30 +348,30 @@ void FOVFix()
 			static std::vector<float> vComputedVFOVs;
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Convert the ECX register value to float
-				fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
-
-				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraVFOV) < tolerance;
-				});
-
-				if (alreadyComputed)
 				{
-					return;
-				}
+					// Store the value inside the EDX register into a float variable
+					float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
 
-				// Compute the new VFOV value
-				fCurrentCameraVFOV = fCurrentCameraHFOV / fNewAspectRatio;
+					// Skip processing if a similar VFOV (within tolerance) has already been computed
+					bool alreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+						[&](float computedValue) {
+							return std::fabs(computedValue - fCurrentCameraVFOV) < tolerance;
+						});
 
-				// Record the computed VFOV for future calls
-				vComputedVFOVs.push_back(fCurrentCameraVFOV);
+					if (alreadyComputed)
+					{
+						return;
+					}
 
-				// Update the ECX register with the new VFOV value
-				ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
-			});
+					// Compute the new VFOV value
+					fCurrentCameraVFOV = fFOVFactor * (fCurrentCameraVFOV * (fNewAspectRatio / fOldAspectRatio));
+
+					// Record the computed VFOV for future calls
+					vComputedVFOVs.push_back(fCurrentCameraVFOV);
+
+					// Update the EDX register with the new VFOV value
+					ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
+				});
 		}
 		else
 		{
@@ -291,7 +387,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }
