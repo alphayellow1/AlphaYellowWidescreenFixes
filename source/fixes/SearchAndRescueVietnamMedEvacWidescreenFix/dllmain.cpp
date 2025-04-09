@@ -309,7 +309,7 @@ void WidescreenFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
-					// Convert the ECX register value to float
+					// Store the value inside the ECX register into a float variable
 					float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
 					// Skip processing if a similar HFOV (within tolerance) has already been computed
@@ -364,7 +364,7 @@ void WidescreenFix()
 					}
 
 					// Compute the new VFOV value
-					fCurrentCameraVFOV = fFOVFactor * (fCurrentCameraVFOV * (fNewAspectRatio / fOldAspectRatio));
+					fCurrentCameraVFOV = CalculateNewFOV(fCurrentCameraVFOV);
 
 					// Record the computed VFOV for future calls
 					vComputedVFOVs.push_back(fCurrentCameraVFOV);
