@@ -26,8 +26,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "SearchAndRescueVietnamMedEvacWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "AH64ApacheAirAssaultWidescreenFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -56,7 +56,7 @@ float fFOVFactor;
 // Game detection
 enum class Game
 {
-	SARVME,
+	AH64AAA,
 	Unknown
 };
 
@@ -67,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SARVME, {"Search & Rescue: Vietnam MedEvac", "Vr.exe"}},
+	{Game::AH64AAA, {"AH-64 Apache Air Assault", "Apache.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -223,7 +223,7 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void WidescreenFix()
 {
-	if (eGameType == Game::SARVME && bFixActive == true)
+	if (eGameType == Game::AH64AAA && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
