@@ -243,9 +243,9 @@ void FOVFix()
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "3F 75 08 C7 44 24 48 ?? ?? ?? ?? D9 44 24 54 8B");
 		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 7 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScanResult + 0x7, fNewAspectRatio);
+			Memory::Write(AspectRatioScanResult + 7, fNewAspectRatio);
 		}
 		else
 		{
@@ -260,7 +260,7 @@ void FOVFix()
 
 			Memory::PatchBytes(RenderingSidesInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			RenderingSidesInstructionHook = safetyhook::create_mid(RenderingSidesInstructionScanResult + 0x6, RenderingSidesInstructionMidHook);
+			RenderingSidesInstructionHook = safetyhook::create_mid(RenderingSidesInstructionScanResult + 6, RenderingSidesInstructionMidHook);
 		}
 		else
 		{
