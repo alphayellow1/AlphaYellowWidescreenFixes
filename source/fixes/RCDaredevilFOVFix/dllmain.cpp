@@ -7,28 +7,26 @@
 #include <inipp/inipp.h>
 #include <safetyhook.hpp>
 #include <vector>
-#include <algorithm>
 #include <map>
 #include <windows.h>
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <cmath>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "HugoBukkazoomWidescreenFix";
-std::string sFixVersion = "1.2";
+std::string sFixName = "RCDaredevilFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,6 +42,8 @@ std::string sExeName;
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalCameraFOV = 75.0f;
+constexpr float fTolerance = 0.001f;
 
 // Ini variables
 bool bFixActive;
@@ -52,9 +52,9 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fNewCameraHFOV;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
+float fNewAspectRatio2;
+float fFOVFactor;
+float fNewCameraFOV;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -71,8 +71,7 @@ float RadToDeg(float radians)
 // Game detection
 enum class Game
 {
-	CONFIG,
-	HB,
+	RCD,
 	Unknown
 };
 
@@ -83,8 +82,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::CONFIG, {"Hugo: Bukkazoom! - Configuration", "Config.exe"}},
-	{Game::HB, {"Hugo: Bukkazoom!", "Runtime.exe"}},
+	{Game::RCD, {"RC Daredevil", "RC Daredevil.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -160,14 +158,16 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -196,10 +196,12 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
+		else
+		{
+			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+			return false;
+		}
 	}
-
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
@@ -207,102 +209,145 @@ float CalculateNewFOV(float fCurrentFOV)
 	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 }
 
-static SafetyHookMid GameplayCameraHFOVInstructionHook{};
+static SafetyHookMid AspectRatioInstructionHook{};
 
-void GameplayCameraHFOVInstructionMidHook(SafetyHookContext& ctx)
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = 1.125f * fNewAspectRatio - 0.75f;
-
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraHFOV]
+		fmul dword ptr ds : [fNewAspectRatio2]
 	}
 }
 
-void WidescreenFix()
+void FOVFix()
 {
-	if (bFixActive == true)
+	if (eGameType == Game::RCD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		if (eGameType == Game::CONFIG)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 4C 24 08 51 DC 0D ?? ?? ?? ?? DC 0D ?? ?? ?? ??");
+		if (AspectRatioInstructionScanResult)
 		{
-			std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "89 10 89 70 04 5F 5E C3 90 90 90 90");
-			if (ResolutionInstructionsScanResult)
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			if (std::fabs(fNewAspectRatio - (5.0f / 4.0f)) < fTolerance)
 			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
-
-				static SafetyHookMid ResolutionHeightInstructionMidHook{};
-
-				ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 2, [](SafetyHookContext& ctx)
-				{
-					ctx.esi = std::bit_cast<uint32_t>(iCurrentResY);
-				});
-
-				static SafetyHookMid ResolutionWidthInstructionMidHook{};
-
-				ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
-				{
-					ctx.edx = std::bit_cast<uint32_t>(iCurrentResX);
-				});
+				fNewAspectRatio2 = 1.05f;
+				spdlog::info("Aspect ratio is 5:4.");
+			}
+			else if (std::fabs(fNewAspectRatio - (4.0f / 3.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 1.0f;
+				spdlog::info("Aspect ratio is 4:3.");
+			}
+			else if (std::fabs(fNewAspectRatio - (3.0f / 2.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.9190000892f;
+				spdlog::info("Aspect ratio is 3:2.");
+			}
+			else if (std::fabs(fNewAspectRatio - (16.0f / 10.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.8793799281f;
+				spdlog::info("Aspect ratio is 16:10.");
+			}
+			else if (std::fabs(fNewAspectRatio - (15.0f / 9.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.8560000658f;
+				spdlog::info("Aspect ratio is 15:9.");
+			}
+			else if (std::fabs(fNewAspectRatio - (16.0f / 9.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.8212999701f;
+				spdlog::info("Aspect ratio is 16:9.");
+			}
+			else if (std::fabs(fNewAspectRatio - (1.85f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.8026000261f;
+				spdlog::info("Aspect ratio is 1.85:1.");
+			}
+			else if (std::fabs(fNewAspectRatio - (2560.0f / 1080.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.6975000501f;
+				spdlog::info("Aspect ratio is 64:27 (2560x1080).");
+			}
+			else if ((std::fabs(fNewAspectRatio - (3440.0f / 1440.0f)) < fTolerance) ||
+				(std::fabs(fNewAspectRatio - 2.39f) < fTolerance))
+			{
+				fNewAspectRatio2 = 0.6948000789f;
+				spdlog::info("Aspect ratio is 21:9 (3440x1440) or 2.39:1.");
+			}
+			else if (std::fabs(fNewAspectRatio - (3840.0f / 1600.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.6939001083f;
+				spdlog::info("Aspect ratio is 21:9 (3840x1600).");
+			}
+			else if (std::fabs(fNewAspectRatio - (2.76f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.6500000358f;
+				spdlog::info("Aspect ratio is 2.76:1.");
+			}
+			else if (std::fabs(fNewAspectRatio - (32.0f / 10.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.6100006104f;
+				spdlog::info("Aspect ratio is 32:10.");
+			}
+			else if (std::fabs(fNewAspectRatio - (32.0f / 9.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.5863001347f;
+				spdlog::info("Aspect ratio is 32:9.");
+			}
+			else if (std::fabs(fNewAspectRatio - (15.0f / 4.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.5750004053f;
+				spdlog::info("Aspect ratio is 15:4.");
+			}
+			else if (std::fabs(fNewAspectRatio - (12.0f / 3.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.5638000965f;
+				spdlog::info("Aspect ratio is 12:3.");
+			}
+			else if (std::fabs(fNewAspectRatio - (48.0f / 10.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.5348800421f;
+				spdlog::info("Aspect ratio is 48:10.");
+			}
+			else if (std::fabs(fNewAspectRatio - (45.0f / 9.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.5292950273f;
+				spdlog::info("Aspect ratio is 45:9.");
+			}
+			else if (std::fabs(fNewAspectRatio - (48.0f / 9.0f)) < fTolerance)
+			{
+				fNewAspectRatio2 = 0.5212549567f;
+				spdlog::info("Aspect ratio is 48:9.");
 			}
 			else
 			{
-				spdlog::error("Failed to locate resolution instructions scan memory address.");
+				spdlog::warn("Aspect ratio not supported, exiting the fix.");
 				return;
 			}
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 4, AspectRatioInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
 		}
 
-		if (eGameType == Game::HB)
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "C7 44 24 1C 00 00 96 42 75 08 8B 06 55 8B CE FF 50 18");
+		if (CameraFOVScanResult)
 		{
-			std::uint8_t* GameplayCameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 05 ?? ?? ?? ?? D9 54 24 28 D9 E0 D9 5C 24 2C");
-			if (GameplayCameraHFOVInstructionScanResult)
-			{
-				spdlog::info("Gameplay Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(GameplayCameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			fNewCameraFOV = CalculateNewFOV(fOriginalCameraFOV) * fFOVFactor;
 
-				GameplayCameraHFOVInstructionHook = safetyhook::create_mid(GameplayCameraHFOVInstructionScanResult + 6, GameplayCameraHFOVInstructionMidHook);
-			}
-			else
-			{
-				spdlog::error("Failed to locate gameplay camera HFOV instruction memory address.");
-				return;
-			}
-
-			std::uint8_t* MainMenuAspectRatioandFOV1ScanResult = Memory::PatternScan(exeModule, "68 CD CC CC 3D 68 AB AA AA 3F 68 00 00 80 BF 68 00 00 34 42 8B CD");
-			if (MainMenuAspectRatioandFOV1ScanResult)
-			{
-				spdlog::info("Main Menu Aspect Ratio and FOV 1: Address is {:s}+{:x}", sExeName.c_str(), MainMenuAspectRatioandFOV1ScanResult - (std::uint8_t*)exeModule);
-
-				Memory::Write(MainMenuAspectRatioandFOV1ScanResult + 6, fNewAspectRatio);
-
-				fNewCameraFOV1 = CalculateNewFOV(45.0f);
-
-				Memory::Write(MainMenuAspectRatioandFOV1ScanResult + 16, fNewCameraFOV1);
-			}
-			else
-			{
-				spdlog::error("Failed to locate main menu aspect ratio and FOV 1 memory address.");
-				return;
-			}
-
-			std::uint8_t* MainMenuAspectRatioandFOV2ScanResult = Memory::PatternScan(exeModule, "7A 44 68 CD CC CC 3D 68 AB AA AA 3F 68 00 00 80 BF 8D B7 74 01 00 00 68 00 00 96 42 8B CE FF 15");
-			if (MainMenuAspectRatioandFOV2ScanResult)
-			{
-				spdlog::info("Main Menu Aspect Ratio and FOV 2: Address is {:s}+{:x}", sExeName.c_str(), MainMenuAspectRatioandFOV2ScanResult - (std::uint8_t*)exeModule);
-
-				Memory::Write(MainMenuAspectRatioandFOV2ScanResult + 8, fNewAspectRatio);
-
-				fNewCameraFOV2 = CalculateNewFOV(75.0f);
-
-				Memory::Write(MainMenuAspectRatioandFOV2ScanResult + 24, fNewCameraFOV2);
-			}
-			else
-			{
-				spdlog::error("Failed to locate main menu aspect ratio and FOV 2 memory address.");
-				return;
-			}
+			Memory::Write(CameraFOVScanResult + 4, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV scan memory address.");
+			return;
 		}
 	}
 }
@@ -313,7 +358,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }

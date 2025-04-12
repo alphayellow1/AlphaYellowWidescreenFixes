@@ -433,6 +433,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SearchAndRescueCoastalHeroe
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AH64ApacheAirAssaultWidescreenFix", "AH64ApacheAirAssaultWidescreenFix.vcxproj", "{A0F95DF0-11E1-4E61-B21E-D19051A068CC}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RCDaredevilFOVFix", "RCDaredevilFOVFix.vcxproj", "{66143CCC-D092-4C0D-9254-430EF78C026E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2161,6 +2163,14 @@ Global
 		{A0F95DF0-11E1-4E61-B21E-D19051A068CC}.Release|x64.Build.0 = Release|x64
 		{A0F95DF0-11E1-4E61-B21E-D19051A068CC}.Release|x86.ActiveCfg = Release|Win32
 		{A0F95DF0-11E1-4E61-B21E-D19051A068CC}.Release|x86.Build.0 = Release|Win32
+		{66143CCC-D092-4C0D-9254-430EF78C026E}.Debug|x64.ActiveCfg = Debug|x64
+		{66143CCC-D092-4C0D-9254-430EF78C026E}.Debug|x64.Build.0 = Debug|x64
+		{66143CCC-D092-4C0D-9254-430EF78C026E}.Debug|x86.ActiveCfg = Debug|Win32
+		{66143CCC-D092-4C0D-9254-430EF78C026E}.Debug|x86.Build.0 = Debug|Win32
+		{66143CCC-D092-4C0D-9254-430EF78C026E}.Release|x64.ActiveCfg = Release|x64
+		{66143CCC-D092-4C0D-9254-430EF78C026E}.Release|x64.Build.0 = Release|x64
+		{66143CCC-D092-4C0D-9254-430EF78C026E}.Release|x86.ActiveCfg = Release|Win32
+		{66143CCC-D092-4C0D-9254-430EF78C026E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
