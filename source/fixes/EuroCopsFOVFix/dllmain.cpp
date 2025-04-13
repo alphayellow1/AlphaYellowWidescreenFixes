@@ -26,7 +26,7 @@ HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "CarnivoresCityscapeFOVFix";
+std::string sFixName = "EuroCopsFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -50,14 +50,13 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fNewAspectRatio2;
 float fFOVFactor;
 float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	CC,
+	EC,
 	Unknown
 };
 
@@ -68,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::CC, {"Carnivores: Cityscape", "Main.exe"}},
+	{Game::EC, {"EuroCops", "EuroCops.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -201,11 +200,11 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (eGameType == Game::CC && bFixActive == true)
+	if (eGameType == Game::EC && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(dllModule2, "B9 00 00 80 3F 89 8E 40 01 00 00 C7 46 50 00 3C 1C C6 89 8E A4 00 00 00");
+		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(dllModule2, "BA 00 00 80 3F BE E6 B1 61 7F 89 70 54 89 70 58 57 8D 58 68 89 13 8B F2");
 		if (CameraFOVScanResult)
 		{
 			spdlog::info("Camera FOV: Address is Engine.dll+{:x}", CameraFOVScanResult + 1 - (std::uint8_t*)dllModule2);

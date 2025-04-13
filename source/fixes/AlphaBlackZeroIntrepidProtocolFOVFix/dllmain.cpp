@@ -194,6 +194,8 @@ bool DetectGame()
 		Sleep(100);
 	}
 
+	spdlog::info("Successfully obtained handle for Engine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
 	return true;
 }
 
