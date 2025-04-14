@@ -447,6 +447,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheFarmWidescreenFix", "The
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DiggerSimulatorWidescreenFix", "DiggerSimulatorWidescreenFix.vcxproj", "{2A7D925A-6D5E-41EA-A1CD-E05AE8C6E399}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArchangelFOVChanger", "ArchangelFOVChanger.vcxproj", "{93940D88-1964-477F-8166-F553C20FDA60}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2231,6 +2233,14 @@ Global
 		{2A7D925A-6D5E-41EA-A1CD-E05AE8C6E399}.Release|x64.Build.0 = Release|x64
 		{2A7D925A-6D5E-41EA-A1CD-E05AE8C6E399}.Release|x86.ActiveCfg = Release|Win32
 		{2A7D925A-6D5E-41EA-A1CD-E05AE8C6E399}.Release|x86.Build.0 = Release|Win32
+		{93940D88-1964-477F-8166-F553C20FDA60}.Debug|x64.ActiveCfg = Debug|x64
+		{93940D88-1964-477F-8166-F553C20FDA60}.Debug|x64.Build.0 = Debug|x64
+		{93940D88-1964-477F-8166-F553C20FDA60}.Debug|x86.ActiveCfg = Debug|Win32
+		{93940D88-1964-477F-8166-F553C20FDA60}.Debug|x86.Build.0 = Debug|Win32
+		{93940D88-1964-477F-8166-F553C20FDA60}.Release|x64.ActiveCfg = Release|x64
+		{93940D88-1964-477F-8166-F553C20FDA60}.Release|x64.Build.0 = Release|x64
+		{93940D88-1964-477F-8166-F553C20FDA60}.Release|x86.ActiveCfg = Release|Win32
+		{93940D88-1964-477F-8166-F553C20FDA60}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
