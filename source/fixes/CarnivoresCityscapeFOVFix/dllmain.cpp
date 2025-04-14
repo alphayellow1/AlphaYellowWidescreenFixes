@@ -249,11 +249,11 @@ void FOVFix()
 				static SafetyHookMid CameraFOVInstructionMidHook{};
 
 				CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-					{
-						float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x10137164);
+				{
+					float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x10137164);
 
-						fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
-					});
+					fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
+				});
 			}
 			else
 			{
