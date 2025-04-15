@@ -451,6 +451,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArchangelFOVChanger", "Arch
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MichaelSchumacherWorldTourKart2004WidescreenFix", "MichaelSchumacherWorldTourKart2004WidescreenFix.vcxproj", "{11AC9FB3-8B72-4640-85DF-95FE0DF9BDAD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CoronelIndoorKartracingWidescreenFix", "CoronelIndoorKartracingWidescreenFix.vcxproj", "{225EEF4F-2FB3-4E94-BC64-E0963146EA65}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2251,6 +2253,14 @@ Global
 		{11AC9FB3-8B72-4640-85DF-95FE0DF9BDAD}.Release|x64.Build.0 = Release|x64
 		{11AC9FB3-8B72-4640-85DF-95FE0DF9BDAD}.Release|x86.ActiveCfg = Release|Win32
 		{11AC9FB3-8B72-4640-85DF-95FE0DF9BDAD}.Release|x86.Build.0 = Release|Win32
+		{225EEF4F-2FB3-4E94-BC64-E0963146EA65}.Debug|x64.ActiveCfg = Debug|x64
+		{225EEF4F-2FB3-4E94-BC64-E0963146EA65}.Debug|x64.Build.0 = Debug|x64
+		{225EEF4F-2FB3-4E94-BC64-E0963146EA65}.Debug|x86.ActiveCfg = Debug|Win32
+		{225EEF4F-2FB3-4E94-BC64-E0963146EA65}.Debug|x86.Build.0 = Debug|Win32
+		{225EEF4F-2FB3-4E94-BC64-E0963146EA65}.Release|x64.ActiveCfg = Release|x64
+		{225EEF4F-2FB3-4E94-BC64-E0963146EA65}.Release|x64.Build.0 = Release|x64
+		{225EEF4F-2FB3-4E94-BC64-E0963146EA65}.Release|x86.ActiveCfg = Release|Win32
+		{225EEF4F-2FB3-4E94-BC64-E0963146EA65}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
