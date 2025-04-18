@@ -155,6 +155,7 @@ void Configuration()
 	inipp::get_value(ini.sections["FOV"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(bFixFOV);
 	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
