@@ -230,27 +230,27 @@ void FOVFix()
 			static std::vector<float> vComputedFOVs;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					// Reference the current HFOV value from the memory address [ECX + 0x150]
-					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x150);
+			{
+				// Reference the current HFOV value from the memory address [ECX + 0x150]
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x150);
 
-					// Skip processing if a similar FOV (within tolerance) has already been computed
-					bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-						[&](float computedValue)
-						{
-							return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-						});
-
-					if (alreadyComputed)
+				// Skip processing if a similar FOV (within tolerance) has already been computed
+				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
+					[&](float computedValue)
 					{
-						return;
-					}
+						return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
+					});
 
-					fCurrentCameraFOV *= (1.0f / fFOVFactor);
+				if (alreadyComputed)
+				{
+					return;
+				}
 
-					// Record the computed HFOV for future calls
-					vComputedFOVs.push_back(fCurrentCameraFOV);
-				});
+				fCurrentCameraFOV *= (1.0f / fFOVFactor);
+
+				// Record the computed HFOV for future calls
+				vComputedFOVs.push_back(fCurrentCameraFOV);
+			});
 		}
 		else
 		{
