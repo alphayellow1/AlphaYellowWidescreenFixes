@@ -252,6 +252,7 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
+			// Hook is located in the AdjustCameraToViewport function
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.esp + 0xC) = fNewCameraFOV;

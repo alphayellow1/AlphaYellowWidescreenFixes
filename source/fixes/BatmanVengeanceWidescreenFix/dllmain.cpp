@@ -281,6 +281,7 @@ void WidescreenFix()
 
 			static std::vector<float> vComputedFOVs;
 
+			// Hook is located in the AdjustCameraToViewport function
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
