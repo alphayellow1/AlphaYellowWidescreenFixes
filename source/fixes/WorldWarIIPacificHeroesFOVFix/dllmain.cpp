@@ -24,8 +24,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "ProjectFreedomFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "WorldWarIIPacificHeroesFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -56,7 +56,7 @@ float fNewCameraHFOV;
 // Game detection
 enum class Game
 {
-	PF,
+	WWIIPH,
 	Unknown
 };
 
@@ -67,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::PF, {"Project Freedom", "projectfreedom.exe"}},
+	{Game::WWIIPH, {"World War II: Pacific Heroes", "pacific.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -201,7 +201,7 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 
 void FOVFix()
 {
-	if (eGameType == Game::PF && bFixActive == true)
+	if (eGameType == Game::WWIIPH && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -212,7 +212,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
 		}
 		else
 		{
@@ -220,7 +220,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 89 50 01 00 00 DE F9 D9 91 54 01 00 00 D9 05 48 83 66 00");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 89 30 01 00 00 DE F9 D9 91 34 01 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -230,30 +230,30 @@ void FOVFix()
 			static std::vector<float> vComputedFOVs;
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Reference the current HFOV value from the memory address [ECX + 0x150]
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x150);
+				{
+					// Reference the current HFOV value from the memory address [ECX + 0x130]
+					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x130);
 
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-					[&](float computedValue)
+					// Skip processing if a similar FOV (within tolerance) has already been computed
+					bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
+						[&](float computedValue)
+						{
+							return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
+						});
+
+					if (alreadyComputed)
 					{
-						return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-					});
+						return;
+					}
 
-				if (alreadyComputed)
-				{
-					return;
-				}
-				
-				if (fCurrentCameraFOV != 3.2f)
-				{
-					fCurrentCameraFOV *= (1.0f / fFOVFactor);
-				}
-
-				// Record the computed HFOV for future calls
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-			});
+					if (fCurrentCameraFOV != 3.2f)
+					{
+						fCurrentCameraFOV *= (1.0f / fFOVFactor);
+					}
+					
+					// Record the computed HFOV for future calls
+					vComputedFOVs.push_back(fCurrentCameraFOV);
+				});
 		}
 		else
 		{
