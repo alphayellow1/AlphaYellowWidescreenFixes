@@ -1,4 +1,4 @@
-// Include necessary headers
+﻿// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -12,22 +12,25 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <locale>
+#include <string>
+#include <mutex>
+#include <unordered_set>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "HarleyDavidsonRaceToTheRallyFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "AceLightningFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,7 +44,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -51,24 +53,12 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fFOVFactor;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fNewCameraHFOV;
 
 // Game detection
 enum class Game
 {
-	HDRTTR,
+	AL,
 	Unknown
 };
 
@@ -79,7 +69,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::HDRTTR, {"Harley-Davidson: Race to the Rally", "Harley7r.exe"}},
+	{Game::AL, {"Ace Lightning", "BBC - Ace Lightning.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -161,10 +151,8 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -191,108 +179,62 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			return true;
 		}
 	}
 
-	while (!dllModule2)
-	{
-		dllModule2 = GetModuleHandleA("EngineDll7r.dll");
-		spdlog::info("Waiting for EngineDll7r.dll to load...");
-		Sleep(1000);
-	}
-
-	spdlog::info("Successfully obtained handle for EngineDll7r.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+float CalculateNewHFOV(float fCurrentHFOV)
 {
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	return fCurrentHFOV * (fNewAspectRatio / fOldAspectRatio);
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::HDRTTR && bFixActive == true)
+	if (eGameType == Game::AL && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 D0 00 00 00 A1 ?? ?? ?? ?? 85 C0 D8 0D ?? ?? ?? ??");
-		if (CameraFOVInstructionScanResult)
+		
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0 D9 5E 70");
+		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is EngineDll7r.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			static float fLastModifiedFOV = 0.0f;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			static SafetyHookMid CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+					uint32_t raw = static_cast<uint32_t>(ctx.ecx);
+					bool isNaN = ((raw & 0x7F800000u) == 0x7F800000u)
+						&& ((raw & 0x007FFFFFu) != 0);
+					bool tagged = (raw & (1u << 22)) != 0;
 
-				if (fCurrentFOVValue == 50.0f || fCurrentFOVValue == 75.0f)
-				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-					fLastModifiedFOV = fCurrentFOVValue;
-					return;
-				}
-
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(50.0f) && fCurrentFOVValue != CalculateNewFOV(75.0f))
-				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
-
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
+					if (isNaN && tagged) {
+						// Skip if already watermarked
+						return;
 					}
-				}
+
+					// Compute new HFOV
+					float fCurr = std::bit_cast<float>(raw);
+					float fNew = CalculateNewHFOV(fCurr);
+
+					// Tag as NaN‑payload
+					uint32_t newBits = std::bit_cast<uint32_t>(fNew);
+
+					uint32_t qnanHead = 0x7FC00000u;
+
+					uint32_t watermarked =
+						qnanHead |
+						(newBits & 0x003FFFFFu) |
+						(1u << 22);
+
+					ctx.ecx = static_cast<uintptr_t>(watermarked);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
-		if (AspectRatioInstruction1ScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll7r.dll+{:x}", AspectRatioInstruction1ScanResult + 0x6 - (std::uint8_t*)dllModule2);
-
-			static SafetyHookMid AspectRatioInstruction1MidHook{};
-
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 0x6, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate first aspect ratio instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(dllModule2, "D8 B3 D8 00 00 00 D8 C9 D9 9B E0 00 00 00 DD D8");
-		if (AspectRatioInstruction2ScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is EngineDll7r.dll+{:x}", AspectRatioInstruction2ScanResult - (std::uint8_t*)dllModule2);
-
-			static SafetyHookMid AspectRatioInstruction2MidHook{};
-
-			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<float*>(ctx.ebx + 0xD8) = 1.0f;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate second aspect ratio instruction memory address.");
+			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
 			return;
 		}
 	}
