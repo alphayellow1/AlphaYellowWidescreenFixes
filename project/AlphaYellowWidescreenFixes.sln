@@ -473,6 +473,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WakeboardingUnleashedFeatur
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RiotPoliceFOVFix", "RiotPoliceFOVFix.vcxproj", "{FDEF79BC-59AE-42F5-83C0-EF5490FF2C3F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheHistoryChannelCrusadesQuestForPowerFOVFix", "TheHistoryChannelCrusadesQuestForPowerFOVFix.vcxproj", "{357EE97B-497E-4C37-81D5-BF91D374EEED}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheHistoryChannelAlamoFightForIndependenceFOVFix", "TheHistoryChannelAlamoFightForIndependenceFOVFix.vcxproj", "{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2361,6 +2365,22 @@ Global
 		{FDEF79BC-59AE-42F5-83C0-EF5490FF2C3F}.Release|x64.Build.0 = Release|x64
 		{FDEF79BC-59AE-42F5-83C0-EF5490FF2C3F}.Release|x86.ActiveCfg = Release|Win32
 		{FDEF79BC-59AE-42F5-83C0-EF5490FF2C3F}.Release|x86.Build.0 = Release|Win32
+		{357EE97B-497E-4C37-81D5-BF91D374EEED}.Debug|x64.ActiveCfg = Debug|x64
+		{357EE97B-497E-4C37-81D5-BF91D374EEED}.Debug|x64.Build.0 = Debug|x64
+		{357EE97B-497E-4C37-81D5-BF91D374EEED}.Debug|x86.ActiveCfg = Debug|Win32
+		{357EE97B-497E-4C37-81D5-BF91D374EEED}.Debug|x86.Build.0 = Debug|Win32
+		{357EE97B-497E-4C37-81D5-BF91D374EEED}.Release|x64.ActiveCfg = Release|x64
+		{357EE97B-497E-4C37-81D5-BF91D374EEED}.Release|x64.Build.0 = Release|x64
+		{357EE97B-497E-4C37-81D5-BF91D374EEED}.Release|x86.ActiveCfg = Release|Win32
+		{357EE97B-497E-4C37-81D5-BF91D374EEED}.Release|x86.Build.0 = Release|Win32
+		{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}.Debug|x64.ActiveCfg = Debug|x64
+		{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}.Debug|x64.Build.0 = Debug|x64
+		{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}.Debug|x86.ActiveCfg = Debug|Win32
+		{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}.Debug|x86.Build.0 = Debug|Win32
+		{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}.Release|x64.ActiveCfg = Release|x64
+		{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}.Release|x64.Build.0 = Release|x64
+		{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}.Release|x86.ActiveCfg = Release|Win32
+		{5F23BD4F-3FCB-44B9-BFBA-55C4A395F95A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
