@@ -483,6 +483,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EverestTheUltimateStrategyG
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BattleForTroyFOVFix", "BattleForTroyFOVFix.vcxproj", "{BB589403-F876-4808-857C-0A4755560D58}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PearlHarborZeroHourWidescreenFix", "PearlHarborZeroHourWidescreenFix.vcxproj", "{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2411,6 +2413,14 @@ Global
 		{BB589403-F876-4808-857C-0A4755560D58}.Release|x64.Build.0 = Release|x64
 		{BB589403-F876-4808-857C-0A4755560D58}.Release|x86.ActiveCfg = Release|Win32
 		{BB589403-F876-4808-857C-0A4755560D58}.Release|x86.Build.0 = Release|Win32
+		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Debug|x64.ActiveCfg = Debug|x64
+		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Debug|x64.Build.0 = Debug|x64
+		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Debug|x86.ActiveCfg = Debug|Win32
+		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Debug|x86.Build.0 = Debug|Win32
+		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Release|x64.ActiveCfg = Release|x64
+		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Release|x64.Build.0 = Release|x64
+		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Release|x86.ActiveCfg = Release|Win32
+		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
