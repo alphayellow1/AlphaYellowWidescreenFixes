@@ -485,6 +485,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BattleForTroyFOVFix", "Batt
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PearlHarborZeroHourWidescreenFix", "PearlHarborZeroHourWidescreenFix.vcxproj", "{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WildRidesWaterParkFactoryWidescreenFix", "WildRidesWaterParkFactoryWidescreenFix.vcxproj", "{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2421,6 +2423,14 @@ Global
 		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Release|x64.Build.0 = Release|x64
 		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Release|x86.ActiveCfg = Release|Win32
 		{FD7954E0-ECF9-4388-BAAA-F41FC08BAD3A}.Release|x86.Build.0 = Release|Win32
+		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Debug|x64.ActiveCfg = Debug|x64
+		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Debug|x64.Build.0 = Debug|x64
+		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Debug|x86.ActiveCfg = Debug|Win32
+		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Debug|x86.Build.0 = Debug|Win32
+		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Release|x64.ActiveCfg = Release|x64
+		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Release|x64.Build.0 = Release|x64
+		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Release|x86.ActiveCfg = Release|Win32
+		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
