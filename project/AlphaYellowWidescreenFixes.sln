@@ -487,6 +487,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PearlHarborZeroHourWidescre
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WildRidesWaterParkFactoryWidescreenFix", "WildRidesWaterParkFactoryWidescreenFix.vcxproj", "{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UltimateRideWidescreenFix", "UltimateRideWidescreenFix.vcxproj", "{140C6916-193A-4E73-8014-0283336E4C02}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UltimateRideCoasterDeluxeWidescreenFix", "UltimateRideCoasterDeluxeWidescreenFix.vcxproj", "{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2431,6 +2435,22 @@ Global
 		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Release|x64.Build.0 = Release|x64
 		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Release|x86.ActiveCfg = Release|Win32
 		{9396D214-A8AF-4ED7-83F5-03FBCF5758DB}.Release|x86.Build.0 = Release|Win32
+		{140C6916-193A-4E73-8014-0283336E4C02}.Debug|x64.ActiveCfg = Debug|x64
+		{140C6916-193A-4E73-8014-0283336E4C02}.Debug|x64.Build.0 = Debug|x64
+		{140C6916-193A-4E73-8014-0283336E4C02}.Debug|x86.ActiveCfg = Debug|Win32
+		{140C6916-193A-4E73-8014-0283336E4C02}.Debug|x86.Build.0 = Debug|Win32
+		{140C6916-193A-4E73-8014-0283336E4C02}.Release|x64.ActiveCfg = Release|x64
+		{140C6916-193A-4E73-8014-0283336E4C02}.Release|x64.Build.0 = Release|x64
+		{140C6916-193A-4E73-8014-0283336E4C02}.Release|x86.ActiveCfg = Release|Win32
+		{140C6916-193A-4E73-8014-0283336E4C02}.Release|x86.Build.0 = Release|Win32
+		{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}.Debug|x64.ActiveCfg = Debug|x64
+		{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}.Debug|x64.Build.0 = Debug|x64
+		{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}.Debug|x86.ActiveCfg = Debug|Win32
+		{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}.Debug|x86.Build.0 = Debug|Win32
+		{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}.Release|x64.ActiveCfg = Release|x64
+		{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}.Release|x64.Build.0 = Release|x64
+		{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}.Release|x86.ActiveCfg = Release|Win32
+		{DC9209FB-DBF3-46CD-B373-64B0AD3CE292}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
