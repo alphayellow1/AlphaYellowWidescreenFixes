@@ -1,4 +1,4 @@
-// Include necessary headers
+﻿// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -22,11 +22,9 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-HMODULE pluginModule = nullptr;
 
 // Fix details
-std::string sFixName = "DarkVampiresTheShadowsOfDustWidescreenFix";
+std::string sFixName = "LetsRide!SilverBuckleStablesWidescreenFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -40,37 +38,24 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.0001f;
+
 // Ini variables
 bool bFixActive;
-
-// Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 90.0f;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
+float fNewCameraHFOV;
 
 // Game detection
 enum class Game
 {
-	DVTSOD,
+	LRSBS,
 	Unknown
 };
 
@@ -81,7 +66,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::DVTSOD, {"Dark Vampires: The Shadows of Dust", "DarkVampires.exe"}},
+	{Game::LRSBS, {"Let's Ride! Silver Buckle Stables", "LetsRide.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -185,8 +170,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -195,94 +178,119 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	while ((pluginModule = GetModuleHandleA("NagaPlugin.vplugin")) == nullptr)
-	{
-		spdlog::warn("NagaPlugin.vplugin not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for NagaPlugin.vplugin: 0x{:X}", reinterpret_cast<uintptr_t>(pluginModule));
-
-	while ((dllModule2 = GetModuleHandleA("vision71.dll")) == nullptr)
-	{
-		spdlog::warn("vision71.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for vision71.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+static SafetyHookMid AspectRatioInstructionHook{};
+
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	_asm
+	{
+		fld dword ptr ds: [fNewAspectRatio]
+	}
 }
 
 void WidescreenFix()
 {
-	if (eGameType == Game::DVTSOD && bFixActive == true)
+	if (eGameType == Game::LRSBS && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(pluginModule, "68 58 02 00 00 C7 02 00 00 48 3F 8B 0D ?? ?? ?? ?? 68 20 03 00 00");
-		if (Resolution800x600ScanResult)
+		std::uint8_t* RendererResolutionScanResult = Memory::PatternScan(exeModule, "64 52 55 00 20 03 00 00 58 02 00 00");
+		if (RendererResolutionScanResult)
 		{
-			spdlog::info("Resolution 800x600 Scan: Address is NagaPlugin.vplugin+{:x}", Resolution800x600ScanResult - (std::uint8_t*)pluginModule);
+			spdlog::info("Renderer Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), RendererResolutionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution800x600ScanResult + 1, iCurrentResY);
+			Memory::Write(RendererResolutionScanResult + 4, iCurrentResX);
 
-			Memory::Write(Resolution800x600ScanResult + 18, iCurrentResX);
+			Memory::Write(RendererResolutionScanResult + 8, iCurrentResY);
 		}
 		else
 		{
-			spdlog::info("Cannot locate the resolution list scan memory address.");
+			spdlog::error("Failed to locate renderer resolution memory address.");
 			return;
 		}
 
-		std::uint8_t* Resolution1024x768ScanResult = Memory::PatternScan(pluginModule, "68 00 03 00 00 C7 01 00 00 80 3F 8B 0D ?? ?? ?? ?? 68 00 04 00 00");
-		if (Resolution1024x768ScanResult)
+		std::uint8_t* ViewportResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 50 0C 8B 40 10 89 54 24 54 89 44 24 58");
+		if (ViewportResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution 1024x768 Scan: Address is NagaPlugin.vplugin+{:x}", Resolution1024x768ScanResult - (std::uint8_t*)pluginModule);
+			spdlog::info("Viewport Resolution Instructions: Address is {:s}+{:x}", sExeName.c_str(), ViewportResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			
+			static SafetyHookMid ViewportResolutionInstructionsMidHook{};
 
-			Memory::Write(Resolution1024x768ScanResult + 1, iCurrentResY);
-
-			Memory::Write(Resolution1024x768ScanResult + 18, iCurrentResX);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution 1024x768 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 41 10 89 51 14 E8 ?? ?? ?? ?? C2 08 00 CC CC CC CC CC CC CC CC CC CC");
-		if (CameraFOVInstructionScanResult)
-		{
-			spdlog::info("Camera FOV Instruction: Address is vision71.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
-
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			ViewportResolutionInstructionsMidHook = safetyhook::create_mid(ViewportResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				int& iCurrentViewportResX = *reinterpret_cast<int*>(ctx.eax + 0xC);
 
-				fCurrentCameraFOV = CalculateNewFOV(fOriginalCameraFOV) * fFOVFactor;
+				int& iCurrentViewportResY = *reinterpret_cast<int*>(ctx.eax + 0x10);
+				
+				iCurrentViewportResX = iCurrentResX;
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
+				iCurrentViewportResY = iCurrentResY;
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			spdlog::error("Failed to locate viewport resolution instructions memory address.");
+			return;
+		}
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 4D 10 D8 75 14 D9 5D F8");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, AspectRatioInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 04 85 A0 80 6A 00 D9 5D FC");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			static std::vector<float> vComputedFOVs;
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Reference the current camera FOV value stored in the memory address [EAX + 4 + 0x006A80A0]
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax * 0x4 + 0x006A80A0);
+
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
+					[&](float computedValue) {
+						return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
+					});
+
+				if (alreadyComputed)
+				{
+					return;
+				}
+
+				// Compute the new FOV value
+				fCurrentCameraFOV *= fFOVFactor;
+
+				// Record the computed FOV for future calls
+				vComputedFOVs.push_back(fCurrentCameraFOV);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}

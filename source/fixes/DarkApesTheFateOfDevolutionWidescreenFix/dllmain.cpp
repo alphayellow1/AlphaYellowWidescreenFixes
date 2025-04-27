@@ -23,10 +23,9 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
-HMODULE pluginModule = nullptr;
 
 // Fix details
-std::string sFixName = "DarkVampiresTheShadowsOfDustWidescreenFix";
+std::string sFixName = "DarkApesTheFateOfDevolutionWidescreenFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -70,7 +69,7 @@ float fFOVFactor;
 // Game detection
 enum class Game
 {
-	DVTSOD,
+	DATFOD,
 	Unknown
 };
 
@@ -81,7 +80,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::DVTSOD, {"Dark Vampires: The Shadows of Dust", "DarkVampires.exe"}},
+	{Game::DATFOD, {"Dark Apes: The Fate of Devolution", "DarkApes.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -206,19 +205,12 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((pluginModule = GetModuleHandleA("NagaPlugin.vplugin")) == nullptr)
+	while ((dllModule2 = GetModuleHandleA("visionP71.dll")) == nullptr)
 	{
-		spdlog::warn("NagaPlugin.vplugin not loaded yet. Waiting...");
+		spdlog::warn("visionP71.dll not loaded yet. Waiting...");
 	}
 
-	spdlog::info("Successfully obtained handle for NagaPlugin.vplugin: 0x{:X}", reinterpret_cast<uintptr_t>(pluginModule));
-
-	while ((dllModule2 = GetModuleHandleA("vision71.dll")) == nullptr)
-	{
-		spdlog::warn("vision71.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for vision71.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	spdlog::info("Successfully obtained handle for visionP71.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
 }
@@ -230,18 +222,26 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void WidescreenFix()
 {
-	if (eGameType == Game::DVTSOD && bFixActive == true)
+	if (eGameType == Game::DATFOD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(pluginModule, "68 58 02 00 00 C7 02 00 00 48 3F 8B 0D ?? ?? ?? ?? 68 20 03 00 00");
-		if (Resolution800x600ScanResult)
+		std::uint8_t* ResolutionlistScanResult = Memory::PatternScan(exeModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 A0 48 40 00 44 61");
+		if (ResolutionlistScanResult)
 		{
-			spdlog::info("Resolution 800x600 Scan: Address is NagaPlugin.vplugin+{:x}", Resolution800x600ScanResult - (std::uint8_t*)pluginModule);
+			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionlistScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::Write(ResolutionlistScanResult, iCurrentResX);
+			
+			Memory::Write(ResolutionlistScanResult + 4, iCurrentResX);
 
-			Memory::Write(Resolution800x600ScanResult + 1, iCurrentResY);
+			Memory::Write(ResolutionlistScanResult + 8, iCurrentResX);
 
-			Memory::Write(Resolution800x600ScanResult + 18, iCurrentResX);
+			Memory::Write(ResolutionlistScanResult + 12, iCurrentResY);
+
+			Memory::Write(ResolutionlistScanResult + 16, iCurrentResY);
+
+			Memory::Write(ResolutionlistScanResult + 20, iCurrentResY);
 		}
 		else
 		{
@@ -249,35 +249,18 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* Resolution1024x768ScanResult = Memory::PatternScan(pluginModule, "68 00 03 00 00 C7 01 00 00 80 3F 8B 0D ?? ?? ?? ?? 68 00 04 00 00");
-		if (Resolution1024x768ScanResult)
-		{
-			spdlog::info("Resolution 1024x768 Scan: Address is NagaPlugin.vplugin+{:x}", Resolution1024x768ScanResult - (std::uint8_t*)pluginModule);
-
-			Memory::Write(Resolution1024x768ScanResult + 1, iCurrentResY);
-
-			Memory::Write(Resolution1024x768ScanResult + 18, iCurrentResX);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution 1024x768 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 41 10 89 51 14 E8 ?? ?? ?? ?? C2 08 00 CC CC CC CC CC CC CC CC CC CC");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 8E 90 00 00 00 50 51 B9 ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is vision71.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is visionP71.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x90);
 
 				fCurrentCameraFOV = CalculateNewFOV(fOriginalCameraFOV) * fFOVFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
 			});
 		}
 		else
