@@ -511,6 +511,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SinbadLegendOfTheSevenSeasW
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PetzSportsWidescreenFix", "PetzSportsWidescreenFix.vcxproj", "{8DDAE1E6-E14F-4312-94FD-F84C65DD553C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RedlineWidescreenFix", "RedlineWidescreenFix.vcxproj", "{38FCB840-C838-4534-A007-4F468E561ACA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2551,6 +2553,14 @@ Global
 		{8DDAE1E6-E14F-4312-94FD-F84C65DD553C}.Release|x64.Build.0 = Release|x64
 		{8DDAE1E6-E14F-4312-94FD-F84C65DD553C}.Release|x86.ActiveCfg = Release|Win32
 		{8DDAE1E6-E14F-4312-94FD-F84C65DD553C}.Release|x86.Build.0 = Release|Win32
+		{38FCB840-C838-4534-A007-4F468E561ACA}.Debug|x64.ActiveCfg = Debug|x64
+		{38FCB840-C838-4534-A007-4F468E561ACA}.Debug|x64.Build.0 = Debug|x64
+		{38FCB840-C838-4534-A007-4F468E561ACA}.Debug|x86.ActiveCfg = Debug|Win32
+		{38FCB840-C838-4534-A007-4F468E561ACA}.Debug|x86.Build.0 = Debug|Win32
+		{38FCB840-C838-4534-A007-4F468E561ACA}.Release|x64.ActiveCfg = Release|x64
+		{38FCB840-C838-4534-A007-4F468E561ACA}.Release|x64.Build.0 = Release|x64
+		{38FCB840-C838-4534-A007-4F468E561ACA}.Release|x86.ActiveCfg = Release|Win32
+		{38FCB840-C838-4534-A007-4F468E561ACA}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
