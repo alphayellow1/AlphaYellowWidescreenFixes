@@ -28,7 +28,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CurseTheEyeOfIsisFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -261,7 +261,7 @@ void FOVFix()
 					// Skip processing if a similar VFOV (within tolerance) has already been computed
 					bool alreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
 						[&](float computedValue) {
-							return std::fabs(computedValue - fCurrentCameraVFOV) < tolerance;
+							return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
 						});
 
 					if (alreadyComputed)
