@@ -1,9 +1,14 @@
-// Include necessary headers
+﻿// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
+#pragma warning(push)
+#pragma warning(disable:6385) 
+#pragma warning(disable:26498)
+#pragma warning(disable:26814)
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#pragma warning(pop)
 #include <inipp/inipp.h>
 #include <vector>
 #include <map>
@@ -18,18 +23,14 @@
 #include <cstdint>
 #include <iostream>
 #include <tlhelp32.h>
+#include <winternl.h>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
-HMODULE dllModule2;
-HMODULE thisModule;
-HANDLE monitoringThread = NULL;
-volatile BOOL stopMonitoring = FALSE;
-volatile BOOL isFgamex86Loaded = FALSE;
-CRITICAL_SECTION cs; // Critical section for synchronization
-HMODULE hModule;
+HMODULE thisModule = nullptr;
+HMODULE hModule = nullptr;
 
 // Fix details
 std::string sFixName = "AmericanMcGeesAliceFOVFix";
@@ -48,9 +49,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 90.0f;
 
 // Ini variables
@@ -64,9 +63,8 @@ float fNewCameraFOV;
 float fFOVFactor;
 
 // Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
+constexpr float DegToRad(float degrees) noexcept {
+    return degrees * (fPi / 180.0f);
 }
 
 // Function to convert radians to degrees
@@ -97,47 +95,56 @@ const std::map<Game, GameInfo> kGames = {
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
+// Typedefs for loader notification API
+using LdrRegisterDllNotification_t =
+NTSTATUS(NTAPI*)(ULONG, PVOID, PVOID, PVOID*);
+using LdrUnregisterDllNotification_t =
+NTSTATUS(NTAPI*)(PVOID);
+
+static PVOID g_dllNotifyCookie = nullptr;
+
 void Logging()
 {
-	// Get path to DLL
+	// Determine DLL folder and game‑exe folder (unchanged) …
 	WCHAR dllPath[_MAX_PATH] = { 0 };
 	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
+	sFixPath = dllPath; sFixPath = sFixPath.remove_filename();
 
-	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
 	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
 
-	// Spdlog initialization
-	try
+	// Create logger exactly once
+	static bool loggerInitialized = false;
+	if (!loggerInitialized)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
+		// If already exists in registry (shouldn’t on first call), drop it
+		if (spdlog::get(sFixName))
+			spdlog::drop(sFixName);
+
+		logger = spdlog::basic_logger_st(
+			sFixName,
+			sExePath.string() + "\\" + sLogFile,
+			/*truncate=*/ true                                                   // overwrite old log file
+		);
+
 		spdlog::set_default_logger(logger);
 		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
+		spdlog::set_level(spdlog::level::debug);
 
+		// Initial header
 		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
+		spdlog::info("{:s} v{:s} loaded.", sFixName, sFixVersion);
 		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
+		spdlog::info("Module Name: {0:s}", sExeName);
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", reinterpret_cast<uintptr_t>(exeModule));
 		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
+		spdlog::info("DLL has been successfully initialized.");
+
+		loggerInitialized = true;
 	}
 }
 
@@ -209,19 +216,31 @@ bool DetectGame()
 	return true;
 }
 
+void LogModuleEvent(bool loaded, std::uintptr_t gameplayOffset, std::uintptr_t cutsceneOffset)
+{
+	if (loaded)
+	{
+		spdlog::info("fgamex86.dll loaded.");
+		spdlog::info("Gameplay Camera FOV: Address is fgamex86.dll+{:x}", gameplayOffset);
+		spdlog::info("Cutscenes Camera FOV: Address is fgamex86.dll+{:x}", cutsceneOffset);
+	}
+	else
+	{
+		spdlog::info("fgamex86.dll unloaded.");
+	}
+}
+
 void FOVFix()
 {
-	if (eGameType == Game::AMA || eGameType == Game::QUAKE3 && bFixActive == true)
+	if ((eGameType == Game::AMA || eGameType == Game::QUAKE3) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fNewCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 
-		std::uint8_t* GameplayCameraFOVScanResult = Memory::PatternScan(hModule, "C7 45 EC ?? ?? ?? ?? EB 17 D9");
+		std::uint8_t* GameplayCameraFOVScanResult = Memory::PatternScan(hModule, "C7 45 EC 00 00 B4 42 EB 17 D9");
 		if (GameplayCameraFOVScanResult)
 		{
-			spdlog::info("Gameplay Camera FOV: Address is fgamex86.dll+{:x}", GameplayCameraFOVScanResult + 3 - (std::uint8_t*)hModule);
-
 			Memory::Write(GameplayCameraFOVScanResult + 3, fNewCameraFOV * fFOVFactor);
 		}
 		else
@@ -230,11 +249,9 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CutscenesCameraFOVScanResult = Memory::PatternScan(hModule, "88 18 B9 ?? ?? ?? ?? B8 00 00");
+		std::uint8_t* CutscenesCameraFOVScanResult = Memory::PatternScan(hModule, "88 18 B9 00 00 B4 42 B8 00 00");
 		if (CutscenesCameraFOVScanResult)
 		{
-			spdlog::info("Cutscenes Camera FOV: Address is fgamex86.dll+{:x}", CutscenesCameraFOVScanResult + 3 - (std::uint8_t*)hModule);
-
 			Memory::Write(CutscenesCameraFOVScanResult + 3, fNewCameraFOV);
 		}
 		else
@@ -242,79 +259,134 @@ void FOVFix()
 			spdlog::error("Failed to locate cutscenes FOV memory address.");
 			return;
 		}
+
+		LogModuleEvent(true, (std::uintptr_t)(CutscenesCameraFOVScanResult + 3), (std::uintptr_t)(CutscenesCameraFOVScanResult + 3));
 	}
 }
 
-DWORD __stdcall Main(void*)
+// — Loader‑notification integration —
+enum {
+	LDR_DLL_NOTIFICATION_REASON_LOADED = 1,
+	LDR_DLL_NOTIFICATION_REASON_UNLOADED = 2
+};
+
+typedef struct _UNICODE_STR {
+	USHORT Length, MaximumLength;
+	PWSTR  Buffer;
+} UNICODE_STR, * PUNICODE_STR;
+
+typedef struct _LDR_DLL_LOADED_NOTIFICATION_DATA {
+	ULONG Flags;
+	PUNICODE_STR FullDllName, BaseDllName;
+	PVOID DllBase;
+	ULONG SizeOfImage;
+} LDR_DLL_LOADED_NOTIFICATION_DATA, * PLDR_DLL_LOADED_NOTIFICATION_DATA;
+
+typedef struct _LDR_DLL_UNLOADED_NOTIFICATION_DATA {
+	ULONG Flags;
+	PUNICODE_STR FullDllName, BaseDllName;
+	PVOID DllBase;
+	ULONG SizeOfImage;
+} LDR_DLL_UNLOADED_NOTIFICATION_DATA, * PLDR_DLL_UNLOADED_NOTIFICATION_DATA;
+
+typedef union _LDR_DLL_NOTIFICATION_DATA {
+	LDR_DLL_LOADED_NOTIFICATION_DATA   Loaded;
+	LDR_DLL_UNLOADED_NOTIFICATION_DATA Unloaded;
+} LDR_DLL_NOTIFICATION_DATA, * PLDR_DLL_NOTIFICATION_DATA;
+
+VOID CALLBACK DllNotification(
+    ULONG Reason,
+    PLDR_DLL_NOTIFICATION_DATA Data,
+    PVOID)
 {
-	if (DetectGame())
-	{
-		FOVFix();
-	}
-	return TRUE;
+    bool isTarget =
+        (lstrcmpiW(Data->Loaded.BaseDllName->Buffer, L"fgamex86.dll") == 0);
+
+    if (Reason == LDR_DLL_NOTIFICATION_REASON_LOADED && isTarget)
+    {
+        hModule = (HMODULE)Data->Loaded.DllBase;
+
+        // ← ONE‑TIME SETUP
+        static bool initialized = false;
+        if (!initialized)
+        {
+            Logging();       // setup logger once
+            Configuration(); // load ini once
+            DetectGame();    // detect game once
+            initialized = true;
+        }
+
+        // ← ALWAYS RUN ON EACH LOAD
+        FOVFix();
+    }
+    else if (Reason == LDR_DLL_NOTIFICATION_REASON_UNLOADED && isTarget)
+    {
+        LogModuleEvent(false, 0, 0);
+    }
 }
 
-DWORD WINAPI MonitorThread(LPVOID lpParameter)
+void InstallDllNotification()
 {
-	Logging();
-	Configuration();
+	HMODULE ntdll = ::GetModuleHandleA("ntdll.dll");
 
-	while (!stopMonitoring)
-	{
-		// Checks if fgamex86.dll is loaded
-		hModule = GetModuleHandleA("fgamex86.dll");
-		if (hModule != NULL)
-		{
-			// Ensure thread safety when calling Main
-			EnterCriticalSection(&cs);
-			Main(NULL);
-			LeaveCriticalSection(&cs);
-		}
-
-		// Sleeps for 1 second before checking if the DLL is still loaded
-		Sleep(1000); // Checks every second
+	if (!ntdll) {
+		spdlog::error("GetModuleHandleA(\"ntdll.dll\") failed: 0x{:X}", GetLastError());
+		return;  // or handle error appropriately
 	}
 
-	return 0;
+	auto Reg = reinterpret_cast<LdrRegisterDllNotification_t>(
+		::GetProcAddress(ntdll, "LdrRegisterDllNotification"));
+
+	if (!Reg) {
+		spdlog::error("GetProcAddress(LdrRegisterDllNotification) failed: 0x{:X}", GetLastError());
+		return;
+	}
+
+	Reg(0, DllNotification, nullptr, &g_dllNotifyCookie);
 }
 
-extern "C" __declspec(dllexport) void StartMonitoring()
+void RemoveDllNotification()
 {
-	if (monitoringThread == NULL)
+	// 1) Get handle to ntdll.dll and verify it succeeded
+	HMODULE ntdll = ::GetModuleHandleA("ntdll.dll");
+
+	if (!ntdll)
 	{
-		stopMonitoring = FALSE;
-		InitializeCriticalSection(&cs);
-		monitoringThread = CreateThread(NULL, 0, MonitorThread, NULL, 0, NULL);
-		if (monitoringThread)
-		{
-			SetThreadPriority(monitoringThread, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(monitoringThread);
-		}
+		spdlog::error("GetModuleHandleA(\"ntdll.dll\") failed: 0x{:#x}",
+			static_cast<uint32_t>(GetLastError()));
+		return;
+	}
+
+	// 2) Retrieve LdrUnregisterDllNotification and verify it succeeded
+	auto Unreg = reinterpret_cast<LdrUnregisterDllNotification_t>(
+		::GetProcAddress(ntdll, "LdrUnregisterDllNotification"));
+
+	if (!Unreg)
+	{
+		spdlog::error("GetProcAddress(\"LdrUnregisterDllNotification\") failed: 0x{:#x}",
+			static_cast<uint32_t>(GetLastError()));
+		return;
+	}
+
+	// 3) Call the unregister function
+	NTSTATUS status = Unreg(g_dllNotifyCookie);
+
+	if (!NT_SUCCESS(status))
+	{
+		spdlog::error("LdrUnregisterDllNotification returned 0x{:#x}", status);
 	}
 }
 
-extern "C" __declspec(dllexport) void StopMonitoring()
+BOOL APIENTRY DllMain(HMODULE hMod, DWORD reason, LPVOID)
 {
-	if (monitoringThread != NULL)
+	if (reason == DLL_PROCESS_ATTACH)
 	{
-		stopMonitoring = TRUE;
-		WaitForSingleObject(monitoringThread, INFINITE);
-		DeleteCriticalSection(&cs);
-		monitoringThread = NULL;
+		thisModule = hMod;
+		InstallDllNotification();
 	}
-}
-
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
-{
-	switch (ul_reason_for_call)
+	else if (reason == DLL_PROCESS_DETACH)
 	{
-	case DLL_PROCESS_ATTACH:
-		thisModule = hModule;
-		StartMonitoring();
-		break;
-	case DLL_PROCESS_DETACH:
-		StopMonitoring();
-		break;
+		RemoveDllNotification();
 	}
 	return TRUE;
 }
