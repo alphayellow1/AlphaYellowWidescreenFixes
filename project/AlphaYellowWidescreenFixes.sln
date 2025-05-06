@@ -521,6 +521,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TennisMastersSeries2003FOVF
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheHistoryChannelBattleOfBritainWorldWarII1940FOVFix", "TheHistoryChannelBattleOfBritainWorldWarII1940FOVFix.vcxproj", "{2C66727E-930D-432B-81FA-5F15ED015901}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KnightsOfTheTemple2WidescreenFix", "KnightsOfTheTemple2WidescreenFix.vcxproj", "{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2601,6 +2603,14 @@ Global
 		{2C66727E-930D-432B-81FA-5F15ED015901}.Release|x64.Build.0 = Release|x64
 		{2C66727E-930D-432B-81FA-5F15ED015901}.Release|x86.ActiveCfg = Release|Win32
 		{2C66727E-930D-432B-81FA-5F15ED015901}.Release|x86.Build.0 = Release|Win32
+		{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}.Debug|x64.ActiveCfg = Debug|x64
+		{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}.Debug|x64.Build.0 = Debug|x64
+		{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}.Debug|x86.ActiveCfg = Debug|Win32
+		{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}.Debug|x86.Build.0 = Debug|Win32
+		{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}.Release|x64.ActiveCfg = Release|x64
+		{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}.Release|x64.Build.0 = Release|x64
+		{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}.Release|x86.ActiveCfg = Release|Win32
+		{9D4860CC-AD80-4F25-8C66-FC9FCFB1EA23}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
