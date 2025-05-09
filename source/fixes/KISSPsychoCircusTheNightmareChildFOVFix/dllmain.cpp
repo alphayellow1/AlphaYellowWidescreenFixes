@@ -224,7 +224,8 @@ void FOVFix()
 						fCurrentHFOVValue = fModifiedHFOVValue;
 						fLastModifiedHFOV = fModifiedHFOVValue;
 					}
-				} });
+				}
+			});
 		}
 		else
 		{
