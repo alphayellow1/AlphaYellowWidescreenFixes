@@ -1,4 +1,4 @@
-// Include necessary headers
+﻿// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -17,6 +17,8 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <string>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -27,7 +29,7 @@ HMODULE dllModule3 = nullptr;
 HMODULE dllModule4 = nullptr;
 
 // Fix details
-std::string sFixName = "BetOnSoldierBlackOutSaigonFOVFix";
+std::string sFixName = "BetOnSoldierBloodOfSaharaFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -244,7 +246,7 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D8 B6 E0 00 00 00 D9 E8 D9 F3 D9 C0 D9 FF D9 5C 24 0C");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D8 B6 E0 00 00 00 D9 E8 D9 F3 D9 54 24 14 D9 FF D9 54 24 18 D9 5C 24 20 D9 44 24 14 D9 FE D9 5C 24 24");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is kte_core.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
@@ -282,7 +284,7 @@ void FOVFix()
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraZoomFOV);
 			});
-
+			
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
 
 			static SafetyHookMid CameraHipfireAndMinimapFOVMidHook{};
@@ -323,16 +325,16 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* MinimapFOVInstructionScanResult = Memory::PatternScan(dllModule4, "8B 8E D4 00 00 00 52 50 51 8D 4C 24 2C FF 15 ?? ?? ?? ?? 8B 55 00 8D 44 24 1C");
+		std::uint8_t* MinimapFOVInstructionScanResult = Memory::PatternScan(dllModule4, "D9 85 D4 00 00 00 D8 0D ?? ?? ?? ?? D9 F2 DD D8 D8 F9 D9 98 C0 00 00 00 8B 8D 64 01 00 00 8B 11");
 		if (MinimapFOVInstructionScanResult)
 		{
 			spdlog::info("Minimap FOV Instruction: Address is kte_dx9.dll+{:x}", MinimapFOVInstructionScanResult - (std::uint8_t*)dllModule4);
-
+			
 			static SafetyHookMid MinimapFOVInstructionMidHook{};
 
 			MinimapFOVInstructionMidHook = safetyhook::create_mid(MinimapFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMinimapFOV = *reinterpret_cast<float*>(ctx.esi + 0xD4);
+				float& fCurrentMinimapFOV = *reinterpret_cast<float*>(ctx.ebp + 0xD4);
 
 				if (fCurrentMinimapFOV == 0.08638998121f)
 				{
@@ -381,7 +383,7 @@ void FOVFix()
 			spdlog::info("Sniper Zoom FOV Instruction: Address is Bos.dll+{:x}", SniperZoomFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 			
 			static SafetyHookMid SniperZoomFOVInstructionMidHook{};
-			
+
 			SniperZoomFOVInstructionMidHook = safetyhook::create_mid(SniperZoomFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentSniperZoomFOV = *reinterpret_cast<float*>(ctx.edx);
