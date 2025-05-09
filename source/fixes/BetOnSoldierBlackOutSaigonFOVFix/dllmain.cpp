@@ -334,7 +334,7 @@ void FOVFix()
 			{
 				float& fCurrentMinimapFOV = *reinterpret_cast<float*>(ctx.esi + 0xD4);
 
-				if (fCurrentMinimapFOV == 0.08638998121f)
+				if (fCurrentMinimapFOV == 0.08638998121f || fCurrentMinimapFOV == 0.6283185482f)
 				{
 					fCurrentMinimapFOV = CalculateNewFOV(fCurrentMinimapFOV);
 				}

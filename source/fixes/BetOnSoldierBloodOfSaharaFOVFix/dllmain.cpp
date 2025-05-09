@@ -325,18 +325,18 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* MinimapFOVInstructionScanResult = Memory::PatternScan(dllModule4, "D9 85 D4 00 00 00 D8 0D ?? ?? ?? ?? D9 F2 DD D8 D8 F9 D9 98 C0 00 00 00 8B 8D 64 01 00 00 8B 11");
+		std::uint8_t* MinimapFOVInstructionScanResult = Memory::PatternScan(dllModule4, "83 C4 10 C3 CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC 81 EC BC 01 00 00 53 8B 9C 24 C4 01 00 00 85 DB 55 56 57 8B E9 C7 44 24 48 00 00 00 00 C7 44 24 38 00 00 00 00 C7 44 24 28 00 00 00 00 C7 44 24 58 00 00 80 3F C6 44 24 13 01 74 07 8B 03 8B CB FF 50 08 8B 8D 60 01 00 00 85 C9 74 05 8B 11 FF 52 0C 89 9D 60 01 00 00 8B 03 8B CB FF 50 74 8B F0 8B 16 8B CE FF 52 1C 83 BD E4 00 00 00 00 75 1E 8B 06 8B CE FF 50 08 8B 8D E4 00 00 00 85 C9 74 05 8B 11 FF 52 0C 89 B5 E4 00 00 00 EB 05 C6 44 24 13 00 8B 8D E4 00 00 00 8B 03 51 8B CB FF 50 78 8B 45 78 8B 13 50 8B CB FF 92 80 00 00 00 8B 8D E0 00 00 00 8B 95 DC 00 00 00 8B 85 D8 00 00 00 51 8B 8D D4 00 00 00 52 50");
 		if (MinimapFOVInstructionScanResult)
 		{
-			spdlog::info("Minimap FOV Instruction: Address is kte_dx9.dll+{:x}", MinimapFOVInstructionScanResult - (std::uint8_t*)dllModule4);
+			spdlog::info("Minimap FOV Instruction: Address is kte_dx9.dll+{:x}", MinimapFOVInstructionScanResult + 221 - (std::uint8_t*)dllModule4);
 			
 			static SafetyHookMid MinimapFOVInstructionMidHook{};
 
-			MinimapFOVInstructionMidHook = safetyhook::create_mid(MinimapFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			MinimapFOVInstructionMidHook = safetyhook::create_mid(MinimapFOVInstructionScanResult + 221, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentMinimapFOV = *reinterpret_cast<float*>(ctx.ebp + 0xD4);
 
-				if (fCurrentMinimapFOV == 0.08638998121f)
+				if (fCurrentMinimapFOV == 0.08638998121f || fCurrentMinimapFOV == 0.6283185482f)
 				{
 					fCurrentMinimapFOV = CalculateNewFOV(fCurrentMinimapFOV);
 				}
