@@ -527,6 +527,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BetOnSoldierBlackOutSaigonF
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BetOnSoldierBloodOfSaharaFOVFix", "BetOnSoldierBloodOfSaharaFOVFix.vcxproj", "{35D28BFB-9380-43B0-A39D-7ED3A4E40DFB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TomClancysRainbowSixFOVFix", "TomClancysRainbowSixFOVFix.vcxproj", "{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2631,6 +2633,14 @@ Global
 		{35D28BFB-9380-43B0-A39D-7ED3A4E40DFB}.Release|x64.Build.0 = Release|x64
 		{35D28BFB-9380-43B0-A39D-7ED3A4E40DFB}.Release|x86.ActiveCfg = Release|Win32
 		{35D28BFB-9380-43B0-A39D-7ED3A4E40DFB}.Release|x86.Build.0 = Release|Win32
+		{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}.Debug|x64.ActiveCfg = Debug|x64
+		{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}.Debug|x64.Build.0 = Debug|x64
+		{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}.Debug|x86.ActiveCfg = Debug|Win32
+		{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}.Debug|x86.Build.0 = Debug|Win32
+		{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}.Release|x64.ActiveCfg = Release|x64
+		{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}.Release|x64.Build.0 = Release|x64
+		{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}.Release|x86.ActiveCfg = Release|Win32
+		{34B292E0-CEC7-489B-B14E-EB1AD1561C5A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
