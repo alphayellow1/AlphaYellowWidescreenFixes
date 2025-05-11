@@ -40,7 +40,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float tolerance = 0.0001f;
+constexpr float fTolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
@@ -400,7 +400,7 @@ void FOVFix()
 				// Skip processing if a similar HFOV (within tolerance) has already been computed
 				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
 					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraHFOV) < tolerance;
+					return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
 				});
 
 				if (bHFOVAlreadyComputed)
@@ -440,7 +440,7 @@ void FOVFix()
 				// Skip processing if a similar VFOV (within tolerance) has already been computed
 				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
 					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraVFOV) < tolerance;
+					return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
 				});
 
 				if (bVFOVAlreadyComputed)
