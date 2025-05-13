@@ -41,9 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -172,6 +170,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -180,19 +180,21 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("TRenderInterface.dll");
-		spdlog::info("Waiting for TRenderInterface.dll to load...");
-		Sleep(1000);
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("TRenderInterface.dll")) == nullptr)
+	{
+		spdlog::warn("TRenderInterface.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
 	spdlog::info("Successfully obtained handle for TRenderInterface.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
