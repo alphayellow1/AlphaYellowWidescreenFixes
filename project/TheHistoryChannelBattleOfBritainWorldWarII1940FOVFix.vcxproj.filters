@@ -15,13 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\fixes\TheHistoryChannelCivilWarGreatBattlesWidescreenFix\dllmain.cpp">
-      <Filter>Arquivos de Recurso</Filter>
-    </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+    <ClCompile Include="..\source\fixes\TheHistoryChannelBattleOfBritainWorldWarII1940FOVFix\dllmain.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
   </ItemGroup>
