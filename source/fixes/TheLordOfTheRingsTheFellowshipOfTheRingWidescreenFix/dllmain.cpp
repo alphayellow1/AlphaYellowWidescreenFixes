@@ -290,14 +290,14 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CutsceneCameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 B1 ?? ?? ?? ?? D9 E8 D9 F3 DC 0D ?? ?? ?? ??");
-		if (CutsceneCameraFOVInstruction2ScanResult)
+		std::uint8_t* CutscenesCameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 B1 ?? ?? ?? ?? D9 E8 D9 F3 DC 0D ?? ?? ?? ??");
+		if (CutscenesCameraFOVInstruction2ScanResult)
 		{
-			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CutsceneCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CutscenesCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(CutsceneCameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CutscenesCameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CutsceneCameraFOVInstruction2ScanResult + 6, CutscenesCameraFOVInstruction2MidHook);
+			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CutscenesCameraFOVInstruction2ScanResult + 6, CutscenesCameraFOVInstruction2MidHook);
 		}
 		else
 		{
