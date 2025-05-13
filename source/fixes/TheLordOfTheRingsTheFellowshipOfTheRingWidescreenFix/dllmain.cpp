@@ -22,6 +22,7 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
+HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "TheLordOfTheRingsTheFellowshipOfTheRingWidescreenFix";
@@ -50,7 +51,11 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
-double dNewCameraFOV;
+double dNewCutscenesCameraFOV;
+float fNewCutscenesCameraFOV2;
+double dNewGameplayCameraFOV;
+float fNewGameplayCameraFOV2;
+float fViewDistanceFactor;
 
 // Game detection
 enum class Game
@@ -149,9 +154,11 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "ViewDistanceFactor", fViewDistanceFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
+	spdlog_confparse(fViewDistanceFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -170,6 +177,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -178,12 +187,73 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			return true;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("Fellowship.rfl")) == nullptr)
+	{
+		spdlog::warn("Fellowship.rfl not loaded yet. Waiting...");
+	}
+
+	spdlog::info("Successfully obtained handle for Fellowship.rfl: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
+	return true;
+}
+
+static SafetyHookMid CutscenesCameraFOVInstructionHook{};
+
+void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	dNewCutscenesCameraFOV = 64.0 / ((double)fNewAspectRatio * 0.75);
+
+	_asm
+	{
+		fdivr qword ptr ds : [dNewCutscenesCameraFOV]
+	}
+}
+
+static SafetyHookMid CutscenesCameraFOVInstruction2Hook{};
+
+void CutscenesCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
+{
+	fNewCutscenesCameraFOV2 = 64.0f / (fNewAspectRatio * 0.75f);
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCutscenesCameraFOV2]
+	}
+}
+
+static SafetyHookMid GameplayCameraFOVInstructionHook{};
+
+void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	dNewGameplayCameraFOV = (64.0 / ((double)fNewAspectRatio * 0.75)) * (1.0 / (double)fFOVFactor);
+
+	_asm
+	{
+		fdivr qword ptr ds: [dNewGameplayCameraFOV]
+	}
+}
+
+static SafetyHookMid GameplayCameraFOVInstruction2Hook{};
+
+void GameplayCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
+{
+	fNewGameplayCameraFOV2 = (64.0f / (fNewAspectRatio * 0.75f));
+
+	_asm
+	{
+		fld dword ptr ds : [fNewGameplayCameraFOV2]
+	}
 }
 
 void WidescreenFix()
@@ -205,33 +275,83 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOV1ScanResult = Memory::PatternScan(exeModule, "3F 00 FE FF 46 00 00 80 42 00 00 00 20 00");
-		if (CameraFOV1ScanResult)
+		std::uint8_t* CutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DC 3D ?? ?? ?? ?? D9 99 48 02 00 00 FF 50 3C C2 04 00 90 90");
+		if (CutscenesCameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOV1ScanResult + 5 - (std::uint8_t*)exeModule);
-
-			fNewCameraFOV = (64.0f / (fNewAspectRatio * 0.75f)) * (1.0f / fFOVFactor);
-
-			Memory::Write(CameraFOV1ScanResult + 5, fNewCameraFOV);
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CutscenesCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult + 6, CutscenesCameraFOVInstructionMidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV 1 memory address.");
+			spdlog::error("Failed to locate cutscenes camera FOV instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOV2ScanResult = Memory::PatternScan(exeModule, "00 00 00 00 00 00 50 40 ?? ?? 4A");
-		if (CameraFOV2ScanResult)
+		std::uint8_t* CutsceneCameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 B1 ?? ?? ?? ?? D9 E8 D9 F3 DC 0D ?? ?? ?? ??");
+		if (CutsceneCameraFOVInstruction2ScanResult)
 		{
-			spdlog::info("Camera FOV 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOV2ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CutsceneCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 			
-			dNewCameraFOV = (double)fNewCameraFOV;
+			Memory::PatchBytes(CutsceneCameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			Memory::Write(CameraFOV2ScanResult, dNewCameraFOV);
+			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CutsceneCameraFOVInstruction2ScanResult + 6, CutscenesCameraFOVInstruction2MidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV 2 memory address.");
+			spdlog::error("Failed to locate cutscenes camera FOV instruction 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DC 3D ?? ?? ?? ?? D9 59 54 C2 04 00 90 90 90 90 90 90");
+		if (GameplayCameraFOVInstructionScanResult)
+		{
+			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(GameplayCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult + 6, GameplayCameraFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate gameplay camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* GameplayCameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 71 54 D9 E8 D9 F3 DC 0D ?? ?? ?? ?? C3 90");
+		if (GameplayCameraFOVInstruction2ScanResult)
+		{
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(GameplayCameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			GameplayCameraFOVInstruction2Hook = safetyhook::create_mid(GameplayCameraFOVInstruction2ScanResult + 6, GameplayCameraFOVInstruction2MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate gameplay camera FOV instruction 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* ViewDistanceInstructionScanResult = Memory::PatternScan(dllModule2, "D9 80 A4 00 00 00 EB 06 D9 05 ?? ?? ?? ??");
+		if (ViewDistanceInstructionScanResult)
+		{
+			spdlog::info("View Distance Instruction: Address is Fellowship.rfl+{:x}", ViewDistanceInstructionScanResult - (std::uint8_t*)dllModule2);
+			
+			static SafetyHookMid ViewDistanceInstructionMidHook{};
+
+			ViewDistanceInstructionMidHook = safetyhook::create_mid(ViewDistanceInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentViewDistance = *reinterpret_cast<float*>(ctx.eax + 0xA4);
+
+				fCurrentViewDistance = 100.0f * fViewDistanceFactor;
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate view distance instruction memory address.");
 			return;
 		}
 	}
