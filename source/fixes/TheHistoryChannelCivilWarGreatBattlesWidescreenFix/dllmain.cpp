@@ -179,12 +179,15 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
+
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
+}
+
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
 }
 
 void WidescreenFix()
@@ -198,17 +201,17 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionScanResult + 0x3, iCurrentResX);
+			Memory::Write(ResolutionScanResult + 3, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 0xF, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 15, iCurrentResY);
 
-			Memory::Write(ResolutionScanResult + 0x1D, iCurrentResX);
+			Memory::Write(ResolutionScanResult + 29, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 0x29, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 41, iCurrentResY);
 
-			Memory::Write(ResolutionScanResult + 0x37, iCurrentResX);
+			Memory::Write(ResolutionScanResult + 55, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 0x43, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 67, iCurrentResY);
 		}
 		else
 		{
@@ -225,7 +228,11 @@ void WidescreenFix()
 
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(fNewAspectRatio);
+				float fCurrentAspectRatio = std::bit_cast<float>(ctx.eax);
+
+				fCurrentAspectRatio = fNewAspectRatio;
+
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentAspectRatio);
 			});
 		}
 		else
@@ -243,7 +250,11 @@ void WidescreenFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.ecx = std::bit_cast<uint32_t>(fFOVFactor * (fOriginalCameraFOV / (fOldAspectRatio / fNewAspectRatio)));
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.ecx);
+
+				fCurrentCameraFOV = CalculateNewFOV(fOriginalCameraFOV) * fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
 			});
 		}
 		else

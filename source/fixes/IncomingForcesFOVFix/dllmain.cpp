@@ -1,4 +1,4 @@
-ï»¿// Include necessary headers
+// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -12,13 +12,12 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include <string>
-#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -26,7 +25,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "Speedball2TournamentFOVFix";
+std::string sFixName = "IncomingForcesFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -40,23 +39,24 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Ini variables
-bool bFixActive;
-
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
+constexpr float fTolerance = 0.0000001f;
+
+// Ini variables
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
 {
-	SB2T,
+	IF,
 	Unknown
 };
 
@@ -67,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SB2T, {"Speedball 2: Tournament", "Speedball2.exe"}},
+	{Game::IF, {"Incoming Forces", "forces.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -189,36 +189,31 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::SB2T && bFixActive == true)
+	if (eGameType == Game::IF && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 86 E4 00 00 00 83 EC 10 D9 5C 24 0C 8D 8E E8 00 00 00");
-		if (AspectRatioInstructionScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "03 E8 71 1B 01 00 68 AB AA AA 3F A1 AC 41 A4 00 50");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			static SafetyHookMid AspectRatioInstructionMidHook{};
+			spdlog::info("Aspect Ratio: Address is{:s} + {:x}", sExeName.c_str(), AspectRatioScanResult + 7 - (std::uint8_t*)exeModule);
 
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0xE4);
-
-				fCurrentAspectRatio = fNewAspectRatio;				
-			});
+			Memory::Write(AspectRatioScanResult + 7, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 86 D8 00 00 00 D9 1C 24 E8 72 36 FB FF 8B 07 8B 50 70");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 06 D8 5E FC DF E0 F6 C4 40 75 3B D9 46 FC D8 46 04 D9 54 24 10 D9 46 04");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -229,21 +224,22 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-					// Reference the current camera FOV value located in the memory address [ESI+D8]
-					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xD8);
+					// Reference the current camera FOV value located in the memory address [ESI]
+					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi);
 
 					// Skip processing if a similar FOV (within tolerance) has already been computed
-					bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
+					bool bAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
 						[&](float computedValue) {
 							return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
 						});
-					if (alreadyComputed)
+
+					if (bAlreadyComputed)
 					{
 						return;
 					}
 
 					// Compute the new FOV value
-					if (fCurrentCameraFOV == 1.570796371f)
+					if (fCurrentCameraFOV == 0.872664626f) // 50º in radians
 					{
 						fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 					}
@@ -258,7 +254,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
