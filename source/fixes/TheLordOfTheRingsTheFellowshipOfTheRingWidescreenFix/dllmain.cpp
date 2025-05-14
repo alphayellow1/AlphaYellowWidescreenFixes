@@ -41,6 +41,8 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalCameraFOV = 64.0f;
+constexpr double dOriginalCameraFOV = 64.0;
 
 // Ini variables
 bool bFixActive;
@@ -50,12 +52,13 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
-float fFOVFactor;
-double dNewCutscenesCameraFOV;
 float fNewCutscenesCameraFOV2;
-double dNewGameplayCameraFOV;
 float fNewGameplayCameraFOV2;
 float fViewDistanceFactor;
+float fAspectRatioScale;
+double dFOVFactor;
+double dNewCutscenesCameraFOV;
+double dNewGameplayCameraFOV;
 
 // Game detection
 enum class Game
@@ -153,11 +156,11 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", dFOVFactor);
 	inipp::get_value(ini.sections["Settings"], "ViewDistanceFactor", fViewDistanceFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
+	spdlog_confparse(dFOVFactor);
 	spdlog_confparse(fViewDistanceFactor);
 
 	// If resolution not specified, use desktop resolution
@@ -212,7 +215,7 @@ static SafetyHookMid CutscenesCameraFOVInstructionHook{};
 
 void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	dNewCutscenesCameraFOV = 64.0 / ((double)fNewAspectRatio * 0.75);
+	dNewCutscenesCameraFOV = dOriginalCameraFOV / (double)fAspectRatioScale;
 
 	_asm
 	{
@@ -224,7 +227,7 @@ static SafetyHookMid CutscenesCameraFOVInstruction2Hook{};
 
 void CutscenesCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-	fNewCutscenesCameraFOV2 = 64.0f / (fNewAspectRatio * 0.75f);
+	fNewCutscenesCameraFOV2 = fOriginalCameraFOV / fAspectRatioScale;
 
 	_asm
 	{
@@ -236,7 +239,7 @@ static SafetyHookMid GameplayCameraFOVInstructionHook{};
 
 void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	dNewGameplayCameraFOV = (64.0 / ((double)fNewAspectRatio * 0.75)) * (1.0 / (double)fFOVFactor);
+	dNewGameplayCameraFOV = (dOriginalCameraFOV / (double)fAspectRatioScale) * (1.0 / (double)dFOVFactor);
 
 	_asm
 	{
@@ -248,7 +251,7 @@ static SafetyHookMid GameplayCameraFOVInstruction2Hook{};
 
 void GameplayCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-	fNewGameplayCameraFOV2 = (64.0f / (fNewAspectRatio * 0.75f));
+	fNewGameplayCameraFOV2 = fOriginalCameraFOV / fAspectRatioScale;
 
 	_asm
 	{
@@ -261,6 +264,8 @@ void WidescreenFix()
 	if (eGameType == Game::TLOTRTFOTR && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "00 00 C0 3F DB 0F 49 40");
 		if (AspectRatioScanResult)
