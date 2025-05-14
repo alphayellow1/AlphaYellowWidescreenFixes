@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "KnightsOfTheTemple2WidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,6 +42,7 @@ std::string sExeName;
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fTolerance = 0.0001f;
+constexpr float fOriginalGameplayAspectRatio = 0.75f;
 
 // Ini variables
 bool bFixActive;
@@ -54,6 +55,7 @@ float fNewAspectRatio;
 float fNewAspectRatio2;
 float fFOVFactor;
 float fNewGameplayCameraFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -200,7 +202,9 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewAspectRatio2 = 0.75f * (fOldAspectRatio / fNewAspectRatio);
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		fNewAspectRatio2 = fOriginalGameplayAspectRatio / fAspectRatioScale;
 
 		std::uint8_t* ResolutionList1ScanResult = Memory::PatternScan(exeModule, "3D 80 02 00 00 75 15 81 7C 24 14 E0 01 00 00 0F 85 8B 00 00 00 B8 01 00 00 00 EB 76 3D 20 03 00 00 75 11 81 7C 24 14 58 02 00 00 75 73 B8 02 00 00 00 EB 5E 3D 00 04 00 00 75 11 81 7C 24 14 00 03 00 00 75 5B B8 03 00 00 00 EB 46 3D 00 05 00 00 75 11 81 7C 24 14 00 04 00 00 75 43 B8 04 00 00 00 EB 2E 3D 40 06 00 00 75 11 81 7C 24 14 B0 04 00 00 75 2B B8 05 00 00 00 EB 16 3D 80 07 00 00 75 1D 81 7C 24 14 A0 05 00 00");
 		if (ResolutionList1ScanResult)
@@ -363,6 +367,30 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate black bars adjust instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CharacterDialogueCameraAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 B6 10 06 00 00 D9 96 98 06 00 00 D9 44 24 10");
+		if (CharacterDialogueCameraAspectRatioInstructionScanResult)
+		{
+			spdlog::info("Character Dialogue Camera Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), CharacterDialogueCameraAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CharacterDialogueCameraAspectRatioInstructionHook{};
+
+			CharacterDialogueCameraAspectRatioInstructionHook = safetyhook::create_mid(CharacterDialogueCameraAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Reference the current character dialogue aspect ratio value located at the memory address [ESI+0x610]
+				float& fCurrentCharacterDialogueCameraAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x610);
+
+				if (fCurrentCharacterDialogueCameraAspectRatio == 0.9999999404f)
+				{
+					fCurrentCharacterDialogueCameraAspectRatio = (fOldAspectRatio / fNewAspectRatio);
+				}
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate character dialogue aspect ratio instruction memory address.");
 			return;
 		}
 	}
