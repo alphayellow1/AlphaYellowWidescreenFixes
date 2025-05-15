@@ -55,6 +55,7 @@ constexpr float fTolerance = 0.0000001f;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fAspectRatioScale;
 float fFOVFactor;
 
 // Function to convert degrees to radians
@@ -73,6 +74,7 @@ float RadToDeg(float radians)
 enum class Game
 {
 	BOSBOS,
+	BOSBOSGAME,
 	Unknown
 };
 
@@ -83,7 +85,8 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::BOSBOS, {"Bet on Solider: Black Out Saigon", "BoS.exe"}},
+	{Game::BOSBOS, {"Bet on Soldier: Blood of Sahara", "BoS.exe"}},
+	{Game::BOSBOSGAME, {"Bet on Soldier: Blood of Sahara", "BetOnSoldier_BloodOfSahara.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -237,7 +240,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
 void FOVFix()
@@ -245,6 +248,8 @@ void FOVFix()
 	if (eGameType == Game::BOSBOS && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D8 B6 E0 00 00 00 D9 E8 D9 F3 D9 54 24 14 D9 FF D9 54 24 18 D9 5C 24 20 D9 44 24 14 D9 FE D9 5C 24 24");
 		if (AspectRatioInstructionScanResult)
