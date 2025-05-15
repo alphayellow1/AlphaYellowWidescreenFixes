@@ -545,6 +545,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "IncomingForcesFOVFix", "Inc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "4x4HummerFOVFix", "4x4HummerFOVFix.vcxproj", "{5DCF1720-5B79-4941-8F4D-A9E71E8D5FAE}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GMRallyFOVFix", "GMRallyFOVFix.vcxproj", "{DB4469DD-3565-4161-B8D3-192F062867DF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2721,6 +2723,14 @@ Global
 		{5DCF1720-5B79-4941-8F4D-A9E71E8D5FAE}.Release|x64.Build.0 = Release|x64
 		{5DCF1720-5B79-4941-8F4D-A9E71E8D5FAE}.Release|x86.ActiveCfg = Release|Win32
 		{5DCF1720-5B79-4941-8F4D-A9E71E8D5FAE}.Release|x86.Build.0 = Release|Win32
+		{DB4469DD-3565-4161-B8D3-192F062867DF}.Debug|x64.ActiveCfg = Debug|x64
+		{DB4469DD-3565-4161-B8D3-192F062867DF}.Debug|x64.Build.0 = Debug|x64
+		{DB4469DD-3565-4161-B8D3-192F062867DF}.Debug|x86.ActiveCfg = Debug|Win32
+		{DB4469DD-3565-4161-B8D3-192F062867DF}.Debug|x86.Build.0 = Debug|Win32
+		{DB4469DD-3565-4161-B8D3-192F062867DF}.Release|x64.ActiveCfg = Release|x64
+		{DB4469DD-3565-4161-B8D3-192F062867DF}.Release|x64.Build.0 = Release|x64
+		{DB4469DD-3565-4161-B8D3-192F062867DF}.Release|x86.ActiveCfg = Release|Win32
+		{DB4469DD-3565-4161-B8D3-192F062867DF}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
