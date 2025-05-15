@@ -71,6 +71,7 @@ float RadToDeg(float radians)
 enum class Game
 {
 	BOSBOS,
+	BOSBOSGAME,
 	Unknown
 };
 
@@ -81,7 +82,8 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::BOSBOS, {"Bet on Solider: Black Out Saigon", "BoS.exe"}},
+	{Game::BOSBOS, {"Bet on Soldier: Black-out Saigon", "BoS.exe"}},
+	{Game::BOSBOSGAME, {"Bet on Soldier: Black-out Saigon", "BetOnSoldier_BlackOutSaigon.exe"}},
 };
 
 const GameInfo* game = nullptr;
