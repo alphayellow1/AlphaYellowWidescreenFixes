@@ -42,7 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float tolerance = 0.0001f;
+constexpr float tolerance = 0.0000001f;
 
 // Ini variables
 bool bFixActive;
