@@ -361,7 +361,7 @@ void WidescreenFix()
 				// Reference the current black bars value located at the memory address [ESI+0x610]
 				float& fCurrentBlackBarsValue = *reinterpret_cast<float*>(ctx.esi + 0x610);
 
-				fCurrentBlackBarsValue *= (fNewAspectRatio / fOldAspectRatio);
+				fCurrentBlackBarsValue *= fNewAspectRatio / fOldAspectRatio;
 			});
 		}
 		else
@@ -384,7 +384,7 @@ void WidescreenFix()
 
 				if (fCurrentCharacterDialogueCameraAspectRatio == 0.9999999404f)
 				{
-					fCurrentCharacterDialogueCameraAspectRatio = (fOldAspectRatio / fNewAspectRatio);
+					fCurrentCharacterDialogueCameraAspectRatio = 1.0f / fAspectRatioScale;
 				}
 			});
 		}
