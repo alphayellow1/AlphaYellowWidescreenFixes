@@ -242,7 +242,7 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void FOVFix()
 {
-	if (eGameType == Game::BOSBOS && bFixActive == true)
+	if ((eGameType == Game::BOSBOS || eGameType == Game::BOSBOSGAME) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 

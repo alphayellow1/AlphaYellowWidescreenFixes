@@ -44,13 +44,14 @@ bool bFixActive;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
+constexpr float fTolerance = 0.000001f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fNewCameraFOV;
 float fNewAspectRatio;
+float fAspectRatioScale;
 float fFOVFactor;
 
 // Game detection
@@ -191,7 +192,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
+	return fCurrentFOV * fAspectRatioScale;
 }
 
 void WidescreenFix()
@@ -200,11 +201,14 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* MainMenuResolutionScanResult = Memory::PatternScan(exeModule, "BE 80 02 00 00 BF E0 01 00 00 EB 3B A1 A4 35 5E");
 		if (MainMenuResolutionScanResult)
 		{
 			spdlog::info("Main Menu Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), MainMenuResolutionScanResult - (std::uint8_t*)exeModule);
 
+			// Default menu resolution is 640x480
 			Memory::Write(MainMenuResolutionScanResult + 1, iCurrentResX);
 
 			Memory::Write(MainMenuResolutionScanResult + 6, iCurrentResY);
@@ -220,14 +224,17 @@ void WidescreenFix()
 		{
 			spdlog::info("Gameplay Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), GameplayResolutionScanResult - (std::uint8_t*)exeModule);
 			
+			// 640x480
 			Memory::Write(GameplayResolutionScanResult, iCurrentResX);
 			
 			Memory::Write(GameplayResolutionScanResult + 4, iCurrentResY);
 
+			// 800x600
 			Memory::Write(GameplayResolutionScanResult + 8, iCurrentResX);
 
 			Memory::Write(GameplayResolutionScanResult + 12, iCurrentResY);
 
+			// 1024x768
 			Memory::Write(GameplayResolutionScanResult + 16, iCurrentResX);
 
 			Memory::Write(GameplayResolutionScanResult + 20, iCurrentResY);
@@ -264,10 +271,12 @@ void WidescreenFix()
 						return;
 					}
 
-					if(fabs(fCurrentCameraHFOV - 0.9336100817f) < fTolerance || fabs(fCurrentCameraHFOV - 0.9336100817f) < fTolerance || fabs(fCurrentCameraHFOV - 0.9336093068f) < fTolerance)
+					// Race gameplay and pause camera HFOVs
+					if(fabs(fCurrentCameraHFOV - 0.9336100817f) < fTolerance || fabs(fCurrentCameraHFOV - 0.9336093068f) < fTolerance)
 					{
 					    fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
 					}
+					// Rest of elements and cameras (main menu mainly and some HUD elements)
 					else
 					{
 						fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
@@ -295,12 +304,16 @@ void WidescreenFix()
 					// Reference the current VFOV value from the memory address [ECX + 0x1EC]
 					float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x1EC);
 
-					if (fabs(fCurrentCameraVFOV - (0.3237477839f / (fNewAspectRatio / fOldAspectRatio))) < fTolerance || 
-						fabs(fCurrentCameraVFOV - (0.2036914527f / (fNewAspectRatio / fOldAspectRatio))) < fTolerance)
+					// Main menu elements and camera
+					if (fabs(fCurrentCameraVFOV - (0.3237477839f / fAspectRatioScale)) < fTolerance ||
+						fabs(fCurrentCameraVFOV - (0.2036914527f / fAspectRatioScale)) < fTolerance ||
+						fabs (fCurrentCameraVFOV - (0.01945019141f / fAspectRatioScale)) < fTolerance ||
+						fabs(fCurrentCameraVFOV - (240.0f / fAspectRatioScale)) < fTolerance)
 					{
 						fCurrentCameraVFOV = CalculateNewFOV(fCurrentCameraVFOV);
 					}
 
+					// Race gameplay and pause camera VFOVs (during race it's stretched, so no need to calculate new VFOVs but just expose the FOV factor to the user
 					if (fabs(fCurrentCameraVFOV - 0.7002075315f) < fTolerance || fabs(fCurrentCameraVFOV - 0.700206995f) < fTolerance)
 					{
 						fCurrentCameraVFOV *= fFOVFactor;

@@ -55,6 +55,7 @@ float fNewAspectRatio;
 float fFOVFactor;
 float fNewCameraFOVProjection;
 float fNewCameraFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -218,48 +219,47 @@ bool DetectGame()
 
 void FOVFix()
 {
-	if (bFixActive == true)
+	if ((eGameType == Game::CC || eGameType == Game::CC_VERSION2) && bFixActive == true)
 	{
-		if (eGameType == Game::CC || eGameType == Game::CC_VERSION2)
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVProjectionScanResult = Memory::PatternScan(dllModule2, "B9 00 00 80 3F 89 8E 40 01 00 00 C7 46 50 00 3C 1C C6 89 8E A4 00 00 00");
+		if (CameraFOVProjectionScanResult)
 		{
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+			spdlog::info("Camera FOV Projection: Address is Engine.dll+{:x}", CameraFOVProjectionScanResult + 1 - (std::uint8_t*)dllModule2);
 
-			std::uint8_t* CameraFOVProjectionScanResult = Memory::PatternScan(dllModule2, "B9 00 00 80 3F 89 8E 40 01 00 00 C7 46 50 00 3C 1C C6 89 8E A4 00 00 00");
-			if (CameraFOVProjectionScanResult)
+			fNewCameraFOVProjection = 1.0f / fAspectRatioScale;
+
+			Memory::Write(CameraFOVProjectionScanResult + 1, fNewCameraFOVProjection);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule3, "A1 ?? ?? ?? ?? 89 45 1C 8B 83 FC 03 00 00 83 F8 03 75 22");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is Entities.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
+
+			fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				spdlog::info("Camera FOV Projection: Address is Engine.dll+{:x}", CameraFOVProjectionScanResult + 1 - (std::uint8_t*)dllModule2);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x10137164);
 
-				fNewCameraFOVProjection = fOldAspectRatio / fNewAspectRatio;
-
-				Memory::Write(CameraFOVProjectionScanResult + 1, fNewCameraFOVProjection);
-			}
-			else
-			{
-				spdlog::error("Failed to locate camera FOV memory address.");
-				return;
-			}
-
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule3, "A1 ?? ?? ?? ?? 89 45 1C 8B 83 FC 03 00 00 83 F8 03 75 22");
-			if (CameraFOVInstructionScanResult)
-			{
-				spdlog::info("Camera FOV Instruction: Address is Entities.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
-
-				fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
-
-				static SafetyHookMid CameraFOVInstructionMidHook{};
-
-				CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x10137164);
-
-					fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
-				});
-			}
-			else
-			{
-				spdlog::error("Failed to locate camera FOV memory address.");
-				return;
-			}
+				fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV memory address.");
+			return;
 		}
 	}
 }
