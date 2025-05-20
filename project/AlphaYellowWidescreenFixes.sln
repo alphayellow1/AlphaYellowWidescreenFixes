@@ -553,6 +553,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SuperbikeWorldChampionshipF
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SuperStuntSpectacularFOVFix", "SuperStuntSpectacularFOVFix.vcxproj", "{30B140AB-7ED9-4546-9399-C944C56F913A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JohnDeereAmericanFarmerFOVFix", "JohnDeereAmericanFarmerFOVFix.vcxproj", "{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JohnDeereNorthAmericanFarmerFOVFix", "JohnDeereNorthAmericanFarmerFOVFix.vcxproj", "{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2761,6 +2765,22 @@ Global
 		{30B140AB-7ED9-4546-9399-C944C56F913A}.Release|x64.Build.0 = Release|x64
 		{30B140AB-7ED9-4546-9399-C944C56F913A}.Release|x86.ActiveCfg = Release|Win32
 		{30B140AB-7ED9-4546-9399-C944C56F913A}.Release|x86.Build.0 = Release|Win32
+		{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}.Debug|x64.ActiveCfg = Debug|x64
+		{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}.Debug|x64.Build.0 = Debug|x64
+		{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}.Debug|x86.ActiveCfg = Debug|Win32
+		{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}.Debug|x86.Build.0 = Debug|Win32
+		{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}.Release|x64.ActiveCfg = Release|x64
+		{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}.Release|x64.Build.0 = Release|x64
+		{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}.Release|x86.ActiveCfg = Release|Win32
+		{F242CB7C-89EA-4792-8E86-93AFF0DFEA00}.Release|x86.Build.0 = Release|Win32
+		{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}.Debug|x64.ActiveCfg = Debug|x64
+		{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}.Debug|x64.Build.0 = Debug|x64
+		{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}.Debug|x86.ActiveCfg = Debug|Win32
+		{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}.Debug|x86.Build.0 = Debug|Win32
+		{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}.Release|x64.ActiveCfg = Release|x64
+		{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}.Release|x64.Build.0 = Release|x64
+		{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}.Release|x86.ActiveCfg = Release|Win32
+		{180DA10B-8C94-4BD9-B5E8-FF81E69DCA10}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
