@@ -361,7 +361,7 @@ void WidescreenFix()
 				// Reference the current black bars value located at the memory address [ESI+0x610]
 				float& fCurrentBlackBarsValue = *reinterpret_cast<float*>(ctx.esi + 0x610);
 
-				fCurrentBlackBarsValue *= fNewAspectRatio / fOldAspectRatio;
+				fCurrentBlackBarsValue *= fAspectRatioScale;
 			});
 		}
 		else

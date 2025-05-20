@@ -551,6 +551,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OminousHorizonsAPaladinsCal
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SuperbikeWorldChampionshipFOVFix", "SuperbikeWorldChampionshipFOVFix.vcxproj", "{D18C36D0-6306-4A3E-97AD-C7D141949C2F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SuperStuntSpectacularFOVFix", "SuperStuntSpectacularFOVFix.vcxproj", "{30B140AB-7ED9-4546-9399-C944C56F913A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2751,6 +2753,14 @@ Global
 		{D18C36D0-6306-4A3E-97AD-C7D141949C2F}.Release|x64.Build.0 = Release|x64
 		{D18C36D0-6306-4A3E-97AD-C7D141949C2F}.Release|x86.ActiveCfg = Release|Win32
 		{D18C36D0-6306-4A3E-97AD-C7D141949C2F}.Release|x86.Build.0 = Release|Win32
+		{30B140AB-7ED9-4546-9399-C944C56F913A}.Debug|x64.ActiveCfg = Debug|x64
+		{30B140AB-7ED9-4546-9399-C944C56F913A}.Debug|x64.Build.0 = Debug|x64
+		{30B140AB-7ED9-4546-9399-C944C56F913A}.Debug|x86.ActiveCfg = Debug|Win32
+		{30B140AB-7ED9-4546-9399-C944C56F913A}.Debug|x86.Build.0 = Debug|Win32
+		{30B140AB-7ED9-4546-9399-C944C56F913A}.Release|x64.ActiveCfg = Release|x64
+		{30B140AB-7ED9-4546-9399-C944C56F913A}.Release|x64.Build.0 = Release|x64
+		{30B140AB-7ED9-4546-9399-C944C56F913A}.Release|x86.ActiveCfg = Release|Win32
+		{30B140AB-7ED9-4546-9399-C944C56F913A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
