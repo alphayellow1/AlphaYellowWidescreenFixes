@@ -12,22 +12,23 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <algorithm>
+#include <cmath>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "SanityAikensArtifactFOVFix";
-std::string sFixVersion = "1.5";
+std::string sFixName = "UltimateDemolitionDerbyFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,22 +41,26 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float epsilon = 0.00001f;
-
 // Ini variables
 bool bFixActive;
+
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.00001f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fCurrentCameraHFOV;
+float fCurrentCameraVFOV;
+float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
 {
-	SAA,
+	UDD,
 	Unknown
 };
 
@@ -66,7 +71,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SAA, {"Sanity: Aiken's Artifact", "client.dll"}},
+	{Game::UDD, {"Ultimate Demolition Derby", "UDD.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -82,7 +87,7 @@ void Logging()
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
+	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
@@ -102,7 +107,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -148,8 +153,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -178,68 +185,103 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
+
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return fCurrentFOV * fAspectRatioScale;
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::SAA && bFixActive == true)
+	if (eGameType == Game::UDD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 54 01 00 00 89 B4 24 D0 00 00 00");
-		if (CameraHFOVInstructionScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)dllModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
+			static std::vector<float> vComputedHFOVs;
 
-				if (fCurrentCameraHFOV == 1.5707963705062866f)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-				}
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
-			return;
-		}
+					// Convert the ECX register value to float
+					fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 58 01 00 00 89 B4 24 D4 00 00 00");
-		if (CameraVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule);
+					// Skip processing if a similar HFOV (within tolerance) has already been computed
+					bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+					[&](float computedValue) {
+						return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
+					});
+
+					if (bHFOVAlreadyComputed)
+					{
+						return;
+					}
+
+					// Compute the new HFOV value
+					if (fCurrentCameraHFOV == 0.6999999881f)
+					{
+						fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+					}
+					else
+					{
+						fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					}					
+
+					// Record the computed HFOV for future calls
+					vComputedHFOVs.push_back(fCurrentCameraHFOV);
+
+					// Update the ECX register with the new HFOV value
+					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
+				});
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x158);
+			static std::vector<float> vComputedVFOVs;
 
-				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
 				{
-					fCurrentCameraVFOV = 1.1780972480773926f;
-				}
-			});
+					// Convert the EDX register value to float
+					fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
+
+					// Skip processing if a similar VFOV (within tolerance) has already been computed
+					bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+						[&](float computedValue) {
+							return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
+						});
+
+					if (bVFOVAlreadyComputed)
+					{
+						return;
+					}
+
+					// Compute the new VFOV value
+					if (fCurrentCameraVFOV == 0.5249999762f)
+					{
+						fCurrentCameraVFOV *= fFOVFactor;
+					}
+
+					// Record the computed VFOV for future calls
+					vComputedVFOVs.push_back(fCurrentCameraVFOV);
+
+					// Update the EDX register with the new VFOV value
+					ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
+				});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
 		}
 	}
