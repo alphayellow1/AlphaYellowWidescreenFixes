@@ -26,7 +26,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "LotusChallengeFOVFix";
+std::string sFixName = "ConspiracyWeaponsOfMassDestructionFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -57,7 +57,7 @@ float fAspectRatioScale;
 // Game detection
 enum class Game
 {
-	LC,
+	CWOMD,
 	Unknown
 };
 
@@ -68,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::LC, {"Lotus Challenge", "lotus.exe"}},
+	{Game::CWOMD, {"Conspiracy: Weapons of Mass Destruction", "cwmd.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -193,40 +193,28 @@ float CalculateNewFOV(float fCurrentFOV)
 	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
-
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 void FOVFix()
 {
-	if (eGameType == Game::LC && bFixActive == true)
+	if (eGameType == Game::CWOMD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 C9 89 51 58 89 41 5C 89 41 60 89 41 64 89 41 68");
-		if (AspectRatioInstructionScanResult)
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "AB AA AA 3F 63 6F 6E 74 72 61 69 6C");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, AspectRatioInstructionMidHook);
+			Memory::Write(AspectRatioScanResult, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 08 33 C0 D8 0D ?? ?? ?? ?? BA 00 00 80 3F");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 43 24 33 C0 D8 0D ?? ?? ?? ?? 55 8D AB CC 00 00 00 56 D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -237,7 +225,7 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x24);
 
 				// Skip processing if a similar FOV (within tolerance) has already been computed
 				bool bAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
@@ -252,11 +240,7 @@ void FOVFix()
 				}
 
 				// Computes the new FOV value
-				if (fCurrentCameraFOV > 1.0f)
-				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-				}
-				else
+				if (fCurrentCameraFOV != 1.134464025f && fCurrentCameraFOV != CalculateNewFOV(1.134464025f) * fFOVFactor)
 				{
 					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 				}
@@ -268,6 +252,72 @@ void FOVFix()
 		else
 		{
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* PistolHipfireCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 0D ?? ?? ?? ?? 89 08 83 A6 2C 01 00 00 EF DD D8 5F 5E C3 D9 86 64 02 00 00");
+		if (PistolHipfireCameraFOVInstructionScanResult)
+		{
+			spdlog::info("Pistol Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), PistolHipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(PistolHipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			static SafetyHookMid PistolHipfireCameraFOVInstructionMidHook{};
+			
+			PistolHipfireCameraFOVInstructionMidHook = safetyhook::create_mid(PistolHipfireCameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			{
+				float fCurrentPistolHipfireCameraFOV = CalculateNewFOV(1.134464025f) * fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentPistolHipfireCameraFOV);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate pistol hipfire camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* M4HipfireCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 0D ?? ?? ?? ?? 89 08 83 A6 2C 01 00 00 EF DD D8 5F 5E C3 D9 86 80 02 00 00 D8 1D ?? ?? ?? ??");
+		if (M4HipfireCameraFOVInstructionScanResult)
+		{
+			spdlog::info("M4 Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), M4HipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(M4HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			static SafetyHookMid M4HipfireCameraFOVInstructionMidHook{};
+
+			M4HipfireCameraFOVInstructionMidHook = safetyhook::create_mid(M4HipfireCameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			{
+				float fCurrentM4HipfireCameraFOV = CalculateNewFOV(1.134464025f) * fFOVFactor;
+					
+				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentM4HipfireCameraFOV);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate M4 hipfire camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* SniperHipfireCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 0D ?? ?? ?? ?? 89 08 74 17 B8 00 00 80 3F 89 87 B0 01 00 00 89 87 B4 01 00 00 89 85 F4 00 00 00");
+		if (SniperHipfireCameraFOVInstructionScanResult)
+		{
+			spdlog::info("Sniper Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), SniperHipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(SniperHipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			static SafetyHookMid SniperHipfireCameraFOVInstructionMidHook{};
+			
+			SniperHipfireCameraFOVInstructionMidHook = safetyhook::create_mid(SniperHipfireCameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			{
+				float fCurrentSniperHipfireCameraFOV = CalculateNewFOV(1.134464025f) * fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentSniperHipfireCameraFOV);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate sniper hipfire camera FOV instruction memory address.");
 			return;
 		}
 	}

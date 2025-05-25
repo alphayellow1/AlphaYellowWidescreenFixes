@@ -565,6 +565,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "StarWarsEpisode1BattleForNa
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LotusChallengeFOVFix", "LotusChallengeFOVFix.vcxproj", "{BFE90B00-0B85-4BB8-B7AA-E8154ED9BB8C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HalcyonSunFOVFix", "HalcyonSunFOVFix.vcxproj", "{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConspiracyWeaponsOfMassDestructionFOVFix", "ConspiracyWeaponsOfMassDestructionFOVFix.vcxproj", "{525B7460-1728-4096-8FDE-39CC92EAD6B9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2821,6 +2825,22 @@ Global
 		{BFE90B00-0B85-4BB8-B7AA-E8154ED9BB8C}.Release|x64.Build.0 = Release|x64
 		{BFE90B00-0B85-4BB8-B7AA-E8154ED9BB8C}.Release|x86.ActiveCfg = Release|Win32
 		{BFE90B00-0B85-4BB8-B7AA-E8154ED9BB8C}.Release|x86.Build.0 = Release|Win32
+		{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}.Debug|x64.ActiveCfg = Debug|x64
+		{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}.Debug|x64.Build.0 = Debug|x64
+		{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}.Debug|x86.ActiveCfg = Debug|Win32
+		{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}.Debug|x86.Build.0 = Debug|Win32
+		{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}.Release|x64.ActiveCfg = Release|x64
+		{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}.Release|x64.Build.0 = Release|x64
+		{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}.Release|x86.ActiveCfg = Release|Win32
+		{7C7DE35F-5DBD-43E1-AA50-5243B9ED8387}.Release|x86.Build.0 = Release|Win32
+		{525B7460-1728-4096-8FDE-39CC92EAD6B9}.Debug|x64.ActiveCfg = Debug|x64
+		{525B7460-1728-4096-8FDE-39CC92EAD6B9}.Debug|x64.Build.0 = Debug|x64
+		{525B7460-1728-4096-8FDE-39CC92EAD6B9}.Debug|x86.ActiveCfg = Debug|Win32
+		{525B7460-1728-4096-8FDE-39CC92EAD6B9}.Debug|x86.Build.0 = Debug|Win32
+		{525B7460-1728-4096-8FDE-39CC92EAD6B9}.Release|x64.ActiveCfg = Release|x64
+		{525B7460-1728-4096-8FDE-39CC92EAD6B9}.Release|x64.Build.0 = Release|x64
+		{525B7460-1728-4096-8FDE-39CC92EAD6B9}.Release|x86.ActiveCfg = Release|Win32
+		{525B7460-1728-4096-8FDE-39CC92EAD6B9}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
