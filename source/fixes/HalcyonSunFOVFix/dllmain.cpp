@@ -26,7 +26,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "LotusChallengeFOVFix";
+std::string sFixName = "HalcyonSunFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -57,7 +57,7 @@ float fAspectRatioScale;
 // Game detection
 enum class Game
 {
-	LC,
+	HS,
 	Unknown
 };
 
@@ -68,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::LC, {"Lotus Challenge", "lotus.exe"}},
+	{Game::HS, {"Halcyon Sun", "Halcyon Sun.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -193,40 +193,15 @@ float CalculateNewFOV(float fCurrentFOV)
 	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
-
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 void FOVFix()
 {
-	if (eGameType == Game::LC && bFixActive == true)
+	if (eGameType == Game::HS && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 C9 89 51 58 89 41 5C 89 41 60 89 41 64 89 41 68");
-		if (AspectRatioInstructionScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, AspectRatioInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 08 33 C0 D8 0D ?? ?? ?? ?? BA 00 00 80 3F");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 45 08 D8 0D ?? ?? ?? ?? D9 5D 08 D9 45 08 D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -237,7 +212,7 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0x8);
 
 				// Skip processing if a similar FOV (within tolerance) has already been computed
 				bool bAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
@@ -252,7 +227,7 @@ void FOVFix()
 				}
 
 				// Computes the new FOV value
-				if (fCurrentCameraFOV > 1.0f)
+				if (fCurrentCameraFOV == 0.7853975296f)
 				{
 					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 				}
