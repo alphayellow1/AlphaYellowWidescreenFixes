@@ -56,7 +56,7 @@ double dNewCameraFOV;
 // Game detection
 enum class Game
 {
-	URCD,
+	URDC,
 	Unknown
 };
 
@@ -67,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::URCD, {"Ultimate Ride Disney Coaster", "URideDC.exe"}},
+	{Game::URDC, {"Ultimate Ride Disney Coaster", "URideDC.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -201,7 +201,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 void WidescreenFix()
 {
-	if (eGameType == Game::URCD && bFixActive == true)
+	if (eGameType == Game::URDC && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 		
