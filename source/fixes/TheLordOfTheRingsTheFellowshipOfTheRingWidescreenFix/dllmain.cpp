@@ -239,7 +239,7 @@ static SafetyHookMid GameplayCameraFOVInstructionHook{};
 
 void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	dNewGameplayCameraFOV = (dOriginalCameraFOV / (double)fAspectRatioScale) * (1.0 / (double)dFOVFactor);
+	dNewGameplayCameraFOV = (dOriginalCameraFOV / (double)fAspectRatioScale) * (1.0 / dFOVFactor);
 
 	_asm
 	{
