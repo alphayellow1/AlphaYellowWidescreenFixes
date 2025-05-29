@@ -323,9 +323,6 @@ void WidescreenFix()
 				// Convert the ECX register value to float
 				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				// log the “raw” camera FOV before any change
-				spdlog::info("[Hook] Raw incoming FOV: {:.9f}", fCurrentCameraHFOV);
-
 				// Skip processing if a similar HFOV (within tolerance) has already been computed
 				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
 				[&](float computedValue) {
