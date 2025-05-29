@@ -575,6 +575,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GTR400FOVFix", "GTR400FOVFi
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BrokenSword3TheSleepingDragonFOVFix", "BrokenSword3TheSleepingDragonFOVFix.vcxproj", "{7A05D826-CDBF-41D5-A7BB-59B0502633CD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RugbyLeague2WidescreenFix", "RugbyLeague2WidescreenFix.vcxproj", "{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2871,6 +2873,14 @@ Global
 		{7A05D826-CDBF-41D5-A7BB-59B0502633CD}.Release|x64.Build.0 = Release|x64
 		{7A05D826-CDBF-41D5-A7BB-59B0502633CD}.Release|x86.ActiveCfg = Release|Win32
 		{7A05D826-CDBF-41D5-A7BB-59B0502633CD}.Release|x86.Build.0 = Release|Win32
+		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Debug|x64.ActiveCfg = Debug|x64
+		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Debug|x64.Build.0 = Debug|x64
+		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Debug|x86.ActiveCfg = Debug|Win32
+		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Debug|x86.Build.0 = Debug|Win32
+		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Release|x64.ActiveCfg = Release|x64
+		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Release|x64.Build.0 = Release|x64
+		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Release|x86.ActiveCfg = Release|Win32
+		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
