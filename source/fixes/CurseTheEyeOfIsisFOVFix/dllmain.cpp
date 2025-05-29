@@ -219,11 +219,12 @@ void FOVFix()
 					fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
 					// Skip processing if a similar HFOV (within tolerance) has already been computed
-					bool alreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-						[&](float computedValue) {
-							return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
-						});
-					if (alreadyComputed)
+					bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+					[&](float computedValue) {
+						return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
+					});
+
+					if (bHFOVAlreadyComputed)
 					{
 						return;
 					}
@@ -259,12 +260,12 @@ void FOVFix()
 					fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
 
 					// Skip processing if a similar VFOV (within tolerance) has already been computed
-					bool alreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-						[&](float computedValue) {
-							return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
-						});
+					bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+					[&](float computedValue) {
+						return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
+					});
 
-					if (alreadyComputed)
+					if (bVFOVAlreadyComputed)
 					{
 						return;
 					}
