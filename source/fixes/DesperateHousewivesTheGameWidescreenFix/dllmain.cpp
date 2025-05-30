@@ -42,7 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0000001f;
+constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -262,7 +262,7 @@ void WidescreenFix()
 			return;
 		}
 	
-	    std:uint8_t* ResolutionList2ScanResult = Memory::PatternScan(exeModule, "C7 00 80 02 00 00 C7 01 E0 01 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 20 03 00 00 C7 00 58 02 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 04 00 00 C7 02 00 03 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 80 04 00 00 C7 01 60 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 C0 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 05 00 00 C7 02 00 04 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 40 06 00 00 C7 01 B0 04 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 00 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 05 00 00 C7 02 D0 02 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 40 06 00 00 C7 01 84 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 20 03 00 00");
+	    std::uint8_t* ResolutionList2ScanResult = Memory::PatternScan(exeModule, "C7 00 80 02 00 00 C7 01 E0 01 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 20 03 00 00 C7 00 58 02 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 04 00 00 C7 02 00 03 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 80 04 00 00 C7 01 60 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 C0 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 05 00 00 C7 02 00 04 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 40 06 00 00 C7 01 B0 04 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 00 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 05 00 00 C7 02 D0 02 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 40 06 00 00 C7 01 84 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 20 03 00 00");
 		if (ResolutionList2ScanResult)
 		{
 			spdlog::info("Resolution List 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList2ScanResult - (std::uint8_t*)exeModule);
@@ -345,23 +345,11 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx);
 
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool bAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
-
-				if (bAlreadyComputed)
-				{
-					return;
-				}
-
 				// Computes the new FOV value
-				fCurrentCameraFOV *= fFOVFactor;
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fCurrentCameraFOV);
+				if (fCurrentCameraFOV == 0.7853981256f)
+				{
+					fCurrentCameraFOV *= fFOVFactor;
+				}
 			});
 		}
 		else
