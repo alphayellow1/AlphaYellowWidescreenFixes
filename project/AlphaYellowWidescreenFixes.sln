@@ -577,6 +577,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BrokenSword3TheSleepingDrag
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RugbyLeague2WidescreenFix", "RugbyLeague2WidescreenFix.vcxproj", "{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Commandos4StrikeForceFOVFix", "Commandos4StrikeForceFOVFix.vcxproj", "{464E9A77-C59A-4A5C-BB04-04F98B5F639D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DesperateHousewivesTheGameWidescreenFix", "DesperateHousewivesTheGameWidescreenFix.vcxproj", "{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -2881,6 +2885,22 @@ Global
 		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Release|x64.Build.0 = Release|x64
 		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Release|x86.ActiveCfg = Release|Win32
 		{4C2150A7-76ED-4BBE-831E-07C3E9B8A90D}.Release|x86.Build.0 = Release|Win32
+		{464E9A77-C59A-4A5C-BB04-04F98B5F639D}.Debug|x64.ActiveCfg = Debug|x64
+		{464E9A77-C59A-4A5C-BB04-04F98B5F639D}.Debug|x64.Build.0 = Debug|x64
+		{464E9A77-C59A-4A5C-BB04-04F98B5F639D}.Debug|x86.ActiveCfg = Debug|Win32
+		{464E9A77-C59A-4A5C-BB04-04F98B5F639D}.Debug|x86.Build.0 = Debug|Win32
+		{464E9A77-C59A-4A5C-BB04-04F98B5F639D}.Release|x64.ActiveCfg = Release|x64
+		{464E9A77-C59A-4A5C-BB04-04F98B5F639D}.Release|x64.Build.0 = Release|x64
+		{464E9A77-C59A-4A5C-BB04-04F98B5F639D}.Release|x86.ActiveCfg = Release|Win32
+		{464E9A77-C59A-4A5C-BB04-04F98B5F639D}.Release|x86.Build.0 = Release|Win32
+		{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}.Debug|x64.ActiveCfg = Debug|x64
+		{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}.Debug|x64.Build.0 = Debug|x64
+		{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}.Debug|x86.ActiveCfg = Debug|Win32
+		{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}.Debug|x86.Build.0 = Debug|Win32
+		{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}.Release|x64.ActiveCfg = Release|x64
+		{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}.Release|x64.Build.0 = Release|x64
+		{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}.Release|x86.ActiveCfg = Release|Win32
+		{EAEAD620-390D-4A9D-B3D3-273CEF4CDF48}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
