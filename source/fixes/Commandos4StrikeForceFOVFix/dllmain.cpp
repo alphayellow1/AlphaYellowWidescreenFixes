@@ -1,4 +1,4 @@
-﻿	// Include necessary headers
+// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -17,6 +17,9 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <algorithm>
+#include <cmath>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -24,8 +27,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "CorvetteEvolutionGTFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixName = "Commandos4StrikeForceFOVFix";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,22 +45,24 @@ std::string sExeName;
 bool bFixActive;
 
 // Constants
+constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.00001f;
+constexpr float fOriginalCameraFOV = 70.0f; // Original FOV in degrees
+constexpr float fTolerance = 0.00000001f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fAspectRatioScale;
 float fFOVFactor;
-static float fCurrentCameraHFOV;
+float fCurrentCameraHFOV;
 float fCurrentCameraVFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
 {
-	CEGT,
+	CSF,
 	Unknown
 };
 
@@ -68,7 +73,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::CEGT, {"Corvette Evolution GT", "EGT.exe"}},
+	{Game::CSF, {"Commandos 4: Strike Force", "CommXPC.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -188,132 +193,77 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+float CalculateNewFOVMultiplier(float fCurrentFOV)
 {
 	return fCurrentFOV * fAspectRatioScale;
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::CEGT && bFixActive == true)
+	if (eGameType == Game::CSF && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "C7 44 24 10 AB AA AA 3F 77 08 C7 44 24 10 AB AA 2A 40");
-		if (AspectRatioScanResult)
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 D8 76 68 8B 50 04 89 56 6C");
+		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the aspect ratio scan memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraHFOVAndVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 D8 76 68 8B 50 04 89 56 6C");
-		if (CameraHFOVAndVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera HFOV & VFOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVAndVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
 			static std::vector<float> vComputedHFOVs;
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
-
-				spdlog::info("[Hook] Raw incoming FOV: {:.9f}", fCurrentCameraHFOV);
-
-				// Race gameplay HFOV
-				if (fabsf(fCurrentCameraHFOV - CalculateNewFOV(0.5773502588f)) < fTolerance || 
-					fabsf(fCurrentCameraHFOV - CalculateNewFOV(0.7002074718f)) < fTolerance)
-				{
-					fCurrentCameraHFOV *= fFOVFactor;
-
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-
-					return;
-				}
-
-				if (fCurrentCameraHFOV == 0.6841368675f || fCurrentCameraHFOV == 0.6339263916f)
-				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-
-					return;
-				}
-
-				if (fCurrentCameraHFOV == 1.0f || fCurrentCameraHFOV == 0.2194047719f || fCurrentCameraHFOV == 2.144506931f)
-				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-
-					return;
-				}
-								
-				if (fCurrentCameraHFOV != CalculateNewFOV(0.5773502588f) && fCurrentCameraHFOV != CalculateNewFOV(0.6841368675f) && fCurrentCameraHFOV != CalculateNewFOV(0.6339263916f))
-				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-					
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-
-					return;
-				}
-			});
-
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			static std::vector<float> vComputedVFOVs;
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Convert the ECX register value to float
-				fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
+				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-					[&](float computedValue) {
-						return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
-					});
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+				[&](float computedValue) {
+					return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
+				});
 
-				if (alreadyComputed)
+				if (bHFOVAlreadyComputed)
 				{
 					return;
 				}
 
-				// Race gameplay VFOVs (during race it's stretched, so no need to calculate new VFOVs but just expose the FOV factor to the user
-				if (fabsf(fCurrentCameraVFOV - 0.4330126941f) < fTolerance || 
-					fabsf(fCurrentCameraVFOV - 0.5251555443f) < fTolerance)
-				{
-					fCurrentCameraVFOV *= fFOVFactor;
-				}
-				else if (fabsf(fCurrentCameraVFOV - CalculateNewFOV(0.2625777721f)) < fTolerance)
-				{
-					fCurrentCameraVFOV = (fCurrentCameraVFOV / fAspectRatioScale) * fFOVFactor;
-				}
-				else if (fCurrentCameraVFOV > (0.4330126941f / fAspectRatioScale) && fCurrentCameraVFOV < (1.0f / fAspectRatioScale))
-				{
-					// Compute the new VFOV value
-					fCurrentCameraVFOV = fCurrentCameraHFOV / fNewAspectRatio;
-				}
+				// Compute the new HFOV value
+				fCurrentCameraHFOV = CalculateNewFOVMultiplier(fCurrentCameraHFOV);
 
-				// Record the computed VFOV for future calls
-				vComputedVFOVs.push_back(fCurrentCameraVFOV);
+				// Record the computed HFOV for future calls
+				vComputedHFOVs.push_back(fCurrentCameraHFOV);
 
-				// Update the ECX register with the new VFOV value
-				ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
+				// Update the ECX register with the new HFOV value
+				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera HFOV & VFOV instructions scan memory address.");
+			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 80 3C 01 00 00 D8 0D ?? ?? ?? ?? 8B 83 B8 08 00 00");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+			
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);
+
+				fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
 		}
 	}
