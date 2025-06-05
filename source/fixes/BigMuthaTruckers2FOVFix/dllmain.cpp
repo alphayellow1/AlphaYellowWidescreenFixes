@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -52,6 +50,7 @@ int iCurrentResY;
 float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -73,7 +72,7 @@ const std::map<Game, GameInfo> kGames = {
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
-static void Logging()
+void Logging()
 {
 	// Get path to DLL
 	WCHAR dllPath[_MAX_PATH] = { 0 };
@@ -117,7 +116,7 @@ static void Logging()
 	}
 }
 
-static void Configuration()
+void Configuration()
 {
 	// Inipp initialization
 	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
@@ -169,7 +168,7 @@ static void Configuration()
 	spdlog::info("----------");
 }
 
-static bool DetectGame()
+bool DetectGame()
 {
 	for (const auto& [type, info] : kGames)
 	{
@@ -191,7 +190,7 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraFOV = (fOldAspectRatio / fNewAspectRatio) * (1.0f / fFOVFactor);
+	fNewCameraFOV = (1.0f / fAspectRatioScale) * (1.0f / fFOVFactor);
 
 	_asm
 	{
@@ -199,11 +198,33 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
-static void FOVFix()
+void FOVFix()
 {
 	if (eGameType == Game::BMT2 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 42 44 D9 C2 D8 62 3C F3 AB 5F D8 FB");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid AspectRatioInstructionMidHook{};
+
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.edx + 0x44);
+
+				fCurrentAspectRatio = fNewAspectRatio;
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8D B2 EC 01 00 00 33 C0 8B FE D9 F2 B9 10 00 00 00 DD D8 D8 3D ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
@@ -218,29 +239,11 @@ static void FOVFix()
 		{
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
-		}
-
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 42 44 D9 C2 D8 62 3C F3 AB 5F D8 FB");
-		if (AspectRatioInstructionScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid AspectRatioInstructionMidHook{};
-
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<float*>(ctx.edx + 0x44) = fNewAspectRatio;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
-			return;
-		}
+		}		
 	}
 }
 
-static DWORD __stdcall Main(void*)
+DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
