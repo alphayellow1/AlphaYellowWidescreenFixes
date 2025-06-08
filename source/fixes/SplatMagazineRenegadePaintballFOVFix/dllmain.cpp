@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +51,7 @@ float fNewAspectRatio;
 float fCameraFOVFactor;
 float fWeaponFOVFactor;
 float fNewCameraZoomFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -192,14 +191,14 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
 static SafetyHookMid CameraZoomFOVInstructionHook{};
 
 void CameraZoomFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraZoomFOV = CalculateNewFOV(0.7070000172f);
+	fNewCameraZoomFOV = CalculateNewFOV(0.7070000172f); // 40.5 degrees in radians
 
 	_asm
 	{
@@ -213,6 +212,8 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fNewAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* BriefingCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 48 58 8B 4A 5C 89 48 5C 8B 4A 60 89 48 60 8D 72 64");
 		if (BriefingCameraFOVInstructionScanResult)
 		{
@@ -224,7 +225,7 @@ void FOVFix()
 			{
 				float fCurrentBriefingCameraFOV = std::bit_cast<float>(ctx.ecx);
 
-				if (fCurrentBriefingCameraFOV == 0.5142856836f)
+				if (fCurrentBriefingCameraFOV == 0.5142856836f) // 29.5 degrees in radians
 				{
 					fCurrentBriefingCameraFOV = CalculateNewFOV(fCurrentBriefingCameraFOV);
 				}
@@ -249,7 +250,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraFOVHipfireValue1 = *reinterpret_cast<float*>(ctx.ebx + 0x19C);
 
-				fCurrentCameraFOVHipfireValue1 = fCameraFOVFactor * CalculateNewFOV(1.5707963268f);
+				fCurrentCameraFOVHipfireValue1 = fCameraFOVFactor * CalculateNewFOV(1.5707963268f); // 90 degrees in radians
 			});
 		}
 		else
@@ -269,7 +270,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraHipfireFOVValue2 = *reinterpret_cast<float*>(ctx.ebx + 0x19C);
 
-				fCurrentCameraHipfireFOVValue2 = fCameraFOVFactor * CalculateNewFOV(1.5707963268f);
+				fCurrentCameraHipfireFOVValue2 = fCameraFOVFactor * CalculateNewFOV(1.5707963268f); // 90 degrees in radians
 			});
 		}
 		else
@@ -304,7 +305,7 @@ void FOVFix()
 			{
 				float& fCurrentWeaponFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x4);
 
-				fCurrentWeaponFOVValue = fWeaponFOVFactor * CalculateNewFOV(1.221730471f);
+				fCurrentWeaponFOVValue = fWeaponFOVFactor * CalculateNewFOV(1.221730471f); // 70 degrees in radians
 			});
 		}
 		else
