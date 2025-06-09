@@ -12,6 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -24,8 +25,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "SantaClausInTroubleFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixName = "SASAntiTerrorForceFOVChanger";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -38,22 +39,26 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
+// Constants
+constexpr float fTolerance = 0.00000001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalCameraFOV = 60.0f;
+constexpr float fOriginalCameraZoom = 0.5f;
+
 // Ini variables
 bool bFixActive;
-
-// Constants
-constexpr float fOriginalCameraFOV = 0.8999999761581421f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+static float fNewCameraFOV;
+float fNewCameraZoom;
 
 // Game detection
 enum class Game
 {
-	SCIT,
+	SASATF,
 	Unknown
 };
 
@@ -64,7 +69,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SCIT, {"Santa Claus in Trouble", "SantaClausInTrouble.exe"}},
+	{Game::SASATF, {"SAS: Anti-Terror Force", "SIEGE.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -140,12 +145,10 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVChanger"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
@@ -184,43 +187,95 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
+
+	_asm
+	{
+		fsubr dword ptr ds : [fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
-	if (eGameType == Game::SCIT && bFixActive == true)
+	if (eGameType == Game::SASATF && bFixActive == true)
 	{
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "AC 00 00 00 68 ?? ?? ?? ?? 51 E8 F0 B5 00 00 C2");
-		if (AspectRatioScanResult)
-		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 5 - (std::uint8_t*)exeModule);
-
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-			Memory::Write(AspectRatioScanResult + 5, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 04 52 89 41 54");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 2D ?? ?? ?? ?? A3 ?? ?? ?? ?? 5E D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? 81 C4 50 01 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
+
+			static std::vector<float> vComputedFOVs;
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x005315A8);
 
-				fCurrentCameraFOV = fOriginalCameraFOV * (1.0f / fFOVFactor);
+				// Skip processing if a similar FOV (within tolerance) has already been computed
+				bool bFOVAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
+					[&](float computedValue) {
+						return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
+					});
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
+				if (bFOVAlreadyComputed)
+				{
+					return;
+				}
+
+				fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
+
+				fNewCameraFOV = fCurrentCameraFOV;
+
+				// Record the computed FOV for future calls
+				vComputedFOVs.push_back(fCurrentCameraFOV);
 			});
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraZoomInstructionScanResult = Memory::PatternScan(exeModule, "8B 80 EC 00 00 00 83 C4 04 A3 64 22 65 00 C6 44 24 18 00 8B 4C 24 1C");
+		if (CameraZoomInstructionScanResult)
+		{
+			spdlog::info("Camera Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraZoomInstructionMidHook{};
+
+			static std::vector<float> vComputedZooms;
+
+			CameraZoomInstructionMidHook = safetyhook::create_mid(CameraZoomInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraZoom = *reinterpret_cast<float*>(ctx.eax + 0xEC);
+
+				// Skip processing if a similar zoom (within tolerance) has already been computed
+				bool bZoomAlreadyComputed = std::any_of(vComputedZooms.begin(), vComputedZooms.end(),
+				[&](float computedValue)
+				{
+					return std::fabs(computedValue - fCurrentCameraZoom) < fTolerance;
+				});
+
+				if (bZoomAlreadyComputed)
+				{
+					return;
+				}
+
+				// Computes the new zoom value
+				fCurrentCameraZoom = fOriginalCameraZoom * ((fNewCameraFOV - 50.0f) / (fOriginalCameraFOV - 50.0f));
+
+				// Stores the new value so future calls can skip re-calculations
+				vComputedZooms.push_back(fCurrentCameraZoom);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera zoom instruction memory address.");
 			return;
 		}
 	}

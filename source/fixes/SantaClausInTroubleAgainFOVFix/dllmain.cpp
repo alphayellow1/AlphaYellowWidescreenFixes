@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -183,7 +184,7 @@ static void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "89 46 54 68 ?? ?? ?? ?? 8D 86 B0 00 00 00 50");
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "89 46 54 68 AB AA AA 3F 8D 86 B0 00 00 00 50");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
@@ -193,6 +194,28 @@ static void FOVFix()
 		else
 		{
 			spdlog::error("Failed to locate aspect ratio memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "51 8B D0 52 68 00 00 80 3F 89 46 54");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+			
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+			{
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+
+				fCurrentCameraFOV = 5.0f;
+
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
