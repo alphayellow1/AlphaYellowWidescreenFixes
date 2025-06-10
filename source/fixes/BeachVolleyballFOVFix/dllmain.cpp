@@ -245,7 +245,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
 
-				// Skip processing if a similar FOV (within tolerance) has already been computed
+				// Skip processing if a similar VFOV (within tolerance) has already been computed
 				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
 				[&](float computedValue)
 				{
