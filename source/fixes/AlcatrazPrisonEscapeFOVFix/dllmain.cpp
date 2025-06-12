@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "AlcatrazPrisonEscapeFOVFix";
-std::string sFixVersion = "1.5";
+std::string sFixVersion = "1.6";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,8 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float epsilon = 0.00001f;
-constexpr float tolerance = 0.0001f;
+constexpr float fTolerance = 0.00000001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +52,7 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 static float fCurrentCameraVFOVReference;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -188,14 +188,19 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOV(float fCurrentFOV)
+float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
 }
 
-float CalculateNewVFOV(float fCurrentFOV)
+float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
 {
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
+	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
 }
 
 void FOVFix()
@@ -203,6 +208,8 @@ void FOVFix()
 	if (eGameType == Game::APE && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 98 01 00 00 89 94 24 FC 00 00 00");
 		if (CameraHFOVInstructionScanResult)
@@ -215,16 +222,13 @@ void FOVFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
 
-				if (fCurrentCameraHFOV == 1.5707963705062866f)
+				if (fabs(fCurrentCameraVFOVReference - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabs(fCurrentCameraVFOVReference - 0.849067747592926f) < fTolerance)
 				{
-					if (fabs(fCurrentCameraVFOVReference - (0.849067747592926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon || fabs(fCurrentCameraVFOVReference - 0.849067747592926f) < epsilon)
-					{
-						fCurrentCameraHFOV = CalculateNewHFOV(1.5707963705062866f);
-					}
-					else if (fabs(fCurrentCameraVFOVReference - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon || fabs(fCurrentCameraVFOVReference - 1.1780972480773926f) < epsilon)
-					{
-						fCurrentCameraHFOV = CalculateNewHFOV(1.5707963705062866f) * fFOVFactor;
-					}
+					fCurrentCameraHFOV = CalculateNewHFOVWithoutFOVFactor(1.5707963705062866f);
+				}
+				else if (fabs(fCurrentCameraVFOVReference - (1.1780972480773926f / fAspectRatioScale)) < fTolerance || fabs(fCurrentCameraVFOVReference - CalculateNewVFOVWithFOVFactor(1.1780972480773926f)) < fTolerance)
+				{
+					fCurrentCameraHFOV = CalculateNewHFOVWithFOVFactor(1.5707963705062866f);
 				}
 			});
 		}
@@ -250,21 +254,21 @@ void FOVFix()
 				fCurrentCameraVFOVReference = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
 				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
 					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraVFOV) < tolerance;
+					return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
 				});
 
-				if (alreadyComputed)
+				if (bVFOVAlreadyComputed)
 				{
 					return;
 				}
 
-				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon || fabs(fCurrentCameraVFOV - 1.1780972480773926f) < epsilon)
+				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance || fabs(fCurrentCameraVFOV - 1.1780972480773926f) < fTolerance)
 				{
-					fCurrentCameraVFOV = (CalculateNewHFOV(1.5707963705062866f) * fFOVFactor) / (CalculateNewHFOV(1.5707963705062866f) / 1.1780972480773926f); // Gameplay VFOV
+					fCurrentCameraVFOV = CalculateNewVFOVWithFOVFactor(1.1780972480773926f); // Gameplay VFOV
 				}
-				else if (fabs(fCurrentCameraVFOV - (0.849067747592926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon || fabs(fCurrentCameraVFOV - 0.849067747592926f) < epsilon)
+				else if (fabs(fCurrentCameraVFOV - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabs(fCurrentCameraVFOV - 0.849067747592926f) < fTolerance)
 				{
 					fCurrentCameraVFOV = 0.849067747592926f; // Cutscenes VFOV
 				}
