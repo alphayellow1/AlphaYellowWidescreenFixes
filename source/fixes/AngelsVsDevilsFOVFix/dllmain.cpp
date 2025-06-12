@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "AngelsVsDevilsFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,10 +41,8 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.0000001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +51,8 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -104,7 +104,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -150,6 +150,7 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 
@@ -186,11 +187,23 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewHFOV(float fCurrentHFOV)
+{
+	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewVFOV(float fCurrentVFOV)
+{
+	return 2.0f * atanf(fFOVFactor * tanf((fCurrentVFOV * fAspectRatioScale) / 2.0f));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::AVD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraHFOVInstructionResult = Memory::PatternScan(exeModule, "D9 43 1C D8 0D ?? ?? ?? ?? D9 F2 DD D8");
 		if (CameraHFOVInstructionResult)
@@ -199,12 +212,28 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
+			static std::vector<float> vComputedHFOVs;
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.ebx + 0x1C) == 0.7853981853f || *reinterpret_cast<float*>(ctx.ebx + 0x1C) == 0.3926990926f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ebx + 0x1C);
+
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+				[&](float computedValue)
 				{
-					*reinterpret_cast<float*>(ctx.ebx + 0x1C) = 2.0f * atanf(tanf(*reinterpret_cast<float*>(ctx.ebx + 0x1C) / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
+				});
+
+				if (bHFOVAlreadyComputed)
+				{
+					return;
 				}
+
+				fCurrentCameraHFOV = CalculateNewHFOV(fCurrentCameraHFOV);
+
+				// Stores the new HFOV value so future calls can skip re-calculations
+				vComputedHFOVs.push_back(fCurrentCameraHFOV);
 			});
 		}
 		else
@@ -220,12 +249,28 @@ void FOVFix()
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
+			static std::vector<float> vComputedVFOVs;
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 3, [](SafetyHookContext& ctx)
 			{
-				if (fabs(*reinterpret_cast<float*>(ctx.ebx + 0x20) - (0.589048624f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ebx + 0x20);
+
+				// Skip processing if a similar VFOV (within tolerance) has already been computed
+				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+				[&](float computedValue)
 				{
-					*reinterpret_cast<float*>(ctx.ebx + 0x20) = 0.589048624f;
+					return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
+				});
+
+				if (bVFOVAlreadyComputed)
+				{
+					return;
 				}
+
+				fCurrentCameraVFOV = CalculateNewVFOV(fCurrentCameraVFOV);
+
+				// Stores the new VFOV value so future calls can skip re-calculations
+				vComputedVFOVs.push_back(fCurrentCameraVFOV);
 			});
 		}
 		else
