@@ -51,8 +51,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-static float fCurrentCameraVFOVReference;
 float fAspectRatioScale;
+static float fCurrentCameraVFOVReference;
 
 // Game detection
 enum class Game
@@ -198,6 +198,11 @@ float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
 	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
 }
 
+float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
+}
+
 float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
 {
 	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
@@ -218,18 +223,37 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
+			static std::vector<float> vComputedHFOVs;
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
 
-				if (fabs(fCurrentCameraVFOVReference - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabs(fCurrentCameraVFOVReference - 0.849067747592926f) < fTolerance)
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+					[&](float computedValue)
+					{
+						return std::fabsf(computedValue - fCurrentCameraHFOV) < fTolerance;
+					});
+
+				if (bHFOVAlreadyComputed)
 				{
-					fCurrentCameraHFOV = CalculateNewHFOVWithoutFOVFactor(1.5707963705062866f);
+					return;
 				}
-				else if (fabs(fCurrentCameraVFOVReference - (1.1780972480773926f / fAspectRatioScale)) < fTolerance || fabs(fCurrentCameraVFOVReference - CalculateNewVFOVWithFOVFactor(1.1780972480773926f)) < fTolerance)
+
+				if (fabsf(fCurrentCameraVFOV2 - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV2 - 0.849067747592926f) < fTolerance)
 				{
-					fCurrentCameraHFOV = CalculateNewHFOVWithFOVFactor(1.5707963705062866f);
+					fCurrentCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // Cutscene HFOV
 				}
+				else
+				{
+					fCurrentCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Gameplay HFOVs
+				}
+
+				// Stores the new HFOV value so future calls can skip re-calculations
+				vComputedHFOVs.push_back(fCurrentCameraHFOV);
 			});
 		}
 		else
@@ -251,12 +275,10 @@ void FOVFix()
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
-				fCurrentCameraVFOVReference = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
 				// Skip processing if a similar VFOV (within tolerance) has already been computed
 				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
 					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
+					return std::fabsf(computedValue - fCurrentCameraVFOV) < fTolerance;
 				});
 
 				if (bVFOVAlreadyComputed)
@@ -264,13 +286,13 @@ void FOVFix()
 					return;
 				}
 
-				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance || fabs(fCurrentCameraVFOV - 1.1780972480773926f) < fTolerance)
+				if (fabsf(fCurrentCameraVFOV - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV - 0.849067747592926f) < fTolerance)
 				{
-					fCurrentCameraVFOV = CalculateNewVFOVWithFOVFactor(1.1780972480773926f); // Gameplay VFOV
+					fCurrentCameraVFOV = CalculateNewVFOVWithoutFOVFactor(0.849067747592926f); // Cutscenes VFOV
 				}
-				else if (fabs(fCurrentCameraVFOV - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabs(fCurrentCameraVFOV - 0.849067747592926f) < fTolerance)
+				else
 				{
-					fCurrentCameraVFOV = 0.849067747592926f; // Cutscenes VFOV
+					fCurrentCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV); // Gameplay VFOVs
 				}
 
 				// Record the computed VFOV for future calls

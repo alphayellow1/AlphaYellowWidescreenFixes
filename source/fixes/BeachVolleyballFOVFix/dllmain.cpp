@@ -220,13 +220,13 @@ void FOVFix()
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
 				// Skip processing if a similar HFOV (within tolerance) has already been computed
-				bool bAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
 				[&](float computedValue)
 				{
 					return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
 				});
 
-				if (bAlreadyComputed)
+				if (bHFOVAlreadyComputed)
 				{
 					return;
 				}
