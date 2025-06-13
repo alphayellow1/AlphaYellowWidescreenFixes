@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "AtlantisTheLostEmpireTrialByFireFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,10 +40,8 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.000000001f;
 
 // Ini variables
 bool bFixActive;
@@ -52,6 +50,9 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fFOVFactor;
+static float fCurrentCameraVFOVReference;
 
 // Game detection
 enum class Game
@@ -149,8 +150,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -185,9 +188,24 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
+{
+	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
+}
+
+float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
 }
 
 void FOVFix()
@@ -195,6 +213,8 @@ void FOVFix()
 	if (eGameType == Game::ATLETBF && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 98 01 00 00 89 94 24 FC 00 00 00");
 		if (CameraHFOVInstructionScanResult)
@@ -203,15 +223,38 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
+			static std::vector<float> vComputedHFOVs;
 
-				if (fCurrentCameraHFOV == 1.5707963705062866f)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-				}
-			});
+					float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
+
+					float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+
+					// Skip processing if a similar HFOV (within tolerance) has already been computed
+					bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+						[&](float computedValue)
+						{
+							return std::fabsf(computedValue - fCurrentCameraHFOV) < fTolerance;
+						});
+
+					if (bHFOVAlreadyComputed)
+					{
+						return;
+					}
+
+					if (fabsf(fCurrentCameraVFOV2 - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV2 - 0.849067747592926f) < fTolerance)
+					{
+						fCurrentCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // Cutscene HFOV
+					}
+					else
+					{
+						fCurrentCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Gameplay HFOVs
+					}
+
+					// Stores the new HFOV value so future calls can skip re-calculations
+					vComputedHFOVs.push_back(fCurrentCameraHFOV);
+				});
 		}
 		else
 		{
@@ -226,25 +269,42 @@ void FOVFix()
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+			static std::vector<float> vComputedVFOVs;
 
-				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
-					fCurrentCameraVFOV = 1.1780972480773926f;
-				}
-				else if (fabs(fCurrentCameraVFOV - (0.849067747592926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-				{
-					fCurrentCameraVFOV = 0.849067747592926f;
-				}
-			});
+					float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+
+					// Skip processing if a similar HFOV (within tolerance) has already been computed
+					bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+						[&](float computedValue)
+						{
+							return std::fabsf(computedValue - fCurrentCameraVFOV) < fTolerance;
+						});
+
+					if (bVFOVAlreadyComputed)
+					{
+						return;
+					}
+
+					if (fabsf(fCurrentCameraVFOV - (0.84906774759293f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV - 0.84906774759293f) < fTolerance)
+					{
+						fCurrentCameraVFOV = CalculateNewVFOVWithoutFOVFactor(0.84906774759293f); // Cutscenes VFOV
+					}
+					else
+					{
+						fCurrentCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV); // Gameplay VFOVs
+					}
+
+					// Stores the new VFOV value so future calls can skip re-calculations
+					vComputedVFOVs.push_back(fCurrentCameraVFOV);
+				});
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera VFOV instruction memory address.");
 			return;
-		}
+		}		
 	}
 }
 
