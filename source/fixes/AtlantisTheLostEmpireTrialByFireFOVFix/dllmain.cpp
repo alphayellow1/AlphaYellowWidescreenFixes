@@ -52,7 +52,6 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fFOVFactor;
-static float fCurrentCameraVFOVReference;
 
 // Game detection
 enum class Game
@@ -226,35 +225,35 @@ void FOVFix()
 			static std::vector<float> vComputedHFOVs;
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
+
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+				[&](float computedValue)
 				{
-					float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-					float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-					// Skip processing if a similar HFOV (within tolerance) has already been computed
-					bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-						[&](float computedValue)
-						{
-							return std::fabsf(computedValue - fCurrentCameraHFOV) < fTolerance;
-						});
-
-					if (bHFOVAlreadyComputed)
-					{
-						return;
-					}
-
-					if (fabsf(fCurrentCameraVFOV2 - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV2 - 0.849067747592926f) < fTolerance)
-					{
-						fCurrentCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // Cutscene HFOV
-					}
-					else
-					{
-						fCurrentCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Gameplay HFOVs
-					}
-
-					// Stores the new HFOV value so future calls can skip re-calculations
-					vComputedHFOVs.push_back(fCurrentCameraHFOV);
+					return std::fabsf(computedValue - fCurrentCameraHFOV) < fTolerance;
 				});
+
+				if (bHFOVAlreadyComputed)
+				{
+					return;
+				}
+
+				if (fabsf(fCurrentCameraVFOV2 - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV2 - 0.849067747592926f) < fTolerance)
+				{
+					fCurrentCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // Cutscene HFOV
+				}
+				else
+				{
+					fCurrentCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Gameplay HFOVs
+				}
+
+				// Stores the new HFOV value so future calls can skip re-calculations
+				vComputedHFOVs.push_back(fCurrentCameraHFOV);
+			});
 		}
 		else
 		{
@@ -272,33 +271,33 @@ void FOVFix()
 			static std::vector<float> vComputedVFOVs;
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+				[&](float computedValue)
 				{
-					float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-					// Skip processing if a similar HFOV (within tolerance) has already been computed
-					bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-						[&](float computedValue)
-						{
-							return std::fabsf(computedValue - fCurrentCameraVFOV) < fTolerance;
-						});
-
-					if (bVFOVAlreadyComputed)
-					{
-						return;
-					}
-
-					if (fabsf(fCurrentCameraVFOV - (0.84906774759293f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV - 0.84906774759293f) < fTolerance)
-					{
-						fCurrentCameraVFOV = CalculateNewVFOVWithoutFOVFactor(0.84906774759293f); // Cutscenes VFOV
-					}
-					else
-					{
-						fCurrentCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV); // Gameplay VFOVs
-					}
-
-					// Stores the new VFOV value so future calls can skip re-calculations
-					vComputedVFOVs.push_back(fCurrentCameraVFOV);
+					return std::fabsf(computedValue - fCurrentCameraVFOV) < fTolerance;
 				});
+
+				if (bVFOVAlreadyComputed)
+				{
+					return;
+				}
+
+				if (fabsf(fCurrentCameraVFOV - (0.84906774759293f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV - 0.84906774759293f) < fTolerance)
+				{
+					fCurrentCameraVFOV = CalculateNewVFOVWithoutFOVFactor(0.84906774759293f); // Cutscenes VFOV
+				}
+				else
+				{
+					fCurrentCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV); // Gameplay VFOVs
+				}
+
+				// Stores the new VFOV value so future calls can skip re-calculations
+				vComputedVFOVs.push_back(fCurrentCameraVFOV);
+			});
 		}
 		else
 		{

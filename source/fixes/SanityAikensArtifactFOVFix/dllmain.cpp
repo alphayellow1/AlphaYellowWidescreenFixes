@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "SanityAikensArtifactFOVFix";
-std::string sFixVersion = "1.5";
+std::string sFixVersion = "1.6";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float epsilon = 0.00001f;
+constexpr float fTolerance = 0.000000001f;
 
 // Ini variables
 bool bFixActive;
@@ -52,6 +52,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -149,8 +150,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -187,9 +190,19 @@ bool DetectGame()
 	}
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
+{
+	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(fFOVFactor * tanf((fCurrentVFOV * fAspectRatioScale) / 2.0f));
 }
 
 void FOVFix()
@@ -207,14 +220,37 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
+			static std::vector<float> vComputedHFOVs;
+
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
-				if (fCurrentCameraHFOV == 1.5707963705062866f)
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x158);
+
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+				[&](float computedValue)
 				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					return std::fabsf(computedValue - fCurrentCameraHFOV) < fTolerance;
+				});
+
+				if (bHFOVAlreadyComputed)
+				{
+					return;
 				}
+
+				if (fabsf(fCurrentCameraVFOV2 - (1.5707963705062866f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV2 - 1.5707963705062866f) < fTolerance)
+				{
+					fCurrentCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // Main/Pause Menu HFOV
+				}
+				else
+				{
+					fCurrentCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Gameplay HFOVs
+				}
+
+				// Stores the new HFOV value so future calls can skip re-calculations
+				vComputedHFOVs.push_back(fCurrentCameraHFOV);
 			});
 		}
 		else
@@ -230,14 +266,31 @@ void FOVFix()
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
+			static std::vector<float> vComputedVFOVs;
+
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x158);
 
-				if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+					[&](float computedValue)
+					{
+						return std::fabsf(computedValue - fCurrentCameraVFOV) < fTolerance;
+					});
+
+				if (bVFOVAlreadyComputed)
 				{
-					fCurrentCameraVFOV = 1.1780972480773926f;
+					return;
 				}
+
+				if (fCurrentCameraVFOV != 1.5707963705062866f) // Main/Pause Menu VFOV
+				{
+					fCurrentCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV); // Gameplay VFOVs
+				}
+
+				// Stores the new VFOV value so future calls can skip re-calculations
+				vComputedVFOVs.push_back(fCurrentCameraVFOV);
 			});
 		}
 		else
