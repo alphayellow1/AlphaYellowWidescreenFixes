@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "KISSPsychoCircusTheNightmareChildFOVFix";
-std::string sFixVersion = "1.5";
+std::string sFixVersion = "1.6";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,10 +41,12 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.000001f;
+constexpr float fInventorySelectionHFOV = 0.7853981852531433f; // Default HFOV for inventory selection
+constexpr float fCrystalBallDialogHFOV = 0.1745329350233078f; // Default HFOV for crystal ball dialog
+constexpr float fInventorySelectionVFOV = 0.22933627665042877f; // Default VFOV for inventory selection
+constexpr float fCrystalBallDialogVFOV = 0.35469597578048706f; // Default VFOV for crystal ball dialog
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +55,10 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fFOVFactor;
+float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -150,8 +156,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -178,16 +186,58 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			return true;
 		}
 	}
 
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;	
 }
+
+float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
+{
+	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
+{
+	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
+}
+
+float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
+}
+
+bool bIsDefaultHFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
+}
+
+bool bIsDefaultVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
+}
+
+bool bIsCroppedVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
+}
+
+auto isSpecialHFOV = [](float h)
+{
+	return fabsf(h - fInventorySelectionHFOV) < fTolerance || fabsf(h - fCrystalBallDialogHFOV) < fTolerance;
+};
+
+auto isSpecialVFOV = [](float v)
+{
+	return fabsf(v - fInventorySelectionVFOV) < fTolerance || fabsf(v - fCrystalBallDialogVFOV) < fTolerance;
+};
 
 void FOVFix()
 {
@@ -195,36 +245,40 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 F4 00 00 00 8B B0 50 01 00 00 89 B4 24 D0 00 00 00");
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 50 01 00 00 89 B4 24 D0 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			static float fLastModifiedHFOV = 0.0f;
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x150);
+				// Access the HFOV value at the memory address EAX + 0x150
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
 
-				if (fCurrentHFOVValue == 1.5707963268f || fCurrentHFOVValue == 0.6254096627f)
+				// Access the VFOV value at the memory address EAX + 0x154
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x154);
+
+				if (isSpecialHFOV(fCurrentCameraHFOV))
 				{
-					fCurrentHFOVValue = 2.0f * atanf(tanf(fCurrentHFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
-					fLastModifiedHFOV = fCurrentHFOVValue;
-					return;
+					fNewCameraHFOV = fCurrentCameraHFOV;
+				}
+				else if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
+				{
+					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+				}
+				// This is because these HFOVs are separate from the game window and are always HOR+
+				else
+				{
+					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
 				}
 
-				if (fCurrentHFOVValue != fLastModifiedHFOV && fCurrentHFOVValue != 0.7853981853f)
-				{
-					float fModifiedHFOVValue = 2.0f * atanf(tanf(fCurrentHFOVValue / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
-
-					if (fCurrentHFOVValue != fModifiedHFOVValue)
-					{
-						fCurrentHFOVValue = fModifiedHFOVValue;
-						fLastModifiedHFOV = fModifiedHFOVValue;
-					}
-				}
+				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 		}
 		else
@@ -233,49 +287,37 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 B4 24 D0 00 00 00 8B B0 54 01 00 00 89 B4 24 D4 00 00 00");
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 54 01 00 00 89 B4 24 D4 00 00 00");
 		if (CameraVFOVInstructionScanResult)
 		{
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			static float fLastModifiedVFOV = 0.0f; // Tracks the last value modified by the hook
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 0x7, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentVFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				// Access the VFOV value at the memory address EAX + 0x154
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
-				// Handle specific initialization cases
-				if (fabs(fCurrentVFOVValue - (0.8835729361f / (fNewAspectRatio / 1.33150439411f))) < epsilon)
+				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x150);
+
+				if (isSpecialVFOV(fCurrentCameraVFOV))
 				{
-					fCurrentVFOVValue = 0.8835429368f;
-					fLastModifiedVFOV = fCurrentVFOVValue; // Update tracking variable
-					return;
+					fNewCameraVFOV = fCurrentCameraVFOV;
+				}
+				else if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
+				{
+					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+				}
+				// This is because these VFOVs are separate from the game window and have always the same VFOV
+				else if (fCurrentCameraVFOV != fInventorySelectionVFOV && fCurrentCameraVFOV != fCrystalBallDialogVFOV)
+				{
+					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
 				}
 
-				if (fabs(fCurrentVFOVValue - (0.7853981256f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-				{
-					fCurrentVFOVValue = 0.7853981256f;
-					fLastModifiedVFOV = fCurrentVFOVValue; // Update tracking variable
-					return;
-				}
-
-				// Avoid recursive modifications
-				if (fCurrentVFOVValue != fLastModifiedVFOV &&
-					fCurrentVFOVValue != 0.8835429368f &&
-					fCurrentVFOVValue != 0.7853981256f &&
-					fCurrentVFOVValue != 0.2293362767f)
-				{
-					float fModifiedVFOVValue = fCurrentVFOVValue / (fOldAspectRatio / fNewAspectRatio);
-
-					// Only modify if the calculated value differs
-					if (fCurrentVFOVValue != fModifiedVFOVValue)
-					{
-						fCurrentVFOVValue = fModifiedVFOVValue;
-						fLastModifiedVFOV = fModifiedVFOVValue; // Update tracking variable
-					}
-				}
+				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});
 		}
 		else
