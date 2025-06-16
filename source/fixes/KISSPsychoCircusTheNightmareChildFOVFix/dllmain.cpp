@@ -312,7 +312,7 @@ void FOVFix()
 				{
 					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
 				}
-				else if (fCurrentCameraVFOV != fInventorySelectionVFOV && fCurrentCameraVFOV != fCrystalBallDialogVFOV)
+				else
 				{
 					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
 				}
