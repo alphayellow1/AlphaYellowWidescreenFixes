@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CorvetteEvolutionGTFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,7 +43,7 @@ bool bFixActive;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.00001f;
+constexpr float fTolerance = 0.000001f;
 
 // Variables
 int iCurrentResX;
@@ -52,7 +52,8 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fFOVFactor;
 static float fCurrentCameraHFOV;
-float fCurrentCameraVFOV;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -201,114 +202,53 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "C7 44 24 10 AB AA AA 3F 77 08 C7 44 24 10 AB AA 2A 40");
-		if (AspectRatioScanResult)
-		{
-			spdlog::info("Aspect Ratio Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the aspect ratio scan memory address.");
-			return;
-		}
-
 		std::uint8_t* CameraHFOVAndVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 D8 76 68 8B 50 04 89 56 6C");
 		if (CameraHFOVAndVFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV & VFOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVAndVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CameraHFOVAndVFOVInstructionScanResult, "\x90\x90\x90", 3);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			static std::vector<float> vComputedHFOVs;
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult + 3, [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
+				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				spdlog::info("[Hook] Raw incoming FOV: {:.9f}", fCurrentCameraHFOV);
-
-				// Race gameplay HFOV
-				if (fabsf(fCurrentCameraHFOV - CalculateNewFOV(0.5773502588f)) < fTolerance || 
-					fabsf(fCurrentCameraHFOV - CalculateNewFOV(0.7002074718f)) < fTolerance)
+				if (fCurrentCameraHFOV == 0.5f || fCurrentCameraHFOV == 2.144506931f)
 				{
-					fCurrentCameraHFOV *= fFOVFactor;
-
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-
-					return;
+					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+				}
+				else if (fabsf(fCurrentCameraHFOV - CalculateNewFOV(0.5773502588f)) < fTolerance || fabsf(fCurrentCameraHFOV - CalculateNewFOV(0.7002074718f)) < fTolerance)
+				{
+					fNewCameraHFOV = fCurrentCameraHFOV * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
 				}
 
-				if (fCurrentCameraHFOV == 0.6841368675f || fCurrentCameraHFOV == 0.6339263916f)
-				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-
-					return;
-				}
-
-				if (fCurrentCameraHFOV == 1.0f || fCurrentCameraHFOV == 0.2194047719f || fCurrentCameraHFOV == 2.144506931f)
-				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-
-					return;
-				}
-								
-				if (fCurrentCameraHFOV != CalculateNewFOV(0.5773502588f) && fCurrentCameraHFOV != CalculateNewFOV(0.6841368675f) && fCurrentCameraHFOV != CalculateNewFOV(0.6339263916f))
-				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-					
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-
-					return;
-				}
+				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
+
+			Memory::PatchBytes(CameraHFOVAndVFOVInstructionScanResult + 9, "\x90\x90\x90", 3);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			static std::vector<float> vComputedVFOVs;
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult + 12, [](SafetyHookContext& ctx)
 			{
-				// Convert the ECX register value to float
-				fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
+				float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
 
-				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-					[&](float computedValue) {
-						return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
-					});
-
-				if (alreadyComputed)
+				if (fNewCameraHFOV != CalculateNewFOV(0.5f) && fNewCameraHFOV != 0.5f)
 				{
-					return;
+					fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
+				}
+				else
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV;
 				}
 
-				// Race gameplay VFOVs (during race it's stretched, so no need to calculate new VFOVs but just expose the FOV factor to the user
-				if (fabsf(fCurrentCameraVFOV - 0.4330126941f) < fTolerance || 
-					fabsf(fCurrentCameraVFOV - 0.5251555443f) < fTolerance)
-				{
-					fCurrentCameraVFOV *= fFOVFactor;
-				}
-				else if (fabsf(fCurrentCameraVFOV - CalculateNewFOV(0.2625777721f)) < fTolerance)
-				{
-					fCurrentCameraVFOV = (fCurrentCameraVFOV / fAspectRatioScale) * fFOVFactor;
-				}
-				else if (fCurrentCameraVFOV > (0.4330126941f / fAspectRatioScale) && fCurrentCameraVFOV < (1.0f / fAspectRatioScale))
-				{
-					// Compute the new VFOV value
-					fCurrentCameraVFOV = fCurrentCameraHFOV / fNewAspectRatio;
-				}
-
-				// Record the computed VFOV for future calls
-				vComputedVFOVs.push_back(fCurrentCameraVFOV);
-
-				// Update the ECX register with the new VFOV value
-				ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
+				*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
 			});
 		}
 		else
