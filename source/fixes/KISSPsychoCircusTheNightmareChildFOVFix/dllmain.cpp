@@ -264,6 +264,7 @@ void FOVFix()
 				// Access the VFOV value at the memory address EAX + 0x154
 				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
+				// This is because these HFOVs are separate from the game window and are always HOR+
 				if (isSpecialHFOV(fCurrentCameraHFOV))
 				{
 					fNewCameraHFOV = fCurrentCameraHFOV;
@@ -272,7 +273,6 @@ void FOVFix()
 				{
 					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
 				}
-				// This is because these HFOVs are separate from the game window and are always HOR+
 				else
 				{
 					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
@@ -303,6 +303,7 @@ void FOVFix()
 
 				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x150);
 
+				// This is because these VFOVs are separate from the game window and have always the same VFOV
 				if (isSpecialVFOV(fCurrentCameraVFOV))
 				{
 					fNewCameraVFOV = fCurrentCameraVFOV;
@@ -311,7 +312,6 @@ void FOVFix()
 				{
 					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
 				}
-				// This is because these VFOVs are separate from the game window and have always the same VFOV
 				else if (fCurrentCameraVFOV != fInventorySelectionVFOV && fCurrentCameraVFOV != fCrystalBallDialogVFOV)
 				{
 					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
