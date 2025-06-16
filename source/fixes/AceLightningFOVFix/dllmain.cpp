@@ -45,6 +45,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -54,6 +55,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraHFOV;
+float fNewCameraVFOV;
+float fAspectRatioScale;
+float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -151,8 +155,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -187,9 +193,9 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOV(float fCurrentHFOV)
+float CalculateNewFOV(float fCurrentFOV)
 {
-	return fCurrentHFOV * (fNewAspectRatio / fOldAspectRatio);
+	return fCurrentFOV * fAspectRatioScale;
 }
 
 void FOVFix()
@@ -197,44 +203,41 @@ void FOVFix()
 	if (eGameType == Game::AL && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 		
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0 D9 5E 70");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* CameraHFOVAndVFOVInstructionsScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0 D9 5E 70");
+		if (CameraHFOVAndVFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			Memory::PatchBytes(CameraHFOVAndVFOVInstructionsScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionsScanResult + 3, [](SafetyHookContext& ctx)
 			{
-					uint32_t raw = static_cast<uint32_t>(ctx.ecx);
-					bool isNaN = ((raw & 0x7F800000u) == 0x7F800000u)
-						&& ((raw & 0x007FFFFFu) != 0);
-					bool tagged = (raw & (1u << 22)) != 0;
+				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-					if (isNaN && tagged) {
-						// Skip if already watermarked
-						return;
-					}
+				fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
 
-					// Compute new HFOV
-					float fCurr = std::bit_cast<float>(raw);
-					float fNew = CalculateNewHFOV(fCurr);
+				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
+			});
 
-					// Tag as NaN‑payload
-					uint32_t newBits = std::bit_cast<uint32_t>(fNew);
+			Memory::PatchBytes(CameraHFOVAndVFOVInstructionsScanResult + 9, "\x90\x90\x90", 3);
 
-					uint32_t qnanHead = 0x7FC00000u;
+			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-					uint32_t watermarked =
-						qnanHead |
-						(newBits & 0x003FFFFFu) |
-						(1u << 22);
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionsScanResult + 12, [](SafetyHookContext& ctx)
+			{
+				float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
 
-					ctx.ecx = static_cast<uintptr_t>(watermarked);
+				fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor;
+
+				*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
+			spdlog::info("Cannot locate the camera HFOV & VFOV instructions scan memory address.");
 			return;
 		}
 	}

@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "EliteForcesNavySEALsFOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,10 +41,8 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +51,10 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fFOVFactor;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -150,8 +152,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -186,9 +190,39 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
+{
+	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
+}
+
+float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
+}
+
+bool bIsDefaultHFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
+}
+
+bool bIsDefaultVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
+}
+
+bool bIsCroppedVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
 }
 
 void FOVFix()
@@ -197,98 +231,76 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
-		if (CameraHFOVInstructionScanResult)
-		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Define the set of valid angles
-				static const std::unordered_set<float> validAngles =
-				{
-					1.6234371662139893f, 1.6211177110671997f, 1.6191377639770508f,
-					1.6167963743209839f, 1.6144379377365112f, 1.6124579906463623f,
-					1.6107758283615112f, 1.608136534690857f, 1.6057976484298706f,
-					1.60347580909729f,  1.6014761924743652f,  1.599176287651062f,
-					1.5971375703811646f, 1.5957971811294556f, 1.5928162336349487f,
-					1.5907751321792603f, 1.5884557962417603f, 1.586097240447998f,
-					1.5841171741485596f, 1.581795334815979f,  1.5794367790222168f,
-					1.577434778213501f,  1.5757964849472046f,  1.5727958679199219f,
-					1.5707963705062866f, 0.4363323152065277f
-				};
-
-				// Access the angle at the specified memory location
-				float& angle = *reinterpret_cast<float*>(ctx.ecx + 0x198);
-
-				// Check if the angle is in the set of valid angles
-				if (validAngles.find(angle) != validAngles.end()) {
-					// Adjust the angle based on the aspect ratio
-					angle = CalculateNewFOV(angle);
-				}
-			});
-		}
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 9C 01 00 00 89 45 C0");
 		if (CameraVFOVInstructionScanResult)
 		{
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Define a struct to hold the target value and a condition lambda
-				struct ValueCondition
-				{
-					float targetValue;
-					std::function<bool(float)> condition;
-				};
 
-				std::vector<ValueCondition> valueConditions =
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
 				{
-					{1.1780973672866821f, [&](float value) { return value == 1.1780973672866821f || fabs(value - (1.1780973672866821f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1780972480773926f, [&](float value) { return value == 1.1780972480773926f || fabs(value - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1757389307022095f, [&](float value) { return value == 1.1757389307022095f || fabs(value - (1.1757389307022095f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1730972528457642f, [&](float value) { return value == 1.1730972528457642f || fabs(value - (1.1730972528457642f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1714589595794678f, [&](float value) { return value == 1.1714589595794678f || fabs(value - (1.1714589595794678f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.169456958770752f, [&](float value) { return value == 1.169456958770752f || fabs(value - (1.169456958770752f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1670984029769897f, [&](float value) { return value == 1.1670984029769897f || fabs(value - (1.1670984029769897f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1647765636444092f, [&](float value) { return value == 1.1647765636444092f || fabs(value - (1.1647765636444092f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1627964973449707f, [&](float value) { return value == 1.1627964973449707f || fabs(value - (1.1627964973449707f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1604379415512085f, [&](float value) { return value == 1.1604379415512085f || fabs(value - (1.1604379415512085f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1581186056137085f, [&](float value) { return value == 1.1581186056137085f || fabs(value - (1.1581186056137085f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.15607750415802f, [&](float value) { return value == 1.15607750415802f || fabs(value - (1.15607750415802f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1530965566635132f, [&](float value) { return value == 1.1530965566635132f || fabs(value - (1.1530965566635132f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1517561674118042f, [&](float value) { return value == 1.1517561674118042f || fabs(value - (1.1517561674118042f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.149397611618042f, [&](float value) { return value == 1.149397611618042f || fabs(value - (1.149397611618042f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1474175453186035f, [&](float value) { return value == 1.1474175453186035f || fabs(value - (1.1474175453186035f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1450175046920776f, [&](float value) { return value == 1.1450175046920776f || fabs(value - (1.1450175046920776f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1430960893630981f, [&](float value) { return value == 1.1430960893630981f || fabs(value - (1.1430960893630981f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1407572031021118f, [&](float value) { return value == 1.1407572031021118f || fabs(value - (1.1407572031021118f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1381179094314575f, [&](float value) { return value == 1.1381179094314575f || fabs(value - (1.1381179094314575f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1364357471466064f, [&](float value) { return value == 1.1364357471466064f || fabs(value - (1.1364357471466064f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1344558000564575f, [&](float value) { return value == 1.1344558000564575f || fabs(value - (1.1344558000564575f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1320973634719849f, [&](float value) { return value == 1.1320973634719849f || fabs(value - (1.1320973634719849f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.129755973815918f, [&](float value) { return value == 1.129755973815918f || fabs(value - (1.129755973815918f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.127776026725769f, [&](float value) { return value == 1.127776026725769f || fabs(value - (1.127776026725769f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{1.1254565715789795f, [&](float value) { return value == 1.1254565715789795f || fabs(value - (1.1254565715789795f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-					{0.3272492289543152f, [&](float value) { return value == 0.3272492289543152f || fabs(value - (0.3272492289543152f / (fNewAspectRatio / fOldAspectRatio))) < epsilon; }},
-				};
+					// Access the VFOV value at the memory address ECX + 0x19C
+					float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
 
-				// Access the float value at the memory address ecx + 0x19C
-				float& floatValue = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
+					// Access the HFOV value at the memory address ECX + 0x198
+					float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x198);
 
-				// Loop through the value conditions
-				for (const auto& vc : valueConditions)
-				{
-					if (vc.condition(floatValue))
+					if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
 					{
-						floatValue = vc.targetValue;
-						break;
+						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(1.1780972480773926f);
 					}
+					else
+					{
+						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
+					}
+
+					ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+				});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
+		if (CameraHFOVInstructionScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			{
+				// Access the HFOV value at the memory address ECX + 0x198
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+
+				// Access the VFOV value at the memory address ECX + 0x19C
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
+
+				if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
+				{
+					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
 				}
+				else
+				{
+					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+				}
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			return;
 		}
 	}
 }
