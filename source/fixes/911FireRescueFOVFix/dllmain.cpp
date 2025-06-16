@@ -41,9 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +51,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -202,7 +202,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale)));
 }
 
 void FOVFix()
@@ -210,6 +210,8 @@ void FOVFix()
 	if (eGameType == Game::FR && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 5A 08 E8 ?? ?? ?? ?? 8D 44 24 0C 50 C6 05 ?? ?? ?? ?? 01");
 		if (CameraFOVInstructionScanResult)
@@ -220,14 +222,14 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOVValue = std::bit_cast<float>(ctx.ebx);
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.ebx);
 
-				if (fCurrentCameraFOVValue == 90.0f)
+				if (fCurrentCameraFOV == 90.0f)
 				{
-					fCurrentCameraFOVValue = CalculateNewFOV(fCurrentCameraFOVValue);
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 				}
 
-				ctx.ebx = std::bit_cast<uintptr_t>(fCurrentCameraFOVValue);
+				ctx.ebx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else
