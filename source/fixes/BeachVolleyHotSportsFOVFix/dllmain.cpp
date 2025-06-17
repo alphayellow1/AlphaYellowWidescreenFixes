@@ -13,7 +13,6 @@
 #include <fstream>
 #include <filesystem>
 #include <cmath> // For atanf, tanf
-#include <unordered_set>
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -26,8 +25,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "KISSPsychoCircusTheNightmareChildFOVFix";
-std::string sFixVersion = "1.6";
+std::string sFixName = "BeachVolleyHotSportsFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,11 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
-constexpr float fInventorySelectionHFOV = 0.7853981852531433f; // Default HFOV for inventory selection
-constexpr float fCrystalBallDialogHFOV = 0.1745329350233078f; // Default HFOV for crystal ball dialog
-constexpr float fInventorySelectionVFOV = 0.22933627665042877f; // Default VFOV for inventory selection
-constexpr float fCrystalBallDialogVFOV = 0.35469597578048706f; // Default VFOV for crystal ball dialog
+constexpr float fOriginalCameraFOV = 54.43199920654297f;
 
 // Ini variables
 bool bFixActive;
@@ -56,14 +51,13 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fAspectRatioScale;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fNewCameraFOV;
+double dNewAspectRatio;
 
 // Game detection
 enum class Game
 {
-	KPCTNC,
+	BVHS,
 	Unknown
 };
 
@@ -74,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::KPCTNC, {"KISS Psycho Circus: The Nightmare Child", "client.exe"}},
+	{Game::BVHS, {"Beach Volley: Hot Sports", "Game.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -191,138 +185,65 @@ bool DetectGame()
 	}
 
 	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;	
+	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
+static SafetyHookMid AspectRatioInstruction1Hook{};
+
+void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
 {
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+	_asm
+	{
+		fld qword ptr ds: [dNewAspectRatio]
+	}
 }
 
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
+static SafetyHookMid AspectRatioInstruction2Hook{};
+
+void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
 {
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+	_asm
+	{
+		fld qword ptr ds : [dNewAspectRatio]
+	}
 }
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
-}
-
-bool bIsDefaultVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
-}
-
-bool bIsCroppedVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
-}
-
-auto isSpecialHFOV = [](float h)
-{
-	return fabsf(h - fInventorySelectionHFOV) < fTolerance || fabsf(h - fCrystalBallDialogHFOV) < fTolerance;
-};
-
-auto isSpecialVFOV = [](float v)
-{
-	return fabsf(v - fInventorySelectionVFOV) < fTolerance || fabsf(v - fCrystalBallDialogVFOV) < fTolerance;
-};
 
 void FOVFix()
 {
-	if (eGameType == Game::KPCTNC && bFixActive == true)
+	if (eGameType == Game::BVHS && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+		dNewAspectRatio = (double)fNewAspectRatio;
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 50 01 00 00 89 B4 24 D0 00 00 00");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? 83 EC 08 DD 1C 24 8B 45 08 D9 40 18 83 EC 08");
+		if (AspectRatioInstruction1ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, AspectRatioInstruction1MidHook);
+		}
+
+		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? 83 EC 08 DD 1C 24 8B 55 08 D9 42 18 83 EC 08");
+		if (AspectRatioInstruction2ScanResult)
+		{
+			Memory::PatchBytes(AspectRatioInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult + 6, AspectRatioInstruction2MidHook);
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 45 FC 5E BA 59 42 8D 4D E4 51 8B 4D B0");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
-			{
-				// Access the HFOV value at the memory address EAX + 0x150
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
-
-				// Access the VFOV value at the memory address EAX + 0x154
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x154);
-
-				// This is because these HFOVs are separate from the game window and are always HOR+
-				if (isSpecialHFOV(fCurrentCameraHFOV))
-				{
-					fNewCameraHFOV = fCurrentCameraHFOV;
-				}
-				else if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
-				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
-				}
-				else
-				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
-				}
-
-				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraHFOV);
-			});
+			fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
+			
+			Memory::Write(CameraFOVInstructionScanResult + 3, fNewCameraFOV);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 54 01 00 00 89 B4 24 D4 00 00 00");
-		if (CameraVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-			
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
-			{
-				// Access the VFOV value at the memory address EAX + 0x154
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
-
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x150);
-
-				// This is because these VFOVs are separate from the game window and have always the same VFOV
-				if (isSpecialVFOV(fCurrentCameraVFOV))
-				{
-					fNewCameraVFOV = fCurrentCameraVFOV;
-				}
-				else if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
-				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
-				}
-				else
-				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
-				}
-
-				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraVFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
