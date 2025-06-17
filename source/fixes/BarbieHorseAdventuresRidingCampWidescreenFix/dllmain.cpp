@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BarbieHorseAdventuresRidingCampWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,10 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float fOriginalCameraFOV = 1.169370532f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +50,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -188,6 +186,20 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edi + 0x7C);
+
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCameraFOV]
+	}
+}
+
 void WidescreenFix()
 {
 	if (eGameType == Game::BHARC && bFixActive == true)
@@ -220,7 +232,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 5C 24 08 D9 40 A4 D8 4C 24 28");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 86 B0 00 00 00 83 C4 0C 57 8D 9E F4 00 00 00 53 83 EC 10");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
@@ -229,7 +241,9 @@ void WidescreenFix()
 
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.eax - 0x5C) = fNewAspectRatio;
+				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0xB0);
+				
+				fCurrentAspectRatio = fNewAspectRatio;
 			});
 		}
 		else
@@ -238,17 +252,14 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 5C 24 28 D9 44 24 28 D9 5C 24 04 D9 40 A0 D9 1C 24");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 47 7C D9 58 A0 D9 44 24 20 D9 50 A8 D9 44 24 24 D9 50 AC D9 5C 24 0C");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<float*>(ctx.eax - 0x60) = fOriginalCameraFOV * fFOVFactor;
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 3, CameraFOVInstructionMidHook);
 		}
 		else
 		{
