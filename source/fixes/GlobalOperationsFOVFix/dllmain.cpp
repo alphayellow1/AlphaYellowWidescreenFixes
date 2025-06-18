@@ -298,7 +298,7 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				// Access the HFOV value at the memory address EAX + 0x1D4
+				// Access the VFOV value at the memory address EAX + 0x1D4
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x1D4);
 
 				fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
