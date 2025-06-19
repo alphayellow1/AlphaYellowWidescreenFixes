@@ -28,7 +28,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BatmanVengeanceWidescreenFix";
-std::string sFixVersion = "1.4";
+std::string sFixVersion = "1.5";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,7 +43,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
+constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -52,9 +52,10 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewCameraVFOV;
+float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
-float fModifiedFOVValue;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -106,7 +107,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -174,6 +175,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -182,31 +185,39 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while ((dllModule2 = GetModuleHandleA("osr_dx8_vf.dll")) == nullptr)
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule = GetModuleHandleA("osr_dx8_vf.dll")) == nullptr)
 	{
 		spdlog::warn("osr_dx8_vf.dll not loaded yet. Waiting...");
 		Sleep(100);
 	}
 
-	spdlog::info("Successfully obtained handle for osr_dx8_vf.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	spdlog::info("Successfully obtained handle for osr_dx8_vf.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
 
-	while ((dllModule3 = GetModuleHandleA("enginecore_vf.dll")) == nullptr)
+	while ((dllModule2 = GetModuleHandleA("enginecore_vf.dll")) == nullptr)
 	{
 		spdlog::warn("enginecore_vf.dll not loaded yet. Waiting...");
 		Sleep(100);
 	}
 
-	spdlog::info("Successfully obtained handle for enginecore_vf.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+	spdlog::info("Successfully obtained handle for enginecore_vf.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
+}
+
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
 }
 
 static SafetyHookMid CameraVFOVInstructionHook{};
@@ -217,13 +228,22 @@ void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fdivr dword ptr ds : [fNewCameraVFOV]
+		fdivr dword ptr ds:[fNewCameraVFOV]
 	}
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+
+	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+
+	_asm
+	{
+		fmul dword ptr ds:[fNewCameraFOV]
+	}
 }
 
 void WidescreenFix()
@@ -232,10 +252,12 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionsScanResult = Memory::PatternScan(dllModule2, "00 00 00 00 02 00 00 80 01 00 00 80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00 3C 00 00 00");
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* ResolutionsScanResult = Memory::PatternScan(dllModule, "00 00 00 00 02 00 00 80 01 00 00 80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00 3C 00 00 00");
 		if (ResolutionsScanResult)
 		{
-			spdlog::info("Resolutions Scan: Address is osr_dx8_vf.dll+{:x}", ResolutionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolutions Scan: Address is osr_dx8_vf.dll+{:x}", ResolutionsScanResult - (std::uint8_t*)dllModule);
 
 			Memory::Write(ResolutionsScanResult + 11, iCurrentResX);
 
@@ -255,10 +277,10 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D8 3D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 C2 D8 4D 1C D8 C9 D9 18 D9 EE D9 58 04 D9 EE D9 58 08 D9 EE D9 58 0C D9 EE D9 58 10 D9 C1 D8 4D 1C D8 C9 D9 58 14 DD D8 D9 EE D9 58 18 D9 EE D9 58 1C D9 45 0C D8 45 10 D8 CA D9 58 20 D9 45 14 D8 45 18 D8 C9 D9 58 24 DD D8 DD D8 D9 45 1C D8 65 20 D8 7D 20 D9 50 28 D9 EE D9 58 30 D9 EE D9 58 34 D8 4D 1C D9 58 38");
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(dllModule, "D8 3D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 C2 D8 4D 1C D8 C9 D9 18 D9 EE D9 58 04 D9 EE D9 58 08 D9 EE D9 58 0C D9 EE D9 58 10 D9 C1 D8 4D 1C D8 C9 D9 58 14 DD D8 D9 EE D9 58 18 D9 EE D9 58 1C D9 45 0C D8 45 10 D8 CA D9 58 20 D9 45 14 D8 45 18 D8 C9 D9 58 24 DD D8 DD D8 D9 45 1C D8 65 20 D8 7D 20 D9 50 28 D9 EE D9 58 30 D9 EE D9 58 34 D8 4D 1C D9 58 38");
 		if (CameraVFOVInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV Instruction: Address is osr_dx8_vf.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera VFOV Instruction: Address is osr_dx8_vf.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule);
 
 			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -270,38 +292,15 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule3, "D8 4C 24 0C D9 5C 24 20 D9 44 24 24 D8 74 24 28 8B 54 24 20 D8 4C 24 20 D9 5C 24 24");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D8 4C 24 0C D9 5C 24 20 D9 44 24 24 D8 74 24 28 8B 54 24 20 D8 4C 24 20 D9 5C 24 24");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is enginecore_vr.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
+			spdlog::info("Camera FOV Instruction: Address is enginecore_vr.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> vComputedFOVs;
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
 			// Hook is located in the AdjustCameraToViewport function
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
-
-				// Skip processing if a similar HFOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
-
-				if (alreadyComputed)
-				{
-					return;
-				}
-
-				fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 4, CameraFOVInstructionMidHook);
 		}
 		else
 		{
