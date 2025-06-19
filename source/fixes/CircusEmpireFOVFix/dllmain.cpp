@@ -28,7 +28,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CircusEmpireFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,10 +42,8 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.000001f;
 constexpr float fAspectRatioToCompare = 8.0f;
 
 // Ini variables
@@ -56,8 +54,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
-float fModifiedFOVValue;
-float fModifiedFOVValue2;
+float fAspectRatioScale;
+float fNewCameraFOV1;
+float fNewCameraFOV2;
 
 // Game detection
 enum class Game
@@ -177,6 +176,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -185,23 +186,31 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	if (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("LS3DF.dll");
-		spdlog::warn("Trying to get handle for LS3DF.dll...");
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("LS3DF.dll")) == nullptr)
+	{
+		spdlog::warn("LS3DF.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
 	spdlog::info("Successfully obtained handle for LS3DF.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
+}
+
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
 static SafetyHookMid FCOMPInstructionHook{};
@@ -224,9 +233,32 @@ void FCOMPInstruction2MidHook(SafetyHookContext& ctx)
 	}
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+static SafetyHookMid CameraFOVInstruction1Hook{};
+
+void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.edx + 0x108);
+
+	fNewCameraFOV1 = CalculateNewFOV(fCurrentCameraFOV1) * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCameraFOV1]
+	}
+}
+
+static SafetyHookMid CameraFOVInstruction2Hook{};
+
+void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.edx + 0x114);
+
+	fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCameraFOV2]
+	}
 }
 
 void FOVFix()
@@ -235,41 +267,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
 		if (CameraFOVInstruction1ScanResult)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstruction1ScanResult + 17 - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstruction1MidHook{};
+			Memory::PatchBytes(CameraFOVInstruction1ScanResult + 17, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 17, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentFOVValue1 = *reinterpret_cast<float*>(ctx.edx + 0x108);
-
-				// Checks if this FOV has already been computed
-				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentFOVValue1) != vComputedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				// Computes the new FOV value if the current FOV is different from the last modified FOV
-				fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue1) * fFOVFactor;
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentFOVValue1 != fModifiedFOVValue)
-				{
-					fCurrentFOVValue1 = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fModifiedFOVValue);
-			});
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 23, CameraFOVInstruction1MidHook);
 		}
 		else
 		{
@@ -282,36 +289,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstruction2MidHook{};
+			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static float fLastModifiedFOV2 = 0.0f;
-
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentFOVValue2 = *reinterpret_cast<float*>(ctx.edx + 0x114);
-
-				// Checks if this FOV has already been computed
-				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentFOVValue2) != vComputedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				// Computes the new FOV value if the current FOV is different from the last modified FOV
-				fModifiedFOVValue2 = CalculateNewFOV(fCurrentFOVValue2);
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentFOVValue2 != fModifiedFOVValue2)
-				{
-					fCurrentFOVValue2 = fModifiedFOVValue2;
-					fLastModifiedFOV2 = fModifiedFOVValue2;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fModifiedFOVValue);
-			});
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 6, CameraFOVInstruction2MidHook);
 		}
 		else
 		{
