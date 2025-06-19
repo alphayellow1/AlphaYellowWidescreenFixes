@@ -621,6 +621,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BeachVolleyHotSportsFOVFix"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GlobalOperationsFOVFix", "GlobalOperationsFOVFix.vcxproj", "{68634885-FBE5-4F50-B261-CD2177C59A71}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TopShot2FOVFix", "TopShot2FOVFix.vcxproj", "{53860BB1-FBC1-4D36-951E-8F82EB6390D1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3101,6 +3103,14 @@ Global
 		{68634885-FBE5-4F50-B261-CD2177C59A71}.Release|x64.Build.0 = Release|x64
 		{68634885-FBE5-4F50-B261-CD2177C59A71}.Release|x86.ActiveCfg = Release|Win32
 		{68634885-FBE5-4F50-B261-CD2177C59A71}.Release|x86.Build.0 = Release|Win32
+		{53860BB1-FBC1-4D36-951E-8F82EB6390D1}.Debug|x64.ActiveCfg = Debug|x64
+		{53860BB1-FBC1-4D36-951E-8F82EB6390D1}.Debug|x64.Build.0 = Debug|x64
+		{53860BB1-FBC1-4D36-951E-8F82EB6390D1}.Debug|x86.ActiveCfg = Debug|Win32
+		{53860BB1-FBC1-4D36-951E-8F82EB6390D1}.Debug|x86.Build.0 = Debug|Win32
+		{53860BB1-FBC1-4D36-951E-8F82EB6390D1}.Release|x64.ActiveCfg = Release|x64
+		{53860BB1-FBC1-4D36-951E-8F82EB6390D1}.Release|x64.Build.0 = Release|x64
+		{53860BB1-FBC1-4D36-951E-8F82EB6390D1}.Release|x86.ActiveCfg = Release|Win32
+		{53860BB1-FBC1-4D36-951E-8F82EB6390D1}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -22,12 +21,11 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "MightAndMagic9FOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixName = "TopShot2FOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +40,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -52,15 +49,14 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fNewWeaponZoomFOV;
+float fNewWeaponHipfireFOV;
 float fAspectRatioScale;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
-static float fUnderwaterCheckValue;
 
 // Game detection
 enum class Game
 {
-	MM9,
+	TS2,
 	Unknown
 };
 
@@ -71,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::MM9, {"Might and Magic 9/IX", "lithtech.exe"}},
+	{Game::TS2, {"Top Shot 2", "TS2.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -175,8 +171,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -185,166 +179,82 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
+}
+
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+}
+
+static SafetyHookMid CameraZoomFOVInstructionHook{};
+
+void CameraZoomFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentWeaponZoomFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
+
+	fNewWeaponZoomFOV = CalculateNewFOV(fCurrentWeaponZoomFOV);
+
+	_asm
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		fld dword ptr ds:[fNewWeaponZoomFOV]
 	}
+}
 
-	while ((dllModule2 = GetModuleHandleA("d3d.ren")) == nullptr)
+static SafetyHookMid CameraHipfireFOVInstructionHook{};
+
+void CameraHipfireFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
+
+	fNewWeaponHipfireFOV = CalculateNewFOV(fCurrentWeaponHipfireFOV) * fFOVFactor;
+
+	_asm
 	{
-		spdlog::warn("d3d.ren not loaded yet. Waiting...");
-		Sleep(100);
+		fld dword ptr ds:[fNewWeaponHipfireFOV]
 	}
-
-	spdlog::info("Successfully obtained handle for d3d.ren: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
-}
-
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
-}
-
-bool bIsDefaultVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
-}
-
-bool bIsCroppedVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::MM9 && bFixActive == true)
+	if (eGameType == Game::TS2 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* UnderwaterCheckInstructionScanResult = Memory::PatternScan(dllModule2, "D9 41 0C D8 29 DB 41 1C DC EE DE EC D9 C4 D8 E2");
-		if (UnderwaterCheckInstructionScanResult)
+		std::uint8_t* CameraZoomFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 04 C3 D9 05 40 DB 4F 00");
+		if (CameraZoomFOVInstructionScanResult)
 		{
-			spdlog::info("Underwater Check Instruction: Address is d3d.ren+{:x}", UnderwaterCheckInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera Zoom FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid UnderwaterCheckInstructionMidHook{};
+			Memory::PatchBytes(CameraZoomFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			UnderwaterCheckInstructionMidHook = safetyhook::create_mid(UnderwaterCheckInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				fUnderwaterCheckValue = *reinterpret_cast<float*>(ctx.ecx + 0xC);
-			});
+			CameraZoomFOVInstructionHook = safetyhook::create_mid(CameraZoomFOVInstructionScanResult + 3, CameraZoomFOVInstructionMidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate underwater check instruction memory address.");
+			spdlog::error("Failed to locate camera zoom FOV instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 9C 01 00 00 89 4D B4");
-		if (CameraVFOVInstructionScanResult)
+		std::uint8_t* CameraHipfireFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 04 C3 D9 05 3C DB 4F 00");
+		if (CameraHipfireFOVInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera Hipfire FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHipfireFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHipfireFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				if (fUnderwaterCheckValue == 0.9999999404f)
-				{
-					if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
-					{
-						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV);
-					}
-					else
-					{
-						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
-					}
-				}
-				else
-				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV);
-				}
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
-			});
+			CameraHipfireFOVInstructionHook = safetyhook::create_mid(CameraHipfireFOVInstructionScanResult + 3, CameraHipfireFOVInstructionMidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera VFOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 98 01 00 00 89 4D B0");
-		if (CameraHFOVInstructionScanResult)
-		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-				if (fUnderwaterCheckValue == 0.9999999404f)
-				{
-					if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
-					{
-						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
-					}
-					else
-					{
-						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
-					}
-				}
-				else
-				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
-				}
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			spdlog::error("Failed to locate camera hipfire FOV instruction memory address.");
 			return;
 		}		
 	}

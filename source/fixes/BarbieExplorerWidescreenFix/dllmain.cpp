@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BarbieExplorerWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,9 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -51,9 +49,10 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewCameraHFOV;
-float fNewCameraFOV;
+float fNewCameraVFOV;
 float fFOVFactor;
 float fNewAspectRatio;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -105,7 +104,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -151,8 +150,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -187,9 +188,9 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraForegroundHFOVHook{};
+static SafetyHookMid CameraForegroundHFOVInstructionHook{};
 
-void CameraForegroundHFOVMidHook(SafetyHookContext& ctx)
+void CameraForegroundHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
@@ -197,13 +198,33 @@ void CameraForegroundHFOVMidHook(SafetyHookContext& ctx)
 	}
 }
 
-static SafetyHookMid CameraBackgroundHFOVHook{};
+static SafetyHookMid CameraForegroundVFOVInstructionHook{};
 
-void CameraBackgroundHFOVMidHook(SafetyHookContext& ctx)
+void CameraForegroundVFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fmul dword ptr ds : [fNewCameraVFOV]
+	}
+}
+
+static SafetyHookMid CameraBackgroundHFOVInstructionHook{};
+
+void CameraBackgroundHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
 		fmul dword ptr ds : [fNewCameraHFOV]
+	}
+}
+
+static SafetyHookMid CameraBackgroundVFOVInstructionHook{};
+
+void CameraBackgroundVFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fmul dword ptr ds : [fNewCameraVFOV]
 	}
 }
 
@@ -212,6 +233,8 @@ void WidescreenFix()
 	if (eGameType == Game::BE && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "00 80 02 00 00 C7");
 		if (ResolutionWidthScanResult)
@@ -239,18 +262,33 @@ void WidescreenFix()
 			return;
 		}
 
-		fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
+		fNewCameraHFOV = (1.0f / fFOVFactor) * (1.0f / fAspectRatioScale);
+
+		fNewCameraVFOV = 1.0f * (1.0f / fFOVFactor);
 
 		std::uint8_t* CameraForegroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
 		if (CameraForegroundHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera Foreground HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundHFOVInstructionScanResult + 3 - (std::uint8_t*)exeModule);
 
-			CameraForegroundHFOVHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 3, CameraForegroundHFOVMidHook);
+			CameraForegroundHFOVInstructionHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 3, CameraForegroundHFOVInstructionMidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera foreground HFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraForegroundVFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D4 D8 0D 64 BD 5D 00 D8 0D 68 BD 5D 00 DE C1");
+		if (CameraForegroundVFOVInstructionScanResult)
+		{
+			spdlog::info("Camera Foreground VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundVFOVInstructionScanResult + 3 - (std::uint8_t*)exeModule);
+
+			CameraForegroundVFOVInstructionHook = safetyhook::create_mid(CameraForegroundVFOVInstructionScanResult + 3, CameraForegroundVFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera foreground VFOV instruction memory address.");
 			return;
 		}
 
@@ -261,11 +299,26 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraBackgroundHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraBackgroundHFOVHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult + 6, CameraBackgroundHFOVMidHook);
+			CameraBackgroundHFOVInstructionHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult + 6, CameraBackgroundHFOVInstructionMidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera background HFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraBackgroundVFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00");
+		if (CameraBackgroundVFOVInstructionScanResult)
+		{
+			spdlog::info("Camera Background VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraBackgroundVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraBackgroundVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraBackgroundVFOVInstructionHook = safetyhook::create_mid(CameraBackgroundVFOVInstructionScanResult + 6, CameraBackgroundVFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera background VFOV instruction memory address.");
 			return;
 		}
 	}
