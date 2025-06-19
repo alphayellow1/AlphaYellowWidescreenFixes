@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "WingsOfWarFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,9 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fAspectRatioToCompare = 8.0f;
 
 // Ini variables
@@ -54,6 +52,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraFOV;
+float fNewCameraFOV2;
 
 // Game detection
 enum class Game
@@ -173,6 +174,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -181,23 +184,59 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("LS3DF.dll");
-		spdlog::info("Waiting for LS3DF.dll to load...");
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("LS3DF.dll")) == nullptr)
+	{
+		spdlog::warn("LS3DF.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
 	spdlog::info("Successfully obtained handle for LS3DF.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
+}
+
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale));
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0x108);
+
+	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
+static SafetyHookMid CameraFOVInstruction2Hook{};
+
+void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.edx + 0x114);
+
+	fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV2]
+	}
 }
 
 static SafetyHookMid FCOMPInstructionHook{};
@@ -206,13 +245,18 @@ void FCOMPInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fcomp dword ptr ds : [fAspectRatioToCompare]
+		fcomp dword ptr ds:[fAspectRatioToCompare]
 	}
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+static SafetyHookMid FCOMPInstruction2Hook{};
+
+void FCOMPInstruction2MidHook(SafetyHookContext& ctx)
 {
-	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+	_asm
+	{
+		fcomp dword ptr ds:[fAspectRatioToCompare]
+	}
 }
 
 void FOVFix()
@@ -221,33 +265,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 08 01 00 00 D8 0D ?? ?? ?? ??");
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 82 EC 00 00 00 5F 40 5E 89 82 EC 00 00 00 5B C3 D9 82 08 01 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 17, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static float fLastModifiedFOV = 0.0f; // Tracks the last modified FOV value
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx + 0x108);
-
-				// Check if the current FOV value was already modified
-				if (fCurrentFOVValue != fLastModifiedFOV)
-				{
-					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
-
-					// Update the value only if the modification is meaningful
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
-				}
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 23, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -255,18 +282,48 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioComparisonInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 20 01 00 00 D8 1D ?? ?? ?? ?? DF E0");
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(dllModule2, "8D B2 2C 03 00 00 33 C0 B9 10 00 00 00 8B FE F3 AB D9 82 14 01 00 00");
+		if (CameraFOVInstruction2ScanResult)
+		{
+			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstruction2ScanResult + 17 - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(CameraFOVInstruction2ScanResult + 17, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 23, CameraFOVInstruction2MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* AspectRatioComparisonInstructionScanResult = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 75 19 D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 41 75 08 DD D8 D9 05 ?? ?? ?? ?? D9 C0 8D BA AC 02 00 00 D9 FF B9 10 00 00 00 8B F3 D9 C9 D9 FE D9 C9 D9 C9 DE F9 D9 C0 D8 8A 20 01 00 00 D9 C1");
 		if (AspectRatioComparisonInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Comparison Instruction: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(AspectRatioComparisonInstructionScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioComparisonInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioComparisonInstructionScanResult + 12, FCOMPInstructionMidHook);
+			FCOMPInstructionHook = safetyhook::create_mid(AspectRatioComparisonInstructionScanResult + 6, FCOMPInstructionMidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate aspect ratio comparison instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* AspectRatioComparisonInstruction2ScanResult = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 75 19 D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 41 75 08 DD D8 D9 05 ?? ?? ?? ?? D9 C0 5F D9 FF D9 C9 D9 FE D9 C9 D9 C9 DE F9 D9 C0 D8 8A 20 01 00 00 D9 C1 D9 1E 5E 5B D9 92 40 03 00 00");
+		if (AspectRatioComparisonInstruction2ScanResult)
+		{
+			spdlog::info("Aspect Ratio Comparison Instruction 2: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstruction2ScanResult - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(AspectRatioComparisonInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			FCOMPInstruction2Hook = safetyhook::create_mid(AspectRatioComparisonInstruction2ScanResult + 6, FCOMPInstruction2MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio comparison instruction 2 memory address.");
 			return;
 		}
 	}
