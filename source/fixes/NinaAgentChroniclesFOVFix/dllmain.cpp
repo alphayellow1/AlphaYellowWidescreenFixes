@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "NinaAgentChroniclesFOVFix";
-std::string sFixVersion = "1.5";
+std::string sFixVersion = "1.6";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,11 +41,8 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -54,11 +51,15 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fFOVFactor;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
 {
-	NAA,
+	NAC,
 	Unknown
 };
 
@@ -69,7 +70,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::NAA, {"Nina: Agent Chronicles", "lithtech.exe"}},
+	{Game::NAC, {"Nina: Agent Chronicles", "lithtech.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -151,8 +152,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -179,87 +182,123 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			break;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+			return true;
 		}
 	}
 
-	Sleep(2000);
-
-	dllModule = GetModuleHandleA("cshell.dll");
-	if (!dllModule)
-	{
-		spdlog::error("Failed to get handle for cshell.dll.");
-		return false;
-	}
-
-	spdlog::info("Successfully obtained handle for cshell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
+{
+	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
+}
+
+float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
+}
+
+bool bIsDefaultHFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance; // 90º in radians
+}
+
+bool bIsDefaultVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - 1.3613568544387817f) < fTolerance; // 78º in radians
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::NAA && bFixActive == true)
+	if (eGameType == Game::NAC && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* HipfireAndCutscenesHFOVInstructionScanResult = Memory::PatternScan(dllModule, "89 B0 C4 00 00 00 8B 04 91");
-		if (HipfireAndCutscenesHFOVInstructionScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 C0 01 00 00 89 94 24 10 01 00 00");
+		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Hipfire and Cutscenes Camera HFOV Instruction: Address is cshell.dll+{:x}", HipfireAndCutscenesHFOVInstructionScanResult - (std::uint8_t*)dllModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid HipfireAndCutscenesHFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			HipfireAndCutscenesHFOVInstructionMidHook = safetyhook::create_mid(HipfireAndCutscenesHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.esi);
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x1C0);
 
-				if (fCurrentCameraHFOV == 1.5707963705062866f || fCurrentCameraHFOV == 1.483529806137085f || fCurrentCameraHFOV == 1.7453292608261108f ||
-					fCurrentCameraHFOV == 1.4169141054153442f || fCurrentCameraHFOV == 1.3089969158172607f)
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x1C4);
+
+				if (bIsDefaultHFOV(fCurrentCameraHFOV) && bIsDefaultVFOV(fCurrentCameraVFOV2))
 				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Hipfire HFOV
+				}
+				else if (bIsDefaultHFOV(fCurrentCameraHFOV) && fCurrentCameraVFOV2 == 1.3089970350265503f)
+				{
+					fNewCameraHFOV = fCurrentCameraHFOV; // Leave the pause menu HFOV alone since the game scales it somewhere else
+				}
+				else
+				{
+					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // All the other HFOVs during gameplay
 				}
 
-				ctx.esi = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate hipfire and cutscenes camera HFOV instruction memory address.");
+			spdlog::error("Failed to locate camera HFOV instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* HipfireAndCutscenesHFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "89 81 C0 01 00 00 C3 90 90 90");
-		if (HipfireAndCutscenesHFOVInstruction2ScanResult)
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 C4 01 00 00 3B CD 89 94 24 F8 00 00 00");
+		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Hipfire and Cutscenes HFOV: Address is {:s}+{:x}", sExeName.c_str(), HipfireAndCutscenesHFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid HipfireAndCutscenesHFOVInstruction2MidHook{};
+			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			HipfireAndCutscenesHFOVInstruction2MidHook = safetyhook::create_mid(HipfireAndCutscenesHFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				float fNewCutsceneHFOV = std::bit_cast<float>(ctx.eax);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x1C4);
 
-				if (fNewCutsceneHFOV == 1.3089969158172607f)
+				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x1C0);
+
+				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && bIsDefaultVFOV(fCurrentCameraVFOV))
 				{
-					fNewCutsceneHFOV = CalculateNewFOV(fNewCutsceneHFOV);
+					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV); // Hipfire VFOV
+				}
+				else if (bIsDefaultHFOV(fCurrentCameraHFOV2) && fCurrentCameraVFOV == 1.3089970350265503f)
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV / fAspectRatioScale; // Pause Menu VFOV
+				}
+				else
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV; // All other gameplay VFOVs
 				}
 
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCutsceneHFOV);
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate hipfire and cutscenes camera HFOV instruction 2 memory address.");
+			spdlog::error("Failed to locate camera VFOV instruction memory address.");
 			return;
 		}
 	}
