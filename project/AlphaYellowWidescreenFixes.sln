@@ -625,6 +625,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TopShot2FOVFix", "TopShot2F
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Vietnam2SpecialAssignmentFOVFix", "Vietnam2SpecialAssignmentFOVFix.vcxproj", "{0C85418F-0581-4604-86B2-C208008A93FD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheMoviesFOVFix", "TheMoviesFOVFix.vcxproj", "{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3121,6 +3123,14 @@ Global
 		{0C85418F-0581-4604-86B2-C208008A93FD}.Release|x64.Build.0 = Release|x64
 		{0C85418F-0581-4604-86B2-C208008A93FD}.Release|x86.ActiveCfg = Release|Win32
 		{0C85418F-0581-4604-86B2-C208008A93FD}.Release|x86.Build.0 = Release|Win32
+		{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}.Debug|x64.ActiveCfg = Debug|x64
+		{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}.Debug|x64.Build.0 = Debug|x64
+		{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}.Debug|x86.ActiveCfg = Debug|Win32
+		{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}.Debug|x86.Build.0 = Debug|Win32
+		{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}.Release|x64.ActiveCfg = Release|x64
+		{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}.Release|x64.Build.0 = Release|x64
+		{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}.Release|x86.ActiveCfg = Release|Win32
+		{14F77C7F-17EC-4337-AC67-BF8CD0EFD7ED}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
