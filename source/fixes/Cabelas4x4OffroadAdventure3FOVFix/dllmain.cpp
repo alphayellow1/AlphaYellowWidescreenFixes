@@ -29,7 +29,7 @@ HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "Cabelas4x4OffroadAdventure3FOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -45,7 +45,7 @@ std::string sExeName;
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float tolerance = 0.0001f;
+constexpr float fTolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
@@ -56,8 +56,10 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fNewWeaponZoomFOV;
+float fNewCameraFOV;
+float fAspectRatioScale;
 static uint32_t iInsideCar;
-float fMaxCameraFOV;
+static uint8_t* InsideCarTriggerValueAddress;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -189,6 +191,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -197,26 +201,29 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("EngineDll.dll");
-		spdlog::info("Waiting for EngineDll.dll to load...");
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("EngineDll.dll")) == nullptr)
+	{
+		spdlog::warn("EngineDll.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
 	spdlog::info("Successfully obtained handle for EngineDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
-	while (!dllModule3)
+	while ((dllModule3 = GetModuleHandleA("GameDll.dll")) == nullptr)
 	{
-		dllModule3 = GetModuleHandleA("GameDll.dll");
-		spdlog::info("Waiting for GameDll.dll to load...");
+		spdlog::warn("GameDll.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
 	spdlog::info("Successfully obtained handle for GameDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
@@ -226,7 +233,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
 }
 
 static SafetyHookMid WeaponZoomFOVInstruction1Hook{};
@@ -239,24 +246,62 @@ void WeaponZoomFOVInstruction1MidHook(SafetyHookContext& ctx)
 	}
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+
+	if (iInsideCar == 0)
+	{
+		if (fCurrentCameraFOV == 75.0f)
+		{
+			fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+		}
+		else
+		{
+			fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		}
+	}
+	else if (iInsideCar == 1)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::C4X4OA3 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		fNewWeaponZoomFOV = 30.0f;
 
-		std::uint8_t* InsideCarTriggerInstructionScanResult = Memory::PatternScan(exeModule, "39 1D 28 86 44 00 75 17 8B 8E 64 1C 00 00 8B 86 68 1C 00 00 3B C8 C7 45 EC 01 00 00 00");
+		std::uint8_t* InsideCarTriggerInstructionScanResult = Memory::PatternScan(exeModule, "39 1D ?? ?? ?? ?? 75 17 8B 8E 64 1C 00 00 8B 86 68 1C 00 00 3B C8 C7 45 EC 01 00 00 00");
 		if (InsideCarTriggerInstructionScanResult)
 		{
 			spdlog::info("Inside Car Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), InsideCarTriggerInstructionScanResult - (std::uint8_t*)exeModule);
+
+			uint32_t imm = *reinterpret_cast<uint32_t*>(InsideCarTriggerInstructionScanResult + 2);
+
+			InsideCarTriggerValueAddress = reinterpret_cast<uint8_t*>(imm);
 
 			static SafetyHookMid InsideCarTriggerInstructionMidHook{};
 
 			InsideCarTriggerInstructionMidHook = safetyhook::create_mid(InsideCarTriggerInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				iInsideCar = *reinterpret_cast<uint32_t*>(0x00448628);
+				iInsideCar = *reinterpret_cast<uint32_t*>(InsideCarTriggerValueAddress);
 			});
 		}
 		else
@@ -270,44 +315,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is EngineDll.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
-
-				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraFOV) < tolerance;
-				});
-
-				if (alreadyComputed)
-				{
-					return;
-				}
-
-				fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-
-				if (iInsideCar == 0)
-				{
-					fMaxCameraFOV = CalculateNewFOV(75.0f) * fFOVFactor;
-				}
-				else if (iInsideCar == 1)
-				{
-					fMaxCameraFOV = CalculateNewFOV(90.0f) * fFOVFactor;
-				}
-
-				if (fCurrentCameraFOV > fMaxCameraFOV)
-				{
-					fCurrentCameraFOV = fMaxCameraFOV;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -352,7 +362,7 @@ void FOVFix()
 
 			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
+				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / fAspectRatioScale;
 			});
 		}
 		else

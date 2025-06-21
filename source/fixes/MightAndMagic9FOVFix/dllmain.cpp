@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
