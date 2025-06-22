@@ -69,7 +69,7 @@ const std::map<Game, GameInfo> kGames = {
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
-static void Logging()
+void Logging()
 {
 	// Get path to DLL
 	WCHAR dllPath[_MAX_PATH] = { 0 };
@@ -113,7 +113,7 @@ static void Logging()
 	}
 }
 
-static void Configuration()
+void Configuration()
 {
 	// Inipp initialization
 	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
@@ -163,7 +163,7 @@ static void Configuration()
 	spdlog::info("----------");
 }
 
-static bool DetectGame()
+bool DetectGame()
 {
 	for (const auto& [type, info] : kGames)
 	{
@@ -181,9 +181,9 @@ static bool DetectGame()
 	return false;
 }
 
-static void FOVFix()
+void FOVFix()
 {
-	if (eGameType == Game::REGULAR_C2 || eGameType == Game::C2_GOG_WITH_MUSIC && bFixActive == true)
+	if ((eGameType == Game::REGULAR_C2 || eGameType == Game::C2_GOG_WITH_MUSIC) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -207,7 +207,7 @@ static void FOVFix()
 	}
 }
 
-static DWORD __stdcall Main(void*)
+DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
