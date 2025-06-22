@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "CabelasOutdoorAdventures2009WidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,9 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -54,6 +52,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fNewCameraFOV;
+float fAspectRatioScale;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -185,6 +185,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -193,19 +195,20 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("EngineDll8r.dll");
-		spdlog::info("Waiting for EngineDll8r.dll to load...");
-		Sleep(1000);
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("EngineDll8r.dll")) == nullptr)
+	{
+		spdlog::warn("EngineDll8r.dll not loaded yet. Waiting...");
 	}
 
 	spdlog::info("Successfully obtained handle for EngineDll8r.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -215,7 +218,30 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edi + 0xD0);
+
+	spdlog::info("[Hook] Raw incoming FOV: {:.12f}", fCurrentCameraFOV);
+
+	if (fCurrentCameraFOV == 66.66650390625f)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCameraFOV]
+	}
 }
 
 void WidescreenFix()
@@ -223,6 +249,8 @@ void WidescreenFix()
 	if (eGameType == Game::COA2009 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(dllModule2, "8B 45 08 52 50 E8 ?? ?? ?? ?? 83 C4 08");
 		if (ResolutionWidthInstructionScanResult)
@@ -265,32 +293,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is EngineDll8r.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
 
-			static float fLastModifiedFOV = 0.0f;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edi + 0xD0);
-
-				if (fCurrentFOVValue == 66.66650390625f || fCurrentFOVValue == 18.0f || fCurrentFOVValue == 6.0f)
-				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-					fLastModifiedFOV = fCurrentFOVValue;
-					return;
-				}
-
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(66.66650390625f) && fCurrentFOVValue != CalculateNewFOV(18.0f) && fCurrentFOVValue != CalculateNewFOV(6.0f))
-				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
-
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
-				}
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -298,40 +303,28 @@ void WidescreenFix()
 			return;
 		}
 
-
-		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 5C 24 40 D9 44 24 40 D9 97 DC 00 00 00 D8 8F D4 00 00 00");
-		if (AspectRatioInstruction1ScanResult)
+		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(dllModule2, "D9 5C 24 40 D9 44 24 40 D9 97 DC 00 00 00 D8 8F D4 00 00 00");
+		if (AspectRatioInstructionsScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction1ScanResult + 14 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instructions Scan: Address is EngineDll8r.dll+{:x}", AspectRatioInstructionsScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction1MidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 14, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 14, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edi + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
+				*reinterpret_cast<float*>(ctx.edi + 0xD4) = 0.75f / fAspectRatioScale;
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate first aspect ratio instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(dllModule2, "D8 B7 D8 00 00 00 D9 9F E0 00 00 00 D9 EE D8 97 EC 00 00 00");
-		if (AspectRatioInstruction2ScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is EngineDll8r.dll+{:x}", AspectRatioInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
 			static SafetyHookMid AspectRatioInstruction2MidHook{};
 
-			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 20, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.edi + 0xD8) = 1.0f;
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate second aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio instructions scan memory address.");
 			return;
 		}
 	}

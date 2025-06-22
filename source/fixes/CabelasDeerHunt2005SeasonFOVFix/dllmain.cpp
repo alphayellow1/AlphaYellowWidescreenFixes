@@ -55,6 +55,8 @@ float fNewAspectRatio;
 float fFOVFactor;
 float fNewCameraFOV;
 float fAspectRatioScale;
+static uint32_t iInsideCar;
+static uint8_t* InsideCarValueAddress;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -215,14 +217,6 @@ bool DetectGame()
 
 	spdlog::info("Successfully obtained handle for EngineDll6.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
-	while ((dllModule3 = GetModuleHandleA("GameDll6.dll")) == nullptr)
-	{
-		spdlog::warn("GameDll6.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for GameDll6.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
-
 	return true;
 }
 
@@ -237,7 +231,18 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
 
-	if (fCurrentCameraFOV == 75.0f)
+	if (iInsideCar == 0) // Outside car
+	{
+		if (fCurrentCameraFOV == 75.0f)
+		{
+			fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+		}
+		else
+		{
+			fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		}
+	}
+	else if (iInsideCar == 1) // Inside car
 	{
 		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 	}
@@ -259,6 +264,28 @@ void FOVFix()
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* InsideCarTriggerInstructionScanResult = Memory::PatternScan(exeModule, "A1 ?? ?? ?? ?? 83 C4 04 3B C3 75 1C 8B 86 68 1C 00 00");
+		if (InsideCarTriggerInstructionScanResult)
+		{
+			spdlog::info("Inside Car Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), InsideCarTriggerInstructionScanResult - (std::uint8_t*)exeModule);
+
+			uint32_t imm = *reinterpret_cast<uint32_t*>(InsideCarTriggerInstructionScanResult + 1);
+
+			InsideCarValueAddress = reinterpret_cast<uint8_t*>(imm);
+
+			static SafetyHookMid InsideCarTriggerInstructionMidHook{};
+
+			InsideCarTriggerInstructionMidHook = safetyhook::create_mid(InsideCarTriggerInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				iInsideCar = *reinterpret_cast<uint32_t*>(InsideCarValueAddress);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate inside car trigger instruction memory address.");
+			return;
+		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 D0 00 00 00 D8 0D ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
