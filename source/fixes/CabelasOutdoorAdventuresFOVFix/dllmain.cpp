@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CabelasOutdoorAdventuresFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,9 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +51,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fNewCameraFOV;
+float fAspectRatioScale;
+static uint32_t iInsideCar;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -202,7 +203,39 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+
+	if (iInsideCar == 0) // Outside car
+	{
+		if (fCurrentCameraFOV == 75.0f)
+		{
+			fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+		}
+		else
+		{
+			fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		}
+	}
+	else if (iInsideCar == 1) // Inside car
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
 }
 
 void FOVFix()
@@ -211,37 +244,34 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;		
+
+		std::uint8_t* InsideCarTriggerInstructionScanResult = Memory::PatternScan(exeModule, "89 35 ?? ?? ?? ?? 8A 83 F0 05 00 00 C7 45 EC 01 00 00 00 A8 20");
+		if (InsideCarTriggerInstructionScanResult)
+		{
+			spdlog::info("Inside Car Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), InsideCarTriggerInstructionScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid InsideCarTriggerInstructionMidHook{};
+
+			InsideCarTriggerInstructionMidHook = safetyhook::create_mid(InsideCarTriggerInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				iInsideCar = std::bit_cast<uint32_t>(ctx.esi);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate inside car trigger instruction memory address.");
+			return;
+		}
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 83 D0 00 00 00 D8 0D ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static float fLastModifiedFOV = 0.0f;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
-
-				if (fCurrentFOVValue == 75.0f)
-				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-					fLastModifiedFOV = fCurrentFOVValue;
-					return;
-				}
-
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(75.0f))
-				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
-
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
-				}
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -249,39 +279,28 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
-		if (AspectRatioInstruction1ScanResult)
+		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(exeModule, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
+		if (AspectRatioInstructionsScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult + 6 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid AspectRatioInstruction1MidHook{};
 
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / (fNewAspectRatio / fOldAspectRatio);
+				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / fAspectRatioScale;
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate first aspect ratio instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 83 D8 00 00 00 D9 C2 DE CA D9 C9 D8 F1");
-		if (AspectRatioInstruction2ScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction2ScanResult - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid AspectRatioInstruction2MidHook{};
 
-			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 12, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebx + 0xD8) = 1.0f;
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate second aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio instructions scan memory address.");
 			return;
 		}
 	}
