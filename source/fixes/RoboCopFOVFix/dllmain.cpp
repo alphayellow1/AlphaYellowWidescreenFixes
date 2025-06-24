@@ -53,6 +53,8 @@ float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fAspectRatioScale;
 float fFOVFactor;
+float fHewHUDHFOV;
+float fTolerance = 0.0001f;
 
 // Game detection
 enum class Game
