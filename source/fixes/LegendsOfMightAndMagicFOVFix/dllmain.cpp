@@ -257,8 +257,6 @@ void FOVFix()
 
 				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
-				spdlog::info("[Hook] Raw incoming HFOV: {:.9f}", fCurrentCameraHFOV);
-
 				if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
 				{
 					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
@@ -295,8 +293,6 @@ void FOVFix()
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
 				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				spdlog::info("[Hook] Raw incoming VFOV: {:.9f}", fCurrentCameraVFOV);
 
 				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
 				{
