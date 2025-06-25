@@ -53,6 +53,8 @@ float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
 float fNewCameraHFOV;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -204,12 +206,14 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "C7 47 2C 00 00 40 3F C7 47 38 00 00 C0 40 8B 8E D4 08 00 00 81 C1 84 AC 02 00");
 		if (CameraHFOVScanResult)
 		{
 			spdlog::info("Camera HFOV Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult - (std::uint8_t*)exeModule);
 
-			fNewCameraHFOV = fOriginalCameraHFOV * (fOldAspectRatio / fNewAspectRatio);
+			fNewCameraHFOV = fOriginalCameraHFOV / fAspectRatioScale;
 
 			Memory::Write(CameraHFOVScanResult + 3, fNewCameraHFOV);
 		}
