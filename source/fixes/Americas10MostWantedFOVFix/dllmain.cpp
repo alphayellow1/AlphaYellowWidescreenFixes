@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "Americas10MostWantedFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -39,10 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float fOriginalCameraFOV = 1.0f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +50,9 @@ int iCurrentResY;
 float fFOVFactor;
 float fNewCameraHFOV;
 float fNewAspectRatio;
+static uint8_t* CameraFOVValueAddress;
+float fNewCameraFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -192,9 +192,7 @@ static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-	fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
+	fNewCameraHFOV = 0.75f / fAspectRatioScale;
 
 	_asm
 	{
@@ -206,14 +204,18 @@ void FOVFix()
 {
 	if (eGameType == Game::A10MW && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 1D ?? ?? ?? ?? E8 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? C7 05 ?? ?? ?? ?? 00 00 00 00 C7 05 ?? ?? ?? ?? 00 00 00 00 8B 45 FC 5F 5E 5B 8B E5 5D C3 CC CC CC CC CC CC CC CC 55 8B EC 83 EC 40 53 56 57 D9 05 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C3 CC CC CC CC CC CC CC CC CC CC 55 8B EC 83 EC 40 53 56 57 D9 05 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C3");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x60 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 96 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult + 0x60, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstructionScanResult + 96, "\x90\x90\x90\x90\x90\x90", 6); // NOP the original instruction so we write our own
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x66, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 96, CameraHFOVInstructionMidHook);
 		}
 		else
 		{
@@ -226,11 +228,21 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 5 - (std::uint8_t*)exeModule);
 
+			uint32_t imm = *reinterpret_cast<uint32_t*>(CameraFOVInstructionScanResult + 6);
+
+			CameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm);
+
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 5, "\x90\x90\x90\x90\x90", 5); // NOP the original instruction so we write our own
+			
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(fOriginalCameraFOV * fFOVFactor);
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+				*reinterpret_cast<float*>(CameraFOVValueAddress) = fNewCameraFOV;
 			});
 		}
 		else
