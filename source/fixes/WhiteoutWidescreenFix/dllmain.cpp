@@ -53,6 +53,14 @@ float fNewCameraFOV;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fFOVFactor;
+float fNewCameraHFOV;
+float fNewCameraHFOV2;
+float fNewCameraHFOV3;
+float fNewCameraHFOV4;
+float fNewCameraVFOV;
+float fNewCameraVFOV2;
+float fNewCameraVFOV3;
+float fNewCameraVFOV4;
 
 // Game detection
 enum class Game
@@ -195,6 +203,116 @@ float CalculateNewFOV(float fCurrentFOV)
 	return fCurrentFOV * fAspectRatioScale;
 }
 
+static SafetyHookMid CameraHFOVInstruction3Hook{};
+
+void CameraHFOVInstruction3MidHook(SafetyHookContext& ctx)
+{
+	// Store the current HFOV value from the memory address [ESI + 0x1E8]
+	float fCurrentCameraHFOV3 = *reinterpret_cast<float*>(ctx.esi + 0x1E8);
+
+	// Race gameplay and pause camera HFOVs
+	if (fabsf(fCurrentCameraHFOV3 - 0.9336100817f) < fTolerance || fabsf(fCurrentCameraHFOV3 - 0.9336093068f) < fTolerance)
+	{
+		fNewCameraHFOV3 = CalculateNewFOV(fCurrentCameraHFOV3) * fFOVFactor;
+	}
+	// Rest of HUD elements and cameras (main menu mainly and some HUD elements)
+	else
+	{
+		fNewCameraHFOV3 = CalculateNewFOV(fCurrentCameraHFOV3);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraHFOV3] // Load the new HFOV value 3 into the FPU stack
+	}
+}
+
+static SafetyHookMid CameraVFOVInstruction3Hook{};
+
+void CameraVFOVInstruction3MidHook(SafetyHookContext& ctx)
+{
+	// Store the current VFOV value from the memory address [ESI + 0x1EC]
+	float fCurrentCameraVFOV3 = *reinterpret_cast<float*>(ctx.esi + 0x1EC);
+
+	// Main menu HUD elements and camera
+	if (fabsf(fCurrentCameraVFOV3 - (0.3237477839f / fAspectRatioScale)) < fTolerance ||
+		fabsf(fCurrentCameraVFOV3 - (0.2036914527f / fAspectRatioScale)) < fTolerance ||
+		fabsf(fCurrentCameraVFOV3 - (0.01945019141f / fAspectRatioScale)) < fTolerance ||
+		fabsf(fCurrentCameraVFOV3 - (240.0f / fAspectRatioScale)) < fTolerance)
+	{
+		fNewCameraVFOV3 = CalculateNewFOV(fCurrentCameraVFOV3);
+	}
+	// Race gameplay and pause camera VFOVs (during race it's stretched, so no need to calculate new VFOVs but just expose the FOV factor to the user
+	else if (fabsf(fCurrentCameraVFOV3 - 0.7002075315f) < fTolerance || fabsf(fCurrentCameraVFOV3 - 0.700206995f) < fTolerance)
+	{
+		fNewCameraVFOV3 = fCurrentCameraVFOV3 * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraVFOV3 = fCurrentCameraVFOV3;
+	}
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCameraVFOV3] // Load the new VFOV value into the FPU stack
+	}
+}
+
+static SafetyHookMid CameraHFOVInstruction4Hook{};
+
+void CameraHFOVInstruction4MidHook(SafetyHookContext& ctx)
+{
+	// Store the current HFOV value from the memory address [ESI + 0x1E8]
+	float fCurrentCameraHFOV4 = *reinterpret_cast<float*>(ctx.esi + 0x1E8);
+
+	// Race gameplay and pause camera HFOVs
+	if (fabsf(fCurrentCameraHFOV4 - 0.9336100817f) < fTolerance || fabsf(fCurrentCameraHFOV4 - 0.9336093068f) < fTolerance)
+	{
+		fNewCameraHFOV4 = CalculateNewFOV(fCurrentCameraHFOV4) * fFOVFactor;
+	}
+	// Rest of HUD elements and cameras (main menu mainly and some HUD elements)
+	else
+	{
+		fNewCameraHFOV4 = CalculateNewFOV(fCurrentCameraHFOV4);
+	}
+
+	_asm
+	{
+		fdiv dword ptr ds : [fNewCameraHFOV4] // Load the new HFOV value 4 into the FPU stack
+	}
+}
+
+static SafetyHookMid CameraVFOVInstruction4Hook{};
+
+void CameraVFOVInstruction4MidHook(SafetyHookContext& ctx)
+{
+	// Store the current VFOV value 4 from the memory address [ESI + 0x1EC]
+	float fCurrentCameraVFOV4 = *reinterpret_cast<float*>(ctx.esi + 0x1EC);
+
+	// Main menu HUD elements and camera
+	if (fabsf(fCurrentCameraVFOV4 - (0.3237477839f / fAspectRatioScale)) < fTolerance ||
+		fabsf(fCurrentCameraVFOV4 - (0.2036914527f / fAspectRatioScale)) < fTolerance ||
+		fabsf(fCurrentCameraVFOV4 - (0.01945019141f / fAspectRatioScale)) < fTolerance ||
+		fabsf(fCurrentCameraVFOV4 - (240.0f / fAspectRatioScale)) < fTolerance)
+	{
+		fNewCameraVFOV4 = CalculateNewFOV(fCurrentCameraVFOV4);
+	}
+	// Race gameplay and pause camera VFOVs (during race it's stretched, so no need to calculate new VFOVs but just expose the FOV factor to the user
+	else if (fabsf(fCurrentCameraVFOV4 - 0.7002075315f) < fTolerance || fabsf(fCurrentCameraVFOV4 - 0.700206995f) < fTolerance)
+	{
+		fNewCameraVFOV4 = fCurrentCameraVFOV4 * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraVFOV4 = fCurrentCameraVFOV4;
+	}
+
+	_asm
+	{
+		fdiv dword ptr ds : [fNewCameraVFOV4] // Load the new VFOV value 4 into the FPU stack
+	}
+}
+
 void WidescreenFix()
 {
 	if (eGameType == Game::WHITEOUT && bFixActive == true)
@@ -245,45 +363,66 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 8E E8 01 00 00 89 4C 24 14 8B 96 EC 01 00 00 89 54 24 18 DB 00");
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 91 E8 01 00 00 89 54 24 20");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			static std::vector<float> vComputedHFOVs;
-
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Store the current HFOV value from the memory address [ECX + 0x1E8]
+				float fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x1E8);
+
+				// Race gameplay and pause camera HFOVs
+				if (fabsf(fCurrentCameraHFOV - 0.9336100817f) < fTolerance || fabsf(fCurrentCameraHFOV - 0.9336093068f) < fTolerance)
 				{
-					// Reference the current HFOV value from the memory address [ESI + 0x1E8]
-					float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x1E8);
+				    fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+				}
+				// Rest of HUD elements and cameras (main menu mainly and some HUD elements)
+				else
+				{
+					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+				}
 
-					// Skip processing if a similar HFOV (within tolerance) has already been computed
-					bool alreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-					[&](float computedValue)
-					{
-						return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
-					});
+				ctx.edx = std::bit_cast<std::uintptr_t>(fNewCameraHFOV); // Update EDX with the new HFOV value
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
+			return;
+		}
 
-					if (alreadyComputed)
-					{
-						return;
-					}
+		std::uint8_t* CameraHFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 8E E8 01 00 00 89 4C 24 14");
+		if (CameraHFOVInstruction2ScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraHFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			static SafetyHookMid CameraHFOVInstruction2MidHook{};
+
+			CameraHFOVInstruction2MidHook = safetyhook::create_mid(CameraHFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+				{
+					// Store the current HFOV value from the memory address [ESI + 0x1E8]
+					float fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x1E8);
 
 					// Race gameplay and pause camera HFOVs
-					if(fabs(fCurrentCameraHFOV - 0.9336100817f) < fTolerance || fabs(fCurrentCameraHFOV - 0.9336093068f) < fTolerance)
+					if (fabsf(fCurrentCameraHFOV2 - 0.9336100817f) < fTolerance || fabsf(fCurrentCameraHFOV2 - 0.9336093068f) < fTolerance)
 					{
-					    fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+						fNewCameraHFOV2 = CalculateNewFOV(fCurrentCameraHFOV2) * fFOVFactor;
 					}
-					// Rest of elements and cameras (main menu mainly and some HUD elements)
+					// Rest of HUD elements and cameras (main menu mainly and some HUD elements)
 					else
 					{
-						fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+						fNewCameraHFOV2 = CalculateNewFOV(fCurrentCameraHFOV2);
 					}
 
-					// Record the computed HFOV for future calls
-					vComputedHFOVs.push_back(fCurrentCameraHFOV);
+					ctx.ecx = std::bit_cast<std::uintptr_t>(fNewCameraHFOV2); // Update EDX with the new HFOV value 2
 				});
 		}
 		else
@@ -292,37 +431,143 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 96 EC 01 00 00 89 54 24 18 DB 00 D8 A6 08 02 00 00 D9 86 00 02 00 00 DC C0 DE E9");
+		std::uint8_t* CameraHFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "D9 86 E8 01 00 00 D8 B6 08 02 00 00 DE C9");
+		if (CameraHFOVInstruction3ScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CameraHFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstruction3ScanResult, CameraHFOVInstruction3MidHook);				
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera HFOV instruction 3 memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraHFOVInstruction4ScanResult = Memory::PatternScan(exeModule, "D8 B6 E8 01 00 00 50 D8 8E 08 02 00 00 D9 9E 10 02 00 00");
+		if (CameraHFOVInstruction4ScanResult)
+		{
+			spdlog::info("Camera HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction4ScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CameraHFOVInstruction4ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstruction4ScanResult, CameraHFOVInstruction4MidHook);
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera HFOV instruction 4 memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 EC 01 00 00 89 44 24 24");
 		if (CameraVFOVInstructionScanResult)
 		{
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-					// Reference the current VFOV value from the memory address [ECX + 0x1EC]
-					float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x1EC);
+				// Store the current VFOV value from the memory address [ECX + 0x1EC]
+				float fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x1EC);
 
-					// Main menu elements and camera
-					if (fabs(fCurrentCameraVFOV - (0.3237477839f / fAspectRatioScale)) < fTolerance ||
-						fabs(fCurrentCameraVFOV - (0.2036914527f / fAspectRatioScale)) < fTolerance ||
-						fabs (fCurrentCameraVFOV - (0.01945019141f / fAspectRatioScale)) < fTolerance ||
-						fabs(fCurrentCameraVFOV - (240.0f / fAspectRatioScale)) < fTolerance)
-					{
-						fCurrentCameraVFOV = CalculateNewFOV(fCurrentCameraVFOV);
-					}
+				// Main menu HUD elements and camera
+				if (fabsf(fCurrentCameraVFOV - (0.3237477839f / fAspectRatioScale)) < fTolerance ||
+					fabsf(fCurrentCameraVFOV - (0.2036914527f / fAspectRatioScale)) < fTolerance ||
+					fabsf(fCurrentCameraVFOV - (0.01945019141f / fAspectRatioScale)) < fTolerance ||
+					fabsf(fCurrentCameraVFOV - (240.0f / fAspectRatioScale)) < fTolerance)
+				{
+					fNewCameraVFOV = CalculateNewFOV(fCurrentCameraVFOV);
+				}
+				// Race gameplay and pause camera VFOVs (during race it's stretched, so no need to calculate new VFOVs but just expose the FOV factor to the user
+				else if (fabsf(fCurrentCameraVFOV - 0.7002075315f) < fTolerance || fabsf(fCurrentCameraVFOV - 0.700206995f) < fTolerance)
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV;
+				}
 
-					// Race gameplay and pause camera VFOVs (during race it's stretched, so no need to calculate new VFOVs but just expose the FOV factor to the user
-					if (fabs(fCurrentCameraVFOV - 0.7002075315f) < fTolerance || fabs(fCurrentCameraVFOV - 0.700206995f) < fTolerance)
-					{
-						fCurrentCameraVFOV *= fFOVFactor;
-					}
+				ctx.eax = std::bit_cast<std::uintptr_t>(fNewCameraVFOV); // Update EAX with the new VFOV value
 			});
 		}
 		else
 		{
 			spdlog::info("Cannot locate the camera VFOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraVFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 96 EC 01 00 00 89 54 24 18");
+		if (CameraVFOVInstruction2ScanResult)
+		{
+			Memory::PatchBytes(CameraVFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			static SafetyHookMid CameraVFOVInstruction2MidHook{};
+
+			CameraVFOVInstruction2MidHook = safetyhook::create_mid(CameraVFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+					// Store the current VFOV value from the memory address [ESI + 0x1EC]
+					float fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x1EC);
+
+					// Main menu HUD elements and camera
+					if (fabsf(fCurrentCameraVFOV2 - (0.3237477839f / fAspectRatioScale)) < fTolerance ||
+						fabsf(fCurrentCameraVFOV2 - (0.2036914527f / fAspectRatioScale)) < fTolerance ||
+						fabsf(fCurrentCameraVFOV2 - (0.01945019141f / fAspectRatioScale)) < fTolerance ||
+						fabsf(fCurrentCameraVFOV2 - (240.0f / fAspectRatioScale)) < fTolerance)
+					{
+						fNewCameraVFOV2 = CalculateNewFOV(fCurrentCameraVFOV2);
+					}
+					// Race gameplay and pause camera VFOVs (during race it's stretched, so no need to calculate new VFOVs but just expose the FOV factor to the user
+					else if (fabsf(fCurrentCameraVFOV2 - 0.7002075315f) < fTolerance || fabsf(fCurrentCameraVFOV2 - 0.700206995f) < fTolerance)
+					{
+						fNewCameraVFOV2 = fCurrentCameraVFOV2 * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraVFOV2 = fCurrentCameraVFOV2;
+					}
+
+					ctx.edx = std::bit_cast<std::uintptr_t>(fNewCameraVFOV2); // Update EDX with the new VFOV value 2
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera VFOV instruction 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraVFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "D9 86 EC 01 00 00 D8 B6 0C 02 00 00 52");
+		if (CameraVFOVInstruction3ScanResult)
+		{
+			spdlog::info("Camera VFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraVFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraVFOVInstruction3Hook = safetyhook::create_mid(CameraVFOVInstruction3ScanResult, CameraVFOVInstruction3MidHook);
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera VFOV instruction 3 memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraVFOVInstruction4ScanResult = Memory::PatternScan(exeModule, "D8 B6 EC 01 00 00 D8 8E 0C 02 00 00 D9 9E 14 02 00 00");
+		if (CameraVFOVInstruction4ScanResult)
+		{
+			spdlog::info("Camera VFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstruction4ScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CameraVFOVInstruction4ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
+			CameraVFOVInstruction4Hook = safetyhook::create_mid(CameraVFOVInstruction4ScanResult, CameraHFOVInstruction4MidHook);
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera VFOV instruction 4 memory address.");
 			return;
 		}
 	}

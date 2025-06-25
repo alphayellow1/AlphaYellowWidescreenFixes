@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "AgassiTennisGenerationFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -50,7 +50,10 @@ int iCurrentResY;
 float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
-float fModifiedFOVValue;
+float fAspectRatioScale;
+float fNewGameplayCameraFOV;
+float fNewMenuCameraFOV;
+float fNewCutscenesCameraFOV;
 
 // Game detection
 enum class Game
@@ -188,7 +191,40 @@ bool DetectGame()
 
 float CalculateNewCameraFOV(float fCurrentCameraFOV)
 {
-	return fCurrentCameraFOV * (fNewAspectRatio / fOldAspectRatio);
+	return fCurrentCameraFOV * fAspectRatioScale;
+}
+
+static SafetyHookMid MenuCameraFOVInstructionHook{};
+
+void MenuCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float fCurrentMenuCameraFOV = std::bit_cast<float>(ctx.edx);
+
+	fNewMenuCameraFOV = CalculateNewCameraFOV(fCurrentMenuCameraFOV);
+
+	*reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xA4) = fNewMenuCameraFOV;
+}
+
+static SafetyHookMid GameplayCameraFOVInstructionHook{};
+
+void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float fCurrentGameplayCameraFOV = std::bit_cast<float>(ctx.edx);
+
+	fNewGameplayCameraFOV = CalculateNewCameraFOV(fCurrentGameplayCameraFOV) * fFOVFactor;
+
+	*reinterpret_cast<float*>(ctx.esi + ctx.eax * 0x4 + 0xA4) = fNewGameplayCameraFOV;
+}
+
+static SafetyHookMid CutscenesCameraFOVInstructionHook{};
+
+void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float fCurrentCutscenesCameraFOV = std::bit_cast<float>(ctx.ecx);
+
+	fNewCutscenesCameraFOV = CalculateNewCameraFOV(fCurrentCutscenesCameraFOV);
+
+	*reinterpret_cast<float*>(ctx.ebp + ctx.eax * 0x4 + 0xA4) = fNewCutscenesCameraFOV;
 }
 
 void FOVFix()
@@ -197,42 +233,17 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		// Menu
-		std::uint8_t* MenuCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 8C 81 A4 00 00 00 52 D9 5C 24 04 D9 84 81 B8 00 00 00 D8 8C 81 A4 00 00 00");
+		std::uint8_t* MenuCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 94 81 A4 00 00 00 75 06 8B 81 98 00 00 00 D9 84 81 B8 00 00 00 8D 54 24 00 D8 8C 81 A4 00 00 00 52 D9 5C 24 04");
 		if (MenuCameraFOVInstructionScanResult)
 		{
 			spdlog::info("Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), MenuCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid MenuCameraFOVInstructionMidHook{};
+			Memory::PatchBytes(MenuCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90", 7); // NOP out the original instruction
 
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> computedFOVs;
-
-			MenuCameraFOVInstructionMidHook = safetyhook::create_mid(MenuCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentMenuCameraFOV = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xA4);
-
-				// Checks if this FOV has already been computed
-				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentMenuCameraFOV) != computedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				// Computes the new FOV value if the current FOV is different from the last modified FOV
-				fModifiedFOVValue = CalculateNewCameraFOV(fCurrentMenuCameraFOV);
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentMenuCameraFOV != fModifiedFOVValue)
-				{
-					fCurrentMenuCameraFOV = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				computedFOVs.push_back(fModifiedFOVValue);
-			});
+			MenuCameraFOVInstructionHook = safetyhook::create_mid(MenuCameraFOVInstructionScanResult, MenuCameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -261,41 +272,14 @@ void FOVFix()
 		}
 
 		// Gameplay
-		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 8C 86 A4 00 00 00 51 D9 5C 24 18 D9 84 86 B8 00 00 00 D8 8C 86 A4 00 00 00");
+		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 94 8E A4 00 00 00 8B 86 98 00 00 00 D9 84 86 B8 00 00 00 8D 4C 24 14 D8 8C 86 A4 00 00 00 51 D9 5C 24 18 D9 84 86 B8 00 00 00 D8 8C 86 A4 00 00 00");
 		if (GameplayCameraFOVInstructionScanResult)
 		{
 			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid GameplayCameraFOVInstructionMidHook{};
-
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> computedFOVs;
-
-			GameplayCameraFOVInstructionMidHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.esi + ctx.eax * 0x4 + 0xA4);
-
-				// Checks if this FOV has already been computed
-				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentGameplayCameraFOV) != computedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				// Computes the new FOV value if the current FOV is different from the last modified FOV
-				fModifiedFOVValue = fFOVFactor * CalculateNewCameraFOV(fCurrentGameplayCameraFOV);
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentGameplayCameraFOV != fModifiedFOVValue)
-				{
-					fCurrentGameplayCameraFOV = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				computedFOVs.push_back(fModifiedFOVValue);
-			});
+			Memory::PatchBytes(GameplayCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90", 7); // NOP out the original instruction
+			
+			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, GameplayCameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -324,41 +308,14 @@ void FOVFix()
 		}
 
 		// Cutscenes
-		std::uint8_t* CutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 8C 85 A4 00 00 00 52 D9 5C 24 18 D9 84 85 B8 00 00 00 D8 8C 85 A4 00 00 00");
+		std::uint8_t* CutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 8C 85 A4 00 00 00 75 06 8B 85 98 00 00 00 D9 84 85 B8 00 00 00 8D 54 24 14 D8 8C 85 A4 00 00 00 52 D9 5C 24 18 D9 84 85 B8 00 00 00 D8 8C 85 A4 00 00 00 D8 B4 85 E8 00 00 00");
 		if (CutscenesCameraFOVInstructionScanResult)
 		{
 			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CutscenesCameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CutscenesCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90", 7); // NOP out the original instruction
 
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> computedFOVs;
-
-			CutscenesCameraFOVInstructionMidHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCutscenesCameraFOV = *reinterpret_cast<float*>(ctx.ebp + ctx.eax * 0x4 + 0xA4);
-
-				// Checks if this FOV has already been computed
-				if (std::find(computedFOVs.begin(), computedFOVs.end(), fCurrentCutscenesCameraFOV) != computedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				// Computes the new FOV value if the current FOV is different from the last modified FOV
-				fModifiedFOVValue = CalculateNewCameraFOV(fCurrentCutscenesCameraFOV);
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentCutscenesCameraFOV != fModifiedFOVValue)
-				{
-					fCurrentCutscenesCameraFOV = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				computedFOVs.push_back(fModifiedFOVValue);
-			});
+			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, CutscenesCameraFOVInstructionMidHook);
 		}
 		else
 		{
