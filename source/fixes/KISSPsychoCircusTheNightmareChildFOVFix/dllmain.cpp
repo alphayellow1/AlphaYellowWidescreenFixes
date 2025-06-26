@@ -24,10 +24,11 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
+HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "KISSPsychoCircusTheNightmareChildFOVFix";
-std::string sFixVersion = "1.6";
+std::string sFixVersion = "1.7";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -59,6 +60,7 @@ float fFOVFactor;
 float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
+static uint32_t iIsUnderwater;
 
 // Game detection
 enum class Game
@@ -178,6 +180,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -186,12 +190,26 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			return true;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;	
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("cshell.dll")) == nullptr)
+	{
+		spdlog::warn("cshell.dll not loaded yet. Waiting...");
+		Sleep(100);
+	}
+
+	spdlog::info("Successfully obtained handle for cshell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
+	return true;
 }
 
 float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
@@ -247,6 +265,24 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
+		std::uint8_t* UnderwaterValueCheckInstructionScanResult = Memory::PatternScan(dllModule2, "8A 46 61 84 C0 75 28 F6 46 44 08 74 22 8B 44 24 2C 8B CE");
+		if (UnderwaterValueCheckInstructionScanResult)
+		{
+			spdlog::info("Underwater Value Check Instruction: Address is cshell.dll+{:x}", UnderwaterValueCheckInstructionScanResult - (std::uint8_t*)dllModule2);
+
+			static SafetyHookMid UnderwaterValueCheckMidHook{};
+
+			UnderwaterValueCheckMidHook = safetyhook::create_mid(UnderwaterValueCheckInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				iIsUnderwater = *reinterpret_cast<uint32_t*>(ctx.esi + 0x61);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate underwater value check instruction memory address.");
+			return;
+		}
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 50 01 00 00 89 B4 24 D0 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -268,14 +304,28 @@ void FOVFix()
 				if (isSpecialHFOV(fCurrentCameraHFOV))
 				{
 					fNewCameraHFOV = fCurrentCameraHFOV;
-				}
-				else if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
+				} 
+				else if (iIsUnderwater == 0)
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+					if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
+					{
+						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+					}
+					else
+					{
+						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					}
 				}
-				else
+				else if (iIsUnderwater == 1)
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					if (fCurrentCameraHFOV > 1.43f && fCurrentCameraHFOV < 1.71f)
+					{
+						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+					}
+					else
+					{
+						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					}
 				}
 
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -308,13 +358,27 @@ void FOVFix()
 				{
 					fNewCameraVFOV = fCurrentCameraVFOV;
 				}
-				else if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
+				else if (iIsUnderwater == 0)
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
+					{
+						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					}
+					else
+					{
+						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					}
 				}
-				else
+				else if (iIsUnderwater == 1)
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					if (fCurrentCameraVFOV > 1.0f / fAspectRatioScale && fCurrentCameraVFOV < 1.275f / fAspectRatioScale)
+					{
+						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					}
+					else
+					{
+						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					}
 				}
 
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraVFOV);
