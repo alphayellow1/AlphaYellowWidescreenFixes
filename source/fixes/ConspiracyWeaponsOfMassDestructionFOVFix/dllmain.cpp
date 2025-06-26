@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "ConspiracyWeaponsOfMassDestructionFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,6 +53,13 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fAspectRatioScale;
+float fNewCameraFOV;
+static uint8_t* PistolHipfireCameraFOVValueAddress;
+static uint8_t* M4HipfireCameraFOVValueAddress;
+static uint8_t* SniperHipfireCameraFOVValueAddress;
+float fNewPistolHipfireCameraFOV;
+float fNewM4HipfireCameraFOV;
+float fNewSniperHipfireCameraFOV;
 
 // Game detection
 enum class Game
@@ -193,6 +200,28 @@ float CalculateNewFOV(float fCurrentFOV)
 	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x24);
+
+	// Computes the new FOV value
+	if (fCurrentCameraFOV != 1.134464025f && fCurrentCameraFOV != CalculateNewFOV(1.134464025f) * fFOVFactor)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+	else
+	{
+		fNewCameraFOV = fCurrentCameraFOV;
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::CWOMD && bFixActive == true)
@@ -219,35 +248,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x24);
-
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool bAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
-
-				if (bAlreadyComputed)
-				{
-					return;
-				}
-
-				// Computes the new FOV value
-				if (fCurrentCameraFOV != 1.134464025f && fCurrentCameraFOV != CalculateNewFOV(1.134464025f) * fFOVFactor)
-				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -260,15 +263,21 @@ void FOVFix()
 		{
 			spdlog::info("Pistol Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), PistolHipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
+			uint32_t imm1 = *reinterpret_cast<uint32_t*>(PistolHipfireCameraFOVInstructionScanResult + 2);
+
+			PistolHipfireCameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm1);
+			
 			Memory::PatchBytes(PistolHipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
 			static SafetyHookMid PistolHipfireCameraFOVInstructionMidHook{};
 			
-			PistolHipfireCameraFOVInstructionMidHook = safetyhook::create_mid(PistolHipfireCameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			PistolHipfireCameraFOVInstructionMidHook = safetyhook::create_mid(PistolHipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentPistolHipfireCameraFOV = CalculateNewFOV(1.134464025f) * fFOVFactor;
+				float& fCurrentPistolHipfireCameraFOV = *reinterpret_cast<float*>(PistolHipfireCameraFOVValueAddress);
 
-				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentPistolHipfireCameraFOV);
+				fNewPistolHipfireCameraFOV = CalculateNewFOV(fCurrentPistolHipfireCameraFOV) * fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewPistolHipfireCameraFOV);
 			});
 		}
 		else
@@ -282,15 +291,21 @@ void FOVFix()
 		{
 			spdlog::info("M4 Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), M4HipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
+			uint32_t imm2 = *reinterpret_cast<uint32_t*>(M4HipfireCameraFOVInstructionScanResult + 2);
+
+			M4HipfireCameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm2);
+
 			Memory::PatchBytes(M4HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
 			static SafetyHookMid M4HipfireCameraFOVInstructionMidHook{};
 
-			M4HipfireCameraFOVInstructionMidHook = safetyhook::create_mid(M4HipfireCameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			M4HipfireCameraFOVInstructionMidHook = safetyhook::create_mid(M4HipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentM4HipfireCameraFOV = CalculateNewFOV(1.134464025f) * fFOVFactor;
-					
-				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentM4HipfireCameraFOV);
+				float& fCurrentM4HipfireCameraFOV = *reinterpret_cast<float*>(M4HipfireCameraFOVValueAddress);
+
+				fNewM4HipfireCameraFOV = CalculateNewFOV(fCurrentM4HipfireCameraFOV) * fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewM4HipfireCameraFOV);
 			});
 		}
 		else
@@ -304,15 +319,21 @@ void FOVFix()
 		{
 			spdlog::info("Sniper Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), SniperHipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
+			uint32_t imm3 = *reinterpret_cast<uint32_t*>(SniperHipfireCameraFOVInstructionScanResult + 2);
+
+			SniperHipfireCameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm3);
+			
 			Memory::PatchBytes(SniperHipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
 			static SafetyHookMid SniperHipfireCameraFOVInstructionMidHook{};
 			
-			SniperHipfireCameraFOVInstructionMidHook = safetyhook::create_mid(SniperHipfireCameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			SniperHipfireCameraFOVInstructionMidHook = safetyhook::create_mid(SniperHipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentSniperHipfireCameraFOV = CalculateNewFOV(1.134464025f) * fFOVFactor;
+				float& fCurrentSniperHipfireCameraFOV = *reinterpret_cast<float*>(SniperHipfireCameraFOVValueAddress);
 
-				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentSniperHipfireCameraFOV);
+				fNewSniperHipfireCameraFOV = CalculateNewFOV(fCurrentSniperHipfireCameraFOV) * fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewSniperHipfireCameraFOV);
 			});
 		}
 		else
