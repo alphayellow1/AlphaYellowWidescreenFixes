@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraHFOV = 0.75f;
 
 // Ini variables
@@ -52,6 +50,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraHFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -73,7 +72,7 @@ const std::map<Game, GameInfo> kGames = {
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
-static void Logging()
+void Logging()
 {
 	// Get path to DLL
 	WCHAR dllPath[_MAX_PATH] = { 0 };
@@ -117,7 +116,7 @@ static void Logging()
 	}
 }
 
-static void Configuration()
+void Configuration()
 {
 	// Inipp initialization
 	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
@@ -167,7 +166,7 @@ static void Configuration()
 	spdlog::info("----------");
 }
 
-static bool DetectGame()
+bool DetectGame()
 {
 	for (const auto& [type, info] : kGames)
 	{
@@ -185,10 +184,14 @@ static bool DetectGame()
 	return false;
 }
 
-static void WidescreenFix()
+void WidescreenFix()
 {
 	if (eGameType == Game::CS && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "A1 98 7F 4A 00 89 15 54 7F 4A 00");
 		if (ResolutionWidthInstructionScanResult)
 		{
@@ -236,7 +239,7 @@ static void WidescreenFix()
 			{
 				fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-				fNewCameraHFOV = fOriginalCameraHFOV / (fNewAspectRatio / fOldAspectRatio);
+				fNewCameraHFOV = fOriginalCameraHFOV / fAspectRatioScale;
 
 				*reinterpret_cast<float*>(ctx.esi + 0x30) = fNewCameraHFOV;
 			});
@@ -249,7 +252,7 @@ static void WidescreenFix()
 	}
 }
 
-static DWORD __stdcall Main(void*)
+DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
