@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "AntzExtremeRacingFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,9 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalMenuCameraFOV = 0.5f;
 constexpr float fOriginalCameraHFOV = 0.5f;
 constexpr float fOriginalCameraVFOV = 0.375f;
@@ -61,6 +59,7 @@ float fValue1;
 float fValue2;
 float fValue3;
 float fValue4;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -124,7 +123,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -208,11 +207,18 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::AER && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 3C D8 49 28");
 		if (CameraHFOVInstructionScanResult)
@@ -223,7 +229,7 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.eax + 0x3C) = fFOVFactor * (fOriginalCameraHFOV * (fNewAspectRatio / fOldAspectRatio));
+				*reinterpret_cast<float*>(ctx.eax + 0x3C) = fFOVFactor * (fOriginalCameraHFOV * fAspectRatioScale);
 			});
 		}
 		else
@@ -241,7 +247,7 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edx + 0x40) = fFOVFactor * (fOriginalCameraVFOV * (fNewAspectRatio / fOldAspectRatio));
+				*reinterpret_cast<float*>(ctx.edx + 0x40) = fFOVFactor * (fOriginalCameraVFOV * fAspectRatioScale);
 			});
 		}
 		else
@@ -250,7 +256,7 @@ void FOVFix()
 			return;
 		}
 
-		fNewMenuFOV = fOriginalMenuCameraFOV * (fNewAspectRatio / fOldAspectRatio);
+		fNewMenuFOV = fOriginalMenuCameraFOV * fAspectRatioScale;
 
 		std::uint8_t* MenuAspectRatioAndFOVScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 10 68 6C 34 58 00 E8 00 1F 00 00 83 C4 04");
 		if (MenuAspectRatioAndFOVScanResult)
@@ -287,7 +293,7 @@ void FOVFix()
 		{
 			spdlog::info("Value 1: Address is {:s}+{:x}", sExeName.c_str(), Value1ScanResult - (std::uint8_t*)exeModule);
 
-			fValue1 = 1.6f * (fNewAspectRatio / fOldAspectRatio);
+			fValue1 = 1.6f * fAspectRatioScale;
 
 			Memory::Write(Value1ScanResult + 7, fValue1);
 		}
@@ -302,7 +308,7 @@ void FOVFix()
 		{
 			spdlog::info("Value 2: Address is {:s}+{:x}", sExeName.c_str(), Value2ScanResult - (std::uint8_t*)exeModule);
 
-			fValue2 = 1.0f * (fNewAspectRatio / fOldAspectRatio);
+			fValue2 = 1.0f * fAspectRatioScale;
 
 			Memory::Write(Value2ScanResult + 5, fValue2);
 		}
@@ -317,7 +323,7 @@ void FOVFix()
 		{
 			spdlog::info("Value 3: Address is {:s}+{:x}", sExeName.c_str(), Value3ScanResult - (std::uint8_t*)exeModule);
 
-			fValue3 = 1.0f * (fNewAspectRatio / fOldAspectRatio);
+			fValue3 = 1.0f * fAspectRatioScale;
 
 			Memory::Write(Value3ScanResult + 5, fValue3);
 		}
@@ -332,7 +338,7 @@ void FOVFix()
 		{
 			spdlog::info("Value 4: Address is {:s}+{:x}", sExeName.c_str(), Value4ScanResult - (std::uint8_t*)exeModule);
 
-			fValue4 = 2.0f * RadToDeg(atanf(tanf(DegToRad(60.0f / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+			fValue4 = CalculateNewFOV(60.0f);
 
 			Memory::Write(Value4ScanResult + 1, fValue4);
 		}
