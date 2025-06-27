@@ -53,6 +53,7 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -214,43 +215,29 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "E8 45 E2 01 00 D9 46 1C D8 0D ?? ?? ?? ?? D9 F2");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 56 1C 50 68 00 00 00 3F 51 8B 0E 52");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 5 - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction			
+
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x1C);
 
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool bAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
-
-				if (bAlreadyComputed)
-				{
-					return;
-				}
-
-				// Computes the new FOV value
 				if (fCurrentCameraFOV != 1.04719758f)
 				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 				}
 				else
 				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 				}
 
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fCurrentCameraFOV);
+				ctx.edx = std::bit_cast<std::uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else
