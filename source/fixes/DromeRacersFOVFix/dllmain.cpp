@@ -28,7 +28,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "DromeRacersFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,7 +53,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fModifiedFOVValue;
+float fNewCameraFOV;
+float fAspectRatioScale;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -203,7 +204,32 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx);
+
+	float fDamping = 0.3f; // Just the smoothing factor
+
+	float fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual, since when speed is maxed out during races, the FOV is already pretty high in 4:3 (120 degrees max), FOV while idle is 70
+
+	if (fCurrentCameraFOV == 90.0f) // Car selection, garage (career mode), menus background
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fEffectiveFOVFactor; // Only applies the FOV factor during races
+	}
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCameraFOV]
+	}
 }
 
 void FOVFix()
@@ -212,51 +238,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 02 DE CB D9 CA D8 0D ?? ?? ?? ?? D9 FE");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90", 2);
 
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx);
-
-				// Checks if this FOV has already been computed
-				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				float fDamping = 0.3f; // Just the smoothing factor
-
-				float fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual, since when speed is maxed out during races, the FOV is already pretty high in 4:3 (120 degrees max), FOV while idle is 70
-
-				if (fCurrentCameraFOV == 90.0f) // Car selection, garage (career mode), menus background
-				{
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
-				}
-				else
-				{
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fEffectiveFOVFactor; // Only applies the FOV factor during races
-				}
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentCameraFOV != fModifiedFOVValue)
-				{
-					fCurrentCameraFOV = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fModifiedFOVValue);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
