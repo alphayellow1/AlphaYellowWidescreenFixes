@@ -18,7 +18,6 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include <vector>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -27,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "WildRidesWaterParkFactoryWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
