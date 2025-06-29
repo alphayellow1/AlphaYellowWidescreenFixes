@@ -295,9 +295,7 @@ void FOVFix()
 		{
 			spdlog::error("Failed to locate in a race trigger instruction memory address.");
 			return;
-		}
-
-		
+		}		
 
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 80 0C 03 00 00 DC 0D 58 42 55 00 D9 F2");
 		if (CameraHFOVInstructionScanResult)
@@ -306,7 +304,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);			
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

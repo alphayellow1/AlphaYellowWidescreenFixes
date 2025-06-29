@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CrazyChickenTalesWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -50,6 +48,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -147,8 +146,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -236,7 +237,7 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx);
 
-				if (fCurrentCameraHFOV == 1.538461566f /* Singleplayer */ || fCurrentCameraHFOV == 1.25f /* Multiplayer */)
+				if (fCurrentCameraHFOV == 1.538461566f || fCurrentCameraHFOV == 1.25f)
 				{
 					fCurrentCameraHFOV = fCurrentCameraHFOV / (fNewAspectRatio / fOldAspectRatio);
 				}
