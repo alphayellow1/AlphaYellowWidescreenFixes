@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "GMRallyFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float tolerance = 0.0000001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +52,9 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fFOVFactor;
+float fNewCameraFOV;
+static uint32_t* pInRaceFlag;
+static bool bInRace;
 
 // Game detection
 enum class Game
@@ -208,57 +210,62 @@ float CalculateNewFOV(float fCurrentFOV)
 	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+
+	bInRace = (*pInRaceFlag == 1);
+
+	if (bInRace == 1)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::GMR && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;		
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 96 84 04 00 00 88 86 88 04 00 00 74 08 D9 05 ?? ?? ?? ??");
+		std::uint8_t* InARaceTriggerInstructionScanResult = Memory::PatternScan(dllModule2, "39 1D ?? ?? ?? ?? 75 66 8B 0D ?? ?? ?? ?? 53");
+		if (InARaceTriggerInstructionScanResult)
+		{
+			spdlog::info("In A Race Trigger Instruction: Address is ChromeEngine2.dll+{:x}", InARaceTriggerInstructionScanResult - (std::uint8_t*)dllModule2);
+
+			uint32_t imm = *reinterpret_cast<uint32_t*>(InARaceTriggerInstructionScanResult + 2);
+
+			uint8_t* TriggerValueAddress = reinterpret_cast<uint8_t*>(imm);
+
+			pInRaceFlag = reinterpret_cast<uint32_t*>(TriggerValueAddress);
+		}
+		else
+		{
+			spdlog::error("Failed to locate in a race trigger instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 08 D8 0D ?? ?? ?? ?? D9 F2 DD D8 D9 44 24 0C D8 C9");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
-
-				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraFOV) < tolerance;
-				});
-
-				if (alreadyComputed)
-				{
-					return;
-				}
-
-				float fDamping = 0.05f; // Just the smoothing factor
-
-				float fEffectiveFOVFactor = powf(fFOVFactor, fDamping);
-
-				if (fCurrentCameraFOV == 1.4835298642f) // 85º in radians
-				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fEffectiveFOVFactor;
-				}
-				else
-				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-
-				ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
