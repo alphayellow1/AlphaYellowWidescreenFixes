@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BeachSoccerFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0000001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +52,8 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -198,6 +199,34 @@ float CalculateNewVFOV(float fCurrentVFOV)
 	return 2.0f * atanf(fFOVFactor * tanf((fCurrentVFOV * fAspectRatioScale) / 2.0f));
 }
 
+static SafetyHookMid CameraHFOVInstructionHook{};
+
+void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+
+	fNewCameraHFOV = CalculateNewHFOV(fCurrentCameraHFOV);
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraHFOV]
+	}
+}
+
+static SafetyHookMid CameraVFOVInstructionHook{};
+
+void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+
+	fNewCameraVFOV = CalculateNewVFOV(fCurrentCameraVFOV);
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraVFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::BS && bFixActive == true)
@@ -206,62 +235,18 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 DC 0D 90 3C 4C 00 8B 44 24 0C 8B 54 24 10 89 41 10 89 51 14 D9 F2 C6 41 18 00 DD D8 D8 4C 24 0C D9 44 24 08");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 DC 0D ?? ?? ?? ?? 8B 44 24 0C 8B 54 24 10 89 41 10 89 51 14 D9 F2 C6 41 18 00 DD D8 D8 4C 24 0C D9 44 24 08");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			static std::vector<float> vComputedHFOVs;
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraHFOVInstructionMidHook);
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 36, "\x90\x90\x90\x90", 4);
 
-				// Skip processing if a similar HFOV (within tolerance) has already been computed
-				bool bAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
-				});
-
-				if (bAlreadyComputed)
-				{
-					return;
-				}
-
-				fCurrentCameraHFOV = CalculateNewHFOV(fCurrentCameraHFOV);
-
-				// Stores the new HFOV value so future calls can skip re-calculations
-				vComputedHFOVs.push_back(fCurrentCameraHFOV);
-			});
-
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			static std::vector<float> vComputedVFOVs;
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 36, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
-
-				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
-				});
-
-				if (bVFOVAlreadyComputed)
-				{
-					return;
-				}
-
-				fCurrentCameraVFOV = CalculateNewVFOV(fCurrentCameraVFOV);
-
-				// Stores the new VFOV value so future calls can skip re-calculations
-				vComputedVFOVs.push_back(fCurrentCameraVFOV);
-			});
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 36, CameraVFOVInstructionMidHook);
 		}
 		else
 		{
