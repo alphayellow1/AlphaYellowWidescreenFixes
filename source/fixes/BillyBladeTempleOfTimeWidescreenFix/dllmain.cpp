@@ -218,18 +218,22 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution List: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
+			// 640x480
 			Memory::Write(ResolutionListScanResult + 6, iCurrentResX);
 
 			Memory::Write(ResolutionListScanResult + 16, iCurrentResY);
 
+			// 800x600
 			Memory::Write(ResolutionListScanResult + 31, iCurrentResX);
 
 			Memory::Write(ResolutionListScanResult + 41, iCurrentResY);
 
+			// 1024x768
 			Memory::Write(ResolutionListScanResult + 56, iCurrentResX);
 
 			Memory::Write(ResolutionListScanResult + 66, iCurrentResY);
 
+			// 1280x1024
 			Memory::Write(ResolutionListScanResult + 81, iCurrentResX);
 
 			Memory::Write(ResolutionListScanResult + 91, iCurrentResY);
