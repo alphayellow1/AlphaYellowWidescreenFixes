@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BillyBladeTempleOfTimeWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,14 +41,13 @@ std::string sExeName;
 // Ini variables
 bool bFixActive;
 
-// Constants
-constexpr float fOriginalCameraFOV = 0.6108652949f;
-
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -70,7 +69,7 @@ const std::map<Game, GameInfo> kGames = {
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
-static void Logging()
+void Logging()
 {
 	// Get path to DLL
 	WCHAR dllPath[_MAX_PATH] = { 0 };
@@ -114,7 +113,7 @@ static void Logging()
 	}
 }
 
-static void Configuration()
+void Configuration()
 {
 	// Inipp initialization
 	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
@@ -166,7 +165,7 @@ static void Configuration()
 	spdlog::info("----------");
 }
 
-static bool DetectGame()
+bool DetectGame()
 {
 	for (const auto& [type, info] : kGames)
 	{
@@ -184,22 +183,56 @@ static bool DetectGame()
 	return false;
 }
 
-static void WidescreenFix()
+static SafetyHookMid AspectRatioInstructionHook{};
+
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fld dword ptr ds:[fNewAspectRatio]
+	}
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x38);
+	
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
+void WidescreenFix()
 {
 	if (eGameType == Game::BBTOT && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "C8 00 00 00 FF 00 00 00 ?? ?? ?? ?? ?? ?? ?? ?? 20 00 00 00");
-		if (ResolutionScanResult)
+		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "C7 05 9C C3 4B 00 00 05 00 00 C7 05 A0 C3 4B 00 00 04 00 00 E9 8D 08 00 00 C7 05 9C C3 4B 00 00 04 00 00 C7 05 A0 C3 4B 00 00 03 00 00 E9 74 08 00 00 C7 05 9C C3 4B 00 20 03 00 00 C7 05 A0 C3 4B 00 58 02 00 00 E9 5B 08 00 00 C7 05 9C C3 4B 00 80 02 00 00 C7 05 A0 C3 4B 00 E0 01 00 00");
+		if (ResolutionListScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 8 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult + 12 - (std::uint8_t*)exeModule);
+			Memory::Write(ResolutionListScanResult + 6, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 8, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 16, iCurrentResY);
 
-			Memory::Write(ResolutionScanResult + 12, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 31, iCurrentResX);
+
+			Memory::Write(ResolutionListScanResult + 41, iCurrentResY);
+
+			Memory::Write(ResolutionListScanResult + 56, iCurrentResX);
+
+			Memory::Write(ResolutionListScanResult + 66, iCurrentResY);
+
+			Memory::Write(ResolutionListScanResult + 81, iCurrentResX);
+
+			Memory::Write(ResolutionListScanResult + 91, iCurrentResY);
 		}
 		else
 		{
@@ -207,17 +240,14 @@ static void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 1C 24 51 D9 46 3C D9 1C 24 51 D9 46 34");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 34 D9 1C 24 51");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid AspectRatioInstructionMidHook{};
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<float*>(ctx.esi + 0x34) = fNewAspectRatio;
-			});
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
 		}
 		else
 		{
@@ -230,14 +260,9 @@ static void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x38);
-
-				fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -247,7 +272,7 @@ static void WidescreenFix()
 	}
 }
 
-static DWORD __stdcall Main(void*)
+DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
