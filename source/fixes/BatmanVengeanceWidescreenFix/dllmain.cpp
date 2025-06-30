@@ -300,7 +300,7 @@ void WidescreenFix()
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
 			// Hook is located in the AdjustCameraToViewport function
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 4, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
