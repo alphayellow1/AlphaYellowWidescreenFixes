@@ -28,7 +28,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "HugoCannonCruiseWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,7 +52,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fModifiedHFOVValue;
+float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -152,8 +154,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -190,15 +194,13 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
+	return fCurrentFOV * fAspectRatioScale;
 }
 
 void WidescreenFix()
 {
 	if (bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
 		if (eGameType == Game::CONFIG)
 		{
 			std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "89 10 89 70 04 5F 5E C3 90 90 90 90");
@@ -229,42 +231,59 @@ void WidescreenFix()
 
 		if (eGameType == Game::HCC)
 		{
-			std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0 D9 5E 70");
-			if (CameraHFOVInstructionScanResult)
+			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
+			if (CameraFOVInstructionScanResult)
 			{
-				spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
 
 				static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-				static float fLastModifiedHFOV = 0.0f;
-
-				static std::vector<float> vComputedHFOVs;
-
-				CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
 					float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-					// Checks if this FOV has already been computed
-					if (std::find(vComputedHFOVs.begin(), vComputedHFOVs.end(), fCurrentCameraHFOV) != vComputedHFOVs.end())
+					spdlog::info("[Hook] Raw incoming FOV: {:.9f}", fCurrentCameraHFOV);
+
+					if (fCurrentCameraHFOV == 1.000000119f)
 					{
-						// Value already processed, then skips the calculations
-						return;
+						fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+					}
+					else if (fCurrentCameraHFOV != 0.577350259f && fCurrentCameraHFOV != 1.000000000f && fCurrentCameraHFOV != 1.732051373f)
+					{
+						fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					}
+					else
+					{
+						fNewCameraHFOV = fCurrentCameraHFOV;
 					}
 
-					// Computes the new FOV value if the current FOV is different from the last modified FOV
-					fModifiedHFOVValue = CalculateNewFOV(fCurrentCameraHFOV);
+					*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
+				});
 
-					// If the new computed value is different, updates the FOV value
-					if (fCurrentCameraHFOV != fModifiedHFOVValue)
+				Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3); // NOP out the original instruction
+
+				static SafetyHookMid CameraVFOVInstructionMidHook{};
+
+				CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+				{
+					float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
+
+					if (fCurrentCameraVFOV == 0.7500001192f)
 					{
-						fCurrentCameraHFOV = fModifiedHFOVValue;
-						fLastModifiedHFOV = fModifiedHFOVValue;
+						fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraVFOV = fCurrentCameraVFOV;
 					}
 
-					// Stores the new value so future calls can skip re-calculations
-					vComputedHFOVs.push_back(fModifiedHFOVValue);
-
-					ctx.ecx = std::bit_cast<uint32_t>(fModifiedHFOVValue);
+					*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
 				});
 			}
 			else
