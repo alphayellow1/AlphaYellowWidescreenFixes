@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "HuntingUnlimited2009FOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,9 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -54,6 +52,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
+float fNewCameraFOV;
+float fNewWeaponFOV;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -185,6 +186,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -193,20 +196,21 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("game.dll");
-		spdlog::info("Waiting for game.dll to load...");
-		Sleep(1000);
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("game.dll")) == nullptr)
+	{
+		spdlog::warn("game.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
 	spdlog::info("Successfully obtained handle for game.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -216,7 +220,28 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x68);
+
+	if (fCurrentCameraFOV > 79.0f && fCurrentCameraFOV <= 80.0f)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
 }
 
 void FOVFix()
@@ -225,37 +250,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 40 68 C3 CC CC CC CC CC CC CC 56");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is game.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			static float fLastModifiedCameraFOV = 0.0f;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x68);
-
-				if (fCurrentCameraFOVValue == 80.0f || fCurrentCameraFOVValue == 45.0f)
-				{
-					fCurrentCameraFOVValue = CalculateNewFOV(fCurrentCameraFOVValue);
-					fLastModifiedCameraFOV = fCurrentCameraFOVValue;
-					return;
-				}
-
-				if (fCurrentCameraFOVValue != fLastModifiedCameraFOV && fCurrentCameraFOVValue != 80.0f && fCurrentCameraFOVValue != CalculateNewFOV(80.0f) && fCurrentCameraFOVValue != 45.0f && fCurrentCameraFOVValue != CalculateNewFOV(45.0f))
-				{
-					float fModifiedCameraFOVValue = CalculateNewFOV(fCurrentCameraFOVValue);
-
-					if (fCurrentCameraFOVValue != fModifiedCameraFOVValue)
-					{
-						fCurrentCameraFOVValue = fModifiedCameraFOVValue;
-						fLastModifiedCameraFOV = fModifiedCameraFOVValue;
-					}
-				}
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -266,33 +270,19 @@ void FOVFix()
 		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(dllModule2, "C7 44 24 50 00 00 00 00 C7 44 24 4C 00 00 00 00 C7 44 24 48 00 00 00 00 E8 ?? ?? ?? ?? 8B 50 6C");
 		if (WeaponFOVInstructionScanResult)
 		{
-			spdlog::info("Weapon FOV Instruction: Address is game.dll+{:x}", WeaponFOVInstructionScanResult + 0x1D - (std::uint8_t*)dllModule2);
+			spdlog::info("Weapon FOV Instruction: Address is game.dll+{:x}", WeaponFOVInstructionScanResult + 29 - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(WeaponFOVInstructionScanResult + 29, "\x90\x90\x90", 3); // NOP out the original instruction
 
 			static SafetyHookMid WeaponFOVInstructionMidHook{};
 
-			static float fLastModifiedWeaponFOV = 0.0f;
-
-			WeaponFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 0x1D, [](SafetyHookContext& ctx)
+			WeaponFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 29, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x6C);
+				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.eax + 0x6C);
 
-				if (fCurrentWeaponFOVValue == 60.0f || fCurrentWeaponFOVValue == 35.0f)
-				{
-					fCurrentWeaponFOVValue = CalculateNewFOV(fCurrentWeaponFOVValue);
-					fLastModifiedWeaponFOV = fCurrentWeaponFOVValue;
-					return;
-				}
+				fNewWeaponFOV = CalculateNewFOV(fCurrentWeaponFOV);
 
-				if (fCurrentWeaponFOVValue != fLastModifiedWeaponFOV && fCurrentWeaponFOVValue != 60.0f && fCurrentWeaponFOVValue != CalculateNewFOV(60.0f) && fCurrentWeaponFOVValue != 35.0f && fCurrentWeaponFOVValue != CalculateNewFOV(35.0f))
-				{
-					float fModifiedWeaponFOVValue = CalculateNewFOV(fCurrentWeaponFOVValue);
-
-					if (fCurrentWeaponFOVValue != fModifiedWeaponFOVValue)
-					{
-						fCurrentWeaponFOVValue = fModifiedWeaponFOVValue;
-						fLastModifiedWeaponFOV = fModifiedWeaponFOVValue;
-					}
-				}
+				ctx.edx = std::bit_cast<uintptr_t>(fNewWeaponFOV);
 			});
 		}
 		else
