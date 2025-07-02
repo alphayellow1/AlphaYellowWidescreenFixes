@@ -43,7 +43,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
+constexpr float fTolerance = 0.00001f;
 constexpr float fInventorySelectionHFOV = 0.7853981852531433f; // Default HFOV for inventory selection
 constexpr float fCrystalBallDialogHFOV = 0.1745329350233078f; // Default HFOV for crystal ball dialog
 constexpr float fInventorySelectionVFOV = 0.22933627665042877f; // Default VFOV for inventory selection
@@ -247,6 +247,11 @@ bool bIsCroppedVFOV(float fCurrentVFOV)
 	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
 }
 
+bool bIsCroppedMenuVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - (2.0f * atanf(tanf(0.8835729360580444f / 2.0f) / fAspectRatioScale))) > fTolerance;
+}
+
 auto isSpecialHFOV = [](float h)
 {
 	return fabsf(h - fInventorySelectionHFOV) < fTolerance || fabsf(h - fCrystalBallDialogHFOV) < fTolerance;
@@ -318,7 +323,11 @@ void FOVFix()
 				}
 				else if (iIsUnderwater == 1)
 				{
-					if (fCurrentCameraHFOV > 1.43f && fCurrentCameraHFOV < 1.71f)
+					if (bIsDefaultHFOV(fCurrentCameraHFOV) && bIsCroppedMenuVFOV(fCurrentCameraVFOV2))
+					{
+						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					}
+					else if (fCurrentCameraHFOV > 1.43f && fCurrentCameraHFOV < 1.71f)
 					{
 						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
 					}
@@ -371,6 +380,10 @@ void FOVFix()
 				}
 				else if (iIsUnderwater == 1)
 				{
+					if (bIsDefaultHFOV(fCurrentCameraHFOV2) && bIsCroppedMenuVFOV(fCurrentCameraVFOV))
+					{
+						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					}
 					if (fCurrentCameraVFOV > 1.0f / fAspectRatioScale && fCurrentCameraVFOV < 1.275f / fAspectRatioScale)
 					{
 						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
