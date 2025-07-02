@@ -60,7 +60,7 @@ float fFOVFactor;
 float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-static uint32_t iIsUnderwater;
+static uint16_t iIsUnderwater;
 
 // Game detection
 enum class Game
@@ -274,7 +274,7 @@ void FOVFix()
 
 			UnderwaterValueCheckMidHook = safetyhook::create_mid(UnderwaterValueCheckInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				iIsUnderwater = *reinterpret_cast<uint32_t*>(ctx.esi + 0x61);
+				iIsUnderwater = *reinterpret_cast<uint16_t*>(ctx.esi + 0x61);
 			});
 		}
 		else
