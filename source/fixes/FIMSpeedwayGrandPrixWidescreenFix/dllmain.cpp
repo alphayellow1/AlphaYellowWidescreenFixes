@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "FIMSpeedwayGrandPrixWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,9 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +51,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -172,6 +172,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -180,18 +182,20 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("ChromeEngine2.dll");
-		spdlog::info("Waiting for ChromeEngine2.dll to load...");
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("ChromeEngine2.dll")) == nullptr)
+	{
+		spdlog::warn("ChromeEngine2.dll not loaded yet. Waiting...");
 	}
 
 	spdlog::info("Successfully obtained handle for ChromeEngine2.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -201,7 +205,28 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+
+	if (fCurrentCameraFOV == 1.431169987f) // Gameplay FOV
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
 }
 
 void WidescreenFix()
@@ -210,80 +235,45 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(dllModule2, "89 51 10 C2 08 00 90 90 90 90 90 90 90 90 90");
-		if (ResolutionHeightInstructionScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(dllModule2, "89 41 0C 89 51 10 C2 08 00 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is ChromeEngine2.dll+{:x}", ResolutionHeightInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Instructions Scan: Address is ChromeEngine.dll+{:x}", ResolutionInstructionsScanResult - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(ResolutionInstructionsScanResult + 3, "\x90\x90\x90", 3);
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 3, [](SafetyHookContext& ctx)
 			{
-				ctx.edx = std::bit_cast<uint32_t>(iCurrentResY);
+				*reinterpret_cast<uint32_t*>(ctx.ecx + 0x10) = iCurrentResY;
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution height instruction memory address.");
-			return;
-		}
 
-		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(dllModule2, "C2 10 00 90 90 90 8B 44 24 04 8B 54 24 08 89 41 0C");
-		if (ResolutionWidthInstructionScanResult)
-		{
-			spdlog::info("Resolution Width Instruction: Address is ChromeEngine2.dll+{:x}", ResolutionWidthInstructionScanResult + 0xE - (std::uint8_t*)dllModule2);
+			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90", 3);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult + 0xE, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(iCurrentResX);
+				*reinterpret_cast<uint32_t*>(ctx.ecx + 0xC) = iCurrentResX;
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution width instruction memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 81 10 04 00 00 8A 44 24 10 84 C0 88 81 14 04 00 00 74 08 D9 05 ?? ?? ?? ??");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 04 8A 81 00 04 00 00 84 C0 D8 0D ?? ?? ?? ?? D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			static float fLastModifiedFOV = 0.0f;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float fCurrentFOVValue = std::bit_cast<float>(ctx.eax);
-
-				if (fCurrentFOVValue == 1.308997035f || fCurrentFOVValue == 1.308997154f || fCurrentFOVValue == 1.308996916f || fCurrentFOVValue == 2.900000095f || fCurrentFOVValue == 1.0f)
-				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-				}
-				else if (fCurrentFOVValue == 1.431169987f /* Gameplay FOV */)
-				{
-					fCurrentFOVValue = fFOVFactor * CalculateNewFOV(fCurrentFOVValue);
-				}
-
-				// Check if the current FOV value was already modified
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != CalculateNewFOV(1.308997035f) && fCurrentFOVValue != CalculateNewFOV(1.308997154f) && fCurrentFOVValue != CalculateNewFOV(2.900000095f) && fCurrentFOVValue != CalculateNewFOV(1.308996916f) && fCurrentFOVValue != CalculateNewFOV(1.0f) && fCurrentFOVValue != fFOVFactor * CalculateNewFOV(1.431169987f))
-				{
-					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
-
-					// Update the value only if the modification is meaningful
-					if (fCurrentFOVValue != fModifiedFOVValue)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
-				}
-
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentFOVValue);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);			
 		}
 		else
 		{
