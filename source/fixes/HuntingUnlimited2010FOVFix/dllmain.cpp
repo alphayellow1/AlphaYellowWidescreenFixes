@@ -277,13 +277,13 @@ void FOVFix()
 			static SafetyHookMid WeaponFOVInstructionMidHook{};
 
 			WeaponFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 29, [](SafetyHookContext& ctx)
-				{
-					float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.eax + 0x6C);
+			{
+				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.eax + 0x6C);
 
-					fNewWeaponFOV = CalculateNewFOV(fCurrentWeaponFOV);
+				fNewWeaponFOV = CalculateNewFOV(fCurrentWeaponFOV);
 
-					ctx.edx = std::bit_cast<uintptr_t>(fNewWeaponFOV);
-				});
+				ctx.edx = std::bit_cast<uintptr_t>(fNewWeaponFOV);
+			});
 		}
 		else
 		{
