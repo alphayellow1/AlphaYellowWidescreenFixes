@@ -288,6 +288,8 @@ void FOVFix()
 			return;
 		}
 
+		iIsUnderwater = 0;
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 50 01 00 00 89 B4 24 D0 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -303,7 +305,7 @@ void FOVFix()
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
 
 				// Access the VFOV value at the memory address EAX + 0x154
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x154);				
 
 				// This is because these HFOVs are separate from the game window and are always HOR+
 				if (isSpecialHFOV(fCurrentCameraHFOV))
@@ -326,6 +328,8 @@ void FOVFix()
 					if (bIsDefaultHFOV(fCurrentCameraHFOV) && bIsCroppedMenuVFOV(fCurrentCameraVFOV2))
 					{
 						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+
+						iIsUnderwater = 0;
 					}
 					else if (fCurrentCameraHFOV > 1.43f && fCurrentCameraHFOV < 1.71f)
 					{
@@ -383,6 +387,8 @@ void FOVFix()
 					if (bIsDefaultHFOV(fCurrentCameraHFOV2) && bIsCroppedMenuVFOV(fCurrentCameraVFOV))
 					{
 						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+
+						iIsUnderwater = 0;
 					}
 					if (fCurrentCameraVFOV > 1.0f / fAspectRatioScale && fCurrentCameraVFOV < 1.275f / fAspectRatioScale)
 					{

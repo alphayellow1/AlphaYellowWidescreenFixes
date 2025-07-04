@@ -1,4 +1,4 @@
-// Include necessary headers
+﻿// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <string>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -263,6 +264,31 @@ void FOVFix()
 			return;
 		}
 
+		std::uint8_t* QuickLoadInstructionScanResult = Memory::PatternScan(dllModule2, "8A 0F 32 C0 84 C9 8B DF");
+		if (QuickLoadInstructionScanResult)
+		{
+			spdlog::info("Quick Load Instruction: Address is cshell.dll+{:x}", QuickLoadInstructionScanResult - (std::uint8_t*)dllModule2);
+
+			static SafetyHookMid QuickLoadInstructionMidHook{};
+
+			QuickLoadInstructionMidHook = safetyhook::create_mid(QuickLoadInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				const char* cMessage = reinterpret_cast<const char*>(ctx.edi);
+
+				if (std::strcmp(cMessage, "QuickSave loaded.") == 0)
+				{
+					iIsUnderwater = 0;
+				}
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate quickload instruction memory address.");
+			return;
+		}
+
+		iIsUnderwater = 0;
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 50 01 00 00 89 B4 24 E0 00 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -296,7 +322,13 @@ void FOVFix()
 				}
 				else if (iIsUnderwater == 1)
 				{
-					if (fCurrentCameraHFOV > 1.43f && fCurrentCameraHFOV < 1.71f)
+					if (fCurrentCameraHFOV == 0.7853981852531433f && fabsf(fCurrentCameraVFOV2 - (0.5890486240386963f / fAspectRatioScale)) < fTolerance)
+					{
+						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+
+						iIsUnderwater = 0;
+					}
+					else if (fCurrentCameraHFOV > 1.43f && fCurrentCameraHFOV < 1.71f)
 					{
 						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
 					}
@@ -348,7 +380,13 @@ void FOVFix()
 				}
 				else if (iIsUnderwater == 1)
 				{
-					if (fCurrentCameraVFOV > 1.0f / fAspectRatioScale && fCurrentCameraVFOV < 1.275f / fAspectRatioScale)
+					if (fCurrentCameraHFOV2 == 0.7853981852531433f && fabsf(fCurrentCameraVFOV - (0.5890486240386963f / fAspectRatioScale)) < fTolerance)
+					{
+						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+
+						iIsUnderwater = 0;
+					}
+					else if (fCurrentCameraVFOV > 1.0f / fAspectRatioScale && fCurrentCameraVFOV < 1.275f / fAspectRatioScale)
 					{
 						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
 					}
