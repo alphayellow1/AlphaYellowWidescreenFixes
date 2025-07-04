@@ -42,7 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.00000001f;
+constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -55,7 +55,6 @@ float fCurrentZoomCameraHFOV;
 float fCurrentZoomCameraVFOV;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-float fNewCameraVFOVAfterADS;
 float fFOVFactor;
 float fAspectRatioScale;
 static float fUnderwaterCheckValue;
@@ -214,6 +213,41 @@ float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
 	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
 }
 
+bool bIsDefaultHFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
+}
+
+bool bIsDefaultVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
+}
+
+bool bIsCroppedVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
+}
+
+bool bIsZoomHFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 0.4363323152065277f) < fTolerance;
+}
+
+bool bIsZoomVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - (0.3272492289543152f / fAspectRatioScale)) < fTolerance;
+}
+
+bool bIsDefaultMenuHFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 1.570000052f) < fTolerance;
+}
+
+bool bIsDefaultMenuVFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 1.169999957f) < fTolerance;
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::DHNP && bFixActive == true)
@@ -249,31 +283,34 @@ void FOVFix()
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
-
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);				
 
 				if (fUnderwaterCheckValue == 1.0f) // Above water
 				{
-					if (fabsf(fCurrentCameraVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV - 1.1780972480773926f) < fTolerance || fabsf(fCurrentCameraVFOV - (1.1780973672866821f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV - 1.1780973672866821f) < fTolerance)
+					if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
 					{
 						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(1.1780972480773926f);
 					}
-					else if (fCurrentCameraHFOV != CalculateNewHFOVWithoutFOVFactor(1.5707963705062866f) && fCurrentCameraHFOV != CalculateNewHFOVWithFOVFactor(1.5707963705062866f) &&
-						fCurrentCameraVFOV != CalculateNewVFOVWithoutFOVFactor(1.1780972480773926f) && fCurrentCameraVFOV != CalculateNewVFOVWithFOVFactor(1.1780972480773926f))
+					else if (bIsZoomHFOV(fCurrentCameraHFOV) && bIsZoomVFOV(fCurrentCameraVFOV))
 					{
-						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
+						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					}
+					else if (bIsDefaultMenuHFOV(fCurrentCameraHFOV) && bIsDefaultMenuVFOV(fCurrentCameraVFOV))
+					{
+						fNewCameraVFOV = fCurrentCameraVFOV;
 					}
 					else
 					{
-						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV);
+						fNewCameraVFOV = fCurrentCameraVFOV;
 					}
 				}
 				else if (fUnderwaterCheckValue == 0.007843137719f) // Underwater
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale); // Underwater VFOVs
+					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale); // Underwater VFOVs (Since it's Vert- by default)
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
@@ -294,26 +331,34 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x198);
 
 				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
 
 				if (fUnderwaterCheckValue == 1.0f) // Above water
 				{
-					if ((fCurrentCameraHFOV != 1.5707963705062866f && fCurrentCameraVFOV2 != 1.1780972480773926f) || fCurrentCameraHFOV == 0.4363323152065277f)
+					if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
 					{
-						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV2);
+					}
+					else if (bIsZoomHFOV(fCurrentCameraHFOV2) && bIsZoomVFOV(fCurrentCameraVFOV2))
+					{
+						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV2);
+					}
+					else if (bIsDefaultMenuHFOV(fCurrentCameraHFOV2) && bIsDefaultMenuVFOV(fCurrentCameraVFOV2))
+					{
+						fNewCameraHFOV = fCurrentCameraHFOV2;
 					}
 					else
 					{
-						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV2);
 					}
 				}
 				else if (fUnderwaterCheckValue == 0.007843137719f) // Underwater
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV2);
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -322,58 +367,6 @@ void FOVFix()
 		else
 		{
 			spdlog::error("Failed to locate hipfire/cutscenes HFOV instruction memory address.");
-			return;
-		}
-
-		/*
-		std::uint8_t* CameraZoomHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 81 98 01 00 00 8B 45 10");
-		if (CameraZoomHFOVInstructionScanResult)
-		{
-			spdlog::info("Camera Zoom HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomHFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid CameraZoomHFOVInstructionMidHook{};
-
-			CameraZoomHFOVInstructionMidHook = safetyhook::create_mid(CameraZoomHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				fCurrentZoomCameraHFOV = std::bit_cast<float>(ctx.eax);
-
-				if (fCurrentZoomCameraHFOV == 0.4363323152065277f)
-				{
-					fCurrentZoomCameraHFOV = CalculateNewHFOVWithoutFOVFactor(0.4363323152065277f);
-				}
-
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentZoomCameraHFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate weapon zoom HFOV instruction memory address.");
-			return;
-		}
-		*/
-
-		std::uint8_t* CameraZoomVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 81 9C 01 00 00 5D C3");
-		if (CameraZoomVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera Zoom VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomVFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid CameraZoomVFOVInstructionMidHook{};
-
-			CameraZoomVFOVInstructionMidHook = safetyhook::create_mid(CameraZoomVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				fCurrentZoomCameraVFOV = std::bit_cast<float>(ctx.eax);
-
-				if (fabsf(fCurrentZoomCameraVFOV - (0.3272492289543152f / fAspectRatioScale)) < fTolerance)
-				{
-					fCurrentZoomCameraVFOV = 0.3272492289543152f;
-				}
-
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentZoomCameraVFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate weapon zoom VFOV instruction memory address.");
 			return;
 		}
 	}
