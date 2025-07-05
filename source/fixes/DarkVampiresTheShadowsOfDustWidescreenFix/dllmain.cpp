@@ -27,7 +27,7 @@ HMODULE pluginModule = nullptr;
 
 // Fix details
 std::string sFixName = "DarkVampiresTheShadowsOfDustWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -66,6 +66,7 @@ int iCurrentResY;
 float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -225,7 +226,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
 }
 
 void WidescreenFix()
@@ -233,6 +234,8 @@ void WidescreenFix()
 	if (eGameType == Game::DVTSOD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(pluginModule, "68 58 02 00 00 C7 02 00 00 48 3F 8B 0D ?? ?? ?? ?? 68 20 03 00 00");
 		if (Resolution800x600ScanResult)
@@ -269,15 +272,17 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is vision71.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-				fCurrentCameraFOV = CalculateNewFOV(fOriginalCameraFOV) * fFOVFactor;
+				fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
+				*reinterpret_cast<float*>(ctx.ecx + 0x10) = fNewCameraFOV;
 			});
 		}
 		else

@@ -26,7 +26,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "DarkApesTheFateOfDevolutionWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -45,7 +45,6 @@ bool bFixActive;
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 90.0f;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -65,6 +64,7 @@ int iCurrentResY;
 float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -217,7 +217,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
 }
 
 void WidescreenFix()
@@ -225,6 +225,8 @@ void WidescreenFix()
 	if (eGameType == Game::DATFOD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* ResolutionlistScanResult = Memory::PatternScan(exeModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 A0 48 40 00 44 61");
 		if (ResolutionlistScanResult)
@@ -254,13 +256,17 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is visionP71.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x90);
 
-				fCurrentCameraFOV = CalculateNewFOV(fOriginalCameraFOV) * fFOVFactor;
+				fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else
