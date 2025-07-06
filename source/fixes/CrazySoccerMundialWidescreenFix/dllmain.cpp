@@ -42,8 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
-constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,7 +51,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fCurrentCameraFOV;
+float fNewCameraFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -173,6 +172,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -181,18 +182,20 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("ChromeEngine.dll");
-		spdlog::info("Waiting for ChromeEngine.dll to load...");
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("ChromeEngine.dll")) == nullptr)
+	{
+		spdlog::warn("ChromeEngine.dll not loaded yet. Waiting...");
 	}
 
 	spdlog::info("Successfully obtained handle for ChromeEngine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -202,7 +205,28 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+
+	if (fCurrentCameraFOV == 1.04719758f)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
 }
 
 void WidescreenFix()
@@ -210,6 +234,8 @@ void WidescreenFix()
 	if (eGameType == Game::CSM && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(dllModule2, "03 8D 49 00 FA 9E 14 10 01 9F 14 10 08 9F 14 10 0F 9F 14 10 8B 44 24 04 8B 54 24 08 89 41 0C 89 51 10");
 		if (ResolutionInstructionsScanResult)
@@ -236,38 +262,14 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 81 90 03 00 00 8A 44 24 10 84 C0 88 81 94 03 00 00 74 08 D9 05 ?? ?? ?? ??");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 04 D8 0D ?? ?? ?? ?? 8A 81 80 03 00 00 84 C0 D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is ChromeEngine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Store the value of ECX register value to a float variable
-				fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
-
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-					[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
-
-				if (alreadyComputed)
-				{
-					return;
-				}
-
-				fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-
-				// Record the computed FOV for future calls
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

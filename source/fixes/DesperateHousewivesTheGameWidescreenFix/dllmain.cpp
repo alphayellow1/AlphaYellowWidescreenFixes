@@ -18,7 +18,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include <vector>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DesperateHousewivesTheGameWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,7 +52,9 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fNewCameraFOV;
+float fNewCameraFOV2;
 float fAspectRatioScale;
+static uint8_t* CameraFOV2ValueAddress;
 
 // Game detection
 enum class Game
@@ -199,6 +200,20 @@ void FamilySelectionAspectRatioInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx);
+
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void WidescreenFix()
 {
 	if (eGameType == Game::DHTG && bFixActive == true)
@@ -212,49 +227,60 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution List 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionList1ScanResult + 2, iCurrentResX); // 640
+			// 640x480
+			Memory::Write(ResolutionList1ScanResult + 2, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 8, iCurrentResY); // 480
+			Memory::Write(ResolutionList1ScanResult + 8, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 23, iCurrentResX); // 800
+			// 800x600
+			Memory::Write(ResolutionList1ScanResult + 23, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 29, iCurrentResY); // 600
+			Memory::Write(ResolutionList1ScanResult + 29, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 44, iCurrentResX); // 1024
+			// 1024x768
+			Memory::Write(ResolutionList1ScanResult + 44, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 50, iCurrentResY); // 768
+			Memory::Write(ResolutionList1ScanResult + 50, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 65, iCurrentResX); // 1152
+			// 1152x864
+			Memory::Write(ResolutionList1ScanResult + 65, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 71, iCurrentResY); // 864
+			Memory::Write(ResolutionList1ScanResult + 71, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 86, iCurrentResX); // 1290
+			// 1290x960
+			Memory::Write(ResolutionList1ScanResult + 86, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 92, iCurrentResY); // 960
+			Memory::Write(ResolutionList1ScanResult + 92, iCurrentResY);
 			
-			Memory::Write(ResolutionList1ScanResult + 107, iCurrentResX); // 1280
+			// 1280x1024
+			Memory::Write(ResolutionList1ScanResult + 107, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 113, iCurrentResY); // 1024
+			Memory::Write(ResolutionList1ScanResult + 113, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 128, iCurrentResX); // 1600
+			// 1600x1200
+			Memory::Write(ResolutionList1ScanResult + 128, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 134, iCurrentResY); // 1200
+			Memory::Write(ResolutionList1ScanResult + 134, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 149, iCurrentResX); // 1024
+			// 1024x768
+			Memory::Write(ResolutionList1ScanResult + 149, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 155, iCurrentResY); // 768
+			Memory::Write(ResolutionList1ScanResult + 155, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 170, iCurrentResX); // 960
+			// 960x720
+			Memory::Write(ResolutionList1ScanResult + 170, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 176, iCurrentResY); // 720
+			Memory::Write(ResolutionList1ScanResult + 176, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 191, iCurrentResX); // 1200
+			// 1200x900
+			Memory::Write(ResolutionList1ScanResult + 191, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 197, iCurrentResY); // 900
+			Memory::Write(ResolutionList1ScanResult + 197, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 212, iCurrentResX); // 1067
+			// 1067x800
+			Memory::Write(ResolutionList1ScanResult + 212, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 218, iCurrentResY); // 800
+			Memory::Write(ResolutionList1ScanResult + 218, iCurrentResY);
 		}
 		else
 		{
@@ -267,49 +293,60 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution List 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList2ScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::Write(ResolutionList2ScanResult + 2, iCurrentResX); // 640
+			// 640x480
+			Memory::Write(ResolutionList2ScanResult + 2, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 8, iCurrentResY); // 480
+			Memory::Write(ResolutionList2ScanResult + 8, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 23, iCurrentResX); // 800
+			// 800x600
+			Memory::Write(ResolutionList2ScanResult + 23, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 29, iCurrentResY); // 600
+			Memory::Write(ResolutionList2ScanResult + 29, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 44, iCurrentResX); // 1024
+			// 1024x768
+			Memory::Write(ResolutionList2ScanResult + 44, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 50, iCurrentResY); // 768
+			Memory::Write(ResolutionList2ScanResult + 50, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 65, iCurrentResX); // 1152
+			// 1152x864
+			Memory::Write(ResolutionList2ScanResult + 65, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 71, iCurrentResY); // 864
+			Memory::Write(ResolutionList2ScanResult + 71, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 86, iCurrentResX); // 1290
+			// 1290x960
+			Memory::Write(ResolutionList2ScanResult + 86, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 92, iCurrentResY); // 960
+			Memory::Write(ResolutionList2ScanResult + 92, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 107, iCurrentResX); // 1280
+			// 1280x1024
+			Memory::Write(ResolutionList2ScanResult + 107, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 113, iCurrentResY); // 1024
+			Memory::Write(ResolutionList2ScanResult + 113, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 128, iCurrentResX); // 1600
+			// 1600x1200
+			Memory::Write(ResolutionList2ScanResult + 128, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 134, iCurrentResY); // 1200
+			Memory::Write(ResolutionList2ScanResult + 134, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 149, iCurrentResX); // 1280
+			// 1280x768
+			Memory::Write(ResolutionList2ScanResult + 149, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 155, iCurrentResY); // 768
+			Memory::Write(ResolutionList2ScanResult + 155, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 170, iCurrentResX); // 1280
+			// 1280x720
+			Memory::Write(ResolutionList2ScanResult + 170, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 176, iCurrentResY); // 720
+			Memory::Write(ResolutionList2ScanResult + 176, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 191, iCurrentResX); // 1600
+			// 1600x900
+			Memory::Write(ResolutionList2ScanResult + 191, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 197, iCurrentResY); // 900
+			Memory::Write(ResolutionList2ScanResult + 197, iCurrentResY);
 
-			Memory::Write(ResolutionList2ScanResult + 212, iCurrentResX); // 1280
+			// 1280x800
+			Memory::Write(ResolutionList2ScanResult + 212, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 218, iCurrentResY); // 800
+			Memory::Write(ResolutionList2ScanResult + 218, iCurrentResY);
 		}
 		else
 		{
@@ -324,7 +361,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(FamilySelectionAspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			FamilySelectionAspectRatioInstructionHook = safetyhook::create_mid(FamilySelectionAspectRatioInstructionScanResult + 6, FamilySelectionAspectRatioInstructionMidHook);
+			FamilySelectionAspectRatioInstructionHook = safetyhook::create_mid(FamilySelectionAspectRatioInstructionScanResult, FamilySelectionAspectRatioInstructionMidHook);
 		}
 		else
 		{
@@ -337,24 +374,39 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90", 2);
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx);
-
-				// Computes the new FOV value
-				if (fCurrentCameraFOV == 0.7853981256f)
-				{
-					fCurrentCameraFOV *= fFOVFactor;
-				}
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? 8B 4B 04 DC 0D ?? ?? ?? ?? 89 0D ?? ?? ?? ??");
+		if (CameraFOVInstruction2ScanResult)
+		{
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			
+			CameraFOV2ValueAddress = Memory::GetAbsolute(CameraFOVInstruction2ScanResult + 1);
+
+			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90", 5);
+
+			static SafetyHookMid CameraFOVInstruction2MidHook{};
+
+			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float fCurrentCameraFOV2 = std::bit_cast<float>(ctx.eax);
+
+				fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
+
+				*reinterpret_cast<float*>(CameraFOV2ValueAddress) = fNewCameraFOV2;
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera FOV instruction 2 memory address.");
 			return;
 		}
 	}
