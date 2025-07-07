@@ -218,7 +218,7 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraHFOV]
+		fld dword ptr ds:[fNewCameraHFOV]
 	}
 }
 
@@ -232,7 +232,7 @@ void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraVFOV]
+		fld dword ptr ds:[fNewCameraVFOV]
 	}
 }
 
@@ -251,7 +251,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 3, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
 		}
 		else
 		{
@@ -266,7 +266,7 @@ void FOVFix()
 			
 			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90", 3);
 			
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 3, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, CameraVFOVInstructionMidHook);
 		}
 		else
 		{
