@@ -42,7 +42,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
