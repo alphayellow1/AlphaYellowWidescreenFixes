@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "EuroCopsFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,6 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
+constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -52,6 +53,19 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fNewCameraFOV;
+float fAspectRatioScale;
+
+// Function to convert degrees to radians
+float DegToRad(float degrees)
+{
+	return degrees * (fPi / 180.0f);
+}
+
+// Function to convert radians to degrees
+float RadToDeg(float radians)
+{
+	return radians * (180.0f / fPi);
+}
 
 // Game detection
 enum class Game
@@ -171,6 +185,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -179,12 +195,15 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+			bGameFound = true;
+			break;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
+	}
+
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
 	}
 
 	while ((dllModule2 = GetModuleHandleA("Engine.dll")) == nullptr)
@@ -198,20 +217,43 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::EC && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(dllModule2, "BA 00 00 80 3F BE E6 B1 61 7F 89 70 54 89 70 58 57 8D 58 68 89 13 8B F2");
-		if (CameraFOVScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 86 94 01 00 00 8B 8F 98 01 00 00 89 8E 98 01 00 00 8B 97 9C 01 00 00 89 96 9C 01 00 00 8B 87 A0 01 00 00 89 86 A0 01 00 00 8B 8F A4 01 00 00 89 8E A4 01 00 00 8B 97 A8 01 00 00 89 96 A8 01 00 00 81 C7 AC 01 00 00 8B 0F 8D 86 AC 01 00 00 89 08 8B 57 04 89 50 04 8B 4F 08 89 48 08 8B 57 0C 89 50 0C 5F 8B C6 5E C2 04 00 CC 56 8B F1");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV: Address is Engine.dll+{:x}", CameraFOVScanResult + 1 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is Engine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			fNewCameraFOV = (fOldAspectRatio / fNewAspectRatio) * (1.0f / fFOVFactor);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			Memory::Write(CameraFOVScanResult + 1, fNewCameraFOV);
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+
+				if (fCurrentCameraFOV == 78.0f)
+				{
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+				}
+
+				*reinterpret_cast<float*>(ctx.esi + 0x194) = fNewCameraFOV;
+			});
 		}
 		else
 		{
