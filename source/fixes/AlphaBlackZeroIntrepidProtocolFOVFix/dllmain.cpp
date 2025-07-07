@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "AlphaBlackZeroIntrepidProtocolFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,6 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
+constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -50,9 +51,21 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fNewAspectRatio2;
 float fFOVFactor;
 float fNewCameraFOV;
+float fAspectRatioScale;
+
+// Function to convert degrees to radians
+float DegToRad(float degrees)
+{
+	return degrees * (fPi / 180.0f);
+}
+
+// Function to convert radians to degrees
+float RadToDeg(float radians)
+{
+	return radians * (180.0f / fPi);
+}
 
 // Game detection
 enum class Game
@@ -204,24 +217,52 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x194);
+
+	if (fCurrentCameraFOV == 78.0f)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::ABZIP && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(dllModule2, "B8 00 00 80 3F 89 BE A8 00 00 00 89 7E 74 89 7E 78 89 BE 3C 01 00 00 89 7E 7C 89 BE 80 00 00 00");
-		if (CameraFOVScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 94 01 00 00 D8 0D ?? ?? ?? ?? 89 8B 28 01 00 00 8B 4D E0 8D 93 28 01 00 00 89 4A 04");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV: Address is Engine.dll+{:x}", CameraFOVScanResult + 1 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is Engine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			fNewCameraFOV = (fOldAspectRatio / fNewAspectRatio) * (1.0f / fFOVFactor);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
 
-			Memory::Write(CameraFOVScanResult + 1, fNewCameraFOV);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);			
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
