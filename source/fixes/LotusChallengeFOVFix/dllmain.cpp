@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "LotusChallengeFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0000001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +52,7 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -203,6 +203,27 @@ void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+
+	if (fCurrentCameraFOV > 1.0f)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::LC && bFixActive == true)
@@ -218,7 +239,7 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 6, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
 		}
 		else
 		{
@@ -231,39 +252,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
-
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool bAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
-
-				if (bAlreadyComputed)
-				{
-					return;
-				}
-
-				// Computes the new FOV value
-				if (fCurrentCameraFOV > 1.0f)
-				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-				}
-				else
-				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

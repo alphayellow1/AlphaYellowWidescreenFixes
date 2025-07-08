@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "KillSwitchFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0000001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +52,8 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fAspectRatioScale;
+float fNewCutscenesCameraFOV;
+float fNewGameplayCameraFOV;
 
 // Game detection
 enum class Game
@@ -193,6 +194,41 @@ float CalculateNewFOV(float fCurrentFOV)
 	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
+static SafetyHookMid CutscenesCameraFOVInstructionHook{};
+
+void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCutscenesCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
+
+	fNewCutscenesCameraFOV = CalculateNewFOV(fCurrentCutscenesCameraFOV);
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCutscenesCameraFOV]
+	}
+}
+
+static SafetyHookMid GameplayCameraFOVInstructionHook{};
+
+void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x54);
+
+	if (fCurrentGameplayCameraFOV == 0.7853981853f)
+	{
+		fNewGameplayCameraFOV = CalculateNewFOV(fCurrentGameplayCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewGameplayCameraFOV = CalculateNewFOV(fCurrentGameplayCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewGameplayCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::KS && bFixActive == true)
@@ -206,32 +242,9 @@ void FOVFix()
 		{
 			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CutscenesCameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CutscenesCameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			static std::vector<float> vComputedCutscenesFOVs;
-
-			CutscenesCameraFOVInstructionMidHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCutscenesCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
-
-				// Skip processing if a similar cutscenes FOV (within tolerance) has already been computed
-				bool bAlreadyComputed1 = std::any_of(vComputedCutscenesFOVs.begin(), vComputedCutscenesFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCutscenesCameraFOV) < fTolerance;
-				});
-
-				if (bAlreadyComputed1)
-				{
-					return;
-				}
-
-				// Computes the new FOV value
-				fCurrentCutscenesCameraFOV = CalculateNewFOV(fCurrentCutscenesCameraFOV);
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedCutscenesFOVs.push_back(fCurrentCutscenesCameraFOV);
-			});
+			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, CutscenesCameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -244,39 +257,9 @@ void FOVFix()
 		{
 			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid GameplayCameraFOVInstructionMidHook{};
+			Memory::PatchBytes(GameplayCameraFOVInstructionScanResult, "\x90\x90\x90", 3);			
 
-			static std::vector<float> vComputedGameplayFOVs;
-
-			GameplayCameraFOVInstructionMidHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x54);
-
-				// Skip processing if a similar gameplay FOV (within tolerance) has already been computed
-				bool bAlreadyComputed2 = std::any_of(vComputedGameplayFOVs.begin(), vComputedGameplayFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentGameplayCameraFOV) < fTolerance;
-				});
-
-				if (bAlreadyComputed2)
-				{
-					return;
-				}
-
-				// Computes the new FOV value
-				if (fCurrentGameplayCameraFOV == 0.7853981853f)
-				{
-					fCurrentGameplayCameraFOV = CalculateNewFOV(fCurrentGameplayCameraFOV) * fFOVFactor;
-				}
-				else
-				{
-					fCurrentGameplayCameraFOV = CalculateNewFOV(fCurrentGameplayCameraFOV);
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedGameplayFOVs.push_back(fCurrentGameplayCameraFOV);
-			});
+			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, GameplayCameraFOVInstructionMidHook);			
 		}
 		else
 		{
