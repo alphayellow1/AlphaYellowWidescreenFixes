@@ -629,7 +629,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CabelasDangerousHunts2FOVFi
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SupercarStreetChallengeFOVFix", "SupercarStreetChallengeFOVFix.vcxproj", "{D81FC71E-F1DC-4670-9602-A20C18ABBB04}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MicroMachinesV4FOVFix", "..\MicroMachinesV4FOVFix\MicroMachinesV4FOVFix.vcxproj", "{F0CE5050-5C58-4884-8DD5-C8A38714353F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MicroMachinesV4FOVFix", "MicroMachinesV4FOVFix.vcxproj", "{F0CE5050-5C58-4884-8DD5-C8A38714353F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
