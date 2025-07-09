@@ -209,6 +209,21 @@ float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
 	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
 }
 
+bool bIsDefaultHFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
+}
+
+bool bIsDefaultVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
+}
+
+bool bIsCroppedVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::APE && bFixActive == true)
@@ -226,19 +241,19 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
-				if (fabsf(fCurrentCameraVFOV2 - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV2 - 0.849067747592926f) < fTolerance)
+				if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // Cutscene HFOV
+					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Gameplay HFOV
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Gameplay HFOVs
+					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // Cutscene HFOV and others
 				}
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -259,17 +274,19 @@ void FOVFix()
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x198);
 
-				if (fabsf(fCurrentCameraVFOV - (0.849067747592926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentCameraVFOV - 0.849067747592926f) < fTolerance)
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+
+				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(0.849067747592926f); // Cutscenes VFOV
+					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(1.1780972480773926f); // Gameplay VFOV
 				}
 				else
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV); // Gameplay VFOVs
+					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV2); // Cutscene VFOV and others
 				}
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
