@@ -26,7 +26,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "EvilDaysOfLucklessJohnFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,7 +41,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
@@ -51,6 +50,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -213,37 +214,24 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 83 50 06 00 00 DA E9 DF E0 F6 C4 44 7B 35");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 83 50 06 00 00 D9 5C 24 04 8B 4C 24 04 51 52 68 ?? ?? ?? ?? 50 8D 8B 68 02 00 00 51");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static std::vector<float> vComputedFOVs;
+			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Reference the de-referenced [EBX+650] pointer that contains the current camera FOV
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x650);
 
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool alreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
-
-				if (alreadyComputed)
-				{
-					return;
-				}
-
 				// Compute the new FOV value
-				fCurrentCameraFOV *= fFOVFactor;
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				// Record the computed FOV for future calls
-				vComputedFOVs.push_back(fCurrentCameraFOV);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else
