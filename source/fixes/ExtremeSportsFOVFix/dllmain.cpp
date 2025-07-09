@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "ExtremeSportsFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,10 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.0001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -54,6 +51,8 @@ int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio1;
 float fNewAspectRatio2;
+float fNewCameraFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -189,11 +188,39 @@ bool DetectGame()
 	return false;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fCurrentFOV * fAspectRatioScale;
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x40);
+
+	if (fCurrentCameraFOV == 1.428147912f)
+	{
+		fNewCameraFOV = fFOVFactor * CalculateNewFOV(fCurrentCameraFOV);
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::ES && bFixActive == true)
 	{
 		fNewAspectRatio2 = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio2 / fOldAspectRatio;
 
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "87 82 89 42 ?? ?? ?? ?? 00 00 00 A0");
 		if (AspectRatioScanResult)
@@ -214,36 +241,10 @@ void FOVFix()
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			static float fLastModifiedFOV = 0.0f; // Tracks the last modified FOV value
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.eax + 0x40);
-
-				if (fCurrentFOVValue == 1.428147912f)
-				{
-					fCurrentFOVValue = fFOVFactor * (fCurrentFOVValue / (fOldAspectRatio / fNewAspectRatio2));
-					fLastModifiedFOV = fCurrentFOVValue; // Update tracking variable
-					return;
-				}
-
-				// Check if the current FOV value was already modified
-				if (fCurrentFOVValue != fLastModifiedFOV)
-				{
-					// Calculate the new FOV based on aspect ratios
-					float fModifiedFOVValue = fCurrentFOVValue / (fOldAspectRatio / fNewAspectRatio2);
-
-					// Update the value only if the modification is meaningful
-					if (fCurrentFOVValue != fLastModifiedFOV)
-					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
-					}
-				}
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
