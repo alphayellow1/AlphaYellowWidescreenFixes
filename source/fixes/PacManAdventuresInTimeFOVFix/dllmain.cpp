@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -24,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "PacManAdventuresInTimeFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -38,10 +39,9 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraHFOV = 0.75f;
+constexpr float fOriginalCameraFOV = 1.0471975803375244f; // Approximately 60 degrees in radians
 
 // Ini variables
 bool bFixActive;
@@ -51,6 +51,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewCameraFOV;
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraHFOV;
+float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -148,8 +151,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -190,18 +195,35 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewCameraFOV = fOriginalCameraHFOV * (fOldAspectRatio / fNewAspectRatio);
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "C7 44 24 34 00 00 40 3F 8B 0D 84 3E");
 		if (CameraHFOVScanResult)
 		{
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 4 - (std::uint8_t*)exeModule);;
+			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraHFOVScanResult + 4, fNewCameraFOV);
+			fNewCameraHFOV = fOriginalCameraHFOV / fAspectRatioScale;
+
+			Memory::Write(CameraHFOVScanResult + 4, fNewCameraHFOV);
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera HFOV memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "68 92 0A 86 3F 51 68 EC 51 80 40 8D 8E 64 FF FF");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionScanResult + 1, fNewCameraFOV);
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
 		}
 	}

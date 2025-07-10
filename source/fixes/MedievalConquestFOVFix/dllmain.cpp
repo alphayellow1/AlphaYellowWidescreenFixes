@@ -188,7 +188,17 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fCurrentFOV * fAspectRatioScale;
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+}
+
+static SafetyHookMid AspectRatioInstructionHook{};
+
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fmul dword ptr ds:[fNewAspectRatio]
+	}
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
@@ -197,7 +207,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-	fNewCameraFOV = fFOVFactor * CalculateNewFOV(fCurrentCameraFOV);
+	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 
 	_asm
 	{
@@ -213,21 +223,41 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 4E 3C D9 5A 14 D9 52 28 D8 4E 30");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 4E 3C D9 5A 14 D9 52 28 D8 4E 30 C7 42 2C 00 00 80 3F 5E D9 E0");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid AspectRatioInstructionMidHook{};
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
 
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<float*>(ctx.esi + 0x3C) = fNewAspectRatio;
-			});
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 4A 3C 89 48 3C 8A 4A 40 88 48 40 8B 4A 44 89 48 44 8B 4A 48 89 48 48 8B 4A 4C 89 48 4C");
+		if (AspectRatioInstruction2ScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction2ScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid AspectRatioInstruction2MidHook{};
+
+			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.edx + 0x3C);
+
+				if (fCurrentAspectRatio == 4.0f / 3.0f)
+				{
+					fCurrentAspectRatio = fNewAspectRatio;
+				}
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction 2 memory address.");
 			return;
 		}
 
