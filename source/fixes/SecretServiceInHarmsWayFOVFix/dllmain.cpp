@@ -28,7 +28,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "SecretServiceInHarmsWayFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,9 +44,6 @@ std::string sExeName;
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float epsilon = 0.00001f;
-constexpr float fOriginalCameraFOV = 90.0f;
-constexpr float fOriginalWeaponFOV = 60.0f;
 
 // Ini variables
 bool bFixActive;
@@ -59,8 +56,9 @@ float fCameraFOVFactor;
 float fWeaponFOVFactor;
 float fNewWeaponFOV;
 float fNewCameraFOV;
+float fNewCameraFOV2;
 float fAspectRatioScale;
-float fMainMenuCameraFOV;
+static uint8_t* WeaponFOVValueAddress;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -204,17 +202,36 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
+
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
 	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0x8);
+
+	if (fCurrentCameraFOV == 90.0f)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fCameraFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fld dword ptr ds : [fNewCameraFOV]
+	}
 }
 
 void FOVFix()
@@ -248,36 +265,14 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* MainMenuCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "68 00 00 B4 42 8B CF E8 5A 75 05 00 8B 0D 18 8F B7 00");
-		if (MainMenuCameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 45 08 D8 0D ?? ?? ?? ?? 53 56 8B F1 8B 45 08 D9 C0 D9 FE");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), MainMenuCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			fMainMenuCameraFOV = CalculateNewFOV(fOriginalCameraFOV);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(MainMenuCameraFOVInstructionScanResult + 1, fMainMenuCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate main menu camera FOV instruction memory address.");
-			return;
-		}
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 15 28 76 74 00 8D 7E 24 52 8B CF 89 7D C8 E8 59 72 05 00");
-		if (GameplayCameraFOVInstructionScanResult)
-		{
-			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid GameplayCameraFOVInstructionMidHook{};
-
-			GameplayCameraFOVInstructionMidHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(0x00747628);
-
-				fNewCameraFOV = fCameraFOVFactor * CalculateNewFOV(fOriginalCameraFOV);
-
-				fCurrentGameplayCameraFOV = fNewCameraFOV;
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -285,20 +280,57 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 15 2C 76 74 00 83 C6 24 52 8B CE 89 45 EC E8 F3 64 05 00");
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 42 04 89 83 10 01 00 00 8B 4A 08 89 8B 14 01 00 00 8B 42 0C");
+		if (CameraFOVInstruction2ScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90", 3);
+
+			static SafetyHookMid CameraFOVInstruction2MidHook{};
+
+			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.edx + 0x4);
+
+				if (fCurrentCameraFOV2 == 90.0f)
+				{
+					fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2) * fCameraFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+				}
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV2);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 15 ?? ?? ?? ?? 83 C6 24 52 8B CE 89 45 EC E8 ?? ?? ?? ??");
 		if (WeaponFOVInstructionScanResult)
 		{
 			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			uint32_t imm = *reinterpret_cast<uint32_t*>(WeaponFOVInstructionScanResult + 2);
+
+			WeaponFOVValueAddress = reinterpret_cast<uint8_t*>(imm);
+
+			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
 			static SafetyHookMid WeaponFOVInstructionMidHook{};
 
 			WeaponFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(0x0074762C);
+				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(WeaponFOVValueAddress);
 
-				fNewWeaponFOV = fWeaponFOVFactor * CalculateNewFOV(fOriginalWeaponFOV);
+				fNewWeaponFOV = fCurrentWeaponFOV * fWeaponFOVFactor;
 
-				fCurrentWeaponFOV = fNewWeaponFOV;
+				ctx.edx = std::bit_cast<uintptr_t>(fNewWeaponFOV);
 			});
 		}
 		else
