@@ -194,7 +194,7 @@ void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fld qword ptr ds: [dNewAspectRatio]
+		fld qword ptr ds:[dNewAspectRatio]
 	}
 }
 
@@ -224,9 +224,16 @@ void FOVFix()
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D8 C9 D9 5C 24 40 D9 86 E4 01 00 00 D9 5C 24 14 D9 44 24 44 D9 5C 24 10 D9 C0 D9 E0");
 		if (AspectRatioInstructionScanResult)
 		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 81 E8 01 00 00 C3 CC CC CC CC CC CC CC CC CC 51 D9 81 00 02 00 00 D9 1C 24");
