@@ -208,7 +208,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xC);
 
-	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
 	_asm
 	{
@@ -253,18 +253,16 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? 51 D9 1C 24 D9 45 0C");
-		if (AspectRatioInstructionScanResult)
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "AA AA AA 3F DB 0F 49 40 00 00 80 BE");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+			Memory::Write(AspectRatioScanResult, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution height instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio scan memory address.");
 			return;
 		}
 
