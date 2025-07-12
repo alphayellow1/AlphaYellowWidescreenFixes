@@ -41,9 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 90.0f;
 
 // Ini variables
@@ -55,6 +53,7 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
+float fAspectRatioScale;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)
@@ -204,7 +203,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
 }
 
 void WidescreenFix()
@@ -212,6 +211,8 @@ void WidescreenFix()
 	if (eGameType == Game::LR2 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(exeModule, "53 3D 20 03 00 00 75 0A 81 FD 58 02 00 00 74 44");
 		if (Resolution800x600ScanResult)
@@ -235,7 +236,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 5 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = CalculateNewFOV(fOriginalCameraFOV);
+			fNewCameraFOV = fFOVFactor * CalculateNewFOV(fOriginalCameraFOV);
 
 			Memory::Write(CameraFOVScanResult + 5, fNewCameraFOV);
 		}
