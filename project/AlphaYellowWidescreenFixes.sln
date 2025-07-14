@@ -197,8 +197,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SantaClausInTroubleAgainFOV
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SantaClausInTroubleFOVFix", "SantaClausInTroubleFOVFix.vcxproj", "{651FF8B7-1AEF-4BF3-BB4C-DFCECCC36E70}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SchoolTycoonFOVFix", "SchoolTycoonFOVFix.vcxproj", "{96AE106C-788C-45DA-8503-12853593CF62}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SecretAgentBarbieWidescreenFix", "SecretAgentBarbieWidescreenFix.vcxproj", "{6DAFFDFC-30EB-45E9-8B26-B32361861BF6}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SecretServiceInHarmsWayFOVFix", "SecretServiceInHarmsWayFOVFix.vcxproj", "{A0515ABD-969F-4964-A06B-821FEC85B021}"
@@ -634,6 +632,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FireCaptainFOVFix", "FireCaptainFOVFix.vcxproj", "{195F6B27-5CEC-45D1-8C65-01BF5EBF93D8}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FireDepartment3FOVFix", "FireDepartment3FOVFix.vcxproj", "{B696699F-FC4C-4584-B6D5-A11C29FFE992}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SchoolTycoonFOVFix", "SchoolTycoonFOVFix.vcxproj", "{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -1419,14 +1419,6 @@ Global
 		{651FF8B7-1AEF-4BF3-BB4C-DFCECCC36E70}.Release|x64.Build.0 = Release|x64
 		{651FF8B7-1AEF-4BF3-BB4C-DFCECCC36E70}.Release|x86.ActiveCfg = Release|Win32
 		{651FF8B7-1AEF-4BF3-BB4C-DFCECCC36E70}.Release|x86.Build.0 = Release|Win32
-		{96AE106C-788C-45DA-8503-12853593CF62}.Debug|x64.ActiveCfg = Debug|x64
-		{96AE106C-788C-45DA-8503-12853593CF62}.Debug|x64.Build.0 = Debug|x64
-		{96AE106C-788C-45DA-8503-12853593CF62}.Debug|x86.ActiveCfg = Debug|Win32
-		{96AE106C-788C-45DA-8503-12853593CF62}.Debug|x86.Build.0 = Debug|Win32
-		{96AE106C-788C-45DA-8503-12853593CF62}.Release|x64.ActiveCfg = Release|x64
-		{96AE106C-788C-45DA-8503-12853593CF62}.Release|x64.Build.0 = Release|x64
-		{96AE106C-788C-45DA-8503-12853593CF62}.Release|x86.ActiveCfg = Release|Win32
-		{96AE106C-788C-45DA-8503-12853593CF62}.Release|x86.Build.0 = Release|Win32
 		{6DAFFDFC-30EB-45E9-8B26-B32361861BF6}.Debug|x64.ActiveCfg = Debug|x64
 		{6DAFFDFC-30EB-45E9-8B26-B32361861BF6}.Debug|x64.Build.0 = Debug|x64
 		{6DAFFDFC-30EB-45E9-8B26-B32361861BF6}.Debug|x86.ActiveCfg = Debug|Win32
@@ -3171,6 +3163,14 @@ Global
 		{B696699F-FC4C-4584-B6D5-A11C29FFE992}.Release|x64.Build.0 = Release|x64
 		{B696699F-FC4C-4584-B6D5-A11C29FFE992}.Release|x86.ActiveCfg = Release|Win32
 		{B696699F-FC4C-4584-B6D5-A11C29FFE992}.Release|x86.Build.0 = Release|Win32
+		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Debug|x64.ActiveCfg = Debug|x64
+		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Debug|x64.Build.0 = Debug|x64
+		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Debug|x86.ActiveCfg = Debug|Win32
+		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Debug|x86.Build.0 = Debug|Win32
+		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Release|x64.ActiveCfg = Release|x64
+		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Release|x64.Build.0 = Release|x64
+		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Release|x86.ActiveCfg = Release|Win32
+		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
