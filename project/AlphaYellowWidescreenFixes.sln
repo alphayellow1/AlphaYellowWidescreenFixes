@@ -635,6 +635,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FireDepartment3FOVFix", "Fi
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SchoolTycoonFOVFix", "SchoolTycoonFOVFix.vcxproj", "{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DreamPinball3DWidescreenFix", "DreamPinball3DWidescreenFix.vcxproj", "{441ED55C-3690-45F1-8933-73A9FD7EBDB7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3171,6 +3173,14 @@ Global
 		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Release|x64.Build.0 = Release|x64
 		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Release|x86.ActiveCfg = Release|Win32
 		{9AE4EDC5-6051-43A3-804A-8DAA3D21BCC5}.Release|x86.Build.0 = Release|Win32
+		{441ED55C-3690-45F1-8933-73A9FD7EBDB7}.Debug|x64.ActiveCfg = Debug|x64
+		{441ED55C-3690-45F1-8933-73A9FD7EBDB7}.Debug|x64.Build.0 = Debug|x64
+		{441ED55C-3690-45F1-8933-73A9FD7EBDB7}.Debug|x86.ActiveCfg = Debug|Win32
+		{441ED55C-3690-45F1-8933-73A9FD7EBDB7}.Debug|x86.Build.0 = Debug|Win32
+		{441ED55C-3690-45F1-8933-73A9FD7EBDB7}.Release|x64.ActiveCfg = Release|x64
+		{441ED55C-3690-45F1-8933-73A9FD7EBDB7}.Release|x64.Build.0 = Release|x64
+		{441ED55C-3690-45F1-8933-73A9FD7EBDB7}.Release|x86.ActiveCfg = Release|Win32
+		{441ED55C-3690-45F1-8933-73A9FD7EBDB7}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
