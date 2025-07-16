@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "ShogoMobileArmorDivisionFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,11 +41,8 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -54,6 +51,17 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraHFOV2;
+float fNewCameraHFOV3;
+float fNewCameraHFOV4;
+float fNewCameraVFOV;
+float fNewCameraVFOV2;
+float fNewCameraVFOV3;
+float fNewCameraVFOV4;
+float fFOVFactor;
+bool bInitializationFailed = false;
 
 // Game detection
 enum class Game
@@ -151,8 +159,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -179,7 +189,6 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-
 			return true;
 		}
 	}
@@ -188,268 +197,99 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+
+float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
+{
+	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
+}
+
+float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
+}
+
+float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
+{
+	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
+}
+
+bool bIsDefaultHFOV(float fCurrentHFOV)
+{
+	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance || fabsf(fCurrentHFOV - 1.8849556446075f) < fTolerance;
+}
+
+bool bIsCroppedVFOV(float fCurrentVFOV)
+{
+	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentVFOV - (1.4137166738510132f / fAspectRatioScale)) < fTolerance;
 }
 
 void FOVFix()
 {
-	fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
 	if (eGameType == Game::SMAD && bFixActive == true)
 	{
-		std::uint8_t* HipfireAndCutscenesHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 38 01 00 00 89 B4 24 D0 00 00 00");
-		if (HipfireAndCutscenesHFOVInstructionScanResult)
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		Sleep(3000);
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 38 01 00 00 89 B4 24 D0 00 00 00 8B B0 3C 01 00 00 89 B4 24 D4 00 00 00");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Hipfire and Cutscenes HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), HipfireAndCutscenesHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid HipfireAndCutscenesHFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			HipfireAndCutscenesHFOVInstructionMidHook = safetyhook::create_mid(HipfireAndCutscenesHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
+
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x138);
 
-				if (fCurrentCameraHFOV == 1.5707963705062866f || fCurrentCameraHFOV == 1.8849556446075f)
-				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-				}
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate hipfire and cutscenes camera HFOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* HipfireAndCutscenesVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B B0 3C 01 00 00 89 B4 24 D4 00 00 00");
-		if (HipfireAndCutscenesVFOVInstructionScanResult)
-		{
-			spdlog::info("Hipfire and Cutscenes VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), HipfireAndCutscenesVFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid HipfireAndCutscenesVFOVInstructionMidHook{};
-
-			HipfireAndCutscenesVFOVInstructionMidHook = safetyhook::create_mid(HipfireAndCutscenesVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);
 
-				if (fabs(fCurrentCameraVFOV - (0.78539818525314334f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				if (bIsDefaultHFOV(fCurrentCameraHFOV) && bIsCroppedVFOV(fCurrentCameraVFOV))
 				{
-					fCurrentCameraVFOV = 0.78539818525314334f;
+					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
 				}
-				else if (fabs(fCurrentCameraVFOV - (1.1780972480773926f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
+				else
 				{
-					fCurrentCameraVFOV = 1.1780972480773926f;
-				}
-				else if (fabs(fCurrentCameraVFOV - (1.4137166738510132f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-				{
-					fCurrentCameraVFOV = 1.4137166738510132f;
+					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
 				}
 
-				if (fNewAspectRatio == 5.0f / 4.0f)
+				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraHFOV);
+			});
+
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 13, "\x90\x90\x90\x90\x90\x90", 6);
+
+			static SafetyHookMid CameraVFOVInstructionMidHook{};
+
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 13, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x138);
+
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x13C);
+
+				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && bIsCroppedVFOV(fCurrentCameraVFOV2))
 				{
-					if (fabs(fCurrentCameraVFOV - (1.1297270059586f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (0.75315129756927f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
+					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV2 * fAspectRatioScale);
 				}
-				else if (fNewAspectRatio == 3.0f / 2.0f)
+				else
 				{
-					if (fabs(fCurrentCameraVFOV - (1.2662309408188f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (0.84415400028229f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
+					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV2 * fAspectRatioScale);
 				}
-				else if (fNewAspectRatio == 16.0f / 10.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.3140871524811f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (0.87605810165405f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 15.0f / 9.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.344083070755f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (0.89605540037155f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 16.0f / 9.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.3909428119659f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (0.92729520797729f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 1.85f / 1.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.4194481372833f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (0.9462987780571f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 2560.0f / 1080.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.587610244751f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.058406829834f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 3440.0f / 1440.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.592588186264f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.0617254972458f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 2.39f / 1.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.5928848981857f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.0619232654572f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 3840.0f / 1600.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.5955467224121f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.0636978149414f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 2.76f / 1.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.6811498403549f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.1207666397095f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 32.0f / 10.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.7640079259872f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.1760053634644f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 32.0f / 9.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.8180385828018f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.2120257616043f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 15.0f / 4.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.8437712192535f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.2291808128357f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 12.0f / 3.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.8735685348511f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.2490457296371f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 48.0f / 10.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.94977414608f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.2998495101929f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 45.0f / 9.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.9652907848358f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.3101938962936f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
-				else if (fNewAspectRatio == 48.0f / 9.0f)
-				{
-					if (fabs(fCurrentCameraVFOV - (1.9887266159058f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 1.1780972480773926f; // GAMEPLAY VFOV
-					}
-					else if (fabs(fCurrentCameraVFOV - (1.32581782341f / (fNewAspectRatio / fOldAspectRatio))) < epsilon)
-					{
-						fCurrentCameraVFOV = 0.78539818525314f;   // CUTSCENE VFOV
-					}
-				}
+
+				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate hipfire and cutscenes camera VFOV instruction memory address.");
-			return;
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 		}
 	}
 }
@@ -457,7 +297,17 @@ void FOVFix()
 DWORD __stdcall Main(void*)
 {
 	Logging();
+	if (bInitializationFailed)
+	{
+		return FALSE;
+	}
+
 	Configuration();
+	if (bInitializationFailed)
+	{
+		return FALSE;
+	}
+
 	if (DetectGame())
 	{
 		FOVFix();
@@ -470,19 +320,26 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
+			if (mainHandle)
+			{
+				SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
+				CloseHandle(mainHandle);
+			}
+			break;
+		}
+	case DLL_PROCESS_DETACH:
+		if (!bInitializationFailed)
+		{
+			spdlog::info("DLL has been successfully unloaded.");
+			spdlog::shutdown();
+			// Hooks go out of scope and clean up automatically
 		}
 		break;
-	}
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
 		break;
 	}
 	return TRUE;

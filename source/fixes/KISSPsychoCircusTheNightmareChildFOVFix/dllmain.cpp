@@ -13,7 +13,6 @@
 #include <fstream>
 #include <filesystem>
 #include <cmath> // For atanf, tanf
-#include <unordered_set>
 #include <sstream>
 #include <cstring>
 #include <iomanip>

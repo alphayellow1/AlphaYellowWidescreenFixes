@@ -243,7 +243,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScan1Result = Memory::PatternScan(exeModule, "A1 48 6B 57 00 8B 4C 24 18 89 01 83 C4 08");
 		if (CameraFOVInstructionScan1Result)
 		{
-			spdlog::info("Camera FOV Instruction Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScan1Result + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScan1Result + 1 - (std::uint8_t*)exeModule);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScan1Result, CameraFOVInstructionMidHook);
 		}
@@ -256,9 +256,9 @@ void FOVFix()
 		std::uint8_t* CameraFOVScan3Result = Memory::PatternScan(dllModule2, "68 00 00 B4 42 51 68 00 00 80 40");
 		if (CameraFOVScan3Result)
 		{
-			spdlog::info("Camera FOV Scan 3: Address is shark_game.dll+{:x}", CameraFOVScan3Result + 0x1 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Scan 3: Address is shark_game.dll+{:x}", CameraFOVScan3Result + 1 - (std::uint8_t*)dllModule2);
 
-			Memory::Write(CameraFOVScan3Result + 0x1, CalculateNewFOV(90.0f));
+			Memory::Write(CameraFOVScan3Result + 1, CalculateNewFOV(90.0f));
 		}
 		else
 		{
