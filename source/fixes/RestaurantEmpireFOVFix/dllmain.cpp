@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "RestaurantEmpireFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,9 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,18 +51,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -194,17 +182,36 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
+
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xC);
+
+	if (fCurrentCameraFOV != 0.9238795042f)
+	{
+		fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = fCurrentCameraFOV;
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
 }
 
 void FOVFix()
@@ -213,24 +220,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 45 0C 8B 45 08 D8 75 FC D9");
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 45 0C 8D 45 0C D8 0D ?? ?? ?? ?? 89 45 F4 8D 45 FC 89 45 F0 D9 5D F8 8B 45 F0 8B 55 F4 D9 45 F8 D9 FB D9 1A D9 18 D9 45 0C 8B 45 08 D8 75 FC D9 45 10 D8 F9 D9 18 D9 EE D9 58 04 D9 EE D9 58 08 D9 EE D9 58 0C D9 EE D9 58 10 D9 58 14 D9 EE D9 58 18 D9 EE D9 58 1C D9 EE D9 58 20 D9 EE D9 58 24 D9 45 18 D8 65 14 D8 7D 18 D9 50 28 D9 E8 D9 58 2C D9 EE D9 58 30 D9 EE D9 58 34 D8 4D 14 D9 E0 D9 58 38 D9 EE D9 58 3C C9 C2 14 00 8B 44 24 04 D9 40 04 D9 00 D9 C0 D8 C9 D9 C2 D8 CB DE C1 DD DA DD D8 C3 55 8B EC D9 45 10 8B 45 08");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static float fLastModifiedFOV = 0.0f;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebp + 0xC);
-
-				if (fCurrentFOVValue == 0.9436283112f /* || fCurrentFOVValue == 0.9238795042f*/)
-				{
-					fCurrentFOVValue *= fFOVFactor;
-				}
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -241,11 +240,11 @@ void FOVFix()
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "FC D9 45 10 D8 F9");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 1 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid AspectRatioInstructionMidHook{};
 
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x1, [](SafetyHookContext& ctx)
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 1, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ebp + 0x10);
 
