@@ -639,6 +639,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DreamPinball3DWidescreenFix
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReservoirDogsFOVFix", "ReservoirDogsFOVFix.vcxproj", "{77A8E887-1E32-4C66-B469-8DB364EDF610}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MotorM4XOffroadExtremeFOVFix", "MotorM4XOffroadExtremeFOVFix.vcxproj", "{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3191,6 +3193,14 @@ Global
 		{77A8E887-1E32-4C66-B469-8DB364EDF610}.Release|x64.Build.0 = Release|x64
 		{77A8E887-1E32-4C66-B469-8DB364EDF610}.Release|x86.ActiveCfg = Release|Win32
 		{77A8E887-1E32-4C66-B469-8DB364EDF610}.Release|x86.Build.0 = Release|Win32
+		{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}.Debug|x64.ActiveCfg = Debug|x64
+		{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}.Debug|x64.Build.0 = Debug|x64
+		{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}.Debug|x86.ActiveCfg = Debug|Win32
+		{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}.Debug|x86.Build.0 = Debug|Win32
+		{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}.Release|x64.ActiveCfg = Release|x64
+		{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}.Release|x64.Build.0 = Release|x64
+		{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}.Release|x86.ActiveCfg = Release|Win32
+		{247B9ADF-9098-49EA-BCF9-3C22DCD8DE89}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
