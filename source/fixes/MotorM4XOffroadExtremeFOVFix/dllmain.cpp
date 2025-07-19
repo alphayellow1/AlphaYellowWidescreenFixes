@@ -12,22 +12,21 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include <algorithm>
-#include <cmath>
-#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
+HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "SilentHunter3FOVFix";
+std::string sFixName = "MotorM4XOffroadExtremeFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -41,24 +40,27 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Ini variables
-bool bFixActive;
-
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fTolerance = 0.000001f;
+
+// Ini variables
+bool bFixActive;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fFOVFactor;
 float fAspectRatioScale;
+float fFOVFactor;
 float fNewCameraFOV;
+float fNewArrowFOV;
+bool bInitializationFailed = false;
 
 // Game detection
 enum class Game
 {
-	SH3,
+	HUMMER4X4,
 	Unknown
 };
 
@@ -69,7 +71,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SH3, {"Silent Hunter 3", "sh3.exe"}},
+	{Game::HUMMER4X4, {"MotorM4X: Offroad Extreme", "MotorM4X.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -173,6 +175,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -181,50 +185,120 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			return true;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("OgreMain.dll")) == nullptr)
+	{
+		spdlog::warn("OgreMain.dll not loaded yet. Waiting...");
+	}
+
+	spdlog::info("Successfully obtained handle for OgreMain.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
+	return true;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fCurrentFOV * fAspectRatioScale;
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0xD8);
+
+	if (fabsf(fCurrentCameraFOV - (1.047197699546814f / fAspectRatioScale)) < fTolerance)
+	{
+		fNewCameraFOV = 1.047197699546814f * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = fCurrentCameraFOV;
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
+static SafetyHookMid ArrowFOVInstructionHook{};
+
+void ArrowFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	fNewArrowFOV = 1.047197699546814f * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewArrowFOV]
+	}
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::SH3 && bFixActive == true)
+	if (eGameType == Game::HUMMER4X4 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioAndCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 8E B0 01 00 00 8B 96 AC 01 00 00 8B 44 24 0C 6A 00 6A 00 68 00 00 80 3F");
-		if (AspectRatioAndCameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 81 D8 00 00 00 D8 0D ?? ?? ?? ?? D9 F2");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio & Camera FOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::Write(AspectRatioAndCameraFOVInstructionScanResult + 21, fAspectRatioScale);
+			spdlog::info("Camera FOV Instruction: Address is OgreMain.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90", 6);
-			
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D8 4E 64 DE CA D9 C9 D9 F2 DD D8 D8 4E 6C D9 5C 24 0C D9 1C 24");
+		if (CameraFOVInstruction2ScanResult)
+		{
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+
+			static SafetyHookMid CameraFOVInstruction2MidHook{};
+
+			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x1B0);
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x64);
 
-				fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
+				fCurrentCameraFOV2 = 179.5f;
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the aspect ratio & camera FOV instruction scan memory address.");
+			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* ArrowFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 00 8D 4C 24 54 D9 5C 24 28 51 8B 8E A8 00 00 00 FF D3 8B 8E A8 00 00 00 8D 54 24 10 52");
+		if (ArrowFOVInstructionScanResult)
+		{
+			spdlog::info("Arrow FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ArrowFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(ArrowFOVInstructionScanResult, "\x90\x90", 2); // NOP out the original instruction
+
+			ArrowFOVInstructionHook = safetyhook::create_mid(ArrowFOVInstructionScanResult, ArrowFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate arrow FOV instruction memory address.");
 			return;
 		}
 	}
@@ -233,7 +307,17 @@ void FOVFix()
 DWORD __stdcall Main(void*)
 {
 	Logging();
+	if (bInitializationFailed)
+	{
+		return FALSE;
+	}
+
 	Configuration();
+	if (bInitializationFailed)
+	{
+		return FALSE;
+	}
+
 	if (DetectGame())
 	{
 		FOVFix();
@@ -246,19 +330,26 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
+			if (mainHandle)
+			{
+				SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
+				CloseHandle(mainHandle);
+			}
+			break;
+		}
+	case DLL_PROCESS_DETACH:
+		if (!bInitializationFailed)
+		{
+			spdlog::info("DLL has been successfully unloaded.");
+			spdlog::shutdown();
+			// Hooks go out of scope and clean up automatically
 		}
 		break;
-	}
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
 		break;
 	}
 	return TRUE;

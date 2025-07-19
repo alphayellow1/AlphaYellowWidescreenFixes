@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -39,24 +40,29 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float fOriginalWeaponFOV = 1.75589966773987f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
+int iNewResX;
+int iNewResY;
 float fCameraFOVFactor;
 float fWeaponFOVFactor;
 float fNewCameraFOV;
 float fNewAspectRatio;
 float fNewAspectRatio2;
-float fNewWeaponFOV;
+float fAspectRatioScale;
 uint16_t GameVersionCheckValue;
+static int8_t* iInsideComputer;
+static uint8_t* WeaponFOVValueAddress;
+static uint8_t* WeaponFOVValue2Address;
+static uint8_t* WeaponFOVValue3Address;
+static bool bInsideComputer;
+double dNewWeaponFOV;
+double dNewWeaponFOV2;
+double dNewWeaponFOV3;
 
 // Game detection
 enum class Game
@@ -152,25 +158,25 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "Width", iNewResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iNewResY);
 	inipp::get_value(ini.sections["Settings"], "CameraFOVFactor", fCameraFOVFactor);
 	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", fWeaponFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(iNewResX);
+	spdlog_confparse(iNewResY);
 	spdlog_confparse(fCameraFOVFactor);
 	spdlog_confparse(fWeaponFOVFactor);
 
 	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	if (iNewResX <= 0 || iNewResY <= 0)
 	{
 		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
 		// Implement Util::GetPhysicalDesktopDimensions() accordingly
 		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
+		iNewResX = desktopDimensions.first;
+		iNewResY = desktopDimensions.second;
+		spdlog_confparse(iNewResX);
+		spdlog_confparse(iNewResY);
 	}
 
 	spdlog::info("----------");
@@ -194,104 +200,217 @@ bool DetectGame()
 	return false;
 }
 
-uint16_t GameVersionCheck()
+double CalculateNewWeaponFOV(double dCurrentFOV)
 {
-	std::uint8_t* CheckValueResultScan = Memory::PatternScan(exeModule, "4C 01 04 00 ?? ??");
+	return 2.0 * atan(tan(dCurrentFOV / 2.0) * (double)fAspectRatioScale);
+}
 
-	uint16_t CheckValue = *reinterpret_cast<uint16_t*>(CheckValueResultScan + 4);
+static SafetyHookMid AspectRatioInstructionHook{};
 
-	switch (CheckValue)
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
+{
+	fNewAspectRatio2 = fNewAspectRatio * 0.75f * 4.0f;
+
+	_asm
 	{
-	case 29894:
-		spdlog::info("Chinese / European version detected.");
-		break;
-
-	case 19290:
-		spdlog::info("American version detected.");
-		break;
-
-	case 1571:
-		spdlog::info("Japanese version detected.");
-		break;
-
-	default:
-		spdlog::info("Unknown version detected. Please make sure to have either the Chinese / European, Japanese or American version present.");
-		return 0;
+		fmul dword ptr ds:[fNewAspectRatio2]
 	}
+}
 
-	return CheckValue;
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	bInsideComputer = (*iInsideComputer == 1);
+
+	fNewCameraFOV = fAspectRatioScale * fCameraFOVFactor;
+
+	if (bInsideComputer == 0)
+	{
+		_asm
+		{
+			fmul dword ptr ds:[fNewCameraFOV]
+		}
+	}	
+}
+
+static SafetyHookMid WeaponFOVInstructionHook{};
+
+void WeaponFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	double& dCurrentWeaponFOV = *reinterpret_cast<double*>(WeaponFOVValueAddress);
+
+	dNewWeaponFOV = CalculateNewWeaponFOV(dCurrentWeaponFOV) * (double)fWeaponFOVFactor;
+
+	_asm
+	{
+		fld qword ptr ds:[dNewWeaponFOV]
+	}
+}
+
+static SafetyHookMid WeaponFOVInstruction2Hook{};
+
+void WeaponFOVInstruction2MidHook(SafetyHookContext& ctx)
+{
+	double& dCurrentWeaponFOV2 = *reinterpret_cast<double*>(WeaponFOVValue2Address);
+
+	dNewWeaponFOV2 = CalculateNewWeaponFOV(dCurrentWeaponFOV2) * (double)fWeaponFOVFactor;
+
+	_asm
+	{
+		fld qword ptr ds:[dNewWeaponFOV2]
+	}
+}
+
+static SafetyHookMid WeaponFOVInstruction3Hook{};
+
+void WeaponFOVInstruction3MidHook(SafetyHookContext& ctx)
+{
+	double& dCurrentWeaponFOV3 = *reinterpret_cast<double*>(WeaponFOVValue3Address);
+
+	dNewWeaponFOV3 = CalculateNewWeaponFOV(dCurrentWeaponFOV3) * (double)fWeaponFOVFactor;
+
+	_asm
+	{
+		fld qword ptr ds : [dNewWeaponFOV3]
+	}
 }
 
 void FOVFix()
 {
 	if (eGameType == Game::PI1 && bFixActive == true)
 	{
-		GameVersionCheckValue = GameVersionCheck();
+		fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
 
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "C7 44 24 0C 00 00 00 00 56 57 68 00 00 80 3F 6A 00 6A 00 6A 00 6A");
-		if (CameraFOVScanResult)
+		std::uint8_t* ResolutionInstructionScanResult = Memory::PatternScan(exeModule, "8B 45 0C 89 44 24 14 8B 4D 10 89 4C 24 18 88 5C 24 24 8B 55 14 89 5C 24 1C");
+		if (ResolutionInstructionScanResult)
 		{
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 11 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionScanResult - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = (fNewAspectRatio * 0.75f) * fCameraFOVFactor;
+			static SafetyHookMid ResolutionInstructionMidHook{};
 
-			Memory::Write(CameraFOVScanResult + 11, fNewCameraFOV);
+			ResolutionInstructionMidHook = safetyhook::create_mid(ResolutionInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				int& iCurrentResX = *reinterpret_cast<int*>(ctx.ebp + 0xC);
+
+				int& iCurrentResY = *reinterpret_cast<int*>(ctx.ebp + 0x10);
+
+				if (iCurrentResX != 640)
+				{
+					iCurrentResX = iNewResX;
+					iCurrentResY = iNewResY;
+				}
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV memory address.");
+			spdlog::error("Failed to locate resolution instruction scan memory address.");
 			return;
 		}
 
-		fNewAspectRatio2 = fNewAspectRatio * 0.75f * 4.0f;
-
-		if (GameVersionCheckValue == 29894)
+		std::uint8_t* InsideComputerInstructionScanResult = Memory::PatternScan(exeModule, "A2 ?? ?? ?? ?? D9 5C 24 10 F3 A5 D9 E0 D9 44 24 0C D9 E0 D9 44 24 10 D9 E0 D9 44 24 1C D8 C9 D9 44 24 18 D8 CB DE C1 D9 44 24 14 D8 CC DE C1 D9 5C 24 08 D9 44 24 28 D8 C9 D9 44 24 24 D8 CB DE C1 D9 44 24 20 D8 CC DE C1 D9 5C 24 0C D9 44 24 34 D8 C9 D9 44 24 30 D8 CB DE C1 D9 44 24 2C D8 CC DE C1 D9 5C 24 10 8B 44 24 08 B9 0A 00 00 00 8D 74 24 14");
+		if (InsideComputerInstructionScanResult)
 		{
-			std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "00 00 E0 3F 00 00 80 40 33 33 B3 3F");
-			if (AspectRatioScanResult)
-			{
-				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Inside Computer Instruction: Address is{:s} + {:x}", sExeName.c_str(), InsideComputerInstructionScanResult - (std::uint8_t*)exeModule);
 
-				Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio2);
-			}
-			else
-			{
-				spdlog::error("Failed to locate aspect ratio memory address.");
-				return;
-			}
-		}
-		else if (GameVersionCheckValue == 19290 || GameVersionCheckValue == 1571)
-		{
-			std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "00 00 E0 3F 00 00 00 40 00 00 80 40 CD CC 4C 3D");
-			if (AspectRatioScanResult)
-			{
-				spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 8 - (std::uint8_t*)exeModule);
+			uint32_t imm = *reinterpret_cast<uint32_t*>(InsideComputerInstructionScanResult + 1);
 
-				Memory::Write(AspectRatioScanResult + 8, fNewAspectRatio2);
-			}
-			else
-			{
-				spdlog::error("Failed to locate aspect ratio memory address.");
-				return;
-			}
-		}
+			uint8_t* InsideComputerValueAddress = reinterpret_cast<uint8_t*>(imm);
 
-		std::uint8_t* WeaponFOVScanResult = Memory::PatternScan(exeModule, "9A 99 19 44 00 00 00 40 52 C1 E0 3F 56 55 85 3F");
-		if (WeaponFOVScanResult)
-		{
-			spdlog::info("Weapon FOV: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVScanResult + 8 - (std::uint8_t*)exeModule);
-
-			fNewWeaponFOV = fOriginalWeaponFOV * fWeaponFOVFactor;
-
-			Memory::Write(WeaponFOVScanResult + 8, fNewWeaponFOV);
+			iInsideComputer = reinterpret_cast<int8_t*>(InsideComputerValueAddress);
 		}
 		else
 		{
-			spdlog::error("Failed to locate weapon FOV memory address.");
+			spdlog::error("Failed to locate inside computer instruction scan memory address.");
 			return;
 		}
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? DB 44 24 00 D8 0D ?? ?? ?? ?? DE F9 59 C3 90");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 1C 24 8D 44 24 48 52 8D 4C 24 74 50 51");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is{:s} + {:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction scan memory address.");
+			return;
+		}		
+
+		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D9 F2 DD D8 D9 98 E8 01 00 00 C3 90 6A 00");
+		if (WeaponFOVInstructionScanResult)
+		{
+			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			uint32_t imm2 = *reinterpret_cast<uint32_t*>(WeaponFOVInstructionScanResult + 2);
+
+			WeaponFOVValueAddress = reinterpret_cast<uint8_t*>(imm2);
+
+			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, WeaponFOVInstructionMidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate weapon FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* WeaponFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D9 F2 DD D8 D9 98 E8 01 00 00 89 97 B0 01 00 00 5F 5E 5D 5B");
+		if (WeaponFOVInstruction2ScanResult)
+		{
+			spdlog::info("Weapon FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+
+			uint32_t imm3 = *reinterpret_cast<uint32_t*>(WeaponFOVInstruction2ScanResult + 2);
+
+			WeaponFOVValue2Address = reinterpret_cast<uint8_t*>(imm3);
+
+			Memory::PatchBytes(WeaponFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			WeaponFOVInstruction2Hook = safetyhook::create_mid(WeaponFOVInstruction2ScanResult, WeaponFOVInstruction2MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate weapon FOV instruction 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* WeaponFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D9 F2 DD D8 D9 5C 24 18 8B 44 24 18 5F D9 99 E4 01 00 00 5E 5D 89 81 E8 01 00 00");
+		if (WeaponFOVInstruction3ScanResult)
+		{
+			spdlog::info("Weapon FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
+
+			uint32_t imm4 = *reinterpret_cast<uint32_t*>(WeaponFOVInstruction3ScanResult + 2);
+
+			WeaponFOVValue3Address = reinterpret_cast<uint8_t*>(imm4);
+
+			Memory::PatchBytes(WeaponFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			WeaponFOVInstruction3Hook = safetyhook::create_mid(WeaponFOVInstruction3ScanResult, WeaponFOVInstruction3MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate weapon FOV instruction 3 memory address.");
+			return;
+		}		
 	}
 }
 
