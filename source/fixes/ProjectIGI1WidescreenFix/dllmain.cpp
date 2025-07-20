@@ -25,8 +25,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "ProjectIGI1FOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixName = "ProjectIGI1WidescreenFix";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -154,7 +154,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -272,11 +272,11 @@ void WeaponFOVInstruction3MidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fld qword ptr ds : [dNewWeaponFOV3]
+		fld qword ptr ds:[dNewWeaponFOV3]
 	}
 }
 
-void FOVFix()
+void WidescreenFix()
 {
 	if (eGameType == Game::PI1 && bFixActive == true)
 	{
@@ -420,7 +420,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }
