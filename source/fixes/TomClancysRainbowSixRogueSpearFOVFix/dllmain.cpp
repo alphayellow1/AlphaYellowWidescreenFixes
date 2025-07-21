@@ -59,6 +59,7 @@ enum class Game
 {
 	TCRSRS,
 	TCRSRSUO,
+	TCRSRSCOE,
 	TCRSRSBT,
 	Unknown
 };
@@ -72,7 +73,9 @@ struct GameInfo
 const std::map<Game, GameInfo> kGames = {
 	{Game::TCRSRS, {"Tom Clancy's Rainbow Six: Rogue Spear", "RogueSpear2.exe"}},
 	{Game::TCRSRSUO, {"Tom Clancy's Rainbow Six: Rogue Spear - Urban Operations", "UrbanOperations.exe"}},
+	{Game::TCRSRSCOE, {"Tom Clancy's Rainbow Six: Rogue Spear - Covert Ops Essentials", "CovertOperations.exe"}},
 	{Game::TCRSRSBT, {"Tom Clancy's Rainbow Six: Rogue Spear - Black Thorn", "BlackThorn.exe"}},
+
 };
 
 const GameInfo* game = nullptr;
@@ -199,7 +202,7 @@ float CalculateNewFOV(float fCurrentFOV)
 
 void FOVFix()
 {
-	if ((eGameType == Game::TCRSRS || eGameType == Game::TCRSRSUO || eGameType == Game::TCRSRSBT) && bFixActive == true)
+	if ((eGameType == Game::TCRSRS || eGameType == Game::TCRSRSUO || eGameType == Game::TCRSRSCOE || eGameType == Game::TCRSRSBT) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
