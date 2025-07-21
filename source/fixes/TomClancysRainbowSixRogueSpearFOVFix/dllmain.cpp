@@ -22,11 +22,12 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "WesternOutlawWantedDeadOrAliveFOVFix";
-std::string sFixVersion = "1.4";
+std::string sFixName = "TomClancysRainbowSixRogueSpearFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -48,16 +49,17 @@ bool bFixActive;
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
-float fAspectRatioScale;
 float fFOVFactor;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fAspectRatioScale;
+float fNewAspectRatio;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	WOWDOA,
+	TCRSRS,
+	TCRSRSUO,
+	TCRSRSBT,
 	Unknown
 };
 
@@ -68,7 +70,9 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::WOWDOA, {"Western Outlaw: Wanted Dead or Alive", "lithtech.exe"}},
+	{Game::TCRSRS, {"Tom Clancy's Rainbow Six: Rogue Spear", "RogueSpear2.exe"}},
+	{Game::TCRSRSUO, {"Tom Clancy's Rainbow Six: Rogue Spear - Urban Operations", "UrbanOperations.exe"}},
+	{Game::TCRSRSBT, {"Tom Clancy's Rainbow Six: Rogue Spear - Black Thorn", "BlackThorn.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -188,77 +192,42 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
+float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::WOWDOA && bFixActive == true)
+	if ((eGameType == Game::TCRSRS || eGameType == Game::TCRSRSUO || eGameType == Game::TCRSRSBT) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC 8B 81 9C 01 00 00 89 45 C0");
+		
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 48 74 C2 04 00 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.ecx);
 
-				if (fCurrentCameraHFOV == 1.0471975803375244f || fCurrentCameraHFOV == 1.0471999645233154f)
+				if (fCurrentCameraFOV == 1.8f)
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(1.0471975803375244f);
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 				}
 
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
-			});
-
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
-
-				if (fCurrentCameraVFOV == 0.8726646900177002f || fCurrentCameraVFOV == 0.8726649880409241f)
-				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(0.8726646900177002f);
-				}
-				else
-				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
-				}
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+				*reinterpret_cast<float*>(ctx.eax + 0x74) = fNewCameraFOV;
 			});
 		}
 		else
