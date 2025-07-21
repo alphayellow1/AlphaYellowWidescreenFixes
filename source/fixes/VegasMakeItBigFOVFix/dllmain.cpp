@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "VegasMakeItBigFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,7 +41,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.00000001f;
 
 // Ini variables
 bool bFixActive;
@@ -52,6 +51,8 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fCurrentCameraFOV;
+float fNewCameraFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -193,12 +194,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "68 AB AA AA 3F 51 B9 ?? ?? ?? ?? E8 ?? ?? ?? ??");
-		if (AspectRatioInstructionScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 0x1 - (std::uint8_t*)exeModule);
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-			Memory::Write(AspectRatioInstructionScanResult + 1, fNewAspectRatio);
+		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(exeModule, "68 AB AA AA 3F 50 B9 D8 C1 67 00 E8 76 82 02 00 5E 83 C4 08 C3 68 00 00 C8 43 68 CD CC CC 3D 8B 4C 24 0C 68 AB AA AA 3F");
+		if (AspectRatioInstructionsScanResult)
+		{
+			spdlog::info("Aspect Ratio Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScanResult - (std::uint8_t*)exeModule);
+
+			Memory::Write(AspectRatioInstructionsScanResult + 1, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScanResult + 36, fNewAspectRatio);
 		}
 		else
 		{
@@ -211,34 +216,17 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static std::vector<float> vComputedFOVs;
+			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				// Store the current FOV value located in the EAX register value in a float variable
-				fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool bFOVAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-				[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				if (bFOVAlreadyComputed)
-				{
-					return;
-				}
-
-				// Compute the new FOV value
-				fCurrentCameraFOV *= fFOVFactor;
-
-				// Record the computed FOV for future calls
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-
-				// Update the EAX register with the new FOV value
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
+				*reinterpret_cast<float*>(ctx.ecx + 0x224) = fNewCameraFOV;
 			});
 		}
 		else
