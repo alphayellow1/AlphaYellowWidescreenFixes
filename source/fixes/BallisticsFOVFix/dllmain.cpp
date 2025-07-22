@@ -210,16 +210,6 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0x13C);
 
-	/*
-	0,8726646304
-	1,324822187
-	0,7853981853
-	0,7853981853
-	1,308996916
-	1,989700675
-	1,04719758
-	*/
-
 	if (fCurrentCameraFOV == 1.989700675f)
 	{
 		dNewCameraFOV = (1.0 / (double)fAspectRatioScale) * (1.0 / (double)fFOVFactor);
@@ -228,6 +218,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 	{
 		dNewCameraFOV = 1.0 / (double)fAspectRatioScale;
 	}
+	
 	_asm
 	{
 		fdivr qword ptr ds:[dNewCameraFOV]
