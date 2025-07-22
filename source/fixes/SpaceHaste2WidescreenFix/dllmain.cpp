@@ -41,9 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -53,6 +51,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -172,6 +172,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -180,17 +182,30 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			return true;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("trend.dll")) == nullptr)
+	{
+		spdlog::warn("trend.dll not loaded yet. Waiting...");
+	}
+
+	spdlog::info("Successfully obtained handle for trend.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
+	return true;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
+	return fCurrentFOV * fAspectRatioScale;
 }
 
 void WidescreenFix()
@@ -198,6 +213,8 @@ void WidescreenFix()
 	if (eGameType == Game::SH2 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* Resolution512x384ScanResult = Memory::PatternScan(exeModule, "50 68 80 01 00 00 68 00 02 00 00 51 8B 0D ?? ?? ?? ??");
 		if (Resolution512x384ScanResult)
@@ -334,26 +351,18 @@ void WidescreenFix()
 			return;
 		}
 
-		while (!dllModule2)
-		{
-			dllModule2 = GetModuleHandleA("trend.dll");
-			spdlog::info("Waiting for trend.dll to load...");
-		}
-
-		spdlog::info("Successfully obtained handle for trend.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "8B 50 04 D8 3D ?? ?? ?? ?? 89 15 ?? ?? ?? ??");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is trend.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
 
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
+
 			static SafetyHookMid AspectRatioInstructionMidHook{};
 
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.eax + 0x4);
-
-				fCurrentAspectRatio = fNewAspectRatio;
+				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
 		}
 		else
@@ -362,31 +371,29 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "A3 ?? ?? ?? ?? 57 33 C0 B9 10 00 00 00");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 40 08 A3 ?? ?? ?? ?? 57 33 C0 B9 10 00 00 00 BF ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is trend.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static float fLastModifiedCameraFOV = 0.0f;
+			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOVValue = std::bit_cast<float>(ctx.eax);
-
-				if (fCurrentCameraFOVValue != fLastModifiedCameraFOV)
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x8);
+				
+				if (fCurrentCameraFOV == 0.7399606705f)
 				{
-					float fModifiedCameraFOVValue = fFOVFactor * CalculateNewFOV(fCurrentCameraFOVValue);
-
-					if (fCurrentCameraFOVValue != fModifiedCameraFOVValue)
-					{
-						fCurrentCameraFOVValue = fModifiedCameraFOVValue;
-						fLastModifiedCameraFOV = fModifiedCameraFOVValue;
-					}
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 				}
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOVValue);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else
