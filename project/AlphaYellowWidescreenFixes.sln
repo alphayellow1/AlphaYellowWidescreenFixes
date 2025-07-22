@@ -647,6 +647,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TomClancysRainbowSixTakeDow
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TomClancysRainbowSixLockdownFOVFix", "TomClancysRainbowSixLockdownFOVFix.vcxproj", "{3BB66B7F-72A2-42AC-BCC4-30FDE3F82A92}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BallisticsFOVFix", "BallisticsFOVFix.vcxproj", "{7789662A-5E26-4BB7-97F4-2C5CBACE2698}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3231,6 +3233,14 @@ Global
 		{3BB66B7F-72A2-42AC-BCC4-30FDE3F82A92}.Release|x64.Build.0 = Release|x64
 		{3BB66B7F-72A2-42AC-BCC4-30FDE3F82A92}.Release|x86.ActiveCfg = Release|Win32
 		{3BB66B7F-72A2-42AC-BCC4-30FDE3F82A92}.Release|x86.Build.0 = Release|Win32
+		{7789662A-5E26-4BB7-97F4-2C5CBACE2698}.Debug|x64.ActiveCfg = Debug|x64
+		{7789662A-5E26-4BB7-97F4-2C5CBACE2698}.Debug|x64.Build.0 = Debug|x64
+		{7789662A-5E26-4BB7-97F4-2C5CBACE2698}.Debug|x86.ActiveCfg = Debug|Win32
+		{7789662A-5E26-4BB7-97F4-2C5CBACE2698}.Debug|x86.Build.0 = Debug|Win32
+		{7789662A-5E26-4BB7-97F4-2C5CBACE2698}.Release|x64.ActiveCfg = Release|x64
+		{7789662A-5E26-4BB7-97F4-2C5CBACE2698}.Release|x64.Build.0 = Release|x64
+		{7789662A-5E26-4BB7-97F4-2C5CBACE2698}.Release|x86.ActiveCfg = Release|Win32
+		{7789662A-5E26-4BB7-97F4-2C5CBACE2698}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
