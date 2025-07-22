@@ -60,7 +60,7 @@ float fNewCameraFOV;
 // Game detection
 enum class Game
 {
-	TCGR,
+	TCRSL,
 	Unknown
 };
 
@@ -71,7 +71,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::TCGR, {"Tom Clancy's Rainbow Six: Lockdown", "Lockdown.exe"}},
+	{Game::TCRSL, {"Tom Clancy's Rainbow Six: Lockdown", "Lockdown.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -225,7 +225,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 void FOVFix()
 {
-	if (eGameType == Game::TCGR && bFixActive == true)
+	if (eGameType == Game::TCRSL && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
