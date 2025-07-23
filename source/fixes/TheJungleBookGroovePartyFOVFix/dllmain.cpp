@@ -30,7 +30,7 @@ HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "TheJungleBookGroovePartyFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -56,6 +56,7 @@ float fNewAspectRatio;
 float fNewCameraVFOV;
 float fNewCameraFOV;
 float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -175,6 +176,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -183,12 +186,15 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
+			bGameFound = true;
+			break;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
+	}
+
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
 	}
 
 	while ((dllModule2 = GetModuleHandleA("osr_dx7.dll")) == nullptr)
@@ -210,15 +216,34 @@ bool DetectGame()
 	return true;
 }
 
+float CalculateNewFOV(float fCurrentFOV)
+{
+	return fCurrentFOV * fAspectRatioScale;
+}
+
 static SafetyHookMid CameraVFOVInstructionHook{};
 
 void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraVFOV = fNewAspectRatio / fOldAspectRatio;
+	fNewCameraVFOV = fAspectRatioScale;
 
 	_asm
 	{
-		fdivr dword ptr ds : [fNewCameraVFOV]
+		fdivr dword ptr ds:[fNewCameraVFOV]
+	}
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+
+	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+
+	_asm
+	{
+		fmul dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -228,6 +253,8 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D8 3D ?? ?? ?? ?? D9 5D FC D9 05 ?? ?? ?? ?? D9 C1 D8 4D 1C D8 C9 D9 18");
 		if (CameraVFOVInstructionScanResult)
 		{
@@ -235,7 +262,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, CameraVFOVInstructionMidHook);
 		}
 		else
 		{
@@ -248,15 +275,10 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is enginecore_vr.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			fNewCameraFOV = fFOVFactor * (fNewAspectRatio / fOldAspectRatio);
-
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
 			// Hook is located in the AdjustCameraToViewport function
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<float*>(ctx.esp + 0xC) = fNewCameraFOV;
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

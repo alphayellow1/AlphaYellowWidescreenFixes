@@ -217,14 +217,14 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
+	return fCurrentFOV * fAspectRatioScale;
 }
 
 static SafetyHookMid CameraVFOVInstructionHook{};
 
 void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraVFOV = fNewAspectRatio / fOldAspectRatio;
+	fNewCameraVFOV = fAspectRatioScale;
 
 	_asm
 	{
