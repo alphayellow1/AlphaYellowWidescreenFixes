@@ -383,8 +383,6 @@ void WidescreenFix()
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x8);
-				
-				spdlog::info("[Hook] Raw incoming FOV: {:.16f}", fCurrentCameraFOV);
 
 				if ((fCurrentCameraFOV >= 0.5925768017768860f && fCurrentCameraFOV <= 0.7399606704711914f) && (fCurrentCameraFOV != 0.7002075314521790f && fCurrentCameraFOV != 0.6999999880790710f))
 				{
