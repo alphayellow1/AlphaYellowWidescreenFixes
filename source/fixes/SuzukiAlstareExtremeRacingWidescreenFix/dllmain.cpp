@@ -302,7 +302,6 @@ void WidescreenFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				// Convert the ECX register value to float
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
 				if (fCurrentCameraHFOV == 1.264000058f)
@@ -323,7 +322,6 @@ void WidescreenFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				// Compute the new VFOV value
 				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
 
 				*reinterpret_cast<float*>(ctx.esi + 0x64) = fNewCameraVFOV;
