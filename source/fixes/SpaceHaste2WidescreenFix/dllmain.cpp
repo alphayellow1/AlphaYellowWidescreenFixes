@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "SpaceHaste2WidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -384,7 +384,9 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x8);
 				
-				if (fCurrentCameraFOV == 0.7399606705f)
+				spdlog::info("[Hook] Raw incoming FOV: {:.16f}", fCurrentCameraFOV);
+
+				if ((fCurrentCameraFOV >= 0.5925768017768860f && fCurrentCameraFOV <= 0.7399606704711914f) && (fCurrentCameraFOV != 0.7002075314521790f && fCurrentCameraFOV != 0.6999999880790710f))
 				{
 					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
 				}
