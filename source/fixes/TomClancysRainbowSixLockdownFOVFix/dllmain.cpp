@@ -43,7 +43,7 @@ std::string sExeName;
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fDefaultCameraFOV = 1.3962634801864624f; // 80 degrees in radians
-constexpr float fCurrentWeaponFOV = 1.0471975803375244; // 60 degrees in radians
+constexpr float fCurrentWeaponFOV = 1.0471975803375244f; // 60 degrees in radians
 
 // Ini variables
 bool bFixActive;
