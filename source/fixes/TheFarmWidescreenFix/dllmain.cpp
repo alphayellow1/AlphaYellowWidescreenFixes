@@ -264,44 +264,44 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionScanResult = Memory::PatternScan(dllModule2, "20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 78 05 00 00 1A 04 00 00 40 06 00 00 B0 04 00 00 80 07 00 00 B0 04 00 00");
-		if (ResolutionScanResult)
+		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(dllModule2, "20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 78 05 00 00 1A 04 00 00 40 06 00 00 B0 04 00 00 80 07 00 00 B0 04 00 00");
+		if (ResolutionListScanResult)
 		{
-			spdlog::info("Resolution Scan: Address is acknex.dll+{:x}", ResolutionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution List Scan: Address is acknex.dll+{:x}", ResolutionListScanResult - (std::uint8_t*)dllModule2);
 			
 			// 800x600
-			Memory::Write(ResolutionScanResult, iCurrentResX);
+			Memory::Write(ResolutionListScanResult, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 4, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 4, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionScanResult + 8, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 8, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 12, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 12, iCurrentResY);
 
 			// 1280x1024
-			Memory::Write(ResolutionScanResult + 16, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 16, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 20, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 20, iCurrentResY);
 
 			// 1440x1050
-			Memory::Write(ResolutionScanResult + 24, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 24, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 28, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 28, iCurrentResY);
 
 			// 1600x1200
-			Memory::Write(ResolutionScanResult + 32, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 32, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 36, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 36, iCurrentResY);
 
 			// 1920x1200
-			Memory::Write(ResolutionScanResult + 40, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 40, iCurrentResX);
 
-			Memory::Write(ResolutionScanResult + 44, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 44, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution scan memory address.");
+			spdlog::error("Failed to locate resolution list scan memory address.");
 			return;
 		}
 
