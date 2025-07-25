@@ -228,7 +228,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewCameraFOV]
 	}
 }
 
