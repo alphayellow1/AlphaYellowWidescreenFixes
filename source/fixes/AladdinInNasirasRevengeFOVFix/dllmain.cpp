@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "AladdinInNasirasRevengeFOVFix";
-std::string sFixVersion = "1.5";
+std::string sFixVersion = "1.6";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,10 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOriginalAspectRatio = fOldWidth / fOldHeight;
-constexpr float fOriginalCameraFOV = 0.8546222448348999f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -55,6 +52,7 @@ float fNewCameraHFOV;
 float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -106,7 +104,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -194,11 +192,11 @@ static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = fOriginalAspectRatio / fNewAspectRatio;
+	fNewCameraHFOV = 1.0f / fAspectRatioScale;
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraHFOV]
+		fld dword ptr ds:[fNewCameraHFOV]
 	}
 }
 
@@ -206,11 +204,13 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x20);
+
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -220,6 +220,8 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 1D ?? ?? ?? ??");
 		if (CameraHFOVInstructionScanResult)
 		{
@@ -227,7 +229,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 12, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, CameraHFOVInstructionMidHook);
 		}
 		else
 		{
@@ -235,14 +237,14 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 4C 24 08 D8 3D ?? ?? ?? ?? D9 1D ?? ?? ?? ??");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 41 20 DC 0D ?? ?? ?? ?? D8 4C 24 04 D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 12, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
