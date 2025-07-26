@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 namespace Memory
 {
@@ -111,6 +111,30 @@ namespace Memory
 		std::uint8_t* absoluteAddress = address + 4 + offset;
 
 		return absoluteAddress;
+	}
+
+	std::uint8_t* GetAddress32(std::uint8_t* address) noexcept
+	{
+		if (address == nullptr)
+		{
+			return nullptr;
+		}
+
+		std::uint32_t raw = *reinterpret_cast<std::uint32_t*>(address);
+
+		return reinterpret_cast<std::uint8_t*>(raw);
+	}
+
+	std::uint8_t* GetAddress64(std::uint8_t* address) noexcept
+	{
+		if (address == nullptr)
+		{
+			return nullptr;
+		}
+
+		std::uint64_t raw = *reinterpret_cast<std::uint64_t*>(address);
+
+		return reinterpret_cast<std::uint8_t*>(raw);
 	}
 }
 

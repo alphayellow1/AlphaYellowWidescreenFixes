@@ -28,7 +28,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "GeneTroopersFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,10 +42,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float epsilon = 0.00001f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -55,7 +52,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fModifiedFOVValue;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -175,6 +173,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -183,18 +183,21 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("CloakNTEngine.dll");
-		spdlog::info("Waiting for CloakNTEngine.dll to load...");
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("CloakNTEngine.dll")) == nullptr)
+	{
+		spdlog::warn("CloakNTEngine.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
 	spdlog::info("Successfully obtained handle for CloakNTEngine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -204,7 +207,28 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xC0);
+
+	if (fCurrentCameraFOV == 1.570000052f || fCurrentCameraFOV == 1.570796371f)
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+	}
+
+	_asm
+	{
+		fmul dword ptr ds:[fNewCameraFOV]
+	}
 }
 
 void FOVFix()
@@ -213,48 +237,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D8 8E C0 00 00 00 74 49 D9 5C 24 08 8B 86 EC 00 00 00 D9 44 24 08 8B 8E E8 00 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static float fLastModifiedFOV = 0.0f;
-
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xC0);
-
-				// Checks if this FOV has already been computed
-				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				if (fCurrentCameraFOV != 1.570000052f && fCurrentCameraFOV != 1.570796371f)
-				{
-					// Computes the new FOV value if the current FOV is different from the last modified FOV
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV);
-				}
-				else
-				{
-					fModifiedFOVValue = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-				}
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentCameraFOV != fModifiedFOVValue)
-				{
-					fCurrentCameraFOV = fModifiedFOVValue;
-					fLastModifiedFOV = fModifiedFOVValue;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fModifiedFOVValue);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
