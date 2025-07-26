@@ -239,6 +239,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
+		// Instruction is inside the Camera::GetProjectionMatrix(void) function
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D8 8E C0 00 00 00 74 49 D9 5C 24 08 8B 86 EC 00 00 00 D9 44 24 08 8B 8E E8 00 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
