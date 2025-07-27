@@ -1,4 +1,4 @@
-![Artboard 1](https://github.com/user-attachments/assets/83766dab-d15d-4310-a18c-92318838b72c)
+![Artboard 1](https://github.com/user-attachments/assets/c335dc49-5887-4e40-9944-31e8aad24e3f)
 ## About
 
 This repository is dedicated to enhancing the experience of classic PC games. It's focused on providing fixes and improvements such as field of view (FOV) adjustments, HUD corrections, and support for widescreen, ultrawide, and multi-monitor setups, and hopefully in the future, fix long-standing bugs in games as well.
