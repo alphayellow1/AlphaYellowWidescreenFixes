@@ -22,12 +22,10 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-HMODULE dllModule3 = nullptr;
 
 // Fix details
-std::string sFixName = "CoronelIndoorKartracingWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "Shellshock2BloodTrailsFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,21 +42,36 @@ std::string sExeName;
 bool bFixActive;
 
 // Constants
+constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewGameplayCameraFOV;
-float fNewMenuCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
+float fNewHipfireFOV;
+float fNewZoomFOV;
 float fAspectRatioScale;
+static uint8_t* HipfireCameraFOVValueAddress;
+bool bInitializationFailed = false;
+
+// Function to convert degrees to radians
+float DegToRad(float degrees)
+{
+	return degrees * (fPi / 180.0f);
+}
+
+// Function to convert radians to degrees
+float RadToDeg(float radians)
+{
+	return radians * (180.0f / fPi);
+}
 
 // Game detection
 enum class Game
 {
-	CIK,
+	SS2BT,
 	Unknown
 };
 
@@ -69,7 +82,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::CIK, {"Coronel Indoor Kartracing", "kart.exe"}},
+	{Game::SS2BT, {"Shellshock 2: Blood Trails", "Shellshock 2.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -116,6 +129,7 @@ void Logging()
 		freopen_s(&dummy, "CONOUT$", "w", stdout);
 		std::cout << "Log initialization failed: " << ex.what() << std::endl;
 		FreeLibraryAndExitThread(thisModule, 1);
+		bInitializationFailed = true;
 	}
 }
 
@@ -130,9 +144,8 @@ void Configuration()
 		freopen_s(&dummy, "CONOUT$", "w", stdout);
 		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
 		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
+		bInitializationFailed = true;
+		return;
 	}
 	else
 	{
@@ -145,7 +158,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -173,8 +186,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -183,138 +194,74 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	while ((dllModule2 = GetModuleHandleA("qserver.dll")) == nullptr)
-	{
-		spdlog::warn("qserver.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for qserver.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	while ((dllModule3 = GetModuleHandleA("world.dll")) == nullptr)
-	{
-		spdlog::warn("world.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for world.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return fCurrentFOV * (1.0f / fAspectRatioScale);
+	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
 }
 
-void WidescreenFix()
+void FOVFix()
 {
-	if (eGameType == Game::CIK && bFixActive == true)
+	if (eGameType == Game::SS2BT && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 80 04 00 00 60 03 00 00 00 05 00 00 C0 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00");
-		if (ResolutionListScanResult)
+		std::uint8_t* HipfireCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 11 05 ?? ?? ?? ?? 83 7E 08 03 7C 09 57");
+		if (HipfireCameraFOVInstructionScanResult)
 		{
-			spdlog::info("Resolution List: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), HipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			// 640x480
-			Memory::Write(ResolutionListScanResult, iCurrentResX);
+			HipfireCameraFOVValueAddress = Memory::GetAddress32(HipfireCameraFOVInstructionScanResult + 4);
 
-			Memory::Write(ResolutionListScanResult + 4, iCurrentResY);
+			Memory::PatchBytes(HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
 
-			// 800x600
-			Memory::Write(ResolutionListScanResult + 8, iCurrentResX);
+			static SafetyHookMid HipfireCameraFOVInstructionMidHook{};
 
-			Memory::Write(ResolutionListScanResult + 12, iCurrentResY);
-
-			// 1024x768
-			Memory::Write(ResolutionListScanResult + 16, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 20, iCurrentResY);
-
-			// 1152x864
-			Memory::Write(ResolutionListScanResult + 24, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 28, iCurrentResY);
-
-			// 1280x960
-			Memory::Write(ResolutionListScanResult + 32, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 36, iCurrentResY);
-
-			// 1280x1024
-			Memory::Write(ResolutionListScanResult + 40, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 44, iCurrentResY);
-
-			// 1600x1200
-			Memory::Write(ResolutionListScanResult + 48, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 52, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list memory address.");
-			return;
-		}
-
-		std::uint8_t* MenuCameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 4C 24 44 8B D8 8B 44 24 48 D9 5C 24 34 D9 44 24 58 D9 5C 24 38 50 D9 44 24 54 51");
-		if (MenuCameraFOVInstructionScanResult)
-		{
-			spdlog::info("Menu Camera FOV Instruction: Address is qserver.dll+{:x}", MenuCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
-
-			Memory::PatchBytes(MenuCameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
-
-			static SafetyHookMid MenuCameraFOVInstructionMidHook{};
-
-			MenuCameraFOVInstructionMidHook = safetyhook::create_mid(MenuCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			HipfireCameraFOVInstructionMidHook = safetyhook::create_mid(HipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x44);
+				float fCurrentHipfireFOV = ctx.xmm0.f32[0];
 
-				fNewMenuCameraFOV = CalculateNewFOV(fCurrentMenuCameraFOV);
+				fNewHipfireFOV = CalculateNewFOV(fCurrentHipfireFOV) * fFOVFactor;
 
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewMenuCameraFOV);
+				*reinterpret_cast<float*>(HipfireCameraFOVValueAddress) = fNewHipfireFOV;
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the menu camera FOV instruction memory address.");
+			spdlog::info("Cannot locate the hipfire camera FOV instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(dllModule3, "D9 00 DC C0 DE F9 D9 58 24 C3 90 90 90 90 90");
-		if (GameplayCameraFOVInstructionScanResult)
+		std::uint8_t* ZoomCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 10 58 5C EB 06 F3 0F 10 5C 24 1C");
+		if (ZoomCameraFOVInstructionScanResult)
 		{
-			spdlog::info("Gameplay Camera FOV Instruction: Address is world.dll+{:x}", GameplayCameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
+			spdlog::info("Zoom Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ZoomCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid GameplayCameraFOVInstructionMidHook{};
+			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);
 
-			GameplayCameraFOVInstructionMidHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			static SafetyHookMid ZoomCameraFOVInstructionMidHook{};
+
+			ZoomCameraFOVInstructionMidHook = safetyhook::create_mid(ZoomCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.eax);
+				float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.eax + 0x5C);
 
-				fNewGameplayCameraFOV = CalculateNewFOV(fCurrentGameplayCameraFOV) * (1.0f / fFOVFactor);
+				fNewZoomFOV = CalculateNewFOV(fCurrentWeaponHipfireFOV);
 
-				*reinterpret_cast<float*>(ctx.eax) = fNewGameplayCameraFOV;
+				ctx.xmm3.f32[0] = fNewZoomFOV;
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the gameplay camera FOV instruction memory address.");
+			spdlog::info("Cannot locate the zoom camera FOV instruction memory address.");
 			return;
 		}
 	}
@@ -323,10 +270,20 @@ void WidescreenFix()
 DWORD __stdcall Main(void*)
 {
 	Logging();
+	if (bInitializationFailed)
+	{
+		return FALSE;
+	}
+
 	Configuration();
+	if (bInitializationFailed)
+	{
+		return FALSE;
+	}
+
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
@@ -336,19 +293,26 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
+			if (mainHandle)
+			{
+				SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
+				CloseHandle(mainHandle);
+			}
+			break;
+		}
+	case DLL_PROCESS_DETACH:
+		if (!bInitializationFailed)
+		{
+			spdlog::info("DLL has been successfully unloaded.");
+			spdlog::shutdown();
+			// Hooks go out of scope and clean up automatically
 		}
 		break;
-	}
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
 		break;
 	}
 	return TRUE;
