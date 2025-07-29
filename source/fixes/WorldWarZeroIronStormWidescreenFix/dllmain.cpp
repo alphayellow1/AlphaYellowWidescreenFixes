@@ -200,7 +200,7 @@ bool DetectGame()
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return atanf((tanf(fCurrentFOV)) * fAspectRatioScale);
+	return atanf(tanf(fCurrentFOV) * fAspectRatioScale);
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
@@ -290,6 +290,7 @@ void CameraFOVInstruction4MidHook(SafetyHookContext& ctx)
 	{
 		fNewCameraFOV4 = CalculateNewFOV(fCurrentCameraFOV4);
 	}
+
 	_asm
 	{
 		fld dword ptr ds:[fNewCameraFOV4]
