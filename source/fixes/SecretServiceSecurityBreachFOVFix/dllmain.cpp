@@ -27,8 +27,8 @@ HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "ShadowForceRazorUnitFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixName = "SecretServiceSecurityBreachFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -52,31 +51,15 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
-float fCameraFOVFactor;
-float fWeaponFOVFactor;
-float fNewWeaponFOV;
+float fFOVFactor;
 float fNewCameraFOV;
 float fNewCameraFOV2;
 float fAspectRatioScale;
-static uint8_t* WeaponFOVValueAddress;
-
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
 {
-	SFRU,
+	SSSB,
 	Unknown
 };
 
@@ -87,7 +70,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SFRU, {"Shadow Force: Razor Unit", "Razor.exe"}},
+	{Game::SSSB, {"Secret Service: Security Breach", "run.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -169,12 +152,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "CameraFOVFactor", fCameraFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", fWeaponFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fCameraFOVFactor);
-	spdlog_confparse(fWeaponFOVFactor);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -193,6 +174,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -201,33 +184,40 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			return true;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("ss2.dll")) == nullptr)
+	{
+		spdlog::warn("ss2.dll not loaded yet. Waiting...");
+		Sleep(100);
+	}
+
+	spdlog::info("Successfully obtained handle for ss2.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+
+	return true;
 }
 
 float CalculateNewFOV(float fCurrentFOV)
 {
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
+	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x8);
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0x4);
 
-	if (fCurrentCameraFOV == 90.0f)
-	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fCameraFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
-	}
+	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
 
 	_asm
 	{
@@ -235,41 +225,32 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
+static SafetyHookMid CameraFOVInstruction2Hook{};
+
+void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x200);
+
+	fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV2]
+	}
+}
+
 void FOVFix()
 {
-	if (eGameType == Game::SFRU && bFixActive == true)
+	if (eGameType == Game::SSSB && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 41 10 52 8B 51 0C 50 8B 45 08 52 50 E8 51 FD FF FF");
-		if (AspectRatioInstructionScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			static SafetyHookMid AspectRatioInstructionMidHook{};
-			
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.ecx + 0x10);
-
-				if (fCurrentAspectRatio = 1.0f / fAspectRatioScale)
-				{
-					fCurrentAspectRatio *= fAspectRatioScale;
-				}
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 41 08 D8 0D ?? ?? ?? ?? 8B 41 14 8B 51 18 89 44 24 00 52 D9 C0 D9 FE");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 45 04 D8 0D ?? ?? ?? ?? F6 46 04 01 D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is ss2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
@@ -277,66 +258,22 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate gameplay camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 42 08 89 83 20 01 00 00 8B 4A 0C 89 8B 24 01 00 00 8B 42 10 89 83 28 01 00 00 8B 4A 14 89 8B 2C 01 00 00 8B 42 18 89 83 30 01 00 00");
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 81 00 02 00 00 83 EC 08 8B CE D9 5C 24 04 D9 44 24 14");
 		if (CameraFOVInstruction2ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is ss2.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static SafetyHookMid CameraFOVInstruction2MidHook{};
-
-			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.edx + 0x8);
-
-				if (fCurrentCameraFOV2 == 90.0f)
-				{
-					fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2) * fCameraFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
-				}
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV2);
-			});
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
-			return;
-		}
-
-		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 0D ?? ?? ?? ?? 83 C6 38 51 8B CE 89 45 EC E8 ?? ?? ?? ??");
-		if (WeaponFOVInstructionScanResult)
-		{
-			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			uint32_t imm = *reinterpret_cast<uint32_t*>(WeaponFOVInstructionScanResult + 2);
-
-			WeaponFOVValueAddress = reinterpret_cast<uint8_t*>(imm);
-
-			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid WeaponFOVInstructionMidHook{};
-
-			WeaponFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(WeaponFOVValueAddress);
-
-				fNewWeaponFOV = fCurrentWeaponFOV * fWeaponFOVFactor;
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewWeaponFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate weapon FOV instruction memory address.");
 			return;
 		}
 	}
