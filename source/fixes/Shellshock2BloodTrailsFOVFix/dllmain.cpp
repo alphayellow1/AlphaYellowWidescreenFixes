@@ -215,7 +215,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* HipfireCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 11 05 ?? ?? ?? ?? 83 7E 08 03 7C 09 57");
+		std::uint8_t* HipfireCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 11 05 ?? ?? ?? ?? E8 ?? ?? ?? ?? F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 05 ?? ?? ?? ?? E8 ?? ?? ?? ??");
 		if (HipfireCameraFOVInstructionScanResult)
 		{
 			spdlog::info("Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), HipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
