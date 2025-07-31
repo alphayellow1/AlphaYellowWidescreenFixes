@@ -217,15 +217,15 @@ static SafetyHookMid CameraFOVInstruction1Hook{};
 
 void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraHFOV1 = *reinterpret_cast<float*>(ctx.eax + 0x4C);
+	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.eax + 0x4C);
 
-	if (fCurrentCameraHFOV1 == 0.7853981853f)
+	if (fCurrentCameraFOV1 == 0.7853981853f)
 	{
-		fNewCameraFOV1 = CalculateNewFOV(fCurrentCameraHFOV1) * fFOVFactor;
+		fNewCameraFOV1 = CalculateNewFOV(fCurrentCameraFOV1) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV1 = CalculateNewFOV(fCurrentCameraHFOV1);
+		fNewCameraFOV1 = CalculateNewFOV(fCurrentCameraFOV1);
 	}
 
 	_asm
