@@ -243,7 +243,7 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D8 4D 74 D9 05 10 BA 95 00");
 		if (CameraHFOVInstruction2ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction2ScanResult + 3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction2ScanResult + 3 - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraHFOVInstruction2ScanResult + 3, "\x90\x90\x90\x90\x90\x90", 6);
 
