@@ -225,29 +225,29 @@ void FOVFix()
 
 		fNewCameraHFOV = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraHFOVInstructionScan1Result = Memory::PatternScan(exeModule, "8B 2D 88 B7 95 00 D9 05 10 BA 95 00");
-		if (CameraHFOVInstructionScan1Result)
+		std::uint8_t* CameraHFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "8B 2D 88 B7 95 00 D9 05 10 BA 95 00");
+		if (CameraHFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScan1Result + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction1ScanResult + 6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScan1Result + 6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction1ScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScan1Result + 6, CameraHFOVInstructionMidHook);
+			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstruction1ScanResult + 6, CameraHFOVInstruction1MidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV instruction scan 1 memory address.");
+			spdlog::error("Failed to locate camera HFOV instruction 1 scan memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraHFOVInstructionScan2Result = Memory::PatternScan(exeModule, "D8 4D 74 D9 05 10 BA 95 00");
-		if (CameraHFOVInstructionScan2Result)
+		std::uint8_t* CameraHFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D8 4D 74 D9 05 10 BA 95 00");
+		if (CameraHFOVInstruction2ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScan2Result + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction2ScanResult + 3 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScan2Result + 3, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction2ScanResult + 3, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionScan2Result + 3, CameraHFOVInstruction2MidHook);
+			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstruction2ScanResult + 3, CameraHFOVInstruction2MidHook);
 		}
 		else
 		{
@@ -255,18 +255,18 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraHFOVInstructionScan3Result = Memory::PatternScan(exeModule, "8B 1D 78 B7 95 00 D9 05 10 BA 95 00");
-		if (CameraHFOVInstructionScan3Result)
+		std::uint8_t* CameraHFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "8B 1D 78 B7 95 00 D9 05 10 BA 95 00");
+		if (CameraHFOVInstruction3ScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction Scan 3: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScan3Result + 0x6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction3ScanResult + 6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScan3Result + 6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstruction3ScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstructionScan3Result + 6, CameraHFOVInstruction3MidHook);
+			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstruction3ScanResult + 6, CameraHFOVInstruction3MidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV instruction scan 3 memory address.");
+			spdlog::error("Failed to locate camera HFOV instruction 3 scan memory address.");
 			return;
 		}
 
