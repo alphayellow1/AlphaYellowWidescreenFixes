@@ -41,6 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalAspectRatio = 4.0f;
 
 // Ini variables
 bool bFixActive;
@@ -209,7 +210,7 @@ static SafetyHookMid AspectRatioInstructionHook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewAspectRatio2 = fNewAspectRatio * 0.75f * 4.0f;
+	fNewAspectRatio2 = fOriginalAspectRatio * fAspectRatioScale;
 
 	_asm
 	{
