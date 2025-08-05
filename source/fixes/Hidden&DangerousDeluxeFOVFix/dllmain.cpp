@@ -47,8 +47,8 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 bool bFixActive;
 
 // New INI variables
-// float fRenderingDistanceFactor;
 float fFOVFactor;
+float fRenderingDistanceFactor;
 
 // Variables
 int iCurrentResX;
@@ -60,7 +60,9 @@ float fNewCameraFOV4;
 float fAspectRatioScale;
 float fNewAspectRatio;
 float fNewAspectRatio2;
-// float fNewRenderingDistance;
+float fNewRenderingDistance;
+float fNewRenderingDistance2;
+static float fCurrentCameraFOV;
 
 // Game detection
 enum class Game
@@ -114,7 +116,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {:s}", sExeName);
 		spdlog::info("Module Path: {:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{:X}", reinterpret_cast<uintptr_t>(exeModule));
+		spdlog::info("Module Address: 0x{:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -162,11 +164,11 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	// inipp::get_value(ini.sections["Settings"], "RenderingDistanceFactor", fRenderingDistanceFactor);
+	inipp::get_value(ini.sections["Settings"], "RenderingDistanceFactor", fRenderingDistanceFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-	// spdlog_confparse(fRenderingDistanceFactor);
+	spdlog_confparse(fRenderingDistanceFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -216,24 +218,19 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x1E4);
+	fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x1E4);
 
 	if (fCurrentCameraFOV == 1.483529806f)
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 	}
 
 	_asm
@@ -250,11 +247,11 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV2 == 1.483529806f)
 	{
-		fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2) * fFOVFactor;
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
 	}
 
 	_asm
@@ -271,11 +268,11 @@ void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV3 == 1.483529806f)
 	{
-		fNewCameraFOV3 = CalculateNewFOV(fCurrentCameraFOV3) * fFOVFactor;
+		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV3 = CalculateNewFOV(fCurrentCameraFOV3);
+		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
 	}
 
 	_asm
@@ -292,11 +289,11 @@ void CameraFOVInstruction4MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV4 == 1.483529806f)
 	{
-		fNewCameraFOV4 = CalculateNewFOV(fCurrentCameraFOV4) * fFOVFactor;
+		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV4 = CalculateNewFOV(fCurrentCameraFOV4);
+		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale);
 	}
 
 	_asm
@@ -305,14 +302,13 @@ void CameraFOVInstruction4MidHook(SafetyHookContext& ctx)
 	}
 }
 
-/*
 static SafetyHookMid RenderingDistanceInstructionHook{};
 
 void RenderingDistanceInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentRenderingDistance = *reinterpret_cast<float*>(ctx.ebx + 0x1EC);
 
-	if (fCurrentRenderingDistance == 100.0f)
+	if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance == 50.0f)
 	{
 		fNewRenderingDistance = fCurrentRenderingDistance * fRenderingDistanceFactor;
 	}
@@ -326,7 +322,14 @@ void RenderingDistanceInstructionMidHook(SafetyHookContext& ctx)
 		fld dword ptr ds:[fNewRenderingDistance]
 	}
 }
-*/
+
+static SafetyHookMid RenderingDistanceInstruction2Hook{};
+
+void RenderingDistanceInstruction2MidHook(SafetyHookContext& ctx)
+{
+	
+	
+}
 
 void FOVFix()
 {
@@ -411,8 +414,7 @@ void FOVFix()
 			return;
 		}
 
-		/*
-		std::uint8_t* RenderingDistanceInstructionScanResult = Memory::PatternScan(dllModule2, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00"); // fld dword ptr ds:[ebx+1EC]
+		std::uint8_t* RenderingDistanceInstructionScanResult = Memory::PatternScan(dllModule2, "D9 FE D9 83 EC 01 00 00 D8 A3 E8 01 00 00");
 		if (RenderingDistanceInstructionScanResult)
 		{
 			spdlog::info("Rendering Distance Instruction: Address is i3d2.dll+{:x}", RenderingDistanceInstructionScanResult + 2 - (std::uint8_t*)dllModule2);
@@ -426,7 +428,35 @@ void FOVFix()
 			spdlog::error("Failed to locate rendering distance instruction memory address.");
 			return;
 		}
-		*/
+
+		std::uint8_t* RenderingDistanceInstruction2ScanResult = Memory::PatternScan(dllModule2, "8B 90 EC 01 00 00 8D 98 8C 00 00 00 89 55 C4 8A 51 40 F6 C2 02 89 5D F4 8D 73 30");
+		if (RenderingDistanceInstruction2ScanResult)
+		{
+			spdlog::info("Rendering Distance Instruction 2: Address is i3d2.dll+{:x}", RenderingDistanceInstruction2ScanResult - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(RenderingDistanceInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+
+			RenderingDistanceInstruction2Hook = safetyhook::create_mid(RenderingDistanceInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentRenderingDistance2 = *reinterpret_cast<float*>(ctx.eax + 0x1EC);
+
+				if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance2 == 50.0f)
+				{
+					fNewRenderingDistance2 = fCurrentRenderingDistance2 * fRenderingDistanceFactor;
+				}
+				else
+				{
+					fNewRenderingDistance2 = fCurrentRenderingDistance2;
+				}
+					
+				ctx.edx = std::bit_cast<uintptr_t>(fNewRenderingDistance2);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate rendering distance instruction 2 memory address.");
+			return;
+		}
 	}
 }
 

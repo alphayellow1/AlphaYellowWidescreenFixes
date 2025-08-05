@@ -44,21 +44,7 @@ std::string sExeName;
 bool bFixActive;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 90.0f;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Variables
 int iCurrentResX;
@@ -224,11 +210,6 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::DVTSOD && bFixActive == true)
@@ -242,9 +223,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 800x600 Scan: Address is NagaPlugin.vplugin+{:x}", Resolution800x600ScanResult - (std::uint8_t*)pluginModule);
 
-			Memory::Write(Resolution800x600ScanResult + 1, iCurrentResY);
-
 			Memory::Write(Resolution800x600ScanResult + 18, iCurrentResX);
+
+			Memory::Write(Resolution800x600ScanResult + 1, iCurrentResY);			
 		}
 		else
 		{
@@ -257,9 +238,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution 1024x768 Scan: Address is NagaPlugin.vplugin+{:x}", Resolution1024x768ScanResult - (std::uint8_t*)pluginModule);
 
-			Memory::Write(Resolution1024x768ScanResult + 1, iCurrentResY);
-
 			Memory::Write(Resolution1024x768ScanResult + 18, iCurrentResX);
+
+			Memory::Write(Resolution1024x768ScanResult + 1, iCurrentResY);
 		}
 		else
 		{
@@ -280,7 +261,7 @@ void WidescreenFix()
 			{
 				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-				fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 				*reinterpret_cast<float*>(ctx.ecx + 0x10) = fNewCameraFOV;
 			});

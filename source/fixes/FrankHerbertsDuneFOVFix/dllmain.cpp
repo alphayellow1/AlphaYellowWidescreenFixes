@@ -44,7 +44,6 @@ bool bFixActive;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Variables
 int iCurrentResX;
@@ -52,6 +51,8 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fFOVFactor;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -187,11 +188,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::FHD && bFixActive == true)
@@ -218,57 +214,34 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90", 2); // NOP out the original instruction
 
-			static std::vector<float> vComputedHFOVs;
+			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-					// Store a reference of the dereferenced [EAX] address that contains the current HFOV
+				// Store a reference of the dereferenced [EAX] address that contains the current HFOV
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax);
 
-				// Skip processing if a similar HFOV (within tolerance) has already been computed
-				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-				[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
-				});
-
-				if (bHFOVAlreadyComputed)
-				{
-					return;
-				}
-
 				// Compute the new HFOV value
-				fCurrentCameraHFOV *= fFOVFactor;
+				fNewCameraHFOV = fCurrentCameraHFOV * fFOVFactor;
 
-				// Record the computed HFOV for future calls
-				vComputedHFOVs.push_back(fCurrentCameraHFOV);
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 8, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			static std::vector<float> vComputedVFOVs;
+			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 8, [](SafetyHookContext& ctx)
 			{
 				// Store a reference of the dereferenced [EAX+4] address that contains the current VFOV
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
 
-				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-				[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
-				});
+				// Compute the new VFOV value
+				fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor;
 
-				if (bVFOVAlreadyComputed)
-				{
-					return;
-				}
-
-				fCurrentCameraVFOV *= fFOVFactor;
-
-				// Record the computed VFOV for future calls
-				vComputedVFOVs.push_back(fCurrentCameraVFOV);
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});
 		}
 		else

@@ -43,7 +43,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -59,18 +58,6 @@ float fNewCameraFOV;
 float fAspectRatioScale;
 static uint32_t iInsideCar;
 static uint8_t* InsideCarTriggerValueAddress;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -230,18 +217,13 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 static SafetyHookMid WeaponZoomFOVInstruction1Hook{};
 
 void WeaponZoomFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fcomp dword ptr ds : [fNewWeaponZoomFOV]
+		fcomp dword ptr ds:[fNewWeaponZoomFOV]
 	}
 }
 
@@ -255,20 +237,20 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	{
 		if (fCurrentCameraFOV == 75.0f)
 		{
-			fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+			fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 		}
 		else
 		{
-			fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+			fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 		}
 	}
 	else if (iInsideCar == 1)
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 	}
 
 	_asm
@@ -292,9 +274,7 @@ void FOVFix()
 		{
 			spdlog::info("Inside Car Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), InsideCarTriggerInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm = *reinterpret_cast<uint32_t*>(InsideCarTriggerInstructionScanResult + 2);
-
-			InsideCarTriggerValueAddress = reinterpret_cast<uint8_t*>(imm);
+			InsideCarTriggerValueAddress = Memory::GetAddress32(InsideCarTriggerInstructionScanResult + 2);
 
 			static SafetyHookMid InsideCarTriggerInstructionMidHook{};
 
@@ -316,7 +296,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -331,7 +311,7 @@ void FOVFix()
 
 			Memory::PatchBytes(WeaponZoomFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			WeaponZoomFOVInstruction1Hook = safetyhook::create_mid(WeaponZoomFOVInstruction1ScanResult + 6, WeaponZoomFOVInstruction1MidHook);
+			WeaponZoomFOVInstruction1Hook = safetyhook::create_mid(WeaponZoomFOVInstruction1ScanResult, WeaponZoomFOVInstruction1MidHook);
 		}
 		else
 		{

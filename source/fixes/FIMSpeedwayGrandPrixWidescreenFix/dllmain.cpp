@@ -203,11 +203,6 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -216,11 +211,11 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV == 1.431169987f) // Gameplay FOV
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 	}
 
 	_asm
@@ -242,22 +237,15 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is ChromeEngine.dll+{:x}", ResolutionInstructionsScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult + 3, "\x90\x90\x90", 3);
+			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static SafetyHookMid ResolutionHeightInstructionMidHook{};
+			static SafetyHookMid ResolutionInstructionsMidHook{};
 
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 3, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<uint32_t*>(ctx.ecx + 0x10) = iCurrentResY;
-			});
-
-			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90", 3);
-
-			static SafetyHookMid ResolutionWidthInstructionMidHook{};
-
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			ResolutionInstructionsMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<uint32_t*>(ctx.ecx + 0xC) = iCurrentResX;
+
+				*reinterpret_cast<uint32_t*>(ctx.ecx + 0x10) = iCurrentResY;
 			});
 		}
 		else

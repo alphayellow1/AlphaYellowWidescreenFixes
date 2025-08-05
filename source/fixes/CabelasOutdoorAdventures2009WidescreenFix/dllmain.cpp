@@ -41,7 +41,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -54,18 +53,6 @@ float fNewAspectRatio;
 float fFOVFactor;
 float fNewCameraFOV;
 float fAspectRatioScale;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -216,31 +203,24 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edi + 0xD0);
 
-	spdlog::info("[Hook] Raw incoming FOV: {:.12f}", fCurrentCameraFOV);
-
 	if (fCurrentCameraFOV == 66.66650390625f)
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 	}
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -252,39 +232,25 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(dllModule2, "8B 45 08 52 50 E8 ?? ?? ?? ?? 83 C4 08");
-		if (ResolutionWidthInstructionScanResult)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(dllModule2, "8B 55 0C 8B 45 08 52 50 E8 ?? ?? ?? ?? 83 C4 08 55 8B CB");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is EngineDll8r.dll+{:x}", ResolutionWidthInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Instructions Scan: Address is EngineDll8r.dll+{:x}", ResolutionInstructionsScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid ResolutionWidthInstructionMidHook{};
+			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instructions
 
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
+			static SafetyHookMid ResolutionInstructionsMidHook{};
+
+			ResolutionInstructionsMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<uint32_t*>(ctx.ebp + 0x8) = iCurrentResX;
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
+
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution width instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(dllModule2, "8B 4C 24 20 89 8B 44 01 00 00 8B 55 0C");
-		if (ResolutionHeightInstructionScanResult)
-		{
-			spdlog::info("Resolution Height Instruction: Address is EngineDll8r.dll+{:x}", ResolutionHeightInstructionScanResult + 10 - (std::uint8_t*)dllModule2);
-
-			static SafetyHookMid ResolutionHeightInstructionMidHook{};
-
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult + 10, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<uint32_t*>(ctx.ebp + 0xC) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution height instruction memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 
@@ -295,7 +261,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

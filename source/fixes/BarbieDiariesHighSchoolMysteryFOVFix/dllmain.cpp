@@ -40,7 +40,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -61,18 +60,6 @@ enum class Game
 	BDHSM,
 	Unknown
 };
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 struct GameInfo
 {
@@ -201,22 +188,17 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 static SafetyHookMid CameraFOVInstruction1Hook{};
 
 void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x12C);
 	
-	fNewCameraFOV1 = CalculateNewFOV(fCurrentCameraFOV1) * fFOVFactor;
+	fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
 	
 	_asm
 	{
-		fld dword ptr ds: [fNewCameraFOV1]
+		fld dword ptr ds:[fNewCameraFOV1]
 	}
 }
 
@@ -226,11 +208,11 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-	fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+	fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV2, fAspectRatioScale);
 
 	_asm
 	{
-		fld dword ptr ds: [fNewCameraFOV2]
+		fld dword ptr ds:[fNewCameraFOV2]
 	}
 }
 
@@ -249,7 +231,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 6, CameraFOVInstruction1MidHook);
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, CameraFOVInstruction1MidHook);
 		}
 		else
 		{
@@ -264,7 +246,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90", 4);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 4, CameraFOVInstruction2MidHook);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
 		}
 		else
 		{

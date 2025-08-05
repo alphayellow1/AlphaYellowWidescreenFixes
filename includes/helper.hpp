@@ -1,4 +1,9 @@
 ﻿#include "stdafx.h"
+#include <cmath>
+#include <string>
+#include <cstdint>
+#include <charconv>
+#include <type_traits>
 
 namespace Memory
 {
@@ -167,5 +172,144 @@ namespace Util
 		{
 			return std::tolower(a) == std::tolower(b);
 		});
+	}
+}
+
+namespace Maths
+{
+	template<typename T>
+	constexpr T Pi = T(3.141592653589793238462643383279502884);
+
+	template<typename T>
+	inline T DegToRad(T degrees)
+	{
+		return degrees * (Pi<T> / T(180));
+	}
+
+	template<typename T>
+	inline T RadToDeg(T radians)
+	{
+		return radians * (T(180) / Pi<T>);
+	}
+
+	template<typename T, typename U>
+	inline T CalculateNewFOV_DegBased(T currentFOVDegrees, U aspectRatioScale)
+	{
+		T scale = static_cast<T>(aspectRatioScale);
+
+		T halfRad = std::tan(DegToRad(currentFOVDegrees * T(0.5))) * scale;
+
+		T newFOVdeg = T(2) * RadToDeg(std::atan(halfRad));
+
+		return newFOVdeg;
+	}
+
+	template<typename T, typename U>
+	inline T CalculateNewFOV_RadBased(T currentFOVRadians, U aspectRatioScale)
+	{
+		T scale = static_cast<T>(aspectRatioScale);
+
+		return T(2) * std::atan(std::tan(currentFOVRadians * T(0.5)) * scale);
+	}
+
+	template<typename T, typename U>
+	inline T CalculateNewFOV_MultiplierBased(T currentFOVMultiplier, U aspectRatioScale)
+	{
+		T scale = static_cast<T>(aspectRatioScale);
+
+		T newMultiplierFOV = currentFOVMultiplier * scale;
+
+		return newMultiplierFOV;
+	}
+
+	template<typename T, typename U, typename V = U>
+	inline T CalculateNewHFOV_RadBased(T currentHFOVRadians, U aspectRatioScale, V fovFactor = V(1))
+	{
+		T scale = static_cast<T>(aspectRatioScale);
+
+		T factor = static_cast<T>(fovFactor);
+
+		return T(2) * std::atan(factor * std::tanf(currentHFOVRadians * T(0.5)) * scale);
+	}
+
+	template<typename T, typename V = T>
+	inline T CalculateNewVFOV_RadBased(T currentVFOVRadians, V fovFactor = V(1))
+	{
+		T factor = static_cast<T>(fovFactor);
+
+		return T(2) * std::atan(factor * std::tanf(currentVFOVRadians * T(0.5)));
+	}
+
+	template<typename T, typename U, typename V = U>
+	inline T CalculateNewHFOV_DegBased(T currentHFOVDegrees, U aspectRatioScale, V fovFactor = V(1))
+	{
+		T halfRad = std::tanf(DegToRad(currentHFOVDegrees * T(0.5)));
+
+		return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad * static_cast<T>(aspectRatioScale)));
+	}
+
+	template<typename T, typename V = T>
+	inline T CalculateNewVFOV_DegBased(T currentVFOVDegrees, V fovFactor = V(1))
+	{
+		T halfRad = std::tanf(DegToRad(currentVFOVDegrees * T(0.5)));
+
+		return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad));
+	}
+
+	template<typename T>
+	concept Arithmetic = std::is_arithmetic_v<T>;
+
+	template<typename T>
+	concept Integral = std::is_integral_v<T>;
+
+	template<Arithmetic T, typename OutputChar = char8_t>
+	inline void WriteNumberAsChar8Digits(std::uint8_t* baseAddress, T value)
+	{
+		std::string str;
+
+		if constexpr (Integral<T>)
+		{
+			char buf[std::numeric_limits<T>::digits10 + 3];
+			auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), value);
+			str.assign(buf, p);
+		}
+		else
+		{
+			str = std::to_string(value);
+		}
+
+		for (char ch : str)
+		{
+			OutputChar out = static_cast<OutputChar>(ch);
+			Memory::Write(baseAddress, out);
+			baseAddress += sizeof(OutputChar);
+		}
+	}
+	
+	template<Integral Int>
+	inline int digitCount(Int number)
+	{
+		int count = 0;
+
+		if (number == 0) return 1;
+
+		if constexpr (std::is_signed_v<Int>)
+			if (number < 0) number = -number;
+
+		while (number != 0)
+		{
+			number /= 10;
+			++count;
+		}
+
+		return count;
+	}
+
+	template<Arithmetic T, Arithmetic U = T>
+	inline bool isClose(T originalValue, T comparedValue, U toleranceCheck)
+	{
+		using Common = std::common_type_t<T, U>;
+
+		return std::fabs(static_cast<Common>(originalValue) - static_cast<Common>(comparedValue)) < static_cast<Common>(toleranceCheck);
 	}
 }

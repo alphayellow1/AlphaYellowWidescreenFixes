@@ -189,26 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
 bool bIsDefaultHFOV(float fCurrentHFOV)
 {
 	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
@@ -249,11 +229,11 @@ void FOVFix()
 
 				if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Gameplay HFOV
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor); // Gameplay HFOV
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // Cutscene HFOV and others
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale); // Cutscene HFOV and others
 				}
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -282,11 +262,11 @@ void FOVFix()
 
 				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(1.1780972480773926f); // Gameplay VFOV
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(1.1780972480773926f, fFOVFactor); // Gameplay VFOV
 				}
 				else
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV2); // Cutscene VFOV and others
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2); // Cutscene VFOV and others
 				}
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraVFOV);

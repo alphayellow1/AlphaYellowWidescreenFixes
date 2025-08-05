@@ -188,11 +188,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::CK && bFixActive == true)
@@ -292,17 +287,17 @@ void WidescreenFix()
 
 				if (fCurrentCameraHFOV == 0.8000000119f)
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3); // Patch the instruction to use the new FOV value
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3); // NOP out the original instruction
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 

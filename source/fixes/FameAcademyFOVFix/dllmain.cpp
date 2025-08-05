@@ -25,7 +25,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "7SinsFOVFix";
+std::string sFixName = "FameAcademyFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -40,9 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -56,7 +54,7 @@ float fFOVFactor;
 // Game detection
 enum class Game
 {
-	THE7SINS,
+	FA,
 	Unknown
 };
 
@@ -67,7 +65,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::THE7SINS, {"7 Sins", "THE7SINS_RETAIL.EXE"}},
+	{Game::FA, {"Fame Academy", "THE7SINS_RETAIL.EXE"}},
 };
 
 const GameInfo* game = nullptr;
@@ -187,14 +185,9 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (fCurrentFOV * (fNewAspectRatio / fOldAspectRatio));
-}
-
 void FOVFix()
 {
-	if (eGameType == Game::THE7SINS && bFixActive == true)
+	if (eGameType == Game::FA && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 

@@ -41,10 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -54,18 +51,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fNewCameraFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -185,6 +172,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -193,28 +182,25 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("Engine.dll");
-		spdlog::info("Waiting for Engine.dll to load...");
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("Engine.dll")) == nullptr)
+	{
+		spdlog::warn("Engine.dll not loaded yet. Waiting...");
 	}
 
 	spdlog::info("Successfully obtained handle for Engine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
-}
-
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 }
 
 void FOVFix()
@@ -234,7 +220,7 @@ void FOVFix()
 			{
 				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.edx + 0x2EC);
 
-				fCurrentFOVValue = fFOVFactor * CalculateNewFOV(90.0f);
+				fCurrentFOVValue = fFOVFactor * Maths::CalculateNewFOV_DegBased(90.0f, fAspectRatioScale);
 			});
 		}
 		else

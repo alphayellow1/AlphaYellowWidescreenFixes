@@ -40,9 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -52,6 +50,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -181,17 +180,10 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
-}
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 void FOVFix()
@@ -207,15 +199,13 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static float fLastModifiedFOV = 0.0f;
-
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebp + 0xC);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xC);
 
-				if (fCurrentFOVValue == 0.9238795042f)
+				if (fCurrentCameraFOV == 0.9238795042f)
 				{
-					fCurrentFOVValue *= (1.0f / fFOVFactor);
+					fCurrentCameraFOV *= (1.0f / fFOVFactor);
 				}
 			});
 		}

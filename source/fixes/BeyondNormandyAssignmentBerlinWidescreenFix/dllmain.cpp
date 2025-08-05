@@ -210,7 +210,7 @@ void Instruction1MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds : [fValue1]
+		fmul dword ptr ds:[fValue1]
 	}
 }
 
@@ -220,7 +220,7 @@ void Instruction2MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds : [fCompassNeedleWidth]
+		fmul dword ptr ds:[fCompassNeedleWidth]
 	}
 }
 
@@ -230,9 +230,9 @@ void Instruction3MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fld dword ptr ds : [eax]
-		fmul dword ptr ds : [fNewCameraFOV]
-		fstp dword ptr ds : [eax]
+		fld dword ptr ds:[eax]
+		fmul dword ptr ds:[fNewCameraFOV]
+		fstp dword ptr ds:[eax]
 	}
 }
 
@@ -242,9 +242,9 @@ void Instruction4MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fld dword ptr ds : [eax + 0x4]
-		fmul dword ptr ds : [fNewCameraFOV]
-		fstp dword ptr ds : [eax + 0x4]
+		fld dword ptr ds:[eax + 0x4]
+		fmul dword ptr ds:[fNewCameraFOV]
+		fstp dword ptr ds:[eax + 0x4]
 	}
 }
 

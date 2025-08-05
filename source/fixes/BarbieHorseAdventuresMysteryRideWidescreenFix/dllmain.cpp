@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 0.5f;
 
 // Ini variables
@@ -53,6 +51,7 @@ uint32_t iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -104,7 +103,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -194,27 +193,18 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewCameraFOV = fFOVFactor * (fOriginalCameraFOV * (fNewAspectRatio / fOldAspectRatio));
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "C0 80 02 00 00 7C");
-		if (ResolutionWidthScanResult)
+		fNewCameraFOV = fFOVFactor * Maths::CalculateNewFOV_MultiplierBased(fOriginalCameraFOV, fAspectRatioScale);
+
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C0 74 4C 81 7D C0 80 02 00 00 7C 43 81 7D C4 E0 01 00 00");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 1 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionWidthScanResult + 1, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution width memory address.");
-			return;
-		}
+			Memory::Write(ResolutionInstructionsScanResult + 6, iCurrentResX);
 
-		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "C4 E0 01 00 00 7C");
-		if (ResolutionHeightScanResult)
-		{
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionHeightScanResult + 1, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScanResult + 15, iCurrentResY);
 		}
 		else
 		{

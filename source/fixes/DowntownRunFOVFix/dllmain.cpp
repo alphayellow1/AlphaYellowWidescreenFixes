@@ -50,7 +50,9 @@ int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fNewStartingCameraFOV;
+float fNewGameplayCameraFOV;
+float fNewGarageCameraFOV;
 
 // Game detection
 enum class Game
@@ -186,11 +188,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::DR && bFixActive == true)
@@ -204,9 +201,9 @@ void FOVFix()
 		{
 			spdlog::info("Starting Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), StartingCameraFOVScanResult + 1 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = CalculateNewFOV(0.64999998836f);
+			fNewStartingCameraFOV = Maths::CalculateNewFOV_MultiplierBased(0.64999998836f, fAspectRatioScale);
 
-			Memory::Write(StartingCameraFOVScanResult + 1, fNewCameraFOV);
+			Memory::Write(StartingCameraFOVScanResult + 1, fNewStartingCameraFOV);
 		}
 		else
 		{
@@ -219,9 +216,9 @@ void FOVFix()
 		{
 			spdlog::info("Gameplay Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVScanResult + 1 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = CalculateNewFOV(0.64999998836f) * fFOVFactor;
+			fNewGameplayCameraFOV = Maths::CalculateNewFOV_MultiplierBased(0.64999998836f, fAspectRatioScale) * fFOVFactor;
 
-			Memory::Write(GameplayCameraFOVScanResult + 1, fNewCameraFOV);
+			Memory::Write(GameplayCameraFOVScanResult + 1, fNewGameplayCameraFOV);
 		}
 		else
 		{
@@ -234,9 +231,9 @@ void FOVFix()
 		{
 			spdlog::info("Garage Car Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), GarageCarCameraFOVScanResult + 1 - (std::uint8_t*)exeModule);
 			
-			fNewCameraFOV = CalculateNewFOV(0.5f);
+			fNewGarageCameraFOV = Maths::CalculateNewFOV_MultiplierBased(0.5f, fAspectRatioScale);
 			
-			Memory::Write(GarageCarCameraFOVScanResult + 1, fNewCameraFOV);
+			Memory::Write(GarageCarCameraFOVScanResult + 1, fNewGarageCameraFOV);
 		}
 		else
 		{

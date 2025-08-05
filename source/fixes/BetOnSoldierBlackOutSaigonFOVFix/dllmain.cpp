@@ -45,7 +45,6 @@ std::string sExeName;
 bool bFixActive;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fTolerance = 0.0000001f;
 
@@ -54,18 +53,17 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fAspectRatioScale;
+float fNewWeaponHipfireFOV;
+float fNewWeaponZoomFOV;
+float fNewSniperZoomFOV;
+float fNewMinimapFOV;
+static uint8_t* CameraZoomFOVAddress;
+static uint8_t* CameraFOV2Address;
+static uint8_t* HipfireCameraFOVAddress;
+static uint8_t* CameraFOV4Address;
+static uint8_t* CameraFOV5Address;
+static uint8_t* CameraFOV6Address;
 
 // Game detection
 enum class Game
@@ -235,9 +233,46 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+static SafetyHookMid WeaponHipfireFOVInstructionHook{};
+
+void WeaponHipfireFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+	float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.ecx + 0x3C);
+
+	fNewWeaponHipfireFOV = Maths::CalculateNewFOV_RadBased(fCurrentWeaponHipfireFOV, fAspectRatioScale);
+
+	_asm
+	{
+		fld dword ptr ds:[fNewWeaponHipfireFOV]
+	}
+}
+
+static SafetyHookMid WeaponZoomFOVInstructionHook{};
+
+void WeaponZoomFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentWeaponZoomFOV = *reinterpret_cast<float*>(ctx.ecx + 0x40);
+
+	fNewWeaponZoomFOV = Maths::CalculateNewFOV_RadBased(fCurrentWeaponZoomFOV, fAspectRatioScale);
+
+	_asm
+	{
+		fld dword ptr ds:[fNewWeaponZoomFOV]
+	}
+}
+
+static SafetyHookMid SniperZoomFOVInstructionHook{};
+
+void SniperZoomFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentSniperZoomFOV = *reinterpret_cast<float*>(ctx.edx);
+
+	fNewSniperZoomFOV = Maths::CalculateNewFOV_RadBased(fCurrentSniperZoomFOV, fAspectRatioScale);
+
+	_asm
+	{
+		fld dword ptr ds:[fNewSniperZoomFOV]
+	}
 }
 
 void FOVFix()
@@ -245,6 +280,8 @@ void FOVFix()
 	if ((eGameType == Game::BOSBOS || eGameType == Game::BOSBOSGAME) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D8 B6 E0 00 00 00 D9 E8 D9 F3 D9 C0 D9 FF D9 5C 24 0C");
 		if (AspectRatioInstructionScanResult)
@@ -274,43 +311,67 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is Bos.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 15, "\x90\x90\x90\x90\x90\x90", 6);
+			HipfireCameraFOVAddress = Memory::GetAddress32(CameraFOVInstructionScanResult + 1);
 
-			static SafetyHookMid CameraZoomFOVMidHook{};
+			CameraFOV2Address = Memory::GetAddress32(CameraFOVInstructionScanResult + 7);
 
-			CameraZoomFOVMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 21, [](SafetyHookContext& ctx)
-			{
-				float fNewCameraZoomFOV = CalculateNewFOV(0.6108652353f);
+			CameraZoomFOVAddress = Memory::GetAddress32(CameraFOVInstructionScanResult + 17);			
 
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraZoomFOV);
-			});
+			CameraFOV4Address = Memory::GetAddress32(CameraFOVInstructionScanResult + 36);
+
+			CameraFOV5Address = Memory::GetAddress32(CameraFOVInstructionScanResult + 42);
+
+			CameraFOV6Address = Memory::GetAddress32(CameraFOVInstructionScanResult + 48);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
 
 			static SafetyHookMid CameraHipfireAndMinimapFOVMidHook{};
 
-			CameraHipfireAndMinimapFOVMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 11, [](SafetyHookContext& ctx)
+			CameraHipfireAndMinimapFOVMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fNewCameraHipfireFOV = CalculateNewFOV(1.518436432f) * fFOVFactor;
+				float& fCurrentCameraHipfireFOV = *reinterpret_cast<float*>(HipfireCameraFOVAddress);
 
-				float fNewCamera2FOV = CalculateNewFOV(1.134464025f);
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOV2Address);
+
+				float fNewCameraHipfireFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraHipfireFOV, fAspectRatioScale) * fFOVFactor;
+
+				float fNewCamera2FOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHipfireFOV);
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCamera2FOV);
 			});
 
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 15, "\x90\x90\x90\x90\x90\x90", 6);
+
+			static SafetyHookMid CameraZoomFOVInstructionMidHook{};
+
+			CameraZoomFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 15, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraZoomFOV = *reinterpret_cast<float*>(CameraZoomFOVAddress);
+
+				float fNewCameraZoomFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraZoomFOV, fAspectRatioScale);
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraZoomFOV);
+			});			
+
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 35, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 17);
 
 			static SafetyHookMid CameraFOV4MidHook{};
 
-			CameraFOV4MidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 52, [](SafetyHookContext& ctx)
+			CameraFOV4MidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 35, [](SafetyHookContext& ctx)
 			{
-				float fNewCameraFOV4 = CalculateNewFOV(2.094395161f);
+				float& fCurrentCameraFOV4 = *reinterpret_cast<float*>(CameraFOV4Address);
 
-				float fNewCameraFOV5 = CalculateNewFOV(1.570796371f);
+				float& fCurrentCameraFOV5 = *reinterpret_cast<float*>(CameraFOV5Address);
 
-				float fNewCameraFOV6 = CalculateNewFOV(1.745329261f);
+				float& fCurrentCameraFOV6 = *reinterpret_cast<float*>(CameraFOV6Address);
+
+				float fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale);
+
+				float fNewCameraFOV5 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV5, fAspectRatioScale);
+
+				float fNewCameraFOV6 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV6, fAspectRatioScale);
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV4);
 
@@ -330,6 +391,8 @@ void FOVFix()
 		{
 			spdlog::info("Minimap FOV Instruction: Address is kte_dx9.dll+{:x}", MinimapFOVInstructionScanResult - (std::uint8_t*)dllModule4);
 
+			Memory::PatchBytes(MinimapFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
 			static SafetyHookMid MinimapFOVInstructionMidHook{};
 
 			MinimapFOVInstructionMidHook = safetyhook::create_mid(MinimapFOVInstructionScanResult, [](SafetyHookContext& ctx)
@@ -338,8 +401,14 @@ void FOVFix()
 
 				if (fCurrentMinimapFOV == 0.08638998121f || fCurrentMinimapFOV == 0.6283185482f)
 				{
-					fCurrentMinimapFOV = CalculateNewFOV(fCurrentMinimapFOV);
+					fNewMinimapFOV = Maths::CalculateNewFOV_RadBased(fCurrentMinimapFOV, fAspectRatioScale);
 				}
+				else
+				{
+					fNewMinimapFOV = fCurrentMinimapFOV;
+				}
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewMinimapFOV);
 			});
 		}
 		else
@@ -353,23 +422,13 @@ void FOVFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is Bos.dll+{:x}", WeaponFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			static SafetyHookMid WeaponHipfireFOVInstructionMidHook{};
+			Memory::PatchBytes(WeaponFOVInstructionScanResult + 6, "\x90\x90\x90", 3);
 
-			WeaponHipfireFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.ecx + 0x3C);
+			WeaponHipfireFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 6, WeaponHipfireFOVInstructionMidHook);
 
-				fCurrentWeaponHipfireFOV = CalculateNewFOV(1.134464025f);
-			});
+			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid WeaponZoomFOVInstructionMidHook{};
-
-			WeaponZoomFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentWeaponZoomFOV = *reinterpret_cast<float*>(ctx.ecx + 0x40);
-
-				fCurrentWeaponZoomFOV = CalculateNewFOV(0.6981317401f);
-			});
+			WeaponZoomFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, WeaponZoomFOVInstructionMidHook);
 		}
 		else
 		{
@@ -382,17 +441,9 @@ void FOVFix()
 		{
 			spdlog::info("Sniper Zoom FOV Instruction: Address is Bos.dll+{:x}", SniperZoomFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 			
-			static SafetyHookMid SniperZoomFOVInstructionMidHook{};
+			Memory::PatchBytes(SniperZoomFOVInstructionScanResult, "\x90\x90", 2);
 			
-			SniperZoomFOVInstructionMidHook = safetyhook::create_mid(SniperZoomFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentSniperZoomFOV = *reinterpret_cast<float*>(ctx.edx);
-
-				if (fCurrentSniperZoomFOV == 0.4363323152f || fCurrentSniperZoomFOV == 0.1745329201f)
-				{
-					fCurrentSniperZoomFOV = CalculateNewFOV(fCurrentSniperZoomFOV);
-				}
-			});
+			SniperZoomFOVInstructionHook = safetyhook::create_mid(SniperZoomFOVInstructionScanResult, SniperZoomFOVInstructionMidHook);
 		}
 		else
 		{

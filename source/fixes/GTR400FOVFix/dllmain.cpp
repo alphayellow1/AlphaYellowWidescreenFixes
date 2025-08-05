@@ -42,7 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0000001f;
 
 // Ini variables
 bool bFixActive;
@@ -189,11 +188,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::GTR400 && bFixActive == true)
@@ -218,7 +212,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 56 1C 50 68 00 00 00 3F 51 8B 0E 52");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 5 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction			
 
@@ -230,11 +224,11 @@ void FOVFix()
 
 				if (fCurrentCameraFOV != 1.04719758f)
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
 				ctx.edx = std::bit_cast<std::uintptr_t>(fNewCameraFOV);

@@ -192,11 +192,11 @@ static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
+	fNewCameraHFOV = 1.0f / fAspectRatioScale;
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraHFOV]
+		fld dword ptr ds:[fNewCameraHFOV]
 	}
 }
 
@@ -215,7 +215,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

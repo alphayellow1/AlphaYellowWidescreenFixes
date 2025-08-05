@@ -194,7 +194,7 @@ void CameraForegroundHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraHFOV]
+		fmul dword ptr ds:[fNewCameraHFOV]
 	}
 }
 
@@ -204,7 +204,7 @@ void CameraForegroundVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraVFOV]
+		fmul dword ptr ds:[fNewCameraVFOV]
 	}
 }
 
@@ -214,7 +214,7 @@ void CameraBackgroundHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraHFOV]
+		fmul dword ptr ds:[fNewCameraHFOV]
 	}
 }
 
@@ -224,7 +224,7 @@ void CameraBackgroundVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraVFOV]
+		fmul dword ptr ds:[fNewCameraVFOV]
 	}
 }
 
@@ -236,29 +236,18 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "00 80 02 00 00 C7");
-		if (ResolutionWidthScanResult)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 05 80 AB 59 00 80 02 00 00 C7 05 90 AC 59 00 E0 01 00 00");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 1 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionWidthScanResult + 1, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScanResult + 6, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScanResult + 16, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution width memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "00 E0 01 00 00 C7");
-		if (ResolutionHeightScanResult)
-		{
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionHeightScanResult + 1, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution height memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 
@@ -299,7 +288,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraBackgroundHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraBackgroundHFOVInstructionHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult + 6, CameraBackgroundHFOVInstructionMidHook);
+			CameraBackgroundHFOVInstructionHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult, CameraBackgroundHFOVInstructionMidHook);
 		}
 		else
 		{
@@ -314,7 +303,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraBackgroundVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraBackgroundVFOVInstructionHook = safetyhook::create_mid(CameraBackgroundVFOVInstructionScanResult + 6, CameraBackgroundVFOVInstructionMidHook);
+			CameraBackgroundVFOVInstructionHook = safetyhook::create_mid(CameraBackgroundVFOVInstructionScanResult, CameraBackgroundVFOVInstructionMidHook);
 		}
 		else
 		{

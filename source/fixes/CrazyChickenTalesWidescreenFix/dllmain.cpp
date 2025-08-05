@@ -49,6 +49,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;	
 
 // Game detection
 enum class Game
@@ -195,11 +196,13 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(ResolutionWidthInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
 			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(iCurrentResX);
+				*reinterpret_cast<int*>(ctx.esi + 70) = iCurrentResX;
 			});
 		}
 		else
@@ -213,11 +216,13 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(ResolutionHeightInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
 			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(iCurrentResY);
+				*reinterpret_cast<int*>(ctx.esi + 74) = iCurrentResY;
 			});
 		}
 		else
@@ -239,7 +244,7 @@ void WidescreenFix()
 
 				if (fCurrentCameraHFOV == 1.538461566f || fCurrentCameraHFOV == 1.25f)
 				{
-					fCurrentCameraHFOV = fCurrentCameraHFOV / (fNewAspectRatio / fOldAspectRatio);
+					fCurrentCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, 1.0f / fAspectRatioScale);
 				}
 			});
 		}

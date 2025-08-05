@@ -196,7 +196,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -206,29 +206,18 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "78 05 00 00 89 1D E8 C5 5F 00 B8 00 04 00 00 B9");
-		if (ResolutionWidthScanResult)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "B8 00 04 00 00 B9 00 03 00 00 73 08 8D 41 20 B9 58 02 00 00");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution Width: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthScanResult + 11 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionWidthScanResult + 11, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScanResult + 1, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScanResult + 6, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution width memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionHeightScanResult = Memory::PatternScan(exeModule, "B9 00 03 00 00 73 08 8D 41 20 B9");
-		if (ResolutionHeightScanResult)
-		{
-			spdlog::info("Resolution Height: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightScanResult + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionHeightScanResult + 1, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution width memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 
@@ -259,7 +248,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 3, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

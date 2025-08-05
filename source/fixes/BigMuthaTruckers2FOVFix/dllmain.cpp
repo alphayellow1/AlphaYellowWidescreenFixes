@@ -194,7 +194,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fdivr dword ptr ds : [fNewCameraFOV]
+		fdivr dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -233,7 +233,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 19, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 25, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 19, CameraFOVInstructionMidHook);
 		}
 		else
 		{

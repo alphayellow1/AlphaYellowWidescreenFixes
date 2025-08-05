@@ -204,11 +204,6 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
@@ -217,11 +212,11 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV2 == 1.222000003f)
 	{
-		fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2) * fFOVFactor;
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
 	}
 
 	_asm
@@ -276,11 +271,11 @@ void FOVFix()
 
 				if (fCurrentCameraFOV == 1.222000003f)
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);

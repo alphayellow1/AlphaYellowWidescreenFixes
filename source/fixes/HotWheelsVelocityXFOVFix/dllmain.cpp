@@ -40,7 +40,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -51,6 +50,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -58,18 +59,6 @@ enum class Game
 	HWVX,
 	Unknown
 };
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 struct GameInfo
 {
@@ -114,7 +103,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -198,16 +187,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::HWVX && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 80 70 02 00 00 50 E8 DB 04 00 00 83 C4 04 5F 5E 5D");
 		if (CameraFOVInstructionScanResult)
@@ -216,31 +202,19 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static std::vector<float> vComputedFOVs;
-
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x270);
 
-				// Checks if this FOV has already been computed
-				if (std::find(vComputedFOVs.begin(), vComputedFOVs.end(), fCurrentCameraFOV) != vComputedFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
 				// Computes the new FOV value if the current FOV is different from the last modified FOV
 				if (fCurrentCameraFOV == 90.0f)
 				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fCurrentCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 				else
 				{
-					fCurrentCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+					fCurrentCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 				}
-
-				// Stores the new value so future calls can skip re-calculations
-				vComputedFOVs.push_back(fCurrentCameraFOV);
 			});
 		}
 		else

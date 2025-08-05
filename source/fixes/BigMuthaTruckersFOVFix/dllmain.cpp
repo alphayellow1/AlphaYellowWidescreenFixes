@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -52,6 +50,7 @@ int iCurrentResY;
 float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -191,11 +190,11 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraFOV = (fOldAspectRatio / fNewAspectRatio) * (1.0f / fFOVFactor);
+	fNewCameraFOV = (1.0f / fAspectRatioScale) * (1.0f / fFOVFactor);
 
 	_asm
 	{
-		fdivr dword ptr ds : [fNewCameraFOV]
+		fdivr dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -205,6 +204,8 @@ static void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8D B2 D4 00 00 00 33 C0 8B FE D9 42 1C D8 0D 00 5F 5B 00 D9 F2 DD D8 D8 3D ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
 		{
@@ -212,7 +213,7 @@ static void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 23, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 29, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 23, CameraFOVInstructionMidHook);
 		}
 		else
 		{

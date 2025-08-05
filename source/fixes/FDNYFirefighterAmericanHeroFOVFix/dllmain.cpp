@@ -42,10 +42,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
-constexpr float fOriginalFOVMultiplier = 1.43f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -55,7 +52,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fNewMainMenuCameraFOV;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -183,29 +181,12 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			return true;
 		}
 	}
 
-	while (!dllModule2)
-	{
-		dllModule2 = GetModuleHandleA("Genesis.dll");
-		spdlog::info("Waiting for Genesis.dll to load...");
-		Sleep(1000);
-	}
-
-	spdlog::info("Successfully obtained handle for Genesis.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
-}
-
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (fCurrentFOV / (fOldAspectRatio / fNewAspectRatio));
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 void FOVFix()
@@ -214,18 +195,31 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 44 24 10 D8 05 ?? ?? ?? ?? 89 01");
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 14 50 8D 54 24 04 FF 15 ?? ?? ?? ?? 83 C4 10 C2 04 00");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is Genesis.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
 
-				fCurrentCameraFOV = CalculateNewFOV(1.43f);
+				if (fCurrentCameraFOV == 1.43f)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else

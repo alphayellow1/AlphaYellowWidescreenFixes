@@ -189,18 +189,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewCameraFOV(float fCurrentCameraFOV)
-{
-	return fCurrentCameraFOV * fAspectRatioScale;
-}
-
 static SafetyHookMid MenuCameraFOVInstructionHook{};
 
 void MenuCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float fCurrentMenuCameraFOV = std::bit_cast<float>(ctx.edx);
 
-	fNewMenuCameraFOV = CalculateNewCameraFOV(fCurrentMenuCameraFOV);
+	fNewMenuCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentMenuCameraFOV, fAspectRatioScale);
 
 	*reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xA4) = fNewMenuCameraFOV;
 }
@@ -211,7 +206,7 @@ void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float fCurrentGameplayCameraFOV = std::bit_cast<float>(ctx.edx);
 
-	fNewGameplayCameraFOV = CalculateNewCameraFOV(fCurrentGameplayCameraFOV) * fFOVFactor;
+	fNewGameplayCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentGameplayCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 	*reinterpret_cast<float*>(ctx.esi + ctx.eax * 0x4 + 0xA4) = fNewGameplayCameraFOV;
 }
@@ -222,7 +217,7 @@ void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float fCurrentCutscenesCameraFOV = std::bit_cast<float>(ctx.ecx);
 
-	fNewCutscenesCameraFOV = CalculateNewCameraFOV(fCurrentCutscenesCameraFOV);
+	fNewCutscenesCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCutscenesCameraFOV, fAspectRatioScale);
 
 	*reinterpret_cast<float*>(ctx.ebp + ctx.eax * 0x4 + 0xA4) = fNewCutscenesCameraFOV;
 }

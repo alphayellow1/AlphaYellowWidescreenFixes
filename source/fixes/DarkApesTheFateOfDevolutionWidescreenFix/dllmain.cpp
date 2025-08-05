@@ -43,20 +43,7 @@ std::string sExeName;
 bool bFixActive;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Variables
 int iCurrentResX;
@@ -215,11 +202,6 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::DATFOD && bFixActive == true)
@@ -233,16 +215,22 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionlistScanResult - (std::uint8_t*)exeModule);
 			
+			// 800
 			Memory::Write(ResolutionlistScanResult, iCurrentResX);
 			
+			// 1024
 			Memory::Write(ResolutionlistScanResult + 4, iCurrentResX);
 
+			// 1280
 			Memory::Write(ResolutionlistScanResult + 8, iCurrentResX);
 
+			// 600
 			Memory::Write(ResolutionlistScanResult + 12, iCurrentResY);
 
+			// 768
 			Memory::Write(ResolutionlistScanResult + 16, iCurrentResY);
 
+			// 1024
 			Memory::Write(ResolutionlistScanResult + 20, iCurrentResY);
 		}
 		else
@@ -264,7 +252,7 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x90);
 
-				fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});

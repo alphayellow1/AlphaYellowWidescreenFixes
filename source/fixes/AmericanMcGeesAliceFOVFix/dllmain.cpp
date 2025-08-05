@@ -48,7 +48,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 90.0f;
 
@@ -61,17 +60,7 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
-
-// Function to convert degrees to radians
-constexpr float DegToRad(float degrees) noexcept {
-    return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -236,7 +225,9 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewCameraFOV = 2.0f * RadToDeg(atanf(tanf(DegToRad(fOriginalCameraFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fOriginalCameraFOV, fAspectRatioScale);
 
 		std::uint8_t* GameplayCameraFOVScanResult = Memory::PatternScan(hModule, "C7 45 EC 00 00 B4 42 EB 17 D9");
 		if (GameplayCameraFOVScanResult)
@@ -265,42 +256,43 @@ void FOVFix()
 }
 
 // — Loader‑notification integration —
-enum {
+enum
+{
 	LDR_DLL_NOTIFICATION_REASON_LOADED = 1,
 	LDR_DLL_NOTIFICATION_REASON_UNLOADED = 2
 };
 
-typedef struct _UNICODE_STR {
+typedef struct _UNICODE_STR
+{
 	USHORT Length, MaximumLength;
 	PWSTR  Buffer;
 } UNICODE_STR, * PUNICODE_STR;
 
-typedef struct _LDR_DLL_LOADED_NOTIFICATION_DATA {
+typedef struct _LDR_DLL_LOADED_NOTIFICATION_DATA
+{
 	ULONG Flags;
 	PUNICODE_STR FullDllName, BaseDllName;
 	PVOID DllBase;
 	ULONG SizeOfImage;
 } LDR_DLL_LOADED_NOTIFICATION_DATA, * PLDR_DLL_LOADED_NOTIFICATION_DATA;
 
-typedef struct _LDR_DLL_UNLOADED_NOTIFICATION_DATA {
+typedef struct _LDR_DLL_UNLOADED_NOTIFICATION_DATA
+{
 	ULONG Flags;
 	PUNICODE_STR FullDllName, BaseDllName;
 	PVOID DllBase;
 	ULONG SizeOfImage;
 } LDR_DLL_UNLOADED_NOTIFICATION_DATA, * PLDR_DLL_UNLOADED_NOTIFICATION_DATA;
 
-typedef union _LDR_DLL_NOTIFICATION_DATA {
+typedef union _LDR_DLL_NOTIFICATION_DATA
+{
 	LDR_DLL_LOADED_NOTIFICATION_DATA   Loaded;
 	LDR_DLL_UNLOADED_NOTIFICATION_DATA Unloaded;
 } LDR_DLL_NOTIFICATION_DATA, * PLDR_DLL_NOTIFICATION_DATA;
 
-VOID CALLBACK DllNotification(
-    ULONG Reason,
-    PLDR_DLL_NOTIFICATION_DATA Data,
-    PVOID)
+VOID CALLBACK DllNotification(ULONG Reason, PLDR_DLL_NOTIFICATION_DATA Data, PVOID)
 {
-    bool isTarget =
-        (lstrcmpiW(Data->Loaded.BaseDllName->Buffer, L"fgamex86.dll") == 0);
+    bool isTarget = (lstrcmpiW(Data->Loaded.BaseDllName->Buffer, L"fgamex86.dll") == 0);
 
     if (Reason == LDR_DLL_NOTIFICATION_REASON_LOADED && isTarget)
     {
@@ -308,6 +300,7 @@ VOID CALLBACK DllNotification(
 
         // ← ONE‑TIME SETUP
         static bool initialized = false;
+
         if (!initialized)
         {
             Logging();       // setup logger once
@@ -329,15 +322,16 @@ void InstallDllNotification()
 {
 	HMODULE ntdll = ::GetModuleHandleA("ntdll.dll");
 
-	if (!ntdll) {
+	if (!ntdll)
+	{
 		spdlog::error("GetModuleHandleA(\"ntdll.dll\") failed: 0x{:X}", GetLastError());
 		return;  // or handle error appropriately
 	}
 
-	auto Reg = reinterpret_cast<LdrRegisterDllNotification_t>(
-		::GetProcAddress(ntdll, "LdrRegisterDllNotification"));
+	auto Reg = reinterpret_cast<LdrRegisterDllNotification_t>(::GetProcAddress(ntdll, "LdrRegisterDllNotification"));
 
-	if (!Reg) {
+	if (!Reg)
+	{
 		spdlog::error("GetProcAddress(LdrRegisterDllNotification) failed: 0x{:X}", GetLastError());
 		return;
 	}
@@ -352,19 +346,16 @@ void RemoveDllNotification()
 
 	if (!ntdll)
 	{
-		spdlog::error("GetModuleHandleA(\"ntdll.dll\") failed: 0x{:#x}",
-			static_cast<uint32_t>(GetLastError()));
+		spdlog::error("GetModuleHandleA(\"ntdll.dll\") failed: 0x{:#x}", static_cast<uint32_t>(GetLastError()));
 		return;
 	}
 
 	// 2) Retrieve LdrUnregisterDllNotification and verify it succeeded
-	auto Unreg = reinterpret_cast<LdrUnregisterDllNotification_t>(
-		::GetProcAddress(ntdll, "LdrUnregisterDllNotification"));
+	auto Unreg = reinterpret_cast<LdrUnregisterDllNotification_t>(::GetProcAddress(ntdll, "LdrUnregisterDllNotification"));
 
 	if (!Unreg)
 	{
-		spdlog::error("GetProcAddress(\"LdrUnregisterDllNotification\") failed: 0x{:#x}",
-			static_cast<uint32_t>(GetLastError()));
+		spdlog::error("GetProcAddress(\"LdrUnregisterDllNotification\") failed: 0x{:#x}", static_cast<uint32_t>(GetLastError()));
 		return;
 	}
 
@@ -388,5 +379,6 @@ BOOL APIENTRY DllMain(HMODULE hMod, DWORD reason, LPVOID)
 	{
 		RemoveDllNotification();
 	}
+
 	return TRUE;
 }

@@ -189,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid AspectRatioInstructionHook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
@@ -229,7 +224,7 @@ static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
-	float fNewCameraFOV3 = 3.1381019951f;
+	float fNewCameraFOV3 = 3.1381019951f; // This is to fix the engine frustum culling
 
 	_asm
 	{
