@@ -42,8 +42,9 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fMainMenuCamera1FOV = 45.0f; // Default FOV for main menu
+constexpr float fMainMenuCamera2FOV = 75.0f; // Default FOV for main menu 2
 
 // Ini variables
 bool bFixActive;
@@ -52,21 +53,10 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -202,11 +192,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-}
-
 static SafetyHookMid GameplayCameraHFOVInstructionHook{};
 
 void GameplayCameraHFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -215,7 +200,7 @@ void GameplayCameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraHFOV]
+		fmul dword ptr ds:[fNewCameraHFOV]
 	}
 }
 
@@ -223,8 +208,6 @@ void WidescreenFix()
 {
 	if (bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
 		if (eGameType == Game::CONFIG)
 		{
 			std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "89 10 89 70 04 5F 5E C3 90 90 90 90");
@@ -232,18 +215,15 @@ void WidescreenFix()
 			{
 				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-				static SafetyHookMid ResolutionHeightInstructionMidHook{};
+				Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90", 5);
 
-				ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 2, [](SafetyHookContext& ctx)
+				static SafetyHookMid ResolutionInstructionsMidHook{};
+
+				ResolutionInstructionsMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 				{
-					ctx.esi = std::bit_cast<uint32_t>(iCurrentResY);
-				});
+					*reinterpret_cast<int*>(ctx.eax) = iCurrentResX;
 
-				static SafetyHookMid ResolutionWidthInstructionMidHook{};
-
-				ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
-				{
-					ctx.edx = std::bit_cast<uint32_t>(iCurrentResX);
+					*reinterpret_cast<int*>(ctx.eax + 0x4) = iCurrentResY;
 				});
 			}
 			else
@@ -255,6 +235,10 @@ void WidescreenFix()
 
 		if (eGameType == Game::HB)
 		{
+			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 			std::uint8_t* GameplayCameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 05 ?? ?? ?? ?? D9 54 24 28 D9 E0 D9 5C 24 2C");
 			if (GameplayCameraHFOVInstructionScanResult)
 			{
@@ -262,7 +246,7 @@ void WidescreenFix()
 
 				Memory::PatchBytes(GameplayCameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-				GameplayCameraHFOVInstructionHook = safetyhook::create_mid(GameplayCameraHFOVInstructionScanResult + 6, GameplayCameraHFOVInstructionMidHook);
+				GameplayCameraHFOVInstructionHook = safetyhook::create_mid(GameplayCameraHFOVInstructionScanResult, GameplayCameraHFOVInstructionMidHook);
 			}
 			else
 			{
@@ -277,7 +261,7 @@ void WidescreenFix()
 
 				Memory::Write(MainMenuAspectRatioandFOV1ScanResult + 6, fNewAspectRatio);
 
-				fNewCameraFOV1 = CalculateNewFOV(45.0f);
+				fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fMainMenuCamera1FOV, fAspectRatioScale);
 
 				Memory::Write(MainMenuAspectRatioandFOV1ScanResult + 16, fNewCameraFOV1);
 			}
@@ -294,7 +278,7 @@ void WidescreenFix()
 
 				Memory::Write(MainMenuAspectRatioandFOV2ScanResult + 8, fNewAspectRatio);
 
-				fNewCameraFOV2 = CalculateNewFOV(75.0f);
+				fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fMainMenuCamera2FOV, fAspectRatioScale);
 
 				Memory::Write(MainMenuAspectRatioandFOV2ScanResult + 24, fNewCameraFOV2);
 			}
