@@ -207,7 +207,7 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraFOV = fFOVFactor * (fOriginalCameraFOV * fAspectRatioScale);
+	fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fOriginalCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{

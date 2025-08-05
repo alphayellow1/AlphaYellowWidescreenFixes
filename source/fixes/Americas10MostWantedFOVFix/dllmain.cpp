@@ -196,7 +196,7 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraHFOV]
+		fld dword ptr ds:[fNewCameraHFOV]
 	}
 }
 
@@ -228,9 +228,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 5 - (std::uint8_t*)exeModule);
 
-			uint32_t imm = *reinterpret_cast<uint32_t*>(CameraFOVInstructionScanResult + 6);
-
-			CameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm);
+			CameraFOVValueAddress = Memory::GetAddress32(CameraFOVInstructionScanResult + 6);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 5, "\x90\x90\x90\x90\x90", 5); // NOP the original instruction so we write our own
 			

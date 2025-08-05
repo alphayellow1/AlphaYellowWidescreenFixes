@@ -54,6 +54,7 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
+float fAspectRatioScale;
 static float fCurrentCameraHFOV;
 float fCurrentCameraVFOV;
 
@@ -193,16 +194,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * (fNewAspectRatio / fOldAspectRatio);
-}
-
 void FOVFix()
 {
 	if ((eGameType == Game::CTEOI || eGameType == Game::CTEOI_RUNCURSE) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0");
 		if (CameraHFOVInstructionScanResult)
@@ -214,30 +212,31 @@ void FOVFix()
 			static std::vector<float> vComputedHFOVs;
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Convert the ECX register value to float
+				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
+
+				// Skip processing if a similar HFOV (within tolerance) has already been computed
+				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
+				[&](float computedValue)
 				{
-					// Convert the ECX register value to float
-					fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
-
-					// Skip processing if a similar HFOV (within tolerance) has already been computed
-					bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-					[&](float computedValue) {
-						return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
-					});
-
-					if (bHFOVAlreadyComputed)
-					{
-						return;
-					}
-
-					// Compute the new HFOV value
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
-
-					// Record the computed HFOV for future calls
-					vComputedHFOVs.push_back(fCurrentCameraHFOV);
-
-					// Update the ECX register with the new HFOV value
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
+					return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
 				});
+
+				if (bHFOVAlreadyComputed)
+				{
+					return;
+				}
+
+				// Compute the new HFOV value
+				fCurrentCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
+
+				// Record the computed HFOV for future calls
+				vComputedHFOVs.push_back(fCurrentCameraHFOV);
+
+				// Update the ECX register with the new HFOV value
+				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
+			});
 		}
 		else
 		{
@@ -255,30 +254,31 @@ void FOVFix()
 			static std::vector<float> vComputedVFOVs;
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Convert the ECX register value to float
+				fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
+
+				// Skip processing if a similar VFOV (within tolerance) has already been computed
+				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
+				[&](float computedValue)
 				{
-					// Convert the ECX register value to float
-					fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
-
-					// Skip processing if a similar VFOV (within tolerance) has already been computed
-					bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-					[&](float computedValue) {
-						return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
-					});
-
-					if (bVFOVAlreadyComputed)
-					{
-						return;
-					}
-
-					// Compute the new VFOV value
-					fCurrentCameraVFOV = fCurrentCameraHFOV / fNewAspectRatio;
-
-					// Record the computed VFOV for future calls
-					vComputedVFOVs.push_back(fCurrentCameraVFOV);
-
-					// Update the ECX register with the new VFOV value
-					ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
+					return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
 				});
+
+				if (bVFOVAlreadyComputed)
+				{
+					return;
+				}
+
+				// Compute the new VFOV value
+				fCurrentCameraVFOV = fCurrentCameraHFOV / fNewAspectRatio;
+
+				// Record the computed VFOV for future calls
+				vComputedVFOVs.push_back(fCurrentCameraVFOV);
+
+				// Update the ECX register with the new VFOV value
+				ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
+			});
 		}
 		else
 		{

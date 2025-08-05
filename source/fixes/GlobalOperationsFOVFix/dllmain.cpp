@@ -42,7 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -192,66 +191,18 @@ bool DetectGame()
 	return false;	
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentHFOV / 2.0f) * fAspectRatioScale);
-}
-
-/*
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-*/
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-/*
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-*/
-
-float CalculateNewWeaponHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f) / (1.0f / fFOVFactor)) / fAspectRatioScale);
-}
-
-/*
-float CalculateNewWeaponVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentVFOV / 2.0f) / (1.0f / fFOVFactor)) / fAspectRatioScale);
-}
-*/
-
 static SafetyHookMid WeaponHFOVInstructionHook{};
 
 void WeaponHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentWeaponHFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-	spdlog::info("[Hook] Raw incoming Weapon HFOV: {:.12f}", fCurrentWeaponHFOV);
-
-	fNewWeaponHFOV = CalculateNewWeaponHFOVWithFOVFactor(2.356194496155f);
+	fNewWeaponHFOV = Maths::CalculateNewHFOV_RadBased(2.356194496155f, 1.0f / fAspectRatioScale);
 
 	_asm
 	{
-		fld dword ptr ds : [fNewWeaponHFOV]
+		fld dword ptr ds:[fNewWeaponHFOV]
 	}
-
-	/*
-	float& fCurrentWeaponVFOV = **reinterpret_cast<float**>(ctx.esp + 0x8);
-
-	fNewWeaponVFOV = CalculateNewWeaponVFOVWithFOVFactor(fCurrentWeaponVFOV);
-
-	fCurrentWeaponVFOV = fNewWeaponVFOV;
-	*/
-
-	// 0.6830282211f
 }
 
 void FOVFix()
@@ -276,7 +227,7 @@ void FOVFix()
 				// Access the HFOV value at the memory address EAX + 0x1D0
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x1D0);
 
-				fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
@@ -287,31 +238,6 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 D4 01 00 00 89 94 24 C4 00 00 00 8B 90 B0 00 00 00");
-		if (CameraVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-			
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Access the VFOV value at the memory address EAX + 0x1D4
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x1D4);
-
-				fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera VFOV instruction memory address.");
-			return;
-		}
-
 		std::uint8_t* WeaponHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 8B 44 24 08 D8 0D ?? ?? ?? ??");
 		if (WeaponHFOVInstructionScanResult)
 		{
@@ -319,7 +245,7 @@ void FOVFix()
 
 			Memory::PatchBytes(WeaponHFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
 
-			WeaponHFOVInstructionHook = safetyhook::create_mid(WeaponHFOVInstructionScanResult + 8, WeaponHFOVInstructionMidHook);
+			WeaponHFOVInstructionHook = safetyhook::create_mid(WeaponHFOVInstructionScanResult, WeaponHFOVInstructionMidHook);
 		}
 		else
 		{

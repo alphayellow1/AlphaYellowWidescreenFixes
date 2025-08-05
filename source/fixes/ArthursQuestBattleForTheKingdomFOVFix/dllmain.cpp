@@ -205,26 +205,6 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::AQBFTK && bFixActive == true)
@@ -246,7 +226,7 @@ void FOVFix()
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.esi);
 
-				fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 
 				*reinterpret_cast<float*>(ctx.eax + 0xC4) = fNewCameraHFOV;
 			});
@@ -270,7 +250,7 @@ void FOVFix()
 			{
 				float fCurrentCameraVFOV = std::bit_cast<float>(ctx.esi);
 
-				fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV);
+				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
 
 				*reinterpret_cast<float*>(ctx.eax + 0xC8) = fNewCameraVFOV;
 			});

@@ -50,7 +50,7 @@ bool bFixActive;
 int iNewResX;
 int iNewResY;
 float fCameraFOVFactor;
-float fWeaponFOVFactor;
+double dWeaponFOVFactor;
 float fNewCameraFOV;
 float fNewAspectRatio;
 float fNewAspectRatio2;
@@ -201,11 +201,6 @@ bool DetectGame()
 	return false;
 }
 
-double CalculateNewWeaponFOV(double dCurrentFOV)
-{
-	return 2.0 * atan(tan(dCurrentFOV / 2.0) * (double)fAspectRatioScale);
-}
-
 static SafetyHookMid AspectRatioInstructionHook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
@@ -241,7 +236,7 @@ void WeaponFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	double& dCurrentWeaponFOV = *reinterpret_cast<double*>(WeaponFOVValueAddress);
 
-	dNewWeaponFOV = CalculateNewWeaponFOV(dCurrentWeaponFOV) * (double)fWeaponFOVFactor;
+	dNewWeaponFOV = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV, fAspectRatioScale) * dWeaponFOVFactor;
 
 	_asm
 	{
@@ -255,7 +250,7 @@ void WeaponFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	double& dCurrentWeaponFOV2 = *reinterpret_cast<double*>(WeaponFOVValue2Address);
 
-	dNewWeaponFOV2 = CalculateNewWeaponFOV(dCurrentWeaponFOV2) * (double)fWeaponFOVFactor;
+	dNewWeaponFOV2 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV2, fAspectRatioScale) * dWeaponFOVFactor;
 
 	_asm
 	{
@@ -269,7 +264,7 @@ void WeaponFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
 	double& dCurrentWeaponFOV3 = *reinterpret_cast<double*>(WeaponFOVValue3Address);
 
-	dNewWeaponFOV3 = CalculateNewWeaponFOV(dCurrentWeaponFOV3) * (double)fWeaponFOVFactor;
+	dNewWeaponFOV3 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV3, fAspectRatioScale) * (double)fWeaponFOVFactor;
 
 	_asm
 	{
@@ -316,9 +311,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Inside Computer Instruction: Address is{:s} + {:x}", sExeName.c_str(), InsideComputerInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm = *reinterpret_cast<uint32_t*>(InsideComputerInstructionScanResult + 1);
-
-			uint8_t* InsideComputerValueAddress = reinterpret_cast<uint8_t*>(imm);
+			uint8_t* InsideComputerValueAddress = Memory::GetAddress32(InsideComputerInstructionScanResult + 1);
 
 			iInsideComputer = reinterpret_cast<int8_t*>(InsideComputerValueAddress);
 		}
@@ -339,7 +332,7 @@ void WidescreenFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
@@ -361,9 +354,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm2 = *reinterpret_cast<uint32_t*>(WeaponFOVInstructionScanResult + 2);
-
-			WeaponFOVValueAddress = reinterpret_cast<uint8_t*>(imm2);
+			WeaponFOVValueAddress = Memory::GetAddress32(WeaponFOVInstructionScanResult + 2);
 
 			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -380,9 +371,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Weapon FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm3 = *reinterpret_cast<uint32_t*>(WeaponFOVInstruction2ScanResult + 2);
-
-			WeaponFOVValue2Address = reinterpret_cast<uint8_t*>(imm3);
+			WeaponFOVValue2Address = Memory::GetAddress32(WeaponFOVInstruction2ScanResult + 2);
 
 			Memory::PatchBytes(WeaponFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -399,9 +388,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Weapon FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm4 = *reinterpret_cast<uint32_t*>(WeaponFOVInstruction3ScanResult + 2);
-
-			WeaponFOVValue3Address = reinterpret_cast<uint8_t*>(imm4);
+			WeaponFOVValue3Address = Memory::GetAddress32(WeaponFOVInstruction3ScanResult + 2);
 
 			Memory::PatchBytes(WeaponFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

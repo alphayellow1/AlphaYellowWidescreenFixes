@@ -197,26 +197,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
 static SafetyHookMid CameraHFOVInstructionHook{};	
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -225,11 +205,11 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraHFOV == 0.7853981853f)
 	{
-		fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+		fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+		fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 	}
 
 	_asm
@@ -246,11 +226,11 @@ void CameraHFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraHFOV2 == 0.7853981853f)
 	{
-		fNewCameraHFOV2 = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV2);
+		fNewCameraHFOV2 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV2, fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraHFOV2 = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV2);
+		fNewCameraHFOV2 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV2, fAspectRatioScale);
 	}
 
 	_asm
@@ -267,11 +247,11 @@ void CameraHFOVInstruction3MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraHFOV3 == 0.7853981853f)
 	{
-		fNewCameraHFOV3 = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV3);
+		fNewCameraHFOV3 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV3, fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraHFOV3 = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV3);
+		fNewCameraHFOV3 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV3, fAspectRatioScale);
 	}
 
 	_asm
@@ -288,11 +268,11 @@ void CameraHFOVInstruction4MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraHFOV4 == 0.7853981853f)
 	{
-		fNewCameraHFOV4 = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV4);
+		fNewCameraHFOV4 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV4, fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraHFOV4 = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV4);
+		fNewCameraHFOV4 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV4, fAspectRatioScale);
 	}
 
 	_asm
@@ -309,11 +289,11 @@ void CameraHFOVInstruction5MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraHFOV5 == 0.7853981853f)
 	{
-		fNewCameraHFOV5 = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV5);
+		fNewCameraHFOV5 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV5, fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraHFOV5 = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV5);
+		fNewCameraHFOV5 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV5, fAspectRatioScale);
 	}
 
 	_asm
@@ -330,11 +310,11 @@ void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	if (fabsf(fCurrentCameraVFOV - (0.589048624f / fAspectRatioScale)) < fTolerance)
 	{
-		fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+		fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+		fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale);
 	}
 
 	_asm
@@ -351,11 +331,11 @@ void CameraVFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fabsf(fCurrentCameraVFOV2 - (0.589048624f / fAspectRatioScale)) < fTolerance)
 	{
-		fNewCameraVFOV2 = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV2 * fAspectRatioScale);
+		fNewCameraVFOV2 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraVFOV2 = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV2 * fAspectRatioScale);
+		fNewCameraVFOV2 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
 	}
 
 	_asm
@@ -372,11 +352,11 @@ void CameraVFOVInstruction3MidHook(SafetyHookContext& ctx)
 
 	if (fabsf(fCurrentCameraVFOV3 - (0.589048624f / fAspectRatioScale)) < fTolerance)
 	{
-		fNewCameraVFOV3 = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV3 * fAspectRatioScale);
+		fNewCameraVFOV3 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV3 * fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraVFOV3 = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV3 * fAspectRatioScale);
+		fNewCameraVFOV3 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV3 * fAspectRatioScale);
 	}
 
 	_asm
@@ -393,11 +373,11 @@ void CameraVFOVInstruction4MidHook(SafetyHookContext& ctx)
 
 	if (fabsf(fCurrentCameraVFOV4 - (0.589048624f / fAspectRatioScale)) < fTolerance)
 	{
-		fNewCameraVFOV4 = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV4 * fAspectRatioScale);
+		fNewCameraVFOV4 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV4 * fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraVFOV4 = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV4 * fAspectRatioScale);
+		fNewCameraVFOV4 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV4 * fAspectRatioScale);
 	}
 
 	_asm
@@ -414,11 +394,11 @@ void CameraVFOVInstruction5MidHook(SafetyHookContext& ctx)
 
 	if (fabsf(fCurrentCameraVFOV5 - (0.589048624f / fAspectRatioScale)) < fTolerance)
 	{
-		fNewCameraVFOV5 = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV5 * fAspectRatioScale);
+		fNewCameraVFOV5 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV5 * fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraVFOV5 = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV5 * fAspectRatioScale);
+		fNewCameraVFOV5 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV5 * fAspectRatioScale);
 	}
 
 	_asm

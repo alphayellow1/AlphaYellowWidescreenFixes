@@ -189,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::CSR && bFixActive == true)
@@ -230,11 +225,11 @@ void FOVFix()
 
 				if (fCurrentCameraFOV != 1.04719758f)
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
 				ctx.edx = std::bit_cast<std::uintptr_t>(fNewCameraFOV);

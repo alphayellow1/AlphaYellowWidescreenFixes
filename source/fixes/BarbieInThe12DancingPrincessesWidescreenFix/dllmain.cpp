@@ -189,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOV(float fCurrentCameraHFOV)
-{
-	return fCurrentCameraHFOV * fAspectRatioScale;
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::BIT12DP && bFixActive == true)
@@ -228,11 +223,11 @@ void WidescreenFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 3, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				fNewCameraHFOV = CalculateNewHFOV(fCurrentCameraHFOV) * fFOVFactor;
+				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
@@ -252,7 +247,7 @@ void WidescreenFix()
 			
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 			
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 3, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
 					

@@ -41,7 +41,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fTolerance = 0.0000001f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalAspectRatio = 0.75f;
 
@@ -56,18 +55,6 @@ float fNewAspectRatio2;
 float fFOVFactor;
 float fAspectRatioScale;
 float fNewCameraFOV;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -203,11 +190,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 static SafetyHookMid AspectRatioInstructionHook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
@@ -227,7 +209,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
 
 	// Computes the new FOV value
-	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{

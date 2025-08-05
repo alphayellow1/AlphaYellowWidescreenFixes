@@ -206,7 +206,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x20);
 
-	fNewCameraFOV = fFOVFactor * fCurrentCameraFOV;
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
 	_asm
 	{

@@ -189,23 +189,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOV(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOV(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf((fCurrentVFOV * fAspectRatioScale) / 2.0f));
-}
-
 static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-	fNewCameraHFOV = CalculateNewHFOV(fCurrentCameraHFOV);
+	fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 
 	_asm
 	{
@@ -219,7 +209,7 @@ void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
 
-	fNewCameraVFOV = CalculateNewVFOV(fCurrentCameraVFOV);
+	fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
 
 	_asm
 	{

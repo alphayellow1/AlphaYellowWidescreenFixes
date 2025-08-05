@@ -250,7 +250,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90", 3); // NOP out the instruction
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult, AspectRatioInstruction1MidHook);
 		}
@@ -265,7 +265,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstruction2ScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(AspectRatioInstruction2ScanResult, "\x90\x90\x90", 3); // NOP out the instruction
 
 			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, AspectRatioInstruction2MidHook);
 		}
@@ -280,7 +280,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the instruction
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, CameraFOVInstruction1MidHook);
 		}
@@ -295,7 +295,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the instruction
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
 		}

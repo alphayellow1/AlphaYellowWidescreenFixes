@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 0.5f;
 
 // Ini variables
@@ -52,6 +50,7 @@ uint32_t iCurrentResX;
 uint32_t iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
+float fAspectRatioScale;
 float fFOVFactor;
 
 // Game detection
@@ -104,7 +103,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -194,7 +193,9 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewCameraFOV = fFOVFactor * (fOriginalCameraFOV * (fNewAspectRatio / fOldAspectRatio));
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		fNewCameraFOV = fFOVFactor * Maths::CalculateNewFOV_MultiplierBased(fOriginalCameraFOV, fAspectRatioScale);
 
 		std::uint8_t* ResolutionWidthScanResult = Memory::PatternScan(exeModule, "3C 81 FD 80 02 00 00 7C 46 8B");
 		if (ResolutionWidthScanResult)

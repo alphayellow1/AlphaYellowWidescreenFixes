@@ -194,7 +194,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraFOV]
+		fmul dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -232,7 +232,7 @@ void FOVFix()
 
 			fNewCameraFOV = fOriginalCameraFOV * fEffectiveFOVFactor;
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

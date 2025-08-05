@@ -225,18 +225,18 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVProjectionScanResult = Memory::PatternScan(dllModule2, "B9 00 00 80 3F 89 8E 40 01 00 00 C7 46 50 00 3C 1C C6 89 8E A4 00 00 00");
-		if (CameraFOVProjectionScanResult)
+		std::uint8_t* CameraFOVProjectionInstructionScanResult = Memory::PatternScan(dllModule2, "B9 00 00 80 3F 89 8E 40 01 00 00 C7 46 50 00 3C 1C C6 89 8E A4 00 00 00");
+		if (CameraFOVProjectionInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Projection: Address is Engine.dll+{:x}", CameraFOVProjectionScanResult + 1 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Projection Instruction: Address is Engine.dll+{:x}", CameraFOVProjectionInstructionScanResult + 1 - (std::uint8_t*)dllModule2);
 
 			fNewCameraFOVProjection = 1.0f / fAspectRatioScale;
 
-			Memory::Write(CameraFOVProjectionScanResult + 1, fNewCameraFOVProjection);
+			Memory::Write(CameraFOVProjectionInstructionScanResult + 1, fNewCameraFOVProjection);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV memory address.");
+			spdlog::error("Failed to locate camera FOV projection instruction memory address.");
 			return;
 		}
 
@@ -245,15 +245,13 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is Entities.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			uint32_t imm = *reinterpret_cast<uint32_t*>(CameraFOVInstructionScanResult + 1);
-
-			CameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm);
+			CameraFOVValueAddress = Memory::GetAddress32(CameraFOVInstructionScanResult + 1);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVValueAddress);
 
@@ -264,7 +262,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}

@@ -187,11 +187,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::ACSR && bFixActive == true)
@@ -213,7 +208,7 @@ void FOVFix()
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});

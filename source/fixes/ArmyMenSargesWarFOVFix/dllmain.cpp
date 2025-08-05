@@ -190,11 +190,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::AMSW && bFixActive == true)
@@ -218,11 +213,11 @@ void FOVFix()
 
 				if (fCurrentCameraHFOV == 0.5773502588f)
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				*reinterpret_cast<float*>(ctx.eax + 0x68) = fNewCameraHFOV;
@@ -260,11 +255,11 @@ void FOVFix()
 
 				if (fCurrentCameraHFOV2 == 0.7002075315f)
 				{
-					fNewCameraHFOV2 = CalculateNewFOV(fCurrentCameraHFOV2) * fFOVFactor;
+					fNewCameraHFOV2 = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV2, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraHFOV2 = CalculateNewFOV(fCurrentCameraHFOV2);
+					fNewCameraHFOV2 = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV2, fAspectRatioScale);
 				}
 
 				*reinterpret_cast<float*>(ctx.eax + 0x68) = fNewCameraHFOV2;

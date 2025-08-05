@@ -215,11 +215,6 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 static SafetyHookMid CameraVFOVInstructionHook{};
 
 void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -238,7 +233,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
 
-	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{
@@ -259,14 +254,17 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolutions Scan: Address is osr_dx8_vf.dll+{:x}", ResolutionsScanResult - (std::uint8_t*)dllModule);
 
+			// 640x480
 			Memory::Write(ResolutionsScanResult + 11, iCurrentResX);
 
 			Memory::Write(ResolutionsScanResult + 15, iCurrentResY);
 
+			// 800x600
 			Memory::Write(ResolutionsScanResult + 19, iCurrentResX);
 
 			Memory::Write(ResolutionsScanResult + 23, iCurrentResY);
 
+			// 1024x768
 			Memory::Write(ResolutionsScanResult + 27, iCurrentResX);
 
 			Memory::Write(ResolutionsScanResult + 31, iCurrentResY);
@@ -284,7 +282,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, CameraVFOVInstructionMidHook);
 		}
 		else
 		{

@@ -41,9 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float epsilon = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -53,18 +51,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -116,7 +103,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -194,17 +181,10 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
-}
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 void FOVFix()
@@ -212,6 +192,8 @@ void FOVFix()
 	if (eGameType == Game::AKTS && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* AspectRatioAndCameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 44 24 04 8B 54 24 08 89 81 A4 00 00 00 8B 44 24 0C");
 		if (AspectRatioAndCameraFOVInstructionsScanResult)
@@ -224,7 +206,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-				fCurrentCameraFOV = CalculateNewFOV(50.0f);
+				fCurrentCameraFOV = Maths::CalculateNewFOV_DegBased(50.0f, fAspectRatioScale);
 
 				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esp + 0x8);
 

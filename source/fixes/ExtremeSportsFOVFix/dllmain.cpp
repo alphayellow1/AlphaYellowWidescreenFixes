@@ -41,6 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalAspectRatio = 4.0f;
 
 // Ini variables
 bool bFixActive;
@@ -49,7 +50,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
-float fNewAspectRatio1;
+float fNewAspectRatio;
 float fNewAspectRatio2;
 float fNewCameraFOV;
 float fAspectRatioScale;
@@ -188,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -201,11 +197,11 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV == 1.428147912f)
 	{
-		fNewCameraFOV = fFOVFactor * CalculateNewFOV(fCurrentCameraFOV);
+		fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale);
 	}
 
 	_asm
@@ -218,18 +214,18 @@ void FOVFix()
 {
 	if (eGameType == Game::ES && bFixActive == true)
 	{
-		fNewAspectRatio2 = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fAspectRatioScale = fNewAspectRatio2 / fOldAspectRatio;
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "87 82 89 42 ?? ?? ?? ?? 00 00 00 A0");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 4 - (std::uint8_t*)exeModule);
 
-			fNewAspectRatio1 = fNewAspectRatio2 * 0.75f * 4.0f;
+			fNewAspectRatio2 = Maths::CalculateNewFOV_MultiplierBased(fOriginalAspectRatio, fAspectRatioScale);
 
-			Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio1);
+			Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio2);
 		}
 		else
 		{

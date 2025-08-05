@@ -43,7 +43,6 @@ std::string sExeName;
 bool bFixActive;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
@@ -59,18 +58,6 @@ float fNewCameraFOV4;
 float fNewWeaponFOV;
 float fNewBulletCameraFOV1;
 float fNewBulletCameraFOV2;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -206,18 +193,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 static SafetyHookMid WeaponFOVInstructionHook{};
 
 void WeaponFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.ecx + 0x80);
 
-	fNewWeaponFOV = CalculateNewFOV(fCurrentWeaponFOV);
+	fNewWeaponFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponFOV, fAspectRatioScale);
 
 	_asm
 	{
@@ -269,7 +251,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV1 = CalculateNewFOV(70.0f) * fFOVFactor;
+			fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(70.0f, fAspectRatioScale) * fFOVFactor;
 
 			Memory::Write(CameraFOVInstruction1ScanResult + 1, fNewCameraFOV1);
 		}
@@ -284,7 +266,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV2 = CalculateNewFOV(70.0f) * fFOVFactor;
+			fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(70.0f, fAspectRatioScale) * fFOVFactor;
 
 			Memory::Write(CameraFOVInstruction2ScanResult + 1, fNewCameraFOV2);
 		}
@@ -299,7 +281,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
 			
-			fNewCameraFOV3 = CalculateNewFOV(70.0f);
+			fNewCameraFOV3 = Maths::CalculateNewFOV_DegBased(70.0f, fAspectRatioScale);
 			
 			Memory::Write(CameraFOVInstruction3ScanResult + 1, fNewCameraFOV3);
 		}
@@ -314,7 +296,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction4ScanResult - (std::uint8_t*)exeModule);
 			
-			fNewCameraFOV4 = CalculateNewFOV(65.0f);
+			fNewCameraFOV4 = Maths::CalculateNewFOV_DegBased(65.0f, fAspectRatioScale);
 
 			Memory::Write(CameraFOVInstruction4ScanResult + 4, fNewCameraFOV4);
 		}
@@ -344,7 +326,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Bullet Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), BulletCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			fNewBulletCameraFOV1 = CalculateNewFOV(90.0f);
+			fNewBulletCameraFOV1 = Maths::CalculateNewFOV_DegBased(90.0f, fAspectRatioScale);
 
 			Memory::Write(BulletCameraFOVInstructionScanResult + 3, fNewBulletCameraFOV1);
 		}
@@ -359,7 +341,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Bullet Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), BulletCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 			
-			fNewBulletCameraFOV2 = CalculateNewFOV(95.0f);
+			fNewBulletCameraFOV2 = Maths::CalculateNewFOV_DegBased(95.0f, fAspectRatioScale);
 
 			Memory::Write(BulletCameraFOVInstruction2ScanResult + 3, fNewBulletCameraFOV2);
 		}

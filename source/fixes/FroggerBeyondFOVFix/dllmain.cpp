@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -51,6 +49,8 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraHFOVAndVFOV;
+float fAspectRatioScale;
+float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -102,7 +102,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -148,8 +148,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -190,7 +192,9 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewCameraHFOVAndVFOV = 0.6999999881f / (fOldAspectRatio / fNewAspectRatio);
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		fNewCameraHFOVAndVFOV = Maths::CalculateNewFOV_MultiplierBased(0.6999999881f, fAspectRatioScale) * fFOVFactor;
 
 		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "C7 45 DC 33 33 33 3F 83 7D 08");
 		if (CameraHFOVScanResult)

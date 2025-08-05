@@ -194,7 +194,7 @@ void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fld qword ptr ds: [dNewAspectRatio]
+		fld qword ptr ds:[dNewAspectRatio]
 	}
 }
 
@@ -204,7 +204,7 @@ void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fld qword ptr ds : [dNewAspectRatio]
+		fld qword ptr ds:[dNewAspectRatio]
 	}
 }
 
@@ -221,7 +221,7 @@ void FOVFix()
 		{
 			Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, AspectRatioInstruction1MidHook);
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult, AspectRatioInstruction1MidHook);
 		}
 
 		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? 83 EC 08 DD 1C 24 8B 55 08 D9 42 18 83 EC 08");
@@ -229,7 +229,7 @@ void FOVFix()
 		{
 			Memory::PatchBytes(AspectRatioInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult + 6, AspectRatioInstruction2MidHook);
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, AspectRatioInstruction2MidHook);
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 45 FC 5E BA 59 42 8D 4D E4 51 8B 4D B0");

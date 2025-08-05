@@ -192,7 +192,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds: [fNewCameraFOV]
+		fmul dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -202,7 +202,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fmul dword ptr ds : [fNewCameraFOV]
+		fmul dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -217,23 +217,28 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution List: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
+			// 640x480
 			Memory::Write(ResolutionListScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 12, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 16, iCurrentResX);
 
 			Memory::Write(ResolutionListScanResult + 24, iCurrentResY);
 
+			// 800x600
+			Memory::Write(ResolutionListScanResult + 4, iCurrentResX);
+
 			Memory::Write(ResolutionListScanResult + 28, iCurrentResY);
+
+			// 1024x768
+			Memory::Write(ResolutionListScanResult + 8, iCurrentResX);
 
 			Memory::Write(ResolutionListScanResult + 32, iCurrentResY);
 
+			// 1280x960
+			Memory::Write(ResolutionListScanResult + 12, iCurrentResX);
+
 			Memory::Write(ResolutionListScanResult + 36, iCurrentResY);
+
+			// 1600x1200
+			Memory::Write(ResolutionListScanResult + 16, iCurrentResX);			
 
 			Memory::Write(ResolutionListScanResult + 40, iCurrentResY);
 		}
@@ -248,6 +253,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Startup Loading Screen Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), StartupLoadingScreenResolutionScanResult - (std::uint8_t*)exeModule);
 			
+			// 640x480
 			Memory::Write(StartupLoadingScreenResolutionScanResult + 6, iCurrentResX);
 			
 			Memory::Write(StartupLoadingScreenResolutionScanResult + 1, iCurrentResY);
@@ -267,7 +273,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -282,7 +288,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 6, CameraFOVInstruction2MidHook);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
 		}
 		else
 		{

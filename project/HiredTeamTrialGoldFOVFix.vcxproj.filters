@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\fixes\GMRallyFOVFix\dllmain.cpp">
+    <ClCompile Include="..\source\fixes\HiredTeamTrialGoldFOVFix\dllmain.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
@@ -24,10 +24,5 @@
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\includes\maths.h">
-      <Filter>Arquivos de Cabeçalho</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>
