@@ -21,8 +21,7 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE dllModule2;
+HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
@@ -48,7 +47,6 @@ bool bFixActive;
 
 // New INI variables
 float fFOVFactor;
-float fRenderingDistanceFactor;
 
 // Variables
 int iCurrentResX;
@@ -162,11 +160,9 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "RenderingDistanceFactor", fRenderingDistanceFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-	spdlog_confparse(fRenderingDistanceFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
