@@ -7,13 +7,11 @@
 #include <inipp/inipp.h>
 #include <safetyhook.hpp>
 #include <vector>
-#include <algorithm>
 #include <map>
 #include <windows.h>
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -24,11 +22,10 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "HugoCannonCruiseWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "RapidGunnerTacticalShooterFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,15 +49,13 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
+float fNewCameraFOV;
 float fAspectRatioScale;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
 
 // Game detection
 enum class Game
 {
-	CONFIG,
-	HCC,
+	RGTS,
 	Unknown
 };
 
@@ -71,8 +66,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::CONFIG, {"Hugo: Cannon Cruise - Configuration", "Config.exe"}},
-	{Game::HCC, {"Hugo: Cannon Cruise", "CannonCruise.exe"}},
+	{Game::RGTS, {"Rapid Gunner: Tactical Shooter", "engine.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -148,7 +142,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -192,95 +186,48 @@ bool DetectGame()
 	return false;
 }
 
-void WidescreenFix()
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	if (bFixActive == true)
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx);
+
+	if (fCurrentCameraFOV == 90.0f)
 	{
-		if (eGameType == Game::CONFIG)
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
+void FOVFix()
+{
+	if (eGameType == Game::RGTS && bFixActive == true)
+	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 01 C3 CC CC CC CC CC CC CC CC CC CC CC CC CC");
+		if (CameraFOVInstructionScanResult)
 		{
-			std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "89 10 89 70 04 5F 5E C3 90 90 90 90");
-			if (ResolutionInstructionsScanResult)
-			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90", 5);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90", 2);
 
-				static SafetyHookMid ResolutionInstructionsMidHook{};
-
-				ResolutionInstructionsMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
-				{
-					*reinterpret_cast<int*>(ctx.eax) = iCurrentResX;
-
-					*reinterpret_cast<int*>(ctx.eax + 0x4) = iCurrentResY;
-				});
-			}
-			else
-			{
-				spdlog::error("Failed to locate resolution instructions scan memory address.");
-				return;
-			}
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
-
-		if (eGameType == Game::HCC)
+		else
 		{
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
-			if (CameraFOVInstructionScanResult)
-			{
-				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
-
-				static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-				CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
-
-					if (fCurrentCameraHFOV == 1.000000119f)
-					{
-						fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
-					}
-					else if (fCurrentCameraHFOV != 0.577350259f && fCurrentCameraHFOV != 1.000000000f && fCurrentCameraHFOV != 1.732051373f)
-					{
-						fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
-					}
-					else
-					{
-						fNewCameraHFOV = fCurrentCameraHFOV;
-					}
-
-					*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
-				});
-
-				Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3); // NOP out the original instruction
-
-				static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-				CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
-				{
-					float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
-
-					if (fCurrentCameraVFOV == 0.7500001192f)
-					{
-						fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor;
-					}
-					else
-					{
-						fNewCameraVFOV = fCurrentCameraVFOV;
-					}
-
-					*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
-				});
-			}
-			else
-			{
-				spdlog::error("Failed to locate camera FOV instruction memory address.");
-				return;
-			}
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
 		}
 	}
 }
@@ -291,7 +238,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
