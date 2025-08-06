@@ -41,92 +41,101 @@ T readValue(const std::string& prompt)
 // Core search loop, parameterized on T
 template<typename T>
 void findPairs(const std::vector<char>& buffer,
-    T firstValue, T secondValue,
+    T firstValue,
+    T secondValue,
     size_t byteRange)
 {
     const size_t N = sizeof(T);
-    // how many “starts” we can read
     const size_t totalStarts = (buffer.size() >= N ? buffer.size() - N + 1 : 0);
 
-    // 1) First pass: find all positions where buffer[i]==firstValue
+    // ——— DRY RUNS ———————————————————————————————————————————————
+    std::vector<size_t> initialCandidates;
+    initialCandidates.reserve(1024);
+    for (size_t i = 0; i < totalStarts; ++i) {
+        T curr;
+        std::memcpy(&curr, &buffer[i], N);
+        if (curr == firstValue)
+            initialCandidates.push_back(i);
+    }
+
+    size_t phase1Steps = totalStarts;
+    size_t phase2Steps = 0;
+    for (size_t i : initialCandidates) {
+        size_t start = (i > byteRange ? i - byteRange : 0);
+        size_t end = std::min(buffer.size() - N, i + byteRange);
+        phase2Steps += (end - start + 1);
+    }
+    const size_t totalSteps = phase1Steps + phase2Steps;
+
+    // ——— PROGRESS BAR SETUP ——————————————————————————————————————
+    const int  BAR_WIDTH = 50;
+    size_t     workDone = 0;
+    size_t     lastPos = SIZE_MAX;   // forces initial draw
+    const std::string PREFIX = "Scanning for matches... ";
+
+    auto drawBar = [&](bool force = false) {
+        if (totalSteps == 0) return;
+        double frac = double(workDone) / double(totalSteps);
+        size_t pos = size_t(frac * BAR_WIDTH + 0.5);
+        if (force || pos != lastPos) {
+            std::cout << '\r' << PREFIX << '[';
+            for (int x = 0; x < BAR_WIDTH; ++x)
+                std::cout << (x < pos ? '=' : ' ');
+            std::cout << "] "
+                << std::setw(3) << int(frac * 100 + 0.5)
+                << '%' << std::flush;
+            lastPos = pos;
+        }
+        };
+
+    // one-line prefix+bar
+    std::cout << '\n';
+    drawBar(/*force=*/true);
+
+    // ——— SCAN PASSES ——————————————————————————————————————————————
     std::vector<size_t> candidates;
-    candidates.reserve(1024);
+    candidates.reserve(initialCandidates.size());
     for (size_t i = 0; i < totalStarts; ++i) {
         T curr;
         std::memcpy(&curr, &buffer[i], N);
         if (curr == firstValue)
             candidates.push_back(i);
-    }
 
-    // 2) Count how many inner‐checks we’ll do
-    size_t phase1Steps = totalStarts;
-    size_t phase2Steps = 0;
-    for (size_t i : candidates) {
-        size_t start = (i > byteRange ? i - byteRange : 0);
-        size_t end = std::min(buffer.size() - N, i + byteRange);
-        phase2Steps += (end - start + 1);
-    }
-    size_t totalSteps = phase1Steps + phase2Steps;
-
-    // 3) Set up a bar‐drawing lambda
-    const int BAR_WIDTH = 50;
-    size_t workDone = 0;
-    size_t lastPct = 0;
-
-    auto drawBar = [&]() {
-        size_t pct = workDone * 100 / totalSteps;
-        if (pct != lastPct) {
-            size_t pos = pct * BAR_WIDTH / 100;
-            std::cout << '\r' << '[';
-            for (int x = 0; x < BAR_WIDTH; ++x)
-                std::cout << (x < pos ? '=' : ' ');
-            std::cout << "] " << std::setw(3) << pct << '%' << std::flush;
-            lastPct = pct;
-        }
-        };
-
-    // 4) Initial empty bar
-    std::cout << '\n' << '[' << std::string(BAR_WIDTH, ' ') << "]   0%" << std::flush;
-
-    // 5) Phase 1: tick for every start
-    for (size_t i = 0; i < totalStarts; ++i) {
         ++workDone;
         drawBar();
     }
 
-    // 6) Phase 2: do each inner‐loop check and record matches
     std::vector<std::pair<size_t, size_t>> found;
     for (size_t i : candidates) {
         size_t start = (i > byteRange ? i - byteRange : 0);
         size_t end = std::min(buffer.size() - N, i + byteRange);
         for (size_t j = start; j <= end; ++j) {
-            ++workDone;
-            drawBar();
-
             T tmp;
             std::memcpy(&tmp, &buffer[j], N);
             if (tmp == secondValue)
                 found.emplace_back(i, j);
+
+            ++workDone;
+            drawBar();
         }
     }
 
-    // 7) Ensure we’ve hit 100%
+    // ——— FINISH AT 100% ————————————————————————————————————————
     workDone = totalSteps;
-    drawBar();
+    drawBar(/*force=*/true);
 
-    // 8) Erase the bar line (cover `[=====]100%`)
-    std::cout << '\r' << std::string(BAR_WIDTH + 2 + 1 + 3 + 1 + 2, ' ') << '\r';
+    // clear the entire line (prefix + bar + percent)
+    size_t clearLen = PREFIX.size() + BAR_WIDTH + 7;
+    std::cout << '\r' << std::string(clearLen, ' ') << '\r';
 
-    // 9) Print results
+    // ——— REPORT RESULTS ——————————————————————————————————————
     if (found.empty())
     {
         std::cout << "No matches found within " << byteRange << " bytes.\n";
     }
     else
     {
-        // Print count (singular vs. plural)
         std::cout << "Found " << found.size() << (found.size() == 1 ? " pair" : " pairs") << " within " << byteRange << " bytes at the following addresses:\n";
-
         for (auto& p : found)
         {
             std::cout << "First value (" << firstValue
@@ -188,94 +197,85 @@ template<typename T> T readInput(T minValue, T maxValue)
 
 std::vector<char> readFileBuffer(const std::string& prompt)
 {
-    const auto BAR_WIDTH     = 40;
-    const auto SHOW_AFTER_MS = 100;      // ms before the bar appears
-    const auto CHUNK_SIZE    = 1 << 20;  // 1 MiB per read
+    const int    BAR_WIDTH = 40;
+    const size_t CHUNK_SIZE = 1 << 20;  // 1 MiB
+    const std::string LOADING_TEXT = "Loading file... ";
 
     while (true)
     {
+        // 1) ask for filename
         std::cout << prompt;
         std::string fileName;
         if (!std::getline(std::cin, fileName))
             std::exit(1);
 
+        // 2) open it
         std::ifstream file(fileName, std::ios::binary | std::ios::ate);
-        if (!file)
-        {
+        if (!file) {
             std::cerr << "Could not open \"" << fileName << "\". Try again.\n\n";
             continue;
         }
 
-        // 1) Get total size
-        auto fileSize = file.tellg();
+        // 3) determine size
+        size_t fileSize = size_t(file.tellg());
         file.seekg(0, std::ios::beg);
 
         std::vector<char> buf;
-        buf.reserve(size_t(fileSize));
+        buf.reserve(fileSize);
 
-        // 2) Prepare for timed reads
-        auto startTime = std::chrono::steady_clock::now();
-        bool showBar = false;
-        size_t bytesRead = 0, lastPct = 0;
+        // 4) progress state
+        size_t bytesRead = 0;
+        size_t lastPos = SIZE_MAX;
+        const size_t totalSteps = fileSize;
 
-        // 3) Read in chunks
-        while (bytesRead < size_t(fileSize))
-        {
-            size_t toRead = std::min<size_t>(CHUNK_SIZE, size_t(fileSize) - bytesRead);
-            buf.resize(bytesRead + toRead);
-
-            file.read(buf.data() + bytesRead, toRead);
-            size_t justRead = file.gcount();
-            if (!justRead) break;
-
-            bytesRead += justRead;
-
-            // 4) Decide if we should show the progress bar yet
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
-
-            if (elapsed > SHOW_AFTER_MS || showBar)
-            {
-                if (!showBar)
-                {
-                    // first time we decide to show progress:
-                    // print "Loading file..." plus newline, then draw the empty bar
-                    std::cout << "\rLoading file... ["
-                        << std::string(BAR_WIDTH, ' ')
-                        << "]   0%" << std::flush;
-                    showBar = true;
-                }
-
-                // update bar exactly as before, with '\r' then [===] XX%
-                size_t pct = bytesRead * 100 / size_t(fileSize);
-                if (pct != lastPct)
-                {
-                    size_t pos = pct * BAR_WIDTH / 100;
-                    std::cout << '\r' << "Loading file... [";
-                    for (int x = 0; x < BAR_WIDTH; ++x)
-                        std::cout << (x < pos ? '=' : ' ');
-                    std::cout << "] " << std::setw(3) << pct << '%' << std::flush;
-                    lastPct = pct;
-                }
+        auto drawBar = [&](bool force = false) {
+            if (totalSteps == 0) return;               // nothing to do
+            double frac = double(bytesRead) / totalSteps;
+            size_t pos = size_t(frac * BAR_WIDTH + 0.5);
+            if (force || pos != lastPos) {
+                // print prefix + bar + percent
+                std::cout << '\r' << LOADING_TEXT << '[';
+                for (int i = 0; i < BAR_WIDTH; ++i)
+                    std::cout << (i < pos ? '=' : ' ');
+                std::cout << "] "
+                    << std::setw(3) << int(frac * 100 + 0.5)
+                    << '%' << std::flush;
+                lastPos = pos;
             }
+            };
+
+        // 5) initial draw at 0%
+        std::cout << '\n';
+        drawBar(/*force=*/true);
+
+        // 6) read in chunks, updating bar
+        while (bytesRead < fileSize) {
+            size_t toRead = std::min(CHUNK_SIZE, fileSize - bytesRead);
+            buf.resize(bytesRead + toRead);
+            file.read(buf.data() + bytesRead, toRead);
+            size_t justRead = size_t(file.gcount());
+            if (justRead == 0) break;
+            bytesRead += justRead;
+            drawBar();
         }
 
+        // 7) force 100% and then fully clear that entire line
+        bytesRead = fileSize;
+        drawBar(/*force=*/true);
+
+        // total length = prefix + '[' + BAR_WIDTH + ']' + space + "100%" = 
+        // LOADING_TEXT.size() + 1 + BAR_WIDTH + 1 + 1 + 4
+        size_t clearLen = LOADING_TEXT.size() + BAR_WIDTH + 7;
         std::cout << '\r'
-            << std::string(BAR_WIDTH + /*brackets*/2
-                + /*space*/1
-                + /*digits*/3
-                + /*percent*/1
-                + /*"Loading file... [] "%*/16, ' ')
-            << '\r'
-            << std::flush;
+            << std::string(clearLen, ' ')
+            << '\r';
 
-        // THEN emit a newline so the menu prints on line 2
-        std::cout << '\n';
-
-        // 6) If we read the whole file, return it
-        if (bytesRead == size_t(fileSize))
+        // 8) done?
+        if (bytesRead == fileSize)
+        {
             return buf;
+        }           
 
-        // Otherwise something went wrong
         std::cerr << "Error reading \"" << fileName << "\". Try again.\n";
     }
 }
