@@ -226,8 +226,8 @@ int main()
 
         // 3) ask to try again or exit
         cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-
-		again = readInput<char>('1', '2');
+        
+        again = readInput<char>('1', '2');
     } while (again == '2');
 
     cout << "\nPress Enter to exit...";
