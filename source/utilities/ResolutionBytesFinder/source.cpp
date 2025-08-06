@@ -9,93 +9,139 @@
 #include <type_traits>
 #include <sstream>
 #include <cstdlib>
-
-using namespace std;
+#include <thread>
+#include <chrono>
+#include <algorithm>
 
 // Helper: read one value of type T from stdin, retrying on failure
 template<typename T>
-T readValue(const string& prompt)
+T readValue(const std::string& prompt)
 {
     T v;
 
     while (true)
     {
-        cout << prompt;
+        std::cout << prompt;
 
-        if (cin >> v)
+        if (std::cin >> v)
         {
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
             return v;
         }
 
-        cin.clear();
+        std::cin.clear();
 
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-        cout << "Invalid, please enter a value of the correct type.\n";
+        std::cout << "Invalid, please enter a value of the correct type.\n";
     }
 }
 
 // Core search loop, parameterized on T
 template<typename T>
-void findPairs(const vector<char> &buffer, T firstValue, T secondValue, size_t byteRange)
+void findPairs(const std::vector<char>& buffer,
+    T firstValue, T secondValue,
+    size_t byteRange)
 {
     const size_t N = sizeof(T);
+    // how many “starts” we can read
+    const size_t totalStarts = (buffer.size() >= N ? buffer.size() - N + 1 : 0);
 
-    vector<pair<size_t,size_t>> found;
-
-    for (size_t i = 0; i + N <= buffer.size(); ++i)
-    {
+    // 1) First pass: find all positions where buffer[i]==firstValue
+    std::vector<size_t> candidates;
+    candidates.reserve(1024);
+    for (size_t i = 0; i < totalStarts; ++i) {
         T curr;
-
-        memcpy(&curr, &buffer[i], N);
-
+        std::memcpy(&curr, &buffer[i], N);
         if (curr == firstValue)
-        {
-            size_t start = (i > byteRange ? i - byteRange : 0);
+            candidates.push_back(i);
+    }
 
-            size_t end = min(buffer.size() - N, i + byteRange);
+    // 2) Count how many inner‐checks we’ll do
+    size_t phase1Steps = totalStarts;
+    size_t phase2Steps = 0;
+    for (size_t i : candidates) {
+        size_t start = (i > byteRange ? i - byteRange : 0);
+        size_t end = std::min(buffer.size() - N, i + byteRange);
+        phase2Steps += (end - start + 1);
+    }
+    size_t totalSteps = phase1Steps + phase2Steps;
 
-            for (size_t j = start; j <= end; ++j)
-            {
-                T tmp;
+    // 3) Set up a bar‐drawing lambda
+    const int BAR_WIDTH = 50;
+    size_t workDone = 0;
+    size_t lastPct = 0;
 
-                memcpy(&tmp, &buffer[j], N);
+    auto drawBar = [&]() {
+        size_t pct = workDone * 100 / totalSteps;
+        if (pct != lastPct) {
+            size_t pos = pct * BAR_WIDTH / 100;
+            std::cout << '\r' << '[';
+            for (int x = 0; x < BAR_WIDTH; ++x)
+                std::cout << (x < pos ? '=' : ' ');
+            std::cout << "] " << std::setw(3) << pct << '%' << std::flush;
+            lastPct = pct;
+        }
+        };
 
-                if (tmp == secondValue)
-                {
-                    found.emplace_back(i, j);
-                }
-            }
+    // 4) Initial empty bar
+    std::cout << '\n' << '[' << std::string(BAR_WIDTH, ' ') << "]   0%" << std::flush;
+
+    // 5) Phase 1: tick for every start
+    for (size_t i = 0; i < totalStarts; ++i) {
+        ++workDone;
+        drawBar();
+    }
+
+    // 6) Phase 2: do each inner‐loop check and record matches
+    std::vector<std::pair<size_t, size_t>> found;
+    for (size_t i : candidates) {
+        size_t start = (i > byteRange ? i - byteRange : 0);
+        size_t end = std::min(buffer.size() - N, i + byteRange);
+        for (size_t j = start; j <= end; ++j) {
+            ++workDone;
+            drawBar();
+
+            T tmp;
+            std::memcpy(&tmp, &buffer[j], N);
+            if (tmp == secondValue)
+                found.emplace_back(i, j);
         }
     }
 
-    size_t count = found.size();
+    // 7) Ensure we’ve hit 100%
+    workDone = totalSteps;
+    drawBar();
 
-    if (count == 0)
+    // 8) Erase the bar line (cover `[=====]100%`)
+    std::cout << '\r' << std::string(BAR_WIDTH + 2 + 1 + 3 + 1 + 2, ' ') << '\r';
+
+    // 9) Print results
+    if (found.empty())
     {
-        cout << "No matches found within " << byteRange << " bytes.\n";
-        return;
+        std::cout << "No matches found within " << byteRange << " bytes.\n";
     }
-
-    // Print count (singular vs. plural)
-    cout << "\nFound " << count << (count == 1 ? " pair" : " pairs") << " within " << byteRange << " bytes at the following addresses:\n";
-
-    for (auto& p : found)
+    else
     {
-        cout << "First value (" << firstValue
-            << ") at: " << right << setw(8) << setfill('0') << hex << uppercase
-            << p.first << dec << setfill(' ')
-            << ", Second value (" << secondValue
-            << ") at: " << right << setw(8) << setfill('0') << hex << uppercase
-            << p.second << dec << setfill(' ')
-            << "\n";
+        // Print count (singular vs. plural)
+        std::cout << "Found " << found.size() << (found.size() == 1 ? " pair" : " pairs") << " within " << byteRange << " bytes at the following addresses:\n";
+
+        for (auto& p : found)
+        {
+            std::cout << "First value (" << firstValue
+                << ") at: " << std::right << std::setw(8) << std::setfill('0') << std::hex << std::uppercase
+                << p.first << std::dec << std::setfill(' ')
+                << ", Second value (" << secondValue
+                << ") at: " << std::right << std::setw(8) << std::setfill('0') << std::hex << std::uppercase
+                << p.second << std::dec << std::setfill(' ')
+                << "\n";
+        }
     }
 }
 
 template<typename T>
-void handleTypeSearch(const vector<char>& buffer)
+void handleTypeSearch(const std::vector<char>& buffer)
 {
     // build the prompts dynamically
     auto firstPrompt = "\n- Enter the first value: ";
@@ -140,36 +186,103 @@ template<typename T> T readInput(T minValue, T maxValue)
     }
 }
 
-vector<char> readFileBuffer(const string& prompt)
+std::vector<char> readFileBuffer(const std::string& prompt)
 {
+    const auto BAR_WIDTH     = 40;
+    const auto SHOW_AFTER_MS = 100;      // ms before the bar appears
+    const auto CHUNK_SIZE    = 1 << 20;  // 1 MiB per read
+
     while (true)
     {
-        cout << prompt;
+        std::cout << prompt;
+        std::string fileName;
+        if (!std::getline(std::cin, fileName))
+            std::exit(1);
 
-        string fileName;
-
-        if (!getline(cin, fileName))
+        std::ifstream file(fileName, std::ios::binary | std::ios::ate);
+        if (!file)
         {
-            exit(1);  // EOF or terminal error
+            std::cerr << "Could not open \"" << fileName << "\". Try again.\n\n";
+            continue;
         }
 
-        ifstream file(fileName, ios::binary);
+        // 1) Get total size
+        auto fileSize = file.tellg();
+        file.seekg(0, std::ios::beg);
 
-        if (file)
+        std::vector<char> buf;
+        buf.reserve(size_t(fileSize));
+
+        // 2) Prepare for timed reads
+        auto startTime = std::chrono::steady_clock::now();
+        bool showBar = false;
+        size_t bytesRead = 0, lastPct = 0;
+
+        // 3) Read in chunks
+        while (bytesRead < size_t(fileSize))
         {
-            // read whole file
-            vector<char> buf((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
+            size_t toRead = std::min<size_t>(CHUNK_SIZE, size_t(fileSize) - bytesRead);
+            buf.resize(bytesRead + toRead);
 
+            file.read(buf.data() + bytesRead, toRead);
+            size_t justRead = file.gcount();
+            if (!justRead) break;
+
+            bytesRead += justRead;
+
+            // 4) Decide if we should show the progress bar yet
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
+
+            if (elapsed > SHOW_AFTER_MS || showBar)
+            {
+                if (!showBar)
+                {
+                    // first time we decide to show progress:
+                    // print "Loading file..." plus newline, then draw the empty bar
+                    std::cout << "\rLoading file... ["
+                        << std::string(BAR_WIDTH, ' ')
+                        << "]   0%" << std::flush;
+                    showBar = true;
+                }
+
+                // update bar exactly as before, with '\r' then [===] XX%
+                size_t pct = bytesRead * 100 / size_t(fileSize);
+                if (pct != lastPct)
+                {
+                    size_t pos = pct * BAR_WIDTH / 100;
+                    std::cout << '\r' << "Loading file... [";
+                    for (int x = 0; x < BAR_WIDTH; ++x)
+                        std::cout << (x < pos ? '=' : ' ');
+                    std::cout << "] " << std::setw(3) << pct << '%' << std::flush;
+                    lastPct = pct;
+                }
+            }
+        }
+
+        std::cout << '\r'
+            << std::string(BAR_WIDTH + /*brackets*/2
+                + /*space*/1
+                + /*digits*/3
+                + /*percent*/1
+                + /*"Loading file... [] "%*/16, ' ')
+            << '\r'
+            << std::flush;
+
+        // THEN emit a newline so the menu prints on line 2
+        std::cout << '\n';
+
+        // 6) If we read the whole file, return it
+        if (bytesRead == size_t(fileSize))
             return buf;
-        }
 
-        cerr << "Could not open file \"" << fileName << "\". Please try again.\n";
+        // Otherwise something went wrong
+        std::cerr << "Error reading \"" << fileName << "\". Try again.\n";
     }
 }
 
 int main()
 {
-    cout << "==== Resolution Bytes Finder v1.1 by AlphaYellow, 2025 ====\n\n";
+    std::cout << "==== Resolution Bytes Finder v1.1 by AlphaYellow, 2025 ====\n\n";
 
     auto buffer = readFileBuffer("- Enter file name: ");
 
@@ -178,15 +291,19 @@ int main()
     do
     {
         // 1) choose data type
-        enum TypeID { UINT8 = 1, INT16, UINT16, INT32, UINT32, FLOAT, DOUBLE };
+        enum TypeID {UINT8 = 1, INT16, UINT16, INT32, UINT32, FLOAT, DOUBLE, INT64, UINT64};
 
-        cout << "\n- Choose a data type:\n"
-             << " 1) 8-bit unsigned integer  2) 16-bit signed integer    3) 16-bit unsigned integer" << endl
-             << " 4) 32-bit signed integer   5) 32-bit unsigned integer  6) 32-bit floating point\n"
-             << " 7) 64-bit floating point\n"
-             << "Selection> ";
+        std::cout << "- Choose a data type:\n"
+            << "  Integer types:\n"
+            << "    1)  8-bit unsigned integer (uint8_t)    2) 16-bit signed integer (int16_t)\n"
+            << "    3) 16-bit unsigned integer (uint16_t)   4) 32-bit signed integer (int32_t)\n"
+            << "    5) 32-bit unsigned integer (uint32_t)   6) 64-bit signed integer (int64_t)\n"
+            << "    7) 64-bit unsigned integer (uint64_t)\n"
+            << "  Floating-point types:\n"
+            << "    8) 32-bit floating point (float)        9) 64-bit floating point (double)\n"
+            << "Selection> ";
         
-        int selectedType = readInput<int>(1, 7);
+        int selectedType = readInput<int>(1, 9);
 
         // 2) dispatch templated helper
         switch (selectedType)
@@ -211,6 +328,14 @@ int main()
             handleTypeSearch<uint32_t>(buffer);
             break;
 
+        case INT64:
+            handleTypeSearch<int64_t>(buffer);
+            break;
+
+        case UINT64:
+            handleTypeSearch<uint64_t>(buffer);
+            break;
+
         case FLOAT:
             handleTypeSearch<float>(buffer);
             break;
@@ -220,19 +345,21 @@ int main()
             break;
 
         default:
-            cout << "Unknown selection.\n";
+            std::cout << "Unknown selection.\n";
             break;
         }
 
         // 3) ask to try again or exit
-        cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
+        std::cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
         
         again = readInput<char>('1', '2');
+
+        std::cout << "\n";
     } while (again == '2');
 
-    cout << "\nPress Enter to exit...";
+    std::cout << "Press Enter to exit...";
 
-    cin.get();
+    std::cin.get();
 
     return 0;
 }
