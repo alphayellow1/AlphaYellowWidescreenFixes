@@ -669,6 +669,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "utilities", "utilities", "{
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ResolutionBytesFinder", "ResolutionBytesFinder.vcxproj", "{DC888733-C43D-4092-8712-A97788C97854}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BigScaleRacingFOVFix", "BigScaleRacingFOVFix.vcxproj", "{8ECDBAB9-321A-471D-904C-B8C227346224}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3325,6 +3327,14 @@ Global
 		{DC888733-C43D-4092-8712-A97788C97854}.Release|x64.Build.0 = Release|x64
 		{DC888733-C43D-4092-8712-A97788C97854}.Release|x86.ActiveCfg = Release|Win32
 		{DC888733-C43D-4092-8712-A97788C97854}.Release|x86.Build.0 = Release|Win32
+		{8ECDBAB9-321A-471D-904C-B8C227346224}.Debug|x64.ActiveCfg = Debug|x64
+		{8ECDBAB9-321A-471D-904C-B8C227346224}.Debug|x64.Build.0 = Debug|x64
+		{8ECDBAB9-321A-471D-904C-B8C227346224}.Debug|x86.ActiveCfg = Debug|Win32
+		{8ECDBAB9-321A-471D-904C-B8C227346224}.Debug|x86.Build.0 = Debug|Win32
+		{8ECDBAB9-321A-471D-904C-B8C227346224}.Release|x64.ActiveCfg = Release|x64
+		{8ECDBAB9-321A-471D-904C-B8C227346224}.Release|x64.Build.0 = Release|x64
+		{8ECDBAB9-321A-471D-904C-B8C227346224}.Release|x86.ActiveCfg = Release|Win32
+		{8ECDBAB9-321A-471D-904C-B8C227346224}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -3661,6 +3671,7 @@ Global
 		{451F6E03-2173-4AE0-8430-7CCE6E22AA4C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{18D1D9EB-C82E-4D6F-95F6-ACD2CC11BD5B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{DC888733-C43D-4092-8712-A97788C97854} = {900C644D-CD4C-4A4D-9540-5D3173FD62F0}
+		{8ECDBAB9-321A-471D-904C-B8C227346224} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
