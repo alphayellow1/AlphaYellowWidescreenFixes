@@ -264,7 +264,7 @@ void WeaponFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
 	double& dCurrentWeaponFOV3 = *reinterpret_cast<double*>(WeaponFOVValue3Address);
 
-	dNewWeaponFOV3 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV3, fAspectRatioScale) * (double)fWeaponFOVFactor;
+	dNewWeaponFOV3 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV3, fAspectRatioScale) * dWeaponFOVFactor;
 
 	_asm
 	{
