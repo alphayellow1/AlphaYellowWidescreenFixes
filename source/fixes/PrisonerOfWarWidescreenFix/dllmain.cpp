@@ -52,12 +52,10 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
-float fNewCameraFOV3;
 float fNewAspectRatio;
 float fFOVFactor;
 float fAspectRatioScale;
 float fNewCameraHFOV;
-static uint8_t* AspectRatioInstruction2AddressJumpBack;
 
 // Game detection
 enum class Game
@@ -342,14 +340,14 @@ void FOVFix()
 				return;
 			}
 
-			std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 81 E0 00 00 00 C3 90 90 90 90 90 90 90 90 90");
+			std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "90 90 90 90 90 90 D9 81 E0 00 00 00");
 			if (CameraFOVInstruction2ScanResult)
 			{
 				spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::PatchBytes(CameraFOVInstruction2ScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 				
-				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
+				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 6, CameraFOVInstruction2MidHook);
 			}
 			else
 			{
