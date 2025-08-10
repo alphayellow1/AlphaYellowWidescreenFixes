@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <charconv>
 #include <type_traits>
+#include <windows.h>
+#include <cstring>
+#include <array>
 
 namespace Memory
 {
@@ -22,6 +25,53 @@ namespace Memory
 		VirtualProtect((LPVOID)address, numBytes, PAGE_EXECUTE_READWRITE, &oldProtect);
 		memcpy((LPVOID)address, pattern, numBytes);
 		VirtualProtect((LPVOID)address, numBytes, oldProtect, &oldProtect);
+	}
+
+	bool PatchCallRel32(uint8_t* callSite, uint8_t* target, std::array<uint8_t, 5>* out_orig)
+	{
+		if (!callSite || !target)
+		{
+			return false;
+		}
+
+		if (callSite[0] != 0xE8)
+		{
+			return false;
+		}
+
+		if (out_orig) std::memcpy(out_orig->data(), callSite, 5);
+
+		intptr_t nextInstr = reinterpret_cast<intptr_t>(callSite) + 5;
+
+		intptr_t rel64 = reinterpret_cast<intptr_t>(target) - nextInstr;
+
+		if (rel64 < INT32_MIN || rel64 > INT32_MAX)
+		{
+			return false;
+		}
+
+		int32_t rel32 = static_cast<int32_t>(rel64);
+
+		uint8_t patch[5];
+
+		patch[0] = 0xE8;
+
+		std::memcpy(&patch[1], &rel32, sizeof(rel32));
+
+		DWORD oldProt;
+
+		if (!VirtualProtect(callSite, 5, PAGE_EXECUTE_READWRITE, &oldProt))
+		{
+			return false;
+		}
+
+		std::memcpy(callSite, patch, 5);
+
+		FlushInstructionCache(GetCurrentProcess(), callSite, 5);
+
+		VirtualProtect(callSite, 5, oldProt, &oldProt);
+
+		return true;
 	}
 
 	std::vector<int> pattern_to_byte(const char* pattern)
@@ -281,6 +331,32 @@ namespace Maths
 		for (char ch : str)
 		{
 			OutputChar out = static_cast<OutputChar>(ch);
+			Memory::Write(baseAddress, out);
+			baseAddress += sizeof(OutputChar);
+		}
+	}
+
+	template<Arithmetic T, typename OutputChar = char16_t>
+	inline void WriteNumberAsChar16Digits(std::uint8_t* baseAddress, T value)
+	{
+		std::string str;
+
+		if constexpr (Integral<T>)
+		{
+			// buffer size: digits10 + sign + null safety
+			char buf[std::numeric_limits<T>::digits10 + 3];
+			auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), value);
+			str.assign(buf, p);
+		}
+		else
+		{
+			str = std::to_string(value);
+		}
+
+		for (char ch : str)
+		{
+			// cast via unsigned char to avoid sign-extension on platforms where char is signed
+			OutputChar out = static_cast<OutputChar>(static_cast<unsigned char>(ch));
 			Memory::Write(baseAddress, out);
 			baseAddress += sizeof(OutputChar);
 		}
