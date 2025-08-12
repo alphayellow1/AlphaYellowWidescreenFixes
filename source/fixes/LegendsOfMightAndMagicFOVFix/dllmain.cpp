@@ -41,7 +41,10 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
+constexpr float fDefaultCameraHFOV = 1.5707963705062866f;
+constexpr float fDefaultCameraVFOV = 1.1780972480773926f;
+constexpr float MinimumHFOVUnderwater = 1.55f;
+constexpr float MaximumHFOVUnderwater = 1.65f;
 
 // Ini variables
 bool bFixActive;
@@ -54,6 +57,8 @@ float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fFOVFactor;
+float MinimumVFOVUnderwater = 1.05f / fAspectRatioScale;
+float MaximumVFOVUnderwater = 1.27f / fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -189,51 +194,6 @@ bool DetectGame()
 	return false;	
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
-}
-
-bool bIsDefaultVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
-}
-
-bool bIsCroppedVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
-}
-
-float MinimumVFOVUnderwater()
-{
-	return 1.05f / fAspectRatioScale;
-}
-
-float MaximumVFOVUnderwater()
-{
-	return 1.27f / fAspectRatioScale;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::LOMM && bFixActive == true)
@@ -255,19 +215,19 @@ void FOVFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
-				if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
+				if (Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV / fAspectRatioScale)))
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 				}
-				else if ((fCurrentCameraHFOV > 1.55f && fCurrentCameraHFOV < 1.65f) && (fCurrentCameraVFOV2 > MinimumVFOVUnderwater() && fCurrentCameraVFOV2 < MaximumVFOVUnderwater()))
+				else if ((fCurrentCameraHFOV > MinimumHFOVUnderwater && fCurrentCameraHFOV < MaximumHFOVUnderwater) && (fCurrentCameraVFOV > MinimumVFOVUnderwater && fCurrentCameraVFOV < MaximumVFOVUnderwater))
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -290,21 +250,21 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
 				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x198);
 
-				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+
+				if (Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) && (Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV / fAspectRatioScale)))
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
 				}
-				else if ((fCurrentCameraHFOV2 > 1.55f && fCurrentCameraHFOV2 < 1.65f) && (fCurrentCameraVFOV > MinimumVFOVUnderwater() && fCurrentCameraVFOV < MaximumVFOVUnderwater()))
+				else if ((fCurrentCameraHFOV2 > MinimumHFOVUnderwater && fCurrentCameraHFOV2 < MaximumHFOVUnderwater) && (fCurrentCameraVFOV2 > MinimumVFOVUnderwater && fCurrentCameraVFOV2 < MaximumVFOVUnderwater))
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
 				}
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);

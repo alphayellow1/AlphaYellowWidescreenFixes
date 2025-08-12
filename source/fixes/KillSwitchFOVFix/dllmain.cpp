@@ -189,18 +189,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CutscenesCameraFOVInstructionHook{};
 
 void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCutscenesCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
 
-	fNewCutscenesCameraFOV = CalculateNewFOV(fCurrentCutscenesCameraFOV);
+	fNewCutscenesCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCutscenesCameraFOV, fAspectRatioScale);
 
 	_asm
 	{
@@ -216,11 +211,11 @@ void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	if (fCurrentGameplayCameraFOV == 0.7853981853f)
 	{
-		fNewGameplayCameraFOV = CalculateNewFOV(fCurrentGameplayCameraFOV) * fFOVFactor;
+		fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayCameraFOV, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewGameplayCameraFOV = CalculateNewFOV(fCurrentGameplayCameraFOV);
+		fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayCameraFOV, fAspectRatioScale);
 	}
 
 	_asm

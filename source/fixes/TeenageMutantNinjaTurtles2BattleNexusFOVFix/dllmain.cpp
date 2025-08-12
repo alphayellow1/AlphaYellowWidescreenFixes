@@ -41,9 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 0.5f;
 constexpr float fOriginalAspectRatio = 0.75f;
 
@@ -221,11 +219,11 @@ void FOVFix()
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "27 47 00 C0 A0 47 00 00 00 40 3F 30 20 3C 3D 20");
 		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 0x7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 7 - (std::uint8_t*)exeModule);
 
 			fNewAspectRatio2 = fOriginalAspectRatio * (fOldAspectRatio / fNewAspectRatio);
 
-			Memory::Write(AspectRatioScanResult + 0x7, fNewAspectRatio2);
+			Memory::Write(AspectRatioScanResult + 7, fNewAspectRatio2);
 		}
 		else
 		{

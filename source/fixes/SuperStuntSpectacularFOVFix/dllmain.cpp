@@ -41,7 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 0.785398185253143f; // 45º in radians
+constexpr float fOriginalCameraFOV = 0.785398185253143f; // 45ï¿½ in radians
 
 // Ini variables
 bool bFixActive;
@@ -214,7 +214,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 0C BA 95 00 83 C4 F0 8B 15 88 B7 95 00 D8 48 74");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 0x2 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 2 - (std::uint8_t*)exeModule);
 			
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 

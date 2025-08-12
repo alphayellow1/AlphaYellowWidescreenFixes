@@ -42,7 +42,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0000001f;
 constexpr float fDefaultHFOV = 1.5707963705062866f; // 90 degrees in radians
 constexpr float fDefaultVFOV = 1.1780972480773926f; // 67.5 degrees in radians
 
@@ -217,7 +216,7 @@ void FOVFix()
 				// Access the VFOV value at the memory address EAX + 0x154
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
-				if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale, fTolerance)) // Hipfire HFOV
+				if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale)) // Hipfire HFOV
 				{
 					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 				}
@@ -252,7 +251,7 @@ void FOVFix()
 				// Access the VFOV value at the memory address EAX + 0x154
 				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
-				if (Maths::isClose(fCurrentCameraHFOV2, fDefaultHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV / fAspectRatioScale, fTolerance)) // Hipfire VFOV
+				if (Maths::isClose(fCurrentCameraHFOV2, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV / fAspectRatioScale)) // Hipfire VFOV
 				{
 					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
 				}

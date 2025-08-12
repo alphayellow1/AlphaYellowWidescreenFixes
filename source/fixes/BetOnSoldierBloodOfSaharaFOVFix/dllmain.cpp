@@ -312,17 +312,17 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is Bos.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			HipfireCameraFOVAddress = Memory::GetAddress32(CameraFOVInstructionScanResult + 1);
+			HipfireCameraFOVAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
 
-			CameraFOV2Address = Memory::GetAddress32(CameraFOVInstructionScanResult + 7);
+			CameraFOV2Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 7, Memory::PointerMode::Absolute);
 
-			CameraZoomFOVAddress = Memory::GetAddress32(CameraFOVInstructionScanResult + 17);
+			CameraZoomFOVAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 17, Memory::PointerMode::Absolute);
 
-			CameraFOV4Address = Memory::GetAddress32(CameraFOVInstructionScanResult + 36);
+			CameraFOV4Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 36, Memory::PointerMode::Absolute);
 
-			CameraFOV5Address = Memory::GetAddress32(CameraFOVInstructionScanResult + 42);
+			CameraFOV5Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 42, Memory::PointerMode::Absolute);
 
-			CameraFOV6Address = Memory::GetAddress32(CameraFOVInstructionScanResult + 48);
+			CameraFOV6Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 48, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
 

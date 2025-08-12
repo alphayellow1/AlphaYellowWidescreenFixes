@@ -39,9 +39,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 0.42f;
 
 // Ini variables
@@ -53,6 +51,7 @@ int iCurrentResY;
 float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -104,7 +103,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -194,14 +193,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "00 08 42 3D 0A D7 3E 00 00 00");
 		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 0x3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 3 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = (fOriginalCameraFOV / (fNewAspectRatio / fOldAspectRatio)) * (1.0f / fFOVFactor);
+			fNewCameraFOV = (fOriginalCameraFOV / fAspectRatioScale) * (1.0f / fFOVFactor);
 
-			Memory::Write(CameraFOVScanResult + 0x3, fNewCameraFOV);
+			Memory::Write(CameraFOVScanResult + 3, fNewCameraFOV);
 		}
 		else
 		{

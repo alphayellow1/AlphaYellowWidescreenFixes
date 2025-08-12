@@ -234,7 +234,7 @@ void FOVFix()
 		{
 			spdlog::info("Inside Car Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), InsideCarTriggerInstructionScanResult - (std::uint8_t*)exeModule);
 
-			InsideCarTriggerInstructionValueAddress = Memory::GetAddress32(InsideCarTriggerInstructionScanResult + 1);
+			InsideCarTriggerInstructionValueAddress = Memory::GetPointer<uint32_t>(InsideCarTriggerInstructionScanResult + 1, Memory::PointerMode::Absolute);
 
 			static SafetyHookMid InsideCarTriggerInstructionMidHook{};
 

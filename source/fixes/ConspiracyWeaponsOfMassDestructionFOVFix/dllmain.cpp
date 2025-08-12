@@ -257,7 +257,7 @@ void FOVFix()
 		{
 			spdlog::info("Pistol Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), PistolHipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			PistolHipfireCameraFOVValueAddress = Memory::GetAddress32(PistolHipfireCameraFOVInstructionScanResult + 2);
+			PistolHipfireCameraFOVValueAddress = Memory::GetPointer<uint32_t>(PistolHipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 			
 			Memory::PatchBytes(PistolHipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
@@ -283,7 +283,7 @@ void FOVFix()
 		{
 			spdlog::info("M4 Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), M4HipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			M4HipfireCameraFOVValueAddress = Memory::GetAddress32(M4HipfireCameraFOVInstructionScanResult + 2);
+			M4HipfireCameraFOVValueAddress = Memory::GetPointer<uint32_t>(M4HipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(M4HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -309,7 +309,7 @@ void FOVFix()
 		{
 			spdlog::info("Sniper Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), SniperHipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			SniperHipfireCameraFOVValueAddress = Memory::GetAddress32(SniperHipfireCameraFOVInstructionScanResult + 2);
+			SniperHipfireCameraFOVValueAddress = Memory::GetPointer<uint32_t>(SniperHipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 			
 			Memory::PatchBytes(SniperHipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
