@@ -41,9 +41,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -191,7 +189,7 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8D 94 24 A8 02 00 00 52 8D 94 24 D0 02 00 00 8D 8C 24 AC 02 00 00");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is Supreme_Game.dll+{:x}", CameraHFOVInstructionScanResult + 0x8 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera HFOV Instruction: Address is Supreme_Game.dll+{:x}", CameraHFOVInstructionScanResult + 8 - (std::uint8_t*)dllModule2);
 
 			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -199,7 +197,7 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x8, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 8, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.esp + 0x2D0) = fNewCameraHFOV;
 			});

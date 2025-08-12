@@ -261,7 +261,7 @@ void WidescreenFix()
 		{
 			spdlog::info("(HUD) Loading Bar X Address: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan1Result + 12 - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Red Cross and Menu Text Width Address: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan1Result + 0x14 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Red Cross and Menu Text Width Address: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScan1Result + 20 - (std::uint8_t*)exeModule);
 
 			// Loading bar X
 			fLoadingBarX = 222.0f + (fHUDWidth - 800.0f) / 2.0f;
@@ -271,7 +271,7 @@ void WidescreenFix()
 			// Red cross and menu text width
 			fRedCrossAndMenuTextWidth = 0.001666f / fNewAspectRatio;
 
-			Memory::Write(HUDElementsScan1Result + 0x14, fRedCrossAndMenuTextWidth);
+			Memory::Write(HUDElementsScan1Result + 20, fRedCrossAndMenuTextWidth);
 		}
 		else
 		{

@@ -189,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
@@ -204,11 +199,11 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 	// Compute the new FOV value
 	if (fCurrentCameraFOV2 == 0.872664626f) // 50º in radians
 	{
-		fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2) * fFOVFactor;
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
 	}
 
 	_asm
@@ -227,11 +222,11 @@ void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 	// Compute the new FOV value
 	if (fCurrentCameraFOV3 == 0.872664626f) // 50º in radians
 	{
-		fNewCameraFOV3 = CalculateNewFOV(fCurrentCameraFOV3) * fFOVFactor;
+		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV3 = CalculateNewFOV(fCurrentCameraFOV3);
+		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
 	}
 
 	_asm
@@ -278,11 +273,11 @@ void FOVFix()
 				// Compute the new FOV value
 				if (fCurrentCameraFOV == 0.872664626f) // 50º in radians
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);

@@ -40,9 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -207,11 +205,11 @@ void FOVFix()
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 44 24 24 00 00 00 00 C7 44 24 28 00 00 80 3F DD D8 D8 3D ?? ?? ?? ?? D9 C1 D8 25 ?? ?? ?? ??");
 		if (CameraHFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x12 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 18 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult + 0x12, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraHFOVInstructionScanResult + 18, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 0x18, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 18, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

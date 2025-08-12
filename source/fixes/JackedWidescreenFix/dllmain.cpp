@@ -191,11 +191,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 static SafetyHookMid ResolutionWidthInstruction4Hook{};
 
 void ResolutionWidthInstruction4MidHook(SafetyHookContext& ctx)
@@ -262,11 +257,11 @@ void WidescreenFix()
 
 				if (fCurrentCameraHFOV >= 1.2f && fCurrentCameraHFOV <= 1.31f)
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;

@@ -285,11 +285,11 @@ void FOVFix()
 
 				if (iIsUnderwater == 0)
 				{
-					if (Maths::isClose(fCurrentCameraHFOV, fMenuHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV, fMenuVFOV / fAspectRatioScale, fTolerance)) // Menu HFOV
+					if (Maths::isClose(fCurrentCameraHFOV, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV, fMenuVFOV / fAspectRatioScale)) // Menu HFOV
 					{
 						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 					}
-					else if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale, fTolerance)) // Hipfire HFOV
+					else if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale)) // Hipfire HFOV
 					{
 						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 					}
@@ -300,7 +300,7 @@ void FOVFix()
 				}
 				else if (iIsUnderwater == 1)
 				{
-					if (Maths::isClose(fCurrentCameraHFOV, fMenuHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV, fMenuVFOV / fAspectRatioScale, fTolerance))
+					if (Maths::isClose(fCurrentCameraHFOV, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV, fMenuVFOV / fAspectRatioScale))
 					{
 						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 
@@ -344,11 +344,11 @@ void FOVFix()
 
 				if (iIsUnderwater == 0)
 				{
-					if (Maths::isClose(fCurrentCameraHFOV2, fMenuHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV2, fMenuVFOV / fAspectRatioScale, fTolerance))
+					if (Maths::isClose(fCurrentCameraHFOV2, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV2, fMenuVFOV / fAspectRatioScale))
 					{
 						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
 					}
-					else if (Maths::isClose(fCurrentCameraHFOV2, fDefaultHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV / fAspectRatioScale, fTolerance)) // Hipfire VFOV
+					else if (Maths::isClose(fCurrentCameraHFOV2, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV / fAspectRatioScale)) // Hipfire VFOV
 					{
 						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
 					}
@@ -359,7 +359,7 @@ void FOVFix()
 				}
 				else if (iIsUnderwater == 1)
 				{
-					if (Maths::isClose(fCurrentCameraHFOV2, fMenuHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV2, fMenuVFOV / fAspectRatioScale, fTolerance))
+					if (Maths::isClose(fCurrentCameraHFOV2, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV2, fMenuVFOV / fAspectRatioScale))
 					{
 						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
 

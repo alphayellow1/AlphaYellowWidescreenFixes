@@ -40,9 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -221,11 +219,11 @@ void FOVFix()
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "FC D9 45 10 D8 F9");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 0x1 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 1 - (std::uint8_t*)exeModule);
 
 			static SafetyHookMid AspectRatioInstructionMidHook{};
 
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 0x1, [](SafetyHookContext& ctx)
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 1, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ebp + 0x10);
 

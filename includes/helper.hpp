@@ -7,6 +7,9 @@
 #include <windows.h>
 #include <cstring>
 #include <array>
+#include <climits>
+#include <cstdlib>
+#include <iostream>
 
 namespace Memory
 {
@@ -77,15 +80,22 @@ namespace Memory
 	std::vector<int> pattern_to_byte(const char* pattern)
 	{
 		auto bytes = std::vector<int>{};
+
 		auto start = const_cast<char*>(pattern);
+
 		auto end = const_cast<char*>(pattern) + strlen(pattern);
 
-		for (auto current = start; current < end; ++current) {
+		for (auto current = start; current < end; ++current)
+		{
 			if (*current == '?')
 			{
 				++current;
+
 				if (*current == '?')
+				{
 					++current;
+				}
+					
 				bytes.push_back(-1);
 			}
 			else
@@ -93,31 +103,41 @@ namespace Memory
 				bytes.push_back(strtoul(current, &current, 16));
 			}
 		}
+
 		return bytes;
 	}
 
-	std::uint8_t* PatternScan(void* module, const char* signature) {
+	std::uint8_t* PatternScan(void* module, const char* signature)
+	{
 		auto dosHeader = (PIMAGE_DOS_HEADER)module;
+
 		auto ntHeaders = (PIMAGE_NT_HEADERS)((std::uint8_t*)module + dosHeader->e_lfanew);
 
 		auto sizeOfImage = ntHeaders->OptionalHeader.SizeOfImage;
+
 		auto patternBytes = pattern_to_byte(signature);
+
 		auto scanBytes = reinterpret_cast<std::uint8_t*>(module);
 
 		auto s = patternBytes.size();
+
 		auto d = patternBytes.data();
 
 		for (auto i = 0ul; i < sizeOfImage - s; ++i)
 		{
 			bool found = true;
-			for (auto j = 0ul; j < s; ++j) {
+
+			for (auto j = 0ul; j < s; ++j)
+			{
 				if (scanBytes[i + j] != d[j] && d[j] != -1)
 				{
 					found = false;
+
 					break;
 				}
 			}
-			if (found) {
+			if (found == true)
+			{
 				return &scanBytes[i];
 			}
 		}
@@ -134,62 +154,72 @@ namespace Memory
 	std::vector<PatternInfo> MultiPatternScan(void* module, const std::vector<const char*>& signatures)
 	{
 		std::vector<PatternInfo> results;
+
 		for (const auto& sig : signatures)
 		{
 			std::uint8_t* addr = Memory::PatternScan(module, sig);
+
 			results.push_back({ sig, addr });
 		}
+
 		return results;
 	}
 
 	static HMODULE GetThisDllHandle()
 	{
 		MEMORY_BASIC_INFORMATION info;
+
 		size_t len = VirtualQueryEx(GetCurrentProcess(), (void*)GetThisDllHandle, &info, sizeof(info));
+
 		assert(len == sizeof(info));
+
 		return len ? (HMODULE)info.AllocationBase : NULL;
 	}
 
 	std::uint32_t ModuleTimestamp(void* module)
 	{
 		auto dosHeader = (PIMAGE_DOS_HEADER)module;
+
 		auto ntHeaders = (PIMAGE_NT_HEADERS)((std::uint8_t*)module + dosHeader->e_lfanew);
+
 		return ntHeaders->FileHeader.TimeDateStamp;
 	}
 
 	std::uint8_t* GetAbsolute(std::uint8_t* address) noexcept
 	{
 		if (address == nullptr)
+		{
 			return nullptr;
+		}			
 
 		std::int32_t offset = *reinterpret_cast<std::int32_t*>(address);
+
 		std::uint8_t* absoluteAddress = address + 4 + offset;
 
 		return absoluteAddress;
 	}
 
-	std::uint8_t* GetAddress32(std::uint8_t* address) noexcept
+	enum class PointerMode
 	{
-		if (address == nullptr)
-		{
-			return nullptr;
-		}
+		Absolute,
+		Relative
+	};
 
-		std::uint32_t raw = *reinterpret_cast<std::uint32_t*>(address);
-
-		return reinterpret_cast<std::uint8_t*>(raw);
-	}
-
-	std::uint8_t* GetAddress64(std::uint8_t* address) noexcept
+	template<typename T>
+	std::uint8_t* GetPointer(std::uint8_t* address, PointerMode mode) noexcept
 	{
-		if (address == nullptr)
+		if (!address) return nullptr;
+
+		if (mode == PointerMode::Absolute)
 		{
-			return nullptr;
+			T raw = *reinterpret_cast<T*>(address);
+			return reinterpret_cast<std::uint8_t*>(raw);
 		}
-
-		std::uint64_t raw = *reinterpret_cast<std::uint64_t*>(address);
-
-		return reinterpret_cast<std::uint8_t*>(raw);
+		else // Relative
+		{
+			T disp = *reinterpret_cast<T*>(address);
+			return address + sizeof(T) + disp;
+		}
 	}
 }
 
@@ -212,7 +242,8 @@ namespace Util
 		return str;
 	}
 
-	bool stringcmp_caseless(const std::string& str1, const std::string& str2) {
+	bool stringcmp_caseless(const std::string& str1, const std::string& str2)
+	{
 		if (str1.size() != str2.size())
 		{
 			return false;
@@ -367,10 +398,15 @@ namespace Maths
 	{
 		int count = 0;
 
-		if (number == 0) return 1;
+		if (number == 0)
+		{
+			return 1;
+		}
 
 		if constexpr (std::is_signed_v<Int>)
+		{
 			if (number < 0) number = -number;
+		}		
 
 		while (number != 0)
 		{
@@ -381,11 +417,37 @@ namespace Maths
 		return count;
 	}
 
+	inline constexpr float defaultTolerance = 1e-5f;
+
+	enum class ComparisonOperator
+	{
+		LessThan,
+		GreaterThan
+	};
+
+	// existing enum and primary template (use fTolerance as default if you want)
 	template<Arithmetic T, Arithmetic U = T>
-	inline bool isClose(T originalValue, T comparedValue, U toleranceCheck)
+	inline bool isClose(T originalValue,
+		T comparedValue,
+		U toleranceCheck = static_cast<U>(Maths::defaultTolerance),
+		ComparisonOperator op = ComparisonOperator::LessThan,
+		bool inclusive = false)
 	{
 		using Common = std::common_type_t<T, U>;
+		Common diff = std::abs(static_cast<Common>(originalValue) - static_cast<Common>(comparedValue));
+		Common tol = static_cast<Common>(toleranceCheck);
 
-		return std::fabs(static_cast<Common>(originalValue) - static_cast<Common>(comparedValue)) < static_cast<Common>(toleranceCheck);
+		if (op == ComparisonOperator::LessThan)
+			return inclusive ? (diff <= tol) : (diff < tol);
+		else
+			return inclusive ? (diff >= tol) : (diff > tol);
+	}
+
+	// overload that lets you specify operator but keeps the default tolerance
+	template<Arithmetic T>
+	inline bool isClose(T a, T b, ComparisonOperator op, bool inclusive = false)
+	{
+		using DefaultTolType = std::common_type_t<T, float>;
+		return isClose<T, DefaultTolType>(a, b, static_cast<DefaultTolType>(Maths::defaultTolerance), op, inclusive);
 	}
 }

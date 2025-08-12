@@ -188,11 +188,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 static SafetyHookMid CameraFOVInstruction1Hook{};
 
 void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
@@ -256,7 +251,7 @@ void FOVFix()
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.eax);
 
-				fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 
 				*reinterpret_cast<float*>(ctx.edi) = fNewCameraHFOV;
 			});

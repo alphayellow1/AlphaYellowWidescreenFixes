@@ -252,7 +252,7 @@ void FOVFix()
 		{
 			spdlog::info("In A Race Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), InARaceTriggerInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint8_t* TriggerValueAddress = Memory::GetAddress32(InARaceTriggerInstructionScanResult + 2);
+			uint8_t* TriggerValueAddress = Memory::GetPointer<uint32_t>(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			pInRaceFlag = reinterpret_cast<uint32_t*>(TriggerValueAddress);
 		}

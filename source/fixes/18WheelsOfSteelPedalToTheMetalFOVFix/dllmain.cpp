@@ -42,9 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fPi = 3.14159265358979323846f;
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
@@ -267,9 +265,9 @@ void FOVFix()
 		{
 			spdlog::info("Gameplay Camera FOVs Scan 2: Address is game.dll+{:x}", GameplayCameraFOVsScan2Result - (std::uint8_t*)dllModule2);
 
-			Memory::Write(GameplayCameraFOVsScan2Result + 0x4, CalculateNewFOV(16.0f));
+			Memory::Write(GameplayCameraFOVsScan2Result + 4, CalculateNewFOV(16.0f));
 
-			Memory::Write(GameplayCameraFOVsScan2Result + 0x14, CalculateNewFOV(50.0f));
+			Memory::Write(GameplayCameraFOVsScan2Result + 20, CalculateNewFOV(50.0f));
 		}
 		else
 		{

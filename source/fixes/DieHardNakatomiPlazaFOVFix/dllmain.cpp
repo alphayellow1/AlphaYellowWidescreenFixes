@@ -43,10 +43,10 @@ std::string sExeName;
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fTolerance = 0.000001f;
-constexpr float fDefaultHFOV = 1.5707963705062866f; // Default HFOV in radians
-constexpr float fDefaultVFOV = 1.1780972480773926f; // Default VFOV in radians
-constexpr float fZoomHFOV = 0.4363323152065277f; // Zoom HFOV in radians
-constexpr float fZoomVFOV = 0.3272492289543152f; // Zoom VFOV in radians
+constexpr float fDefaultCameraHFOV = 1.5707963705062866f; // Default HFOV in radians
+constexpr float fDefaultCameraVFOV = 1.1780972480773926f; // Default VFOV in radians
+constexpr float fZoomCameraHFOV = 0.4363323152065277f; // Zoom HFOV in radians
+constexpr float fZoomCameraVFOV = 0.3272492289543152f; // Zoom VFOV in radians
 constexpr float fMenuHFOV = 1.570000052f; // Menu HFOV in radians
 constexpr float fMenuVFOV = 1.169999957f; // Menu VFOV in radians
 
@@ -236,32 +236,32 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
 
 				if (fUnderwaterCheckValue == 1.0f) // Above water
 				{
-					if (Maths::isClose(fCurrentCameraHFOV2, fDefaultHFOV, fTolerance) && (Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV, fTolerance) || Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV / fAspectRatioScale, fTolerance)))
+					if (Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV / fAspectRatioScale)))
 					{
-						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV2, fAspectRatioScale, fFOVFactor);
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 					}
-					else if (Maths::isClose(fCurrentCameraHFOV2, fZoomHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV2, fZoomVFOV / fAspectRatioScale, fTolerance))
+					else if (Maths::isClose(fCurrentCameraHFOV, fZoomCameraHFOV) && Maths::isClose(fCurrentCameraVFOV, fZoomCameraVFOV / fAspectRatioScale))
 					{
-						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV2, fAspectRatioScale);
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 					}
-					else if (Maths::isClose(fCurrentCameraHFOV2, fMenuHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV2, fMenuVFOV, fTolerance))
+					else if (Maths::isClose(fCurrentCameraHFOV, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV, fMenuVFOV))
 					{
-						fNewCameraHFOV = fCurrentCameraHFOV2;
+						fNewCameraHFOV = fCurrentCameraHFOV;
 					}
 					else
 					{
-						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV2, fAspectRatioScale);
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 					}
 				}
 				else if (fUnderwaterCheckValue == 0.007843137719f) // Underwater
 				{
-					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV2, fAspectRatioScale, fFOVFactor);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -284,35 +284,35 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x198);
 
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);				
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x19C);				
 
 				if (fUnderwaterCheckValue == 1.0f) // Above water
 				{
-					if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV, fTolerance) && (Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV, fTolerance) || Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale, fTolerance)))
+					if (Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) && (Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV / fAspectRatioScale)))
 					{
 						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(1.1780972480773926f, fFOVFactor);
 					}
-					else if (Maths::isClose(fCurrentCameraHFOV, fZoomHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV, fZoomVFOV / fAspectRatioScale, fTolerance))
+					else if (Maths::isClose(fCurrentCameraHFOV2, fZoomCameraHFOV) && Maths::isClose(fCurrentCameraVFOV2, fZoomCameraVFOV / fAspectRatioScale))
 					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
 					}
-					else if (Maths::isClose(fCurrentCameraHFOV, fMenuHFOV, fTolerance) && Maths::isClose(fCurrentCameraVFOV, fMenuVFOV, fTolerance))
+					else if (Maths::isClose(fCurrentCameraHFOV2, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV2, fMenuVFOV))
 					{
-						fNewCameraVFOV = fCurrentCameraVFOV;
+						fNewCameraVFOV = fCurrentCameraVFOV2;
 					}
 					else
 					{
-						fNewCameraVFOV = fCurrentCameraVFOV;
+						fNewCameraVFOV = fCurrentCameraVFOV2;
 					}
 				}
 				else if (fUnderwaterCheckValue == 0.007843137719f) // Underwater
 				{
-					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor); // Underwater VFOVs (Since it's Vert- by default)
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor); // Underwater VFOVs (Since it's Vert- by default)
 				}
 
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraVFOV2);
 			});
 		}
 		else

@@ -41,7 +41,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
 constexpr float fOriginalGameplayAspectRatio = 0.75f;
 
 // Ini variables
@@ -56,6 +55,7 @@ float fNewAspectRatio2;
 float fFOVFactor;
 float fNewGameplayCameraFOV;
 float fAspectRatioScale;
+float fNewMenuAndCutscenesCameraFOV;
 
 // Game detection
 enum class Game
@@ -107,7 +107,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -189,11 +189,6 @@ bool DetectGame()
 
 	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
 	return false;
-}
-
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
 }
 
 void WidescreenFix()
@@ -308,10 +303,12 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* MenuAndCutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 8C 00 00 00 89 56 50");
+		std::uint8_t* MenuAndCutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 8C 00 00 00 89 56 50 8B 88 90 00 00 00");
 		if (MenuAndCutscenesCameraFOVInstructionScanResult)
 		{
 			spdlog::info("Menu & Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), MenuAndCutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(MenuAndCutscenesCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
 			static SafetyHookMid MenuAndCutscenesCameraFOVInstructionHook{};
 			
@@ -319,7 +316,9 @@ void WidescreenFix()
 			{
 				float& fCurrentMenuAndCutscenesCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x8C);
 
-				fCurrentMenuAndCutscenesCameraFOV = CalculateNewFOV(1.5707963268f);
+				fNewMenuAndCutscenesCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentMenuAndCutscenesCameraFOV, fAspectRatioScale);
+
+				ctx.edx = std::bit_cast<uintptr_t>(fNewMenuAndCutscenesCameraFOV);
 			});
 		}
 		else
@@ -337,7 +336,7 @@ void WidescreenFix()
 			
 			Memory::Write(GameplayAspectRatioAndCameraFOVScanResult + 1, fNewAspectRatio2);
 
-			fNewGameplayCameraFOV = CalculateNewFOV(1.5707963268f) * fFOVFactor;
+			fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(1.5707963268f, fAspectRatioScale) * fFOVFactor;
 
 			Memory::Write(GameplayAspectRatioAndCameraFOVScanResult + 6, fNewGameplayCameraFOV);
 		}
@@ -353,8 +352,6 @@ void WidescreenFix()
 			spdlog::info("Black Bars Adjust Instruction: Address is {:s}+{:x}", sExeName.c_str(), BlackBarsAdjustInstructionScanResult - (std::uint8_t*)exeModule);
 			
 			static SafetyHookMid BlackBarsAdjustInstructionHook{};
-
-			static std::vector<float> vComputedBlackBarsValues;
 			
 			BlackBarsAdjustInstructionHook = safetyhook::create_mid(BlackBarsAdjustInstructionScanResult, [](SafetyHookContext& ctx)
 			{

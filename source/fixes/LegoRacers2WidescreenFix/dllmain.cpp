@@ -55,18 +55,6 @@ float fNewCameraFOV;
 float fFOVFactor;
 float fAspectRatioScale;
 
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
-
 // Game detection
 enum class Game
 {
@@ -201,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::LR2 && bFixActive == true)
@@ -231,14 +214,14 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVScanResult = Memory::PatternScan(exeModule, "83 A4 01 00 00 00 00 B4 42 8B 54 24 1C 8D");
-		if (CameraFOVScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 83 A4 01 00 00 00 00 B4 42 8B 54 24 1C 8D 86 68 01 00 00 8B C8");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 5 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 6 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = fFOVFactor * CalculateNewFOV(fOriginalCameraFOV);
+			fNewCameraFOV = fFOVFactor * Maths::CalculateNewFOV_DegBased(fOriginalCameraFOV, fAspectRatioScale);
 
-			Memory::Write(CameraFOVScanResult + 5, fNewCameraFOV);
+			Memory::Write(CameraFOVInstructionScanResult + 6, fNewCameraFOV);
 		}
 		else
 		{

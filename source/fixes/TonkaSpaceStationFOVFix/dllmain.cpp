@@ -40,9 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fOldWidth = 4.0f;
-constexpr float fOldHeight = 3.0f;
-constexpr float fOldAspectRatio = fOldWidth / fOldHeight;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraHFOV = 0.75f;
 constexpr float fOriginalCameraFOV = 1.0f;
 

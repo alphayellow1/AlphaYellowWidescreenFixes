@@ -12,23 +12,20 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "MightAndMagic9FOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixName = "WoodyWoodpeckerEscapeFromBuzzBuzzardParkFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,7 +40,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -54,14 +50,14 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fAspectRatioScale;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
-static float fUnderwaterCheckValue;
+float fNewCameraFOV;
+static uint8_t* AspectRatioAddress;
+static uint8_t* CameraFOVAddress;
 
 // Game detection
 enum class Game
 {
-	MM9,
+	WWEFBB,
 	Unknown
 };
 
@@ -72,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::MM9, {"Might and Magic 9/IX", "lithtech.exe"}},
+	{Game::WWEFBB, {"Woody Woodpecker: Escape from Buzz Buzzard Park", "Woody.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -176,8 +172,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -186,168 +180,51 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	while ((dllModule2 = GetModuleHandleA("d3d.ren")) == nullptr)
-	{
-		spdlog::warn("d3d.ren not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for d3d.ren: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
-}
-
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
-}
-
-bool bIsDefaultVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
-}
-
-bool bIsCroppedVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 void FOVFix()
 {
-	if (eGameType == Game::MM9 && bFixActive == true)
+	if (eGameType == Game::WWEFBB && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* UnderwaterCheckInstructionScanResult = Memory::PatternScan(dllModule2, "D9 41 0C D8 29 DB 41 1C DC EE DE EC D9 C4 D8 E2");
-		if (UnderwaterCheckInstructionScanResult)
+		std::uint8_t* AspectRatioAndCameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? C2 0C 00 83 EC 08");
+		if (AspectRatioAndCameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Underwater Check Instruction: Address is d3d.ren+{:x}", UnderwaterCheckInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid UnderwaterCheckInstructionMidHook{};
+			AspectRatioAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
-			UnderwaterCheckInstructionMidHook = safetyhook::create_mid(UnderwaterCheckInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 8, Memory::PointerMode::Absolute);
+
+			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+
+			static SafetyHookMid AspectRatioAndCameraFOVInstructionsMidHook{};
+
+			AspectRatioAndCameraFOVInstructionsMidHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				fUnderwaterCheckValue = *reinterpret_cast<float*>(ctx.ecx + 0xC);
+				*reinterpret_cast<float*>(AspectRatioAddress) = fNewAspectRatio;
+
+				float fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
+
+				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+				*reinterpret_cast<float*>(CameraFOVAddress) = fNewCameraFOV;
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate underwater check instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
-
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 9C 01 00 00 89 4D B4");
-		if (CameraVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				if (fUnderwaterCheckValue == 0.9999999404f)
-				{
-					if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
-					{
-						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV);
-					}
-					else
-					{
-						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
-					}
-				}
-				else
-				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV);
-				}
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera VFOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 98 01 00 00 89 4D B0");
-		if (CameraHFOVInstructionScanResult)
-		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 0x7 - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-				if (fUnderwaterCheckValue == 0.9999999404f)
-				{
-					if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
-					{
-						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
-					}
-					else
-					{
-						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
-					}
-				}
-				else
-				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
-				}
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
-			return;
-		}		
 	}
 }
 

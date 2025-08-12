@@ -205,11 +205,11 @@ void WidescreenFix()
 		{
 			spdlog::info("Main Menu Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), MainMenuResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			MainMenuResolutionWidthAddress = Memory::GetAddress32(MainMenuResolutionInstructionsScanResult + 2);
+			MainMenuResolutionWidthAddress = Memory::GetPointer<uint32_t>(MainMenuResolutionInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
-			MainMenuResolutionHeightAddress = Memory::GetAddress32(MainMenuResolutionInstructionsScanResult + 9);
+			MainMenuResolutionHeightAddress = Memory::GetPointer<uint32_t>(MainMenuResolutionInstructionsScanResult + 9, Memory::PointerMode::Absolute);
 
-			MainMenuBitDepthAddress = Memory::GetAddress32(MainMenuResolutionInstructionsScanResult + 16);
+			MainMenuBitDepthAddress = Memory::GetPointer<uint32_t>(MainMenuResolutionInstructionsScanResult + 16, Memory::PointerMode::Absolute);
 
 			static SafetyHookMid MainMenuResolutionWidthInstructionMidHook{};
 
@@ -249,11 +249,11 @@ void WidescreenFix()
 		{
 			spdlog::info("Gameplay Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), GameplayResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			GameplayResolutionWidthAddress = Memory::GetAddress32(GameplayResolutionInstructionsScanResult + 9);
+			GameplayResolutionWidthAddress = Memory::GetPointer<uint32_t>(GameplayResolutionInstructionsScanResult + 9, Memory::PointerMode::Absolute);
 
-			GameplayResolutionHeightAddress = Memory::GetAddress32(GameplayResolutionInstructionsScanResult + 3);
+			GameplayResolutionHeightAddress = Memory::GetPointer<uint32_t>(GameplayResolutionInstructionsScanResult + 3, Memory::PointerMode::Absolute);
 
-			GameplayBitDepthAddress = Memory::GetAddress32(GameplayResolutionInstructionsScanResult + 16);
+			GameplayBitDepthAddress = Memory::GetPointer<uint32_t>(GameplayResolutionInstructionsScanResult + 16, Memory::PointerMode::Absolute);
 			
 			static SafetyHookMid GameplayResolutionWidthInstructionMidHook{};
 

@@ -42,9 +42,8 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.00001f;
-constexpr float fDefaultHFOV = 1.5707963705062866f;
-constexpr float fDefaultVFOV = 1.1780972480773926f;
+constexpr float fDefaultCameraHFOV = 1.5707963705062866f;
+constexpr float fDefaultCameraVFOV = 1.1780972480773926f;
 
 // Ini variables
 bool bFixActive;
@@ -232,7 +231,7 @@ void FOVFix()
 				// Access the VFOV value at the memory address ECX + 0x19C
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
 
-				if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV, fTolerance) && (Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV, fTolerance) || Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale, fTolerance)))
+				if (Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV / fAspectRatioScale)))
 				{
 					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 				}
@@ -267,9 +266,9 @@ void FOVFix()
 				// Access the VFOV value at the memory address ECX + 0x19C
 				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
 
-				if (Maths::isClose(fCurrentCameraHFOV2, fDefaultHFOV, fTolerance) && (Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV, fTolerance) || Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV / fAspectRatioScale, fTolerance)))
+				if (Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) && (Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV / fAspectRatioScale)))
 				{
-					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fDefaultVFOV, fFOVFactor);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fDefaultCameraVFOV, fFOVFactor);
 				}
 				else
 				{
