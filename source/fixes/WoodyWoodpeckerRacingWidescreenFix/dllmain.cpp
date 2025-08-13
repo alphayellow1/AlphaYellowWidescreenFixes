@@ -7,13 +7,11 @@
 #include <inipp/inipp.h>
 #include <safetyhook.hpp>
 #include <vector>
-#include <algorithm>
 #include <map>
 #include <windows.h>
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -26,8 +24,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "LotusChallengeFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "WoodyWoodpeckerRacingWidescreenFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,12 +50,15 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
 float fAspectRatioScale;
-float fNewCameraFOV;
+static uint8_t* AspectRatioAddress;
+static uint8_t* CameraFOVAddress;
+double dNewCameraFOV;
+float fNewAspectRatio2;
 
 // Game detection
 enum class Game
 {
-	LC,
+	WWR,
 	Unknown
 };
 
@@ -68,7 +69,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::LC, {"Lotus Challenge", "lotus.exe"}},
+	{Game::WWR, {"Woody Woodpecker Racing", "woody.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -144,7 +145,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -188,72 +189,87 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
-
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+	double& dCurrentCameraFOV = *reinterpret_cast<double*>(CameraFOVAddress);
 
-	if (fCurrentCameraFOV > 1.0f)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
+	dNewCameraFOV = dCurrentCameraFOV * (double)fFOVFactor;
 
 	_asm
 	{
-		fld dword ptr ds:[fNewCameraFOV]
+		fld qword ptr ds:[dNewCameraFOV]
 	}
 }
 
-void FOVFix()
+void WidescreenFix()
 {
-	if (eGameType == Game::LC && bFixActive == true)
+	if (eGameType == Game::WWR && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 C9 89 51 58 89 41 5C 89 41 60 89 41 64 89 41 68");
-		if (AspectRatioInstructionScanResult)
+		std::uint8_t* ResolutionInstructions1ScanResult = Memory::PatternScan(exeModule, "C7 44 24 14 80 02 00 00 C7 44 24 18 E0 01 00 00 C7 44 24 1C 00 00 80 BF C7 44 24 20 00 00 40 3F");
+		if (ResolutionInstructions1ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::Write(ResolutionInstructions1ScanResult + 4, iCurrentResX);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+			Memory::Write(ResolutionInstructions1ScanResult + 12, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution instructions 1 memory address.");
+			return;
+		}
+
+		std::uint8_t* ResolutionInstructions2ScanResult = Memory::PatternScan(exeModule, "64 79 20 2D 20 76 65 72 73 69 6F 6E 20 32 2E 34 00 3C");
+		if (ResolutionInstructions2ScanResult)
+		{
+			spdlog::info("Resolution Instructions 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions2ScanResult - (std::uint8_t*)exeModule);
+
+			Memory::Write(ResolutionInstructions2ScanResult + 33, iCurrentResX);
+
+			Memory::Write(ResolutionInstructions2ScanResult + 37, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution instructions 2 memory address.");
+			return;
+		}
+
+		std::uint8_t* AspectRatioAndCameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D9 FE DE F9 D9 5C 24 0C 8B 44 24 0C D9 44 24 0C A3 ?? ?? ?? ??");
+		if (AspectRatioAndCameraFOVInstructionsScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
+
+			AspectRatioAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 23, Memory::PointerMode::Absolute);
+
+			CameraFOVAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
+
+			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult + 22, "\x90\x90\x90\x90\x90", 5);
+
+			static SafetyHookMid AspectRatioInstructionMidHook{};
+
+			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult + 22, [](SafetyHookContext& ctx)
+			{
+				float fCurrentAspectRatio = std::bit_cast<float>(ctx.eax);
+
+				fNewAspectRatio2 = fCurrentAspectRatio / fAspectRatioScale;
+
+				*reinterpret_cast<float*>(AspectRatioAddress) = fNewAspectRatio2;
+			});
+
+			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraFOVInstructionHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
 			spdlog::error("Failed to locate aspect ratio instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 08 33 C0 D8 0D ?? ?? ?? ?? BA 00 00 80 3F");
-		if (CameraFOVInstructionScanResult)
-		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
@@ -265,7 +281,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }
