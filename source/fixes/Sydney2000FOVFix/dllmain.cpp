@@ -74,8 +74,6 @@ float fNewCameraFOV20;
 float fNewCameraFOV21;
 float fNewCameraFOV22;
 float fNewCameraFOV23;
-float fNewComparisonValue;
-static uint8_t* ComparisonValueAddress;
 
 // Game detection
 enum class Game
