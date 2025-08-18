@@ -312,7 +312,7 @@ void FOVFix()
 					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor); // Underwater VFOVs (Since it's Vert- by default)
 				}
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraVFOV2);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});
 		}
 		else
