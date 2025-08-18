@@ -214,14 +214,17 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution List 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList1ScanResult - (std::uint8_t*)exeModule);
 
+			// 1024x768
 			Memory::Write(ResolutionList1ScanResult + 1, iCurrentResX);
 
 			Memory::Write(ResolutionList1ScanResult + 6, iCurrentResY);
 
+			// 1280x960
 			Memory::Write(ResolutionList1ScanResult + 18, iCurrentResX);
 
 			Memory::Write(ResolutionList1ScanResult + 23, iCurrentResY);
 
+			// 800x600
 			Memory::Write(ResolutionList1ScanResult + 30, iCurrentResX);
 
 			Memory::Write(ResolutionList1ScanResult + 35, iCurrentResY);
@@ -237,26 +240,32 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution List 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList2ScanResult - (std::uint8_t*)exeModule);
 
+			// 800x600
 			Memory::Write(ResolutionList2ScanResult, iCurrentResX);
 
 			Memory::Write(ResolutionList2ScanResult + 4, iCurrentResY);
 
+			// 1024x768
 			Memory::Write(ResolutionList2ScanResult + 16, iCurrentResX);
 
 			Memory::Write(ResolutionList2ScanResult + 20, iCurrentResY);
 
+			// 1280x960
 			Memory::Write(ResolutionList2ScanResult + 32, iCurrentResX);
 
 			Memory::Write(ResolutionList2ScanResult + 36, iCurrentResY);
 
+			// 800x600
 			Memory::Write(ResolutionList2ScanResult + 48, iCurrentResX);
 
 			Memory::Write(ResolutionList2ScanResult + 52, iCurrentResY);
 
+			// 1024x768
 			Memory::Write(ResolutionList2ScanResult + 64, iCurrentResX);
 
 			Memory::Write(ResolutionList2ScanResult + 68, iCurrentResY);
-
+			
+			// 1280x960
 			Memory::Write(ResolutionList2ScanResult + 80, iCurrentResX);
 
 			Memory::Write(ResolutionList2ScanResult + 84, iCurrentResY);
