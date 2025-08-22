@@ -261,7 +261,7 @@ void FOVFix()
 				}
 				else if (fUnderwaterCheckValue == 0.007843137719f) // Underwater
 				{
-					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor); // This is fine to do, since underwater the player can't zoom in with any of the weapons, so only the hipfire view is seen underwater
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
