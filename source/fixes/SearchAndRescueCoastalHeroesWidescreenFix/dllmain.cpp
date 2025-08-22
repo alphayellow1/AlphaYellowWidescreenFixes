@@ -42,16 +42,18 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float tolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -187,57 +189,25 @@ bool DetectGame()
 	return false;
 }
 
-// Function that writes an integer as a series of char8_t digits
-void WriteIntAsChar8Digits(std::uint8_t* baseAddress, int value)
-{
-	std::string strValue = std::to_string(value);
-
-	for (char ch : strValue)
-	{
-		char8_t char8Value = static_cast<char8_t>(ch);
-
-		Memory::Write(baseAddress, char8Value);
-
-		baseAddress += sizeof(char8_t);
-	}
-}
-
-// Function that returns the amount of digits of a given number
-int digitCount(int number)
-{
-	int count = 0;
-
-	do
-	{
-		number /= 10;
-		++count;
-	} while (number != 0);
-
-	return count;
-}
-
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (fCurrentFOV * (fNewAspectRatio / fOldAspectRatio));
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::SARCH && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		// If both width and height values have 4 digits, then write the resolution values in place of the 1600x1200 one
-		if (digitCount(iCurrentResX) == 4 && digitCount(iCurrentResY) == 4)
+		if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 4)
 		{
 			std::uint8_t* Resolution1600x1200ScanResult = Memory::PatternScan(exeModule, "31 36 30 30 20 78 20 31 32 30 30 20 78 20 33 32");
 			if (Resolution1600x1200ScanResult)
 			{
 				spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
 
-				WriteIntAsChar8Digits(Resolution1600x1200ScanResult, iCurrentResX);
+				Maths::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult, iCurrentResX);
 
-				WriteIntAsChar8Digits(Resolution1600x1200ScanResult + 7, iCurrentResY);
+				Maths::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult + 7, iCurrentResY);
 			}
 			else
 			{
@@ -247,16 +217,16 @@ void WidescreenFix()
 		}
 
 		// If width has 4 digits and height has 3 digits, then write the resolution values in place of the 1280x960 one
-		if (digitCount(iCurrentResX) == 4 && digitCount(iCurrentResY) == 3)
+		if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 3)
 		{
 			std::uint8_t* Resolution1280x960ScanResult = Memory::PatternScan(exeModule, "31 32 38 30 20 78 20 39 36 30 20 78 20 33 32");
 			if (Resolution1280x960ScanResult)
 			{
 				spdlog::info("Resolution 1280x960 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1280x960ScanResult - (std::uint8_t*)exeModule);
 
-				WriteIntAsChar8Digits(Resolution1280x960ScanResult, iCurrentResX);
+				Maths::WriteNumberAsChar8Digits(Resolution1280x960ScanResult, iCurrentResX);
 
-				WriteIntAsChar8Digits(Resolution1280x960ScanResult + 7, iCurrentResY);
+				Maths::WriteNumberAsChar8Digits(Resolution1280x960ScanResult + 7, iCurrentResY);
 			}
 			else
 			{
@@ -266,16 +236,16 @@ void WidescreenFix()
 		}
 
 		// If both width and height values have 3 digits, then write the resolution values in place of the 800x600 one
-		if (digitCount(iCurrentResX) == 3 && digitCount(iCurrentResY) == 3)
+		if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
 		{
 			std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(exeModule, "38 30 30 20 78 20 36 30 30 20 78 20 33 32");
 			if (Resolution800x600ScanResult)
 			{
 				spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult - (std::uint8_t*)exeModule);
 				
-				WriteIntAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
+				Maths::WriteNumberAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
 
-				WriteIntAsChar8Digits(Resolution800x600ScanResult + 6, iCurrentResY);
+				Maths::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 6, iCurrentResY);
 			}
 			else
 			{
@@ -284,84 +254,42 @@ void WidescreenFix()
 			}
 		}
 		
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			static std::vector<float> vComputedHFOVs;
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Store the value inside the ECX register into a float variable
+				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					// Store the value inside the ECX register into a float variable
-					float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
+				// Compute the new HFOV value
+				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 
-					// Skip processing if a similar HFOV (within tolerance) has already been computed
-					bool alreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-						[&](float computedValue) {
-							return std::fabs(computedValue - fCurrentCameraHFOV) < tolerance;
-						});
-					if (alreadyComputed)
-					{
-						return;
-					}
+				// Update the [ESI+68] memory address with the new HFOV value
+				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
+			});
 
-					// Compute the new HFOV value
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
-
-					// Record the computed HFOV for future calls
-					vComputedHFOVs.push_back(fCurrentCameraHFOV);
-
-					// Update the ECX register with the new HFOV value
-					ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-				});
-		}
-		else
-		{
-			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 56 6C 8B 46 04 85 C0 D9 5E 70");
-		if (CameraVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			static std::vector<float> vComputedVFOVs;
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+			{
+				// Calculate the new VFOV based on the new HFOV and aspect ratio
+				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					// Store the value inside the EDX register into a float variable
-					float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
-
-					// Skip processing if a similar VFOV (within tolerance) has already been computed
-					bool alreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-						[&](float computedValue) {
-							return std::fabs(computedValue - fCurrentCameraVFOV) < tolerance;
-						});
-
-					if (alreadyComputed)
-					{
-						return;
-					}
-
-					// Compute the new VFOV value
-					fCurrentCameraVFOV = CalculateNewFOV(fCurrentCameraVFOV);
-
-					// Record the computed VFOV for future calls
-					vComputedVFOVs.push_back(fCurrentCameraVFOV);
-
-					// Update the EDX register with the new VFOV value
-					ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
-				});
+				*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
+			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera VFOV instruction memory address.");
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
 		}
 	}

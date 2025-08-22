@@ -40,33 +40,20 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
 float fNewAspectRatio;
-float fFOVFactor;
 float fNewHipfireFOV;
 float fNewZoomFOV;
 float fAspectRatioScale;
 static uint8_t* HipfireCameraFOVValueAddress;
 bool bInitializationFailed = false;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -202,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::SS2BT && bFixActive == true)
@@ -230,7 +212,7 @@ void FOVFix()
 			{
 				float fCurrentHipfireFOV = ctx.xmm0.f32[0];
 
-				fNewHipfireFOV = CalculateNewFOV(fCurrentHipfireFOV) * fFOVFactor;
+				fNewHipfireFOV = Maths::CalculateNewFOV_DegBased(fCurrentHipfireFOV, fAspectRatioScale) * fFOVFactor;
 
 				*reinterpret_cast<float*>(HipfireCameraFOVValueAddress) = fNewHipfireFOV;
 			});
@@ -254,7 +236,7 @@ void FOVFix()
 			{
 				float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.eax + 0x5C);
 
-				fNewZoomFOV = CalculateNewFOV(fCurrentWeaponHipfireFOV);
+				fNewZoomFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponHipfireFOV, fAspectRatioScale);
 
 				ctx.xmm3.f32[0] = fNewZoomFOV;
 			});

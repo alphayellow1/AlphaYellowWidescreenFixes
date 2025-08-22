@@ -42,36 +42,22 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fCameraFOVFactor;
 float fWeaponFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fNewWeaponFOV;
 float fNewCameraFOV;
 float fNewCameraFOV2;
 float fAspectRatioScale;
 static uint8_t* WeaponFOVValueAddress;
-
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -209,11 +195,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -222,11 +203,11 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV == 90.0f)
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fCameraFOVFactor;
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fCameraFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 	}
 
 	_asm
@@ -296,11 +277,11 @@ void FOVFix()
 
 				if (fCurrentCameraFOV2 == 90.0f)
 				{
-					fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2) * fCameraFOVFactor;
+					fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV2, fAspectRatioScale) * fCameraFOVFactor;
 				}
 				else
 				{
-					fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+					fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV2, fAspectRatioScale);
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV2);
@@ -317,9 +298,7 @@ void FOVFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm = *reinterpret_cast<uint32_t*>(WeaponFOVInstructionScanResult + 2);
-
-			WeaponFOVValueAddress = reinterpret_cast<uint8_t*>(imm);
+			WeaponFOVValueAddress = Memory::GetPointer<uint32_t>(WeaponFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

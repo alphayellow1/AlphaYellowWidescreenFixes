@@ -42,14 +42,18 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
+constexpr float fDefaultCameraHFOV = 1.5707963705062866f;
+constexpr float fDefaultCameraHFOV2 = 1.8849556446075f;
+constexpr float fDefaultCameraVFOV = 1.1780972480773926f;
+constexpr float fDefaultCameraVFOV2 = 1.4137166738510132f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraHFOV;
@@ -60,7 +64,6 @@ float fNewCameraVFOV;
 float fNewCameraVFOV2;
 float fNewCameraVFOV3;
 float fNewCameraVFOV4;
-float fFOVFactor;
 bool bInitializationFailed = false;
 
 // Game detection
@@ -197,37 +200,6 @@ bool DetectGame()
 	return false;
 }
 
-
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance || fabsf(fCurrentHFOV - 1.8849556446075f) < fTolerance;
-}
-
-bool bIsCroppedVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance || fabsf(fCurrentVFOV - (1.4137166738510132f / fAspectRatioScale)) < fTolerance;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::SMAD && bFixActive == true)
@@ -253,13 +225,13 @@ void FOVFix()
 
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);
 
-				if (bIsDefaultHFOV(fCurrentCameraHFOV) && bIsCroppedVFOV(fCurrentCameraVFOV))
+				if ((Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV2)) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV / fAspectRatioScale) && Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV2 / fAspectRatioScale)))
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -275,13 +247,13 @@ void FOVFix()
 
 				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x13C);
 
-				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && bIsCroppedVFOV(fCurrentCameraVFOV2))
+				if ((Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) && Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV2)) && (Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV / fAspectRatioScale) && Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV2 / fAspectRatioScale)))
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV2 * fAspectRatioScale);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV2 * fAspectRatioScale);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
 				}
 
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraVFOV);
