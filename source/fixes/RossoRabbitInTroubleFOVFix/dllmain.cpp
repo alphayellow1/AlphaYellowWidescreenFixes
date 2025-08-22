@@ -39,10 +39,10 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+
+// Variables
 float fNewAspectRatio;
 
 // Game detection
@@ -65,7 +65,7 @@ const std::map<Game, GameInfo> kGames = {
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
 
-static void Logging()
+void Logging()
 {
 	// Get path to DLL
 	WCHAR dllPath[_MAX_PATH] = { 0 };
@@ -109,7 +109,7 @@ static void Logging()
 	}
 }
 
-static void Configuration()
+void Configuration()
 {
 	// Inipp initialization
 	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
@@ -159,7 +159,7 @@ static void Configuration()
 	spdlog::info("----------");
 }
 
-static bool DetectGame()
+bool DetectGame()
 {
 	for (const auto& [type, info] : kGames)
 	{
@@ -177,18 +177,18 @@ static bool DetectGame()
 	return false;
 }
 
-static void FOVFix()
+void FOVFix()
 {
 	if (eGameType == Game::RRIT && bFixActive == true)
 	{
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "8D 86 B0 00 00 00 68 ?? ?? ?? ?? 50 E8 48 A7 00 00");
 		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 7 - (std::uint8_t*)exeModule);
 
 			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-			Memory::Write(AspectRatioScanResult + 0x7, fNewAspectRatio);
+			Memory::Write(AspectRatioScanResult + 7, fNewAspectRatio);
 		}
 		else
 		{
@@ -198,7 +198,7 @@ static void FOVFix()
 	}
 }
 
-static DWORD __stdcall Main(void*)
+DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();

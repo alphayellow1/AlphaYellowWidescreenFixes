@@ -40,17 +40,16 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 
@@ -188,11 +187,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -254,7 +248,7 @@ void FOVFix()
 				}
 				else if (fCurrentCameraHFOV == 1.020408154f)
 				{
-					fCurrentCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					fCurrentCameraHFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 			});
 		}

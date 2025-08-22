@@ -43,17 +43,22 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 0.3f;
 
 // Ini variables
 bool bFixActive;
+int16_t iCurrentResX;
+int16_t iCurrentResY;
+float fFOVFactor;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
 float fNewAspectRatio;
-float fFOVFactor;
 float fNewCameraFOV;
+float fAspectRatioScale;
+int iDesiredBitDepth;
+static uint8_t* BitDepthAddress;
+static uint8_t* ResolutionWidthAddress;
+static uint8_t* ResolutionHeightAddress;
+static uint8_t* CameraFOV2Address;
 
 // Game detection
 enum class Game
@@ -189,16 +194,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * (fOldAspectRatio / fNewAspectRatio);
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::RL && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* ResolutionErrorJumpScanResult = Memory::PatternScan(exeModule, "75 13 68 58 E4 58 00 B9 70 3F 5C 00 E8 F7 2C 05 00");
 		if (ResolutionErrorJumpScanResult)
@@ -213,18 +215,20 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* BithDepthInstructionScanResult = Memory::PatternScan(exeModule, "66 8B 0D 94 E8 5C 00 51");
+		std::uint8_t* BithDepthInstructionScanResult = Memory::PatternScan(exeModule, "66 8B 0D ?? ?? ?? ?? 51 33 D2");
 		if (BithDepthInstructionScanResult)
 		{
 			spdlog::info("Bit Depth Instruction: Address is {:s}+{:x}", sExeName.c_str(), BithDepthInstructionScanResult - (std::uint8_t*)exeModule);
 
+			BitDepthAddress = Memory::GetPointer<uint32_t>(BithDepthInstructionScanResult + 3, Memory::PointerMode::Absolute);
+
+			iDesiredBitDepth = 32;
+			
 			static SafetyHookMid BitDepthInstructionMidHook{};
 
 			BitDepthInstructionMidHook = safetyhook::create_mid(BithDepthInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				int iDesiredBitDepth = 32;
-
-				*reinterpret_cast<int*>(0x005CE894) = iDesiredBitDepth;
+				*reinterpret_cast<int*>(BitDepthAddress) = iDesiredBitDepth;
 			});
 		}
 		else
@@ -233,23 +237,27 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "66 8B 15 90 E8 5C 00 52 33 C0 66 A1 8C E8 5C 00 50 33 C9");
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "66 8B 15 ?? ?? ?? ?? 52 33 C0 66 A1 ?? ?? ?? ?? 50 33 C9");
 		if (ResolutionInstructionsScanResult)
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+
+			ResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 12, Memory::PointerMode::Absolute);
+
+			ResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 3, Memory::PointerMode::Absolute);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
 			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 10, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(0x005CE88C) = iCurrentResX;
+				*reinterpret_cast<int16_t*>(ResolutionWidthAddress) = iCurrentResX;
 			});
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
 			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(0x005CE890) = iCurrentResY;
+				*reinterpret_cast<int16_t*>(ResolutionHeightAddress) = iCurrentResY;
 			});
 		}
 		else
@@ -263,7 +271,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instructions: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = fOldAspectRatio / fNewAspectRatio;
+			fNewCameraFOV = 1.0f / fAspectRatioScale;
 
 			Memory::Write(CameraFOVInstructionsScanResult + 6, fNewCameraFOV);
 
@@ -275,18 +283,24 @@ void WidescreenFix()
 			return;
 		}
 		
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 15 14 C8 59 00 52 D9 45 CC D8 65 9C");
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 15 ?? ?? ?? ?? 52 D9 45 CC D8 65 9C 51 D9 1C 24");
 		if (CameraFOVInstruction2ScanResult)
 		{
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 			
+			CameraFOV2Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction2ScanResult, Memory::PointerMode::Absolute);
+
+			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
 			static SafetyHookMid CameraFOVInstruction2MidHook{};
 			
 			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x0059C814);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOV2Address);
 
-				fCurrentCameraFOV = fOriginalCameraFOV * (1.0f / fFOVFactor);
+				fNewCameraFOV = fCurrentCameraFOV * (1.0f / fFOVFactor);
+
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else

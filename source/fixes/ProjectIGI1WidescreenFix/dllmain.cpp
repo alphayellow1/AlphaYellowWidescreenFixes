@@ -162,11 +162,11 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Width", iNewResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iNewResY);
 	inipp::get_value(ini.sections["Settings"], "CameraFOVFactor", fCameraFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", fWeaponFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", dWeaponFOVFactor);
 	spdlog_confparse(iNewResX);
 	spdlog_confparse(iNewResY);
 	spdlog_confparse(fCameraFOVFactor);
-	spdlog_confparse(fWeaponFOVFactor);
+	spdlog_confparse(dWeaponFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iNewResX <= 0 || iNewResY <= 0)
