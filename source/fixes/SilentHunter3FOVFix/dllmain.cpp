@@ -43,15 +43,15 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
 float fNewAspectRatio;
-float fFOVFactor;
 float fAspectRatioScale;
 float fNewCameraFOV;
 
@@ -189,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::SH3 && bFixActive == true)
@@ -217,7 +212,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x1B0);
 
-				fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});

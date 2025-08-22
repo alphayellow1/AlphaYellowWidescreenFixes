@@ -40,9 +40,7 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fTolerance = 0.00000001f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 60.0f;
 constexpr float fOriginalCameraZoom = 0.5f;
 
 // Ini variables
@@ -52,8 +50,10 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+static float fCurrentCameraFOV;
 static float fNewCameraFOV;
 float fNewCameraZoom;
+static uint8_t* CameraFOVAddress;
 
 // Game detection
 enum class Game
@@ -191,11 +191,13 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
+	fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
 	_asm
 	{
-		fsubr dword ptr ds : [fNewCameraFOV]
+		fsubr dword ptr ds:[fNewCameraFOV]
 	}
 }
 
@@ -208,32 +210,11 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			CameraFOVAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x005315A8);
-
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool bFOVAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-					[&](float computedValue) {
-						return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-					});
-
-				if (bFOVAlreadyComputed)
-				{
-					return;
-				}
-
-				fCurrentCameraFOV = fOriginalCameraFOV * fFOVFactor;
-
-				fNewCameraFOV = fCurrentCameraFOV;
-
-				// Record the computed FOV for future calls
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -246,31 +227,18 @@ void FOVFix()
 		{
 			spdlog::info("Camera Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraZoomInstructionMidHook{};
+			Memory::PatchBytes(CameraZoomInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static std::vector<float> vComputedZooms;
+			static SafetyHookMid CameraZoomInstructionMidHook{};
 
 			CameraZoomInstructionMidHook = safetyhook::create_mid(CameraZoomInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraZoom = *reinterpret_cast<float*>(ctx.eax + 0xEC);
 
-				// Skip processing if a similar zoom (within tolerance) has already been computed
-				bool bZoomAlreadyComputed = std::any_of(vComputedZooms.begin(), vComputedZooms.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraZoom) < fTolerance;
-				});
-
-				if (bZoomAlreadyComputed)
-				{
-					return;
-				}
-
 				// Computes the new zoom value
-				fCurrentCameraZoom = fOriginalCameraZoom * ((fNewCameraFOV - 50.0f) / (fOriginalCameraFOV - 50.0f));
+				fNewCameraZoom = fCurrentCameraZoom * ((fNewCameraFOV - 50.0f) / (fCurrentCameraFOV - 50.0f));
 
-				// Stores the new value so future calls can skip re-calculations
-				vComputedZooms.push_back(fCurrentCameraZoom);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraZoom);
 			});
 		}
 		else

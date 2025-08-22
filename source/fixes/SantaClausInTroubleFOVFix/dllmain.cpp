@@ -40,15 +40,13 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
-
-// Constants
-constexpr float fOriginalCameraFOV = 0.8999999761581421f;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -188,18 +186,18 @@ void FOVFix()
 {
 	if (eGameType == Game::SCIT && bFixActive == true)
 	{
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "AC 00 00 00 68 ?? ?? ?? ?? 51 E8 F0 B5 00 00 C2");
-		if (AspectRatioScanResult)
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "AC 00 00 00 68 ?? ?? ?? ?? 51 E8 F0 B5 00 00 C2");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 5 - (std::uint8_t*)exeModule);
-
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-			Memory::Write(AspectRatioScanResult + 5, fNewAspectRatio);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 4 - (std::uint8_t*)exeModule);
+			
+			Memory::Write(AspectRatioInstructionScanResult + 5, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
@@ -208,14 +206,17 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 5, "\x90\x90\x90", 3);
+
 			static SafetyHookMid CameraFOVInstructionMidHook{};
+
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-				fCurrentCameraFOV = fOriginalCameraFOV * (1.0f / fFOVFactor);
+				fNewCameraFOV = fCurrentCameraFOV * (1.0f / fFOVFactor);
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
+				*reinterpret_cast<float*>(ctx.ecx + 0x54) = fNewCameraFOV;
 			});
 		}
 		else

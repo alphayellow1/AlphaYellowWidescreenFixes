@@ -44,12 +44,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fNewCameraFOV;
 
 // Game detection
@@ -192,12 +192,14 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "68 AB AA AA 3F 50 B9 10 A1 9F 00");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "68 AB AA AA 3F 51 B9 10 A1 9F 00 E8 F7 79 01 00 5E 83 C4 08 C3 8B 54 24 0C 8B 44 24 08 52 68 AB AA AA 3F");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 1 - (std::uint8_t*)exeModule);
 
 			Memory::Write(AspectRatioInstructionScanResult + 1, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionScanResult + 31, fNewAspectRatio);
 		}
 		else
 		{
