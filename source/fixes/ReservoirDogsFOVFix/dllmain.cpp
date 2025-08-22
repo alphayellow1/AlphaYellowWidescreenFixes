@@ -39,7 +39,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalHipfireCameraFOV = 70.0f;
 constexpr float fOriginalZoomCameraFOV = 50.0f;
@@ -62,18 +61,6 @@ float fNewZoomCameraFOV;
 float fNewHipfireCameraFOV2;
 static uint8_t* HipfireCameraFOVValueAddress;
 static uint8_t* ZoomCameraFOVValueAddress;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -213,33 +200,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf((fFOVFactor * tanf(DegToRad(fCurrentFOV / 2.0f))) * fAspectRatioScale));
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f))));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fFOVFactor));
-}
-
 static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x34);
 
-	fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+	fNewCameraHFOV = Maths::CalculateNewHFOV_DegBased(fCurrentCameraHFOV, fAspectRatioScale);
 
 	_asm
 	{
@@ -253,7 +220,7 @@ void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x38);
 
-	fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
+	fNewCameraVFOV = Maths::CalculateNewVFOV_DegBased(fCurrentCameraVFOV);
 
 	_asm
 	{
@@ -347,9 +314,7 @@ void FOVFix()
 		{
 			spdlog::info("Hipfire Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), HipfireCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm1 = *reinterpret_cast<uint32_t*>(HipfireCameraFOVInstruction2ScanResult + 2);
-
-			HipfireCameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm1);
+			HipfireCameraFOVValueAddress = Memory::GetPointer<uint32_t>(HipfireCameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(HipfireCameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -366,9 +331,7 @@ void FOVFix()
 		{
 			spdlog::info("Zoom Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ZoomCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm2 = *reinterpret_cast<uint32_t*>(ZoomCameraFOVInstructionScanResult + 2);
-
-			ZoomCameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm2);
+			ZoomCameraFOVValueAddress = Memory::GetPointer<uint32_t>(ZoomCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
