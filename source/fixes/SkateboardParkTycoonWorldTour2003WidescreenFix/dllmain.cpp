@@ -50,9 +50,10 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewOverviewCameraFOV;
+float fNewOverviewCameraFOV1;
 float fNewOverviewCameraFOV2;
 float fNewOverviewCameraFOV3;
+float fNewOverviewCameraFOV4;
 float fNewGroundCameraFOV;
 
 // Game detection
@@ -223,17 +224,17 @@ void OverviewCameraAspectRatioInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
-static SafetyHookMid OverviewCameraFOVInstructionHook{};
+static SafetyHookMid OverviewCameraFOVInstruction1Hook{};
 
-void OverviewCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+void OverviewCameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentOverviewCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x44);
+	float& fCurrentOverviewCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x44);
 
-	fNewOverviewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV, fAspectRatioScale);
+	fNewOverviewCameraFOV1 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV1, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{
-		fdiv dword ptr ds:[fNewOverviewCameraFOV]
+		fdiv dword ptr ds:[fNewOverviewCameraFOV1]
 	}
 }
 
@@ -243,11 +244,25 @@ void OverviewCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentOverviewCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x44);
 
-	fNewOverviewCameraFOV2 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV2, fAspectRatioScale);
+	fNewOverviewCameraFOV2 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV2, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{
 		fld dword ptr ds:[fNewOverviewCameraFOV2]
+	}
+}
+
+static SafetyHookMid OverviewCameraFOVInstruction4Hook{};
+
+void OverviewCameraFOVInstruction4MidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentOverviewCameraFOV4 = *reinterpret_cast<float*>(ctx.edx + 0x44);
+
+	fNewOverviewCameraFOV4 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV4, fAspectRatioScale) * fFOVFactor;
+
+	_asm
+	{
+		fdiv dword ptr ds:[fNewOverviewCameraFOV4]
 	}
 }
 
@@ -327,18 +342,18 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* OverviewCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 76 44 8D 43 08 B9 04 00 00 00 5B D9 54 24 08");
-		if (OverviewCameraFOVInstructionScanResult)
+		std::uint8_t* OverviewCameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "D8 76 44 8D 43 08 B9 04 00 00 00 5B D9 54 24 08");
+		if (OverviewCameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Overview Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Overview Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(OverviewCameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(OverviewCameraFOVInstruction1ScanResult, "\x90\x90\x90", 3);
 
-			OverviewCameraFOVInstructionHook = safetyhook::create_mid(OverviewCameraFOVInstructionScanResult, OverviewCameraFOVInstructionMidHook);
+			OverviewCameraFOVInstruction1Hook = safetyhook::create_mid(OverviewCameraFOVInstruction1ScanResult, OverviewCameraFOVInstruction1MidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate overview camera FOV instruction memory address.");
+			spdlog::error("Failed to locate overview camera FOV instruction 1 memory address.");
 			return;
 		}
 
@@ -370,7 +385,7 @@ void WidescreenFix()
 			{
 				float& fCurrentOverviewCameraFOV3 = *reinterpret_cast<float*>(ctx.esi + 0x44);
 
-				fNewOverviewCameraFOV3 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV3, fAspectRatioScale);
+				fNewOverviewCameraFOV3 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV3, fAspectRatioScale) * fFOVFactor;
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewOverviewCameraFOV3);
 			});
@@ -378,6 +393,21 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate overview camera FOV instruction 3 memory address.");
+			return;
+		}
+
+		std::uint8_t* OverviewCameraFOVInstruction4ScanResult = Memory::PatternScan(exeModule, "D8 72 44 D9 95 0A 03 00 00 D9 9D 12 03 00 00 D9 85 0A 03 00 00 8B 8D A0 03 00 00 DC C0");
+		if (OverviewCameraFOVInstruction4ScanResult)
+		{
+			spdlog::info("Overview Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction4ScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(OverviewCameraFOVInstruction4ScanResult, "\x90\x90\x90", 3);
+
+			OverviewCameraFOVInstruction4Hook = safetyhook::create_mid(OverviewCameraFOVInstruction4ScanResult, OverviewCameraFOVInstruction4MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate overview camera FOV instruction 4 memory address.");
 			return;
 		}
 	}
