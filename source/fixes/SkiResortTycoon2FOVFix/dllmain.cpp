@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "SkateboardParkTycoonBackInTheUSA2004WidescreenFix";
+std::string sFixName = "SkiResortTycoon2FOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -50,12 +50,16 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fNewOverviewCameraFOV1;
+float fNewOverviewCameraFOV2;
+float fNewOverviewCameraFOV3;
+float fNewOverviewCameraFOV4;
+float fNewGroundCameraFOV;
 
 // Game detection
 enum class Game
 {
-	SPTBITU2004,
+	SRT2,
 	Unknown
 };
 
@@ -66,7 +70,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SPTBITU2004, {"Skateboard Park Tycoon: Back in the USA 2004", "Skate3.exe"}},
+	{Game::SRT2, {"Ski Resort Tycoon 2", "SkiGame.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -142,7 +146,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -186,66 +190,40 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid GroundCameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+void GroundCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+	float& fCurrentGroundCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+	fNewGroundCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGroundCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{
-		fld dword ptr ds:[fNewCameraFOV]
+		fld dword ptr ds:[fNewGroundCameraFOV]
 	}
 }
 
-void WidescreenFix()
+void FOVFix()
 {
-	if (eGameType == Game::SPTBITU2004 && bFixActive == true)
+	if (eGameType == Game::SRT2 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "C7 40 2C 00 04 00 00 E8 F0 18 06 00 C7 40 30 00 03 00 00 C2 04 00 E8 E1 18 06 00 C7 40 2C 20 03 00 00 E8 D5 18 06 00 C7 40 30 58 02 00 00 C2 04 00 E8 C6 18 06 00 C7 40 2C 00 05 00 00 E8 BA 18 06 00 C7 40 30 C0 03 00 00 C2 04 00");
-		if (ResolutionScanResult)
+		std::uint8_t* GroundCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 8B 44 24 04 D8 0D ?? ?? ?? ?? 89 41 38 D9 C0 D9 F2");
+		if (GroundCameraFOVInstructionScanResult)
 		{
-			spdlog::info("Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Ground Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GroundCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			// 1024x768
-			Memory::Write(ResolutionScanResult + 3, iCurrentResX);
+			Memory::PatchBytes(GroundCameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			Memory::Write(ResolutionScanResult + 15, iCurrentResY);
-
-			// 800x600
-			Memory::Write(ResolutionScanResult + 30, iCurrentResX);
-
-			Memory::Write(ResolutionScanResult + 42, iCurrentResY);
-
-			// 640x480
-			Memory::Write(ResolutionScanResult + 57, iCurrentResX);
-
-			Memory::Write(ResolutionScanResult + 69, iCurrentResY);
+			GroundCameraFOVInstructionHook = safetyhook::create_mid(GroundCameraFOVInstructionScanResult, GroundCameraFOVInstructionMidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution scan memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 8B 44 24 04 D8 0D CC A6 67 00 89 41 38 D9 C0 D9 F2");
-		if (CameraFOVInstructionScanResult)
-		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate ground camera FOV instruction memory address.");
 			return;
 		}
 	}
@@ -257,7 +235,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
