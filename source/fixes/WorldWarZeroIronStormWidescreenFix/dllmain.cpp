@@ -198,11 +198,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return atanf(tanf(fCurrentFOV) * fAspectRatioScale);
-}
-
 static SafetyHookMid AspectRatioInstructionHook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
@@ -221,11 +216,11 @@ void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV1 == 0.7853981853f)
 	{
-		fNewCameraFOV1 = CalculateNewFOV(fCurrentCameraFOV1) * fFOVFactor;
+		fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV1 = CalculateNewFOV(fCurrentCameraFOV1);
+		fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased);
 	}
 
 	_asm
@@ -242,11 +237,11 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV2 == 0.7853981853f)
 	{
-		fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2) * fFOVFactor;
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV2 = CalculateNewFOV(fCurrentCameraFOV2);
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased);
 	}
 
 	_asm
@@ -263,11 +258,11 @@ void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 	
 	if (fCurrentCameraFOV3 == 0.7853981853f)
 	{
-		fNewCameraFOV3 = CalculateNewFOV(fCurrentCameraFOV3) * fFOVFactor;
+		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV3 = CalculateNewFOV(fCurrentCameraFOV3);
+		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased);
 	}
 
 	_asm
@@ -284,11 +279,11 @@ void CameraFOVInstruction4MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV4 == 0.7853981853f)
 	{
-		fNewCameraFOV4 = CalculateNewFOV(fCurrentCameraFOV4) * fFOVFactor;
+		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV4 = CalculateNewFOV(fCurrentCameraFOV4);
+		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased);
 	}
 
 	_asm

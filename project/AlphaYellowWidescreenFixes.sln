@@ -699,6 +699,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CruiseShipTycoonWidescreenF
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ChampionshipSnowboarding2004WidescreenFix", "ChampionshipSnowboarding2004WidescreenFix.vcxproj", "{C94F3D26-D2B8-411C-AD08-F4F29E8452A3}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FridayNight3DBowlingWidescreenFix", "FridayNight3DBowlingWidescreenFix.vcxproj", "{2B0C3592-F622-4497-8B1D-CCE615145A15}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3475,6 +3477,14 @@ Global
 		{C94F3D26-D2B8-411C-AD08-F4F29E8452A3}.Release|x64.Build.0 = Release|x64
 		{C94F3D26-D2B8-411C-AD08-F4F29E8452A3}.Release|x86.ActiveCfg = Release|Win32
 		{C94F3D26-D2B8-411C-AD08-F4F29E8452A3}.Release|x86.Build.0 = Release|Win32
+		{2B0C3592-F622-4497-8B1D-CCE615145A15}.Debug|x64.ActiveCfg = Debug|x64
+		{2B0C3592-F622-4497-8B1D-CCE615145A15}.Debug|x64.Build.0 = Debug|x64
+		{2B0C3592-F622-4497-8B1D-CCE615145A15}.Debug|x86.ActiveCfg = Debug|Win32
+		{2B0C3592-F622-4497-8B1D-CCE615145A15}.Debug|x86.Build.0 = Debug|Win32
+		{2B0C3592-F622-4497-8B1D-CCE615145A15}.Release|x64.ActiveCfg = Release|x64
+		{2B0C3592-F622-4497-8B1D-CCE615145A15}.Release|x64.Build.0 = Release|x64
+		{2B0C3592-F622-4497-8B1D-CCE615145A15}.Release|x86.ActiveCfg = Release|Win32
+		{2B0C3592-F622-4497-8B1D-CCE615145A15}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -3826,6 +3836,7 @@ Global
 		{D5EC95AA-0E9C-4F7D-B4F2-8BF246D7474D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{392D4B41-165B-40B2-A0EC-88F5CDED35A2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{C94F3D26-D2B8-411C-AD08-F4F29E8452A3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{2B0C3592-F622-4497-8B1D-CCE615145A15} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
