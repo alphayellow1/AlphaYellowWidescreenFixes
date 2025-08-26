@@ -273,24 +273,44 @@ namespace Maths
 		return radians * (T(180) / Pi<T>);
 	}
 
+	enum class FOVRepresentation
+	{
+		HFOVBased,
+		VFOVBased
+	};
+
 	template<typename T, typename U>
-	inline T CalculateNewFOV_DegBased(T currentFOVDegrees, U aspectRatioScale)
+	inline T CalculateNewFOV_DegBased(T currentFOVDegrees, U aspectRatioScale, FOVRepresentation rep = FOVRepresentation::HFOVBased)
 	{
 		T scale = static_cast<T>(aspectRatioScale);
 
-		T halfRad = std::tan(DegToRad(currentFOVDegrees * T(0.5))) * scale;
-
-		T newFOVdeg = T(2) * RadToDeg(std::atan(halfRad));
-
-		return newFOVdeg;
+		if (rep == FOVRepresentation::HFOVBased)
+		{
+			// existing behaviour: convert to half-rad, scale, convert back
+			T halfRad = std::tan(DegToRad(currentFOVDegrees * T(0.5))) * scale;
+			return T(2) * RadToDeg(std::atan(halfRad));
+		}
+		else if (rep == FOVRepresentation::VFOVBased)
+		{
+			T currentHalfRad = DegToRad(currentFOVDegrees);
+			T newHalfRad = std::atan(std::tan(currentHalfRad) * scale);
+			return T(2) * RadToDeg(newHalfRad);
+		}
 	}
 
 	template<typename T, typename U>
-	inline T CalculateNewFOV_RadBased(T currentFOVRadians, U aspectRatioScale)
+	inline T CalculateNewFOV_RadBased(T currentFOVRadians, U aspectRatioScale, FOVRepresentation rep = FOVRepresentation::HFOVBased)
 	{
 		T scale = static_cast<T>(aspectRatioScale);
 
-		return T(2) * std::atan(std::tan(currentFOVRadians * T(0.5)) * scale);
+		if (rep == FOVRepresentation::HFOVBased)
+		{
+			return T(2) * std::atan(std::tan(currentFOVRadians * T(0.5)) * scale);
+		}
+		else if (rep == FOVRepresentation::VFOVBased)
+		{
+			return std::atan(std::tan(currentFOVRadians) * scale);
+		}
 	}
 
 	template<typename T, typename U>
@@ -374,7 +394,6 @@ namespace Maths
 
 		if constexpr (Integral<T>)
 		{
-			// buffer size: digits10 + sign + null safety
 			char buf[std::numeric_limits<T>::digits10 + 3];
 			auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), value);
 			str.assign(buf, p);
@@ -386,7 +405,6 @@ namespace Maths
 
 		for (char ch : str)
 		{
-			// cast via unsigned char to avoid sign-extension on platforms where char is signed
 			OutputChar out = static_cast<OutputChar>(static_cast<unsigned char>(ch));
 			Memory::Write(baseAddress, out);
 			baseAddress += sizeof(OutputChar);
