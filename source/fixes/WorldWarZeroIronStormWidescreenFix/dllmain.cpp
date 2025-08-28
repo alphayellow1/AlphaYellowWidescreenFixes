@@ -216,11 +216,11 @@ void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV1 == 0.7853981853f)
 	{
-		fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * fFOVFactor;
+		fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale, Maths::AngleMode::HalfAngle) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased);
+		fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale, Maths::AngleMode::HalfAngle);
 	}
 
 	_asm
@@ -237,11 +237,11 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV2 == 0.7853981853f)
 	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * fFOVFactor;
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale, Maths::AngleMode::HalfAngle) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased);
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale, Maths::AngleMode::HalfAngle);
 	}
 
 	_asm
@@ -258,11 +258,11 @@ void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 	
 	if (fCurrentCameraFOV3 == 0.7853981853f)
 	{
-		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * fFOVFactor;
+		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale, Maths::AngleMode::HalfAngle) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased);
+		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale, Maths::AngleMode::HalfAngle);
 	}
 
 	_asm
@@ -279,11 +279,11 @@ void CameraFOVInstruction4MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV4 == 0.7853981853f)
 	{
-		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * fFOVFactor;
+		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale, Maths::AngleMode::HalfAngle) * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased);
+		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale, Maths::AngleMode::HalfAngle);
 	}
 
 	_asm

@@ -358,7 +358,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	double& dCurrentCameraFOV = *reinterpret_cast<double*>(CameraFOVAddress);
 
 	// Computes the new FOV value
-	dNewCameraFOV = Maths::CalculateNewFOV_RadBased(dCurrentCameraFOV, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * dFOVFactor;
+	dNewCameraFOV = Maths::CalculateNewFOV_RadBased(dCurrentCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dFOVFactor;
 
 	_asm
 	{
