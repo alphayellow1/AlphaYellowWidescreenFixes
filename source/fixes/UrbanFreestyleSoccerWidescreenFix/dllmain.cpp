@@ -228,22 +228,22 @@ void WidescreenFix()
 		std::uint8_t* ResolutionInstructions1ScanResult = Memory::PatternScan(exeModule, "89 4E 78 8B 57 04 89 56 7C");
 		if (ResolutionInstructions1ScanResult)
 		{
-			spdlog::info("Renderer Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions1ScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(ResolutionInstructions1ScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid RendererResolutionWidthInstructionMidHook{};
+			static SafetyHookMid ResolutionWidthInstruction1MidHook{};
 
-			RendererResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructions1ScanResult, [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction1MidHook = safetyhook::create_mid(ResolutionInstructions1ScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.esi + 0x78) = iCurrentResX;
 			});
 
 			Memory::PatchBytes(ResolutionInstructions1ScanResult + 6, "\x90\x90\x90", 3);
 
-			static SafetyHookMid RendererResolutionHeightInstructionMidHook{};
+			static SafetyHookMid ResolutionHeightInstruction1MidHook{};
 
-			RendererResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructions1ScanResult + 6, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction1MidHook = safetyhook::create_mid(ResolutionInstructions1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.esi + 0x7C) = iCurrentResY;
 			});
@@ -261,18 +261,18 @@ void WidescreenFix()
 			
 			Memory::PatchBytes(ResolutionInstructions2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
-			static SafetyHookMid RendererResolution2WidthInstructionMidHook{};
+			static SafetyHookMid ResolutionWidthInstruction2MidHook{};
 			
-			RendererResolution2WidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructions2ScanResult, [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction2MidHook = safetyhook::create_mid(ResolutionInstructions2ScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.esi + 0xA8) = iCurrentResX;
 			});
 			
 			Memory::PatchBytes(ResolutionInstructions2ScanResult + 42, "\x90\x90\x90\x90\x90\x90", 6);
 			
-			static SafetyHookMid RendererResolution2HeightInstructionMidHook{};
+			static SafetyHookMid ResolutionHeightInstruction2MidHook{};
 			
-			RendererResolution2HeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructions2ScanResult + 42, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction2MidHook = safetyhook::create_mid(ResolutionInstructions2ScanResult + 42, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.esi + 0xAC) = iCurrentResY;
 			});
