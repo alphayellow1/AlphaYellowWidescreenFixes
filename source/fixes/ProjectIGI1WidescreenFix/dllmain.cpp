@@ -61,7 +61,7 @@ static uint8_t* WeaponFOVValueAddress;
 static uint8_t* WeaponFOVValue2Address;
 static uint8_t* WeaponFOVValue3Address;
 static bool bInsideComputer;
-double dNewWeaponFOV;
+double dNewWeaponFOV1;
 double dNewWeaponFOV2;
 double dNewWeaponFOV3;
 
@@ -234,13 +234,13 @@ static SafetyHookMid WeaponFOVInstructionHook{};
 
 void WeaponFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	double& dCurrentWeaponFOV = *reinterpret_cast<double*>(WeaponFOVValueAddress);
+	double& dCurrentWeaponFOV1 = *reinterpret_cast<double*>(WeaponFOVValueAddress);
 
-	dNewWeaponFOV = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV, fAspectRatioScale) * dWeaponFOVFactor;
+	dNewWeaponFOV1 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV1, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * dWeaponFOVFactor;
 
 	_asm
 	{
-		fld qword ptr ds:[dNewWeaponFOV]
+		fld qword ptr ds:[dNewWeaponFOV1]
 	}
 }
 
@@ -250,7 +250,7 @@ void WeaponFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	double& dCurrentWeaponFOV2 = *reinterpret_cast<double*>(WeaponFOVValue2Address);
 
-	dNewWeaponFOV2 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV2, fAspectRatioScale) * dWeaponFOVFactor;
+	dNewWeaponFOV2 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV2, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * dWeaponFOVFactor;
 
 	_asm
 	{
@@ -264,7 +264,7 @@ void WeaponFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
 	double& dCurrentWeaponFOV3 = *reinterpret_cast<double*>(WeaponFOVValue3Address);
 
-	dNewWeaponFOV3 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV3, fAspectRatioScale) * dWeaponFOVFactor;
+	dNewWeaponFOV3 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV3, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * dWeaponFOVFactor;
 
 	_asm
 	{
@@ -293,11 +293,9 @@ void WidescreenFix()
 
 				int& iCurrentResY = *reinterpret_cast<int*>(ctx.ebp + 0x10);
 
-				if (iCurrentResX != 640)
-				{
-					iCurrentResX = iNewResX;
-					iCurrentResY = iNewResY;
-				}
+				iCurrentResX = iNewResX;
+
+				iCurrentResY = iNewResY;
 			});
 		}
 		else
