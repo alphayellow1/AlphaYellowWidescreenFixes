@@ -207,9 +207,9 @@ static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-	int& fCurrentCameraFOV2 = *reinterpret_cast<int*>(ctx.esi + 0xC0);
+	int& iCurrentCameraFOV2 = *reinterpret_cast<int*>(ctx.esi + 0xC0);
 
-	iNewCameraFOV2 = (int)(fCurrentCameraFOV2 * fFOVFactor);
+	iNewCameraFOV2 = (int)(iCurrentCameraFOV2 * fFOVFactor);
 
 	_asm
 	{
@@ -225,7 +225,7 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionInstructions1ScanResult = Memory::PatternScan(exeModule, "89 4E 78 8B 57 04 89 56 7C ");
+		std::uint8_t* ResolutionInstructions1ScanResult = Memory::PatternScan(exeModule, "89 4E 78 8B 57 04 89 56 7C");
 		if (ResolutionInstructions1ScanResult)
 		{
 			spdlog::info("Renderer Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions1ScanResult - (std::uint8_t*)exeModule);
