@@ -273,24 +273,24 @@ namespace Maths
 		return radians * (T(180) / Pi<T>);
 	}
 
-	enum class FOVRepresentation
+	enum class AngleMode
 	{
-		HFOVBased,
-		VFOVBased
+		FullAngle,
+		HalfAngle,
 	};
 
 	template<typename T, typename U>
-	inline T CalculateNewFOV_DegBased(T currentFOVDegrees, U aspectRatioScale, FOVRepresentation rep = FOVRepresentation::HFOVBased)
+	inline T CalculateNewFOV_DegBased(T currentFOVDegrees, U aspectRatioScale, AngleMode rep = AngleMode::FullAngle)
 	{
 		T scale = static_cast<T>(aspectRatioScale);
 
-		if (rep == FOVRepresentation::HFOVBased)
+		if (rep == AngleMode::FullAngle)
 		{
 			// existing behaviour: convert to half-rad, scale, convert back
 			T halfRad = std::tan(DegToRad(currentFOVDegrees * T(0.5))) * scale;
 			return T(2) * RadToDeg(std::atan(halfRad));
 		}
-		else if (rep == FOVRepresentation::VFOVBased)
+		else if (rep == AngleMode::HalfAngle)
 		{
 			T currentHalfRad = DegToRad(currentFOVDegrees);
 			T newHalfRad = std::atan(std::tan(currentHalfRad) * scale);
@@ -299,15 +299,15 @@ namespace Maths
 	}
 
 	template<typename T, typename U>
-	inline T CalculateNewFOV_RadBased(T currentFOVRadians, U aspectRatioScale, FOVRepresentation rep = FOVRepresentation::HFOVBased)
+	inline T CalculateNewFOV_RadBased(T currentFOVRadians, U aspectRatioScale, AngleMode rep = AngleMode::FullAngle)
 	{
 		T scale = static_cast<T>(aspectRatioScale);
 
-		if (rep == FOVRepresentation::HFOVBased)
+		if (rep == AngleMode::FullAngle)
 		{
 			return T(2) * std::atan(std::tan(currentFOVRadians * T(0.5)) * scale);
 		}
-		else if (rep == FOVRepresentation::VFOVBased)
+		else if (rep == AngleMode::HalfAngle)
 		{
 			return std::atan(std::tan(currentFOVRadians) * scale);
 		}
@@ -330,7 +330,7 @@ namespace Maths
 
 		T factor = static_cast<T>(fovFactor);
 
-		return T(2) * std::atan(factor * std::tanf(currentHFOVRadians * T(0.5)) * scale);
+		return T(2) * std::atan(factor * std::tan(currentHFOVRadians * T(0.5)) * scale);
 	}
 
 	template<typename T, typename V = T>
@@ -338,13 +338,13 @@ namespace Maths
 	{
 		T factor = static_cast<T>(fovFactor);
 
-		return T(2) * std::atan(factor * std::tanf(currentVFOVRadians * T(0.5)));
+		return T(2) * std::atan(factor * std::tan(currentVFOVRadians * T(0.5)));
 	}
 
 	template<typename T, typename U, typename V = U>
 	inline T CalculateNewHFOV_DegBased(T currentHFOVDegrees, U aspectRatioScale, V fovFactor = V(1))
 	{
-		T halfRad = std::tanf(DegToRad(currentHFOVDegrees * T(0.5)));
+		T halfRad = std::tan(DegToRad(currentHFOVDegrees * T(0.5)));
 
 		return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad * static_cast<T>(aspectRatioScale)));
 	}
@@ -352,7 +352,7 @@ namespace Maths
 	template<typename T, typename V = T>
 	inline T CalculateNewVFOV_DegBased(T currentVFOVDegrees, V fovFactor = V(1))
 	{
-		T halfRad = std::tanf(DegToRad(currentVFOVDegrees * T(0.5)));
+		T halfRad = std::tan(DegToRad(currentVFOVDegrees * T(0.5)));
 
 		return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad));
 	}

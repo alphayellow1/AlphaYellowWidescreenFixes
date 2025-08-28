@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "ProjectIGI1WidescreenFix";
-std::string sFixVersion = "1.4";
+std::string sFixVersion = "1.5";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -56,11 +56,11 @@ float fNewAspectRatio;
 float fNewAspectRatio2;
 float fAspectRatioScale;
 uint16_t GameVersionCheckValue;
-static int8_t* iInsideComputer;
-static uint8_t* WeaponFOVValueAddress;
-static uint8_t* WeaponFOVValue2Address;
-static uint8_t* WeaponFOVValue3Address;
-static bool bInsideComputer;
+int8_t* iInsideComputer;
+uint8_t* WeaponFOVValue1Address;
+uint8_t* WeaponFOVValue2Address;
+uint8_t* WeaponFOVValue3Address;
+bool bInsideComputer;
 double dNewWeaponFOV1;
 double dNewWeaponFOV2;
 double dNewWeaponFOV3;
@@ -234,9 +234,9 @@ static SafetyHookMid WeaponFOVInstructionHook{};
 
 void WeaponFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	double& dCurrentWeaponFOV1 = *reinterpret_cast<double*>(WeaponFOVValueAddress);
+	double& dCurrentWeaponFOV1 = *reinterpret_cast<double*>(WeaponFOVValue1Address);
 
-	dNewWeaponFOV1 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV1, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * dWeaponFOVFactor;
+	dNewWeaponFOV1 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV1, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dWeaponFOVFactor;
 
 	_asm
 	{
@@ -250,7 +250,7 @@ void WeaponFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	double& dCurrentWeaponFOV2 = *reinterpret_cast<double*>(WeaponFOVValue2Address);
 
-	dNewWeaponFOV2 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV2, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * dWeaponFOVFactor;
+	dNewWeaponFOV2 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV2, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dWeaponFOVFactor;
 
 	_asm
 	{
@@ -264,7 +264,7 @@ void WeaponFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
 	double& dCurrentWeaponFOV3 = *reinterpret_cast<double*>(WeaponFOVValue3Address);
 
-	dNewWeaponFOV3 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV3, fAspectRatioScale, Maths::FOVRepresentation::VFOVBased) * dWeaponFOVFactor;
+	dNewWeaponFOV3 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV3, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dWeaponFOVFactor;
 
 	_asm
 	{
@@ -352,7 +352,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			WeaponFOVValueAddress = Memory::GetPointer<uint32_t>(WeaponFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponFOVValue1Address = Memory::GetPointer<uint32_t>(WeaponFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
