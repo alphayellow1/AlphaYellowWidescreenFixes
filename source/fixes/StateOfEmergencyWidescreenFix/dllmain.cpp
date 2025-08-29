@@ -43,13 +43,21 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fNewHorizontalRenderingValue;
-float fFOVFactor;
+float fAspectRatioScale;
+float fNewCameraFOV;
+float fNewHorizontalCulling;
+float fNewFOVCulling1;
+float fNewFOVCulling2;
+uint8_t* ResolutionWidthAddress;
+uint8_t* ResolutionHeightAddress;
+uint8_t* HorizontalCullingAddress;
 
 // Game detection
 enum class Game
@@ -185,17 +193,56 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid HorizontalRenderingInstructionHook{};
+static SafetyHookMid CullingInstructions1Hook{};
 
-void HorizontalRenderingInstructionMidHook(SafetyHookContext& ctx)
+void CullingInstructions1MidHook(SafetyHookContext& ctx)
 {
-	fNewHorizontalRenderingValue = (1.0f / fFOVFactor) * (fOldAspectRatio / fNewAspectRatio);
+	float& fCurrentHorizontalCulling = *reinterpret_cast<float*>(HorizontalCullingAddress);
+
+	fNewHorizontalCulling = (fCurrentHorizontalCulling / fAspectRatioScale) * (1.0f / fFOVFactor);
 
 	_asm
 	{
-		fld dword ptr ds : [fNewHorizontalRenderingValue]
+		fld dword ptr ds:[fNewHorizontalCulling]
 	}
-};
+
+	float& fCurrentFOVCulling1 = *reinterpret_cast<float*>(ctx.esp + 0x50);
+
+	fNewFOVCulling1 = 50.0f;
+
+	_asm
+	{
+		fmul dword ptr ds:[fNewFOVCulling1]
+	}
+}
+
+static SafetyHookMid CullingInstructions2Hook{};
+
+void CullingInstructions2MidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentFOVCulling2 = *reinterpret_cast<float*>(ctx.esp + 0x50);
+
+	fNewFOVCulling2 = 50.0f;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewFOVCulling2]
+	}
+}
+
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xC);
+
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
 
 void FOVFix()
 {
@@ -203,67 +250,83 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionWidthInstructionScanResult = Memory::PatternScan(exeModule, "A3 38 DE 4D 00 E8 89 FA FF FF 6B C0 5C");
-		if (ResolutionWidthInstructionScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6B C0 5C 8B 0E 8B 54 08 04 57 89 15 ?? ?? ?? ??");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+
+			ResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 1, Memory::PointerMode::Absolute);
+
+			ResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 22, Memory::PointerMode::Absolute);
+
+			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90", 5);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uint32_t>(iCurrentResX);
+				*reinterpret_cast<int*>(ResolutionWidthAddress) = iCurrentResX;
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution width instruction memory address.");
-			return;
-		}
 
-		std::uint8_t* ResolutionHeightInstructionScanResult = Memory::PatternScan(exeModule, "89 15 3C DE 4D 00 E8 74 FA FF FF 83 C4 0C");
-		if (ResolutionHeightInstructionScanResult)
-		{
-			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
+			Memory::PatchBytes(ResolutionInstructionsScanResult + 20, "\x90\x90\x90\x90\x90\x90", 6);
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.edx = std::bit_cast<uint32_t>(iCurrentResY);
+				*reinterpret_cast<int*>(ResolutionHeightAddress) = iCurrentResY;
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution height instruction memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "3F 75 08 C7 44 24 48 ?? ?? ?? ?? D9 44 24 54 8B");
-		if (AspectRatioScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "3F 75 08 C7 44 24 48 00 00 A0 3F D9 44 24 54 8B");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 7 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScanResult + 7, fNewAspectRatio);
+			Memory::Write(AspectRatioInstructionScanResult + 7, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* HorizontalRenderingInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 AC 49 4C 00 D8 4C 24 50");
-		if (HorizontalRenderingInstructionScanResult)
+		std::uint8_t* CullingInstructions1ScanResult = Memory::PatternScan(exeModule, "D9 05 AC 49 4C 00 D8 4C 24 50");
+		if (CullingInstructions1ScanResult)
 		{
-			spdlog::info("Horizontal Rendering Instruction: Address is {:s}+{:x}", sExeName.c_str(), HorizontalRenderingInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Culling Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), CullingInstructions1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(HorizontalRenderingInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			HorizontalCullingAddress = Memory::GetPointer<uint32_t>(CullingInstructions1ScanResult + 2, Memory::PointerMode::Absolute);
 
-			HorizontalRenderingInstructionHook = safetyhook::create_mid(HorizontalRenderingInstructionScanResult + 6, HorizontalRenderingInstructionMidHook);
+			Memory::PatchBytes(CullingInstructions1ScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 10);
+
+			CullingInstructions1Hook = safetyhook::create_mid(CullingInstructions1ScanResult, CullingInstructions1MidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate horizontal rendering instruction memory address.");
+			spdlog::error("Failed to locate culling instructions 1 scan memory address.");
+			return;
+		}
+
+		std::uint8_t* CullingInstructions2ScanResult = Memory::PatternScan(exeModule, "D9 44 24 50 C7 05 D0 E4 4D 00 00 00 00 00 D9 E0 C7 05 CC E4 4D 00 00 00 00 00");
+		if (CullingInstructions2ScanResult)
+		{
+			spdlog::info("Culling Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), CullingInstructions2ScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CullingInstructions2ScanResult, "\x90\x90\x90\x90", 4);
+			
+			CullingInstructions2Hook = safetyhook::create_mid(CullingInstructions2ScanResult, CullingInstructions2MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate culling instructions 2 scan memory address.");
 			return;
 		}
 
@@ -272,14 +335,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);	
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xC);
-
-				fCurrentCameraFOV *= fFOVFactor;
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
