@@ -40,7 +40,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float tolerance = 0.00001f;
 
 // Ini variables
 bool bFixActive;
@@ -188,11 +187,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::SAER && bFixActive == true)
@@ -306,11 +300,11 @@ void WidescreenFix()
 
 				if (fCurrentCameraHFOV == 1.264000058f)
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				*reinterpret_cast<float*>(ctx.esi + 0x60) = fNewCameraHFOV;

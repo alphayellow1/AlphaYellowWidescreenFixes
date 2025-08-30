@@ -43,12 +43,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fNewCameraFOV;
 float fAspectRatioScale;
 
@@ -188,18 +188,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xE8);
 
-	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{
@@ -222,7 +217,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

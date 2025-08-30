@@ -41,7 +41,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -54,19 +53,7 @@ float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
-static uint8_t* CameraFOVValueAddress;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+uint8_t* CameraFOVValueAddress;
 
 // Game detection
 enum class Game
@@ -217,11 +204,6 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 static SafetyHookMid AspectRatioInstruction1Hook{};
 
 void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
@@ -248,7 +230,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVValueAddress);
 
-	fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{
@@ -340,9 +322,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is acknex.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			uint32_t imm = *reinterpret_cast<uint32_t*>(CameraFOVInstructionScanResult + 2);
-
-			CameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm);
+			CameraFOVValueAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

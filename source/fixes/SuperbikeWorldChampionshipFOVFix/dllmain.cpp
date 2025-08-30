@@ -41,15 +41,14 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fAspectRatioScale;
@@ -188,9 +187,18 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+
+	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
 }
 
 void FOVFix()
@@ -206,14 +214,13 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
+
 			static SafetyHookMid AspectRatioInstructionMidHook{};
 
 			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				// Stores the derreferenced memory address represented by ESI + 54 into a float variable reference
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x54);
-
-				fCurrentAspectRatio = fNewAspectRatio;
+				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
 		}
 		else
@@ -222,21 +229,14 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 41 4C D9 91 D0 00 00 00 D9 F2 DD D8");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 D8 0D ?? ?? ?? ?? 8B 44 24 04 89 41 4C D9 91 D0 00 00 00 D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
-
-				fCurrentCameraFOV = CalculateNewFOV(1.117010713f) * fFOVFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

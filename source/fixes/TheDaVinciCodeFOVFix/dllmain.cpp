@@ -51,6 +51,7 @@ int iCurrentResY;
 float fFOVFactor;
 float fNewAspectRatio;
 float fNewCameraHFOV;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -188,11 +189,11 @@ static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = fOldAspectRatio / fNewAspectRatio;
+	fNewCameraHFOV = 1.0f / fAspectRatioScale;
 
 	_asm
 	{
-		fdivr dword ptr ds : [fNewCameraHFOV]
+		fdivr dword ptr ds:[fNewCameraHFOV]
 	}
 }
 
@@ -201,6 +202,8 @@ void FOVFix()
 	if (eGameType == Game::TDVC && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 44 24 24 00 00 00 00 C7 44 24 28 00 00 80 3F DD D8 D8 3D ?? ?? ?? ?? D9 C1 D8 25 ?? ?? ?? ??");
 		if (CameraHFOVInstructionScanResult)

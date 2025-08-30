@@ -43,18 +43,19 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+double dFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraHFOV;
 float fAspectRatioScale;
 double dNewCameraFOV;
-double dFOVFactor;
+float fNewAspectRatio2;
 
 // Game detection
 enum class Game
@@ -190,15 +191,15 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid AspectRatioInstructionHook{};
 
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraHFOV = 1.0f / fAspectRatioScale;
+	fNewAspectRatio2 = 1.0f / fAspectRatioScale;
 
 	_asm
 	{
-		fld dword ptr ds:[fNewCameraHFOV]
+		fld dword ptr ds:[fNewAspectRatio2]
 	}
 }
 
@@ -222,18 +223,18 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? 8B 10 D8 B1 20 01 00 00 89 54 24 10");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? 8B 10 D8 B1 20 01 00 00 89 54 24 10");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
+			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
 			return;
 		}
 

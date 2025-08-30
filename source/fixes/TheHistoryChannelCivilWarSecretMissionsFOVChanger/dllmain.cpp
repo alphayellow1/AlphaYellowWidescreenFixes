@@ -44,13 +44,40 @@ std::string sExeName;
 bool bFixActive;
 
 // Constants
-constexpr float fOriginalCameraFOV = 1.22173059f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 float fNewCameraFOV;
+float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewSprintCameraFOV;
+float fNewCameraFOV1;
+float fNewCameraFOV2;
+float fNewCameraFOV3;
+float fNewCameraFOV4;
+float fNewActorInitializeFOV;
+float fNewWeaponReloadCameraFOV;
+float fNewWeaponChangeCameraFOV;
+float fNewWeaponResetCameraFOV1;
+float fNewWeaponResetCameraFOV2;
+float fNewWeaponPickupCameraFOV;
+float fNewStartingSprintCameraFOV;
+float fCurrentStartingSprintCameraFOV;
+float fCurrentSprintCameraFOV;
+uint8_t* CameraFOV1Address;
+uint8_t* CameraFOV2Address;
+uint8_t* CameraFOV3Address;
+uint8_t* CameraFOV4Address;
+uint8_t* ActorInitializeFOVAddress;
+uint8_t* WeaponReloadCameraFOVAddress;
+uint8_t* WeaponChangeCameraFOVAddress;
+uint8_t* WeaponResetCamera1FOVAddress;
+uint8_t* WeaponResetCamera2FOVAddress;
+uint8_t* WeaponPickupCameraFOVAddress;
+uint8_t* StartingSprintCameraFOVAddress;
 
 // Game detection
 enum class Game
@@ -154,6 +181,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -162,18 +191,21 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	while (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("CloakNTEngine.dll");
-		spdlog::info("Waiting for CloakNTEngine.dll to load...");
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	while ((dllModule2 = GetModuleHandleA("CloakNTEngine.dll")) == nullptr)
+	{
+		spdlog::warn("CloakNTEngine.dll not loaded yet. Waiting...");
+		Sleep(100);
 	}
 
 	spdlog::info("Successfully obtained handle for CloakNTEngine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
@@ -181,13 +213,17 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstruction1Hook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(CameraFOV1Address);
+
+	fNewCameraFOV1 = fCurrentCameraFOV1 * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewCameraFOV1]
 	}
 }
 
@@ -195,9 +231,13 @@ static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOV2Address);
+
+	fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewCameraFOV2]
 	}
 }
 
@@ -205,9 +245,13 @@ static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(CameraFOV3Address);
+
+	fNewCameraFOV3 = fCurrentCameraFOV3 * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewCameraFOV3]
 	}
 }
 
@@ -215,9 +259,13 @@ static SafetyHookMid CameraFOVInstruction4Hook{};
 
 void CameraFOVInstruction4MidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentCameraFOV4 = *reinterpret_cast<float*>(CameraFOV4Address);
+
+	fNewCameraFOV4 = fCurrentCameraFOV4 * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewCameraFOV4]
 	}
 }
 
@@ -225,9 +273,13 @@ static SafetyHookMid ActorInitializeFOVInstructionHook{};
 
 void ActorInitializeFOVInstructionMidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentActorInitializeFOV = *reinterpret_cast<float*>(ActorInitializeFOVAddress);
+
+	fNewActorInitializeFOV = fCurrentActorInitializeFOV * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewActorInitializeFOV]
 	}
 }
 
@@ -235,9 +287,13 @@ static SafetyHookMid WeaponReloadCameraFOVInstructionHook{};
 
 void WeaponReloadCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentWeaponReloadCameraFOV = *reinterpret_cast<float*>(WeaponReloadCameraFOVAddress);
+
+	fNewWeaponReloadCameraFOV = fCurrentWeaponReloadCameraFOV * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewWeaponReloadCameraFOV]
 	}
 }
 
@@ -245,9 +301,13 @@ static SafetyHookMid WeaponChangeCameraFOVInstructionHook{};
 
 void WeaponChangeCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentWeaponChangeCameraFOV = *reinterpret_cast<float*>(WeaponChangeCameraFOVAddress);
+
+	fNewWeaponChangeCameraFOV = fCurrentWeaponChangeCameraFOV * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewWeaponChangeCameraFOV]
 	}
 }
 
@@ -255,9 +315,13 @@ static SafetyHookMid WeaponResetCameraFOVInstruction1Hook{};
 
 void WeaponResetCameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentWeaponResetCameraFOV1 = *reinterpret_cast<float*>(WeaponResetCamera1FOVAddress);
+
+	fNewWeaponResetCameraFOV1 = fCurrentWeaponResetCameraFOV1 * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewWeaponResetCameraFOV1]
 	}
 }
 
@@ -265,9 +329,13 @@ static SafetyHookMid WeaponResetCameraFOVInstruction2Hook{};
 
 void WeaponResetCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentWeaponResetCameraFOV2 = *reinterpret_cast<float*>(WeaponResetCamera2FOVAddress);
+
+	fNewWeaponResetCameraFOV2 = fCurrentWeaponResetCameraFOV2 * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewWeaponResetCameraFOV2]
 	}
 }
 
@@ -275,9 +343,13 @@ static SafetyHookMid WeaponPickupCameraFOVInstructionHook{};
 
 void WeaponPickupCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentWeaponPickupCameraFOV = *reinterpret_cast<float*>(WeaponPickupCameraFOVAddress);
+
+	fNewWeaponPickupCameraFOV = fCurrentWeaponPickupCameraFOV * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewWeaponPickupCameraFOV]
 	}
 }
 
@@ -285,9 +357,27 @@ static SafetyHookMid StartingSprintCameraFOVInstructionHook{};
 
 void StartingSprintCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
+	float& fCurrentStartingSprintCameraFOV = *reinterpret_cast<float*>(StartingSprintCameraFOVAddress);
+
+	fNewStartingSprintCameraFOV = fCurrentStartingSprintCameraFOV * fFOVFactor;
+
 	_asm
 	{
-		fld dword ptr ds : [fNewCameraFOV]
+		fld dword ptr ds:[fNewStartingSprintCameraFOV]
+	}
+}
+
+static SafetyHookMid SprintCameraFOVInstructionHook{};
+
+void SprintCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentSprintCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x34);
+
+	fNewSprintCameraFOV = fCurrentSprintCameraFOV * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewSprintCameraFOV]
 	}
 }
 
@@ -295,20 +385,24 @@ void FOVChanger()
 {
 	if (eGameType == Game::THCCWSM && bFixActive == true)
 	{
-		fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? D9 1C 24 D9 04 24 59 C3 CC CC CC CC CC CC CC");
-		if (CameraFOVInstructionScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? D9 1C 24 D9 04 24 59 C3 CC CC CC CC CC CC CC");
+		if (CameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			CameraFOV1Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction1ScanResult + 2, Memory::PointerMode::Absolute);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
+			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, CameraFOVInstruction1MidHook);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
 			return;
 		}
 
@@ -317,9 +411,11 @@ void FOVChanger()
 		{
 			spdlog::info("Camera FOV Instruction 2: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
+			CameraFOV2Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction2ScanResult + 40, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult + 38, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 44, CameraFOVInstruction2MidHook);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 38, CameraFOVInstruction2MidHook);
 		}
 		else
 		{
@@ -332,9 +428,11 @@ void FOVChanger()
 		{
 			spdlog::info("Camera FOV Instruction 3: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction3ScanResult - (std::uint8_t*)dllModule2);
 
+			CameraFOV3Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction3ScanResult + 28, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(CameraFOVInstruction3ScanResult + 26, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult + 32, CameraFOVInstruction3MidHook);
+			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult + 26, CameraFOVInstruction3MidHook);
 		}
 		else
 		{
@@ -347,9 +445,11 @@ void FOVChanger()
 		{
 			spdlog::info("Camera FOV Instruction 4: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction4ScanResult - (std::uint8_t*)dllModule2);
 
+			CameraFOV4Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction4ScanResult + 2, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(CameraFOVInstruction4ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstruction4ScanResult + 6, CameraFOVInstruction4MidHook);
+			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstruction4ScanResult, CameraFOVInstruction4MidHook);
 		}
 		else
 		{
@@ -362,14 +462,9 @@ void FOVChanger()
 		{
 			spdlog::info("Sprint Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", SprintCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid SprintCameraFOVInstructionMidHook{};
+			Memory::PatchBytes(SprintCameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			SprintCameraFOVInstructionMidHook = safetyhook::create_mid(SprintCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentSprintCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x34);
-
-				fCurrentSprintCameraFOV = 1.16370225125f * fNewCameraFOV;
-			});
+			SprintCameraFOVInstructionHook = safetyhook::create_mid(SprintCameraFOVInstructionScanResult, SprintCameraFOVInstructionMidHook);			
 		}
 		else
 		{
@@ -382,9 +477,11 @@ void FOVChanger()
 		{
 			spdlog::info("Actor Initialize FOV Instruction: Address is CloakNTEngine.dll+{:x}", ActorInitializeFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
+			ActorInitializeFOVAddress = Memory::GetPointer<uint32_t>(ActorInitializeFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(ActorInitializeFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			ActorInitializeFOVInstructionHook = safetyhook::create_mid(ActorInitializeFOVInstructionScanResult + 6, ActorInitializeFOVInstructionMidHook);
+			ActorInitializeFOVInstructionHook = safetyhook::create_mid(ActorInitializeFOVInstructionScanResult, ActorInitializeFOVInstructionMidHook);
 		}
 		else
 		{
@@ -397,9 +494,11 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Reload Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", WeaponReloadCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
+			WeaponReloadCameraFOVAddress = Memory::GetPointer<uint32_t>(WeaponReloadCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(WeaponReloadCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			WeaponReloadCameraFOVInstructionHook = safetyhook::create_mid(WeaponReloadCameraFOVInstructionScanResult + 6, WeaponReloadCameraFOVInstructionMidHook);
+			WeaponReloadCameraFOVInstructionHook = safetyhook::create_mid(WeaponReloadCameraFOVInstructionScanResult, WeaponReloadCameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -412,9 +511,11 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Change Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", WeaponChangeCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
+			WeaponChangeCameraFOVAddress = Memory::GetPointer<uint32_t>(WeaponChangeCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(WeaponChangeCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			WeaponChangeCameraFOVInstructionHook = safetyhook::create_mid(WeaponChangeCameraFOVInstructionScanResult + 6, WeaponChangeCameraFOVInstructionMidHook);
+			WeaponChangeCameraFOVInstructionHook = safetyhook::create_mid(WeaponChangeCameraFOVInstructionScanResult, WeaponChangeCameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -427,9 +528,11 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Reset Camera FOV Instruction 1: Address is CloakNTEngine.dll+{:x}", WeaponResetCameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
+			WeaponResetCamera1FOVAddress = Memory::GetPointer<uint32_t>(WeaponResetCameraFOVInstruction1ScanResult + 26, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(WeaponResetCameraFOVInstruction1ScanResult + 24, "\x90\x90\x90\x90\x90\x90", 6);
 
-			WeaponResetCameraFOVInstruction1Hook = safetyhook::create_mid(WeaponResetCameraFOVInstruction1ScanResult + 30, WeaponResetCameraFOVInstruction1MidHook);
+			WeaponResetCameraFOVInstruction1Hook = safetyhook::create_mid(WeaponResetCameraFOVInstruction1ScanResult + 24, WeaponResetCameraFOVInstruction1MidHook);
 		}
 		else
 		{
@@ -442,9 +545,11 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Reset Camera FOV Instruction 2: Address is CloakNTEngine.dll+{:x}", WeaponResetCameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
+			WeaponResetCamera2FOVAddress = Memory::GetPointer<uint32_t>(WeaponResetCameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(WeaponResetCameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			WeaponResetCameraFOVInstruction2Hook = safetyhook::create_mid(WeaponResetCameraFOVInstruction2ScanResult + 6, WeaponResetCameraFOVInstruction1MidHook);
+			WeaponResetCameraFOVInstruction2Hook = safetyhook::create_mid(WeaponResetCameraFOVInstruction2ScanResult, WeaponResetCameraFOVInstruction1MidHook);
 		}
 		else
 		{
@@ -457,9 +562,11 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Pickup Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", WeaponPickupCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
+			WeaponPickupCameraFOVAddress = Memory::GetPointer<uint32_t>(WeaponPickupCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(WeaponPickupCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			WeaponPickupCameraFOVInstructionHook = safetyhook::create_mid(WeaponPickupCameraFOVInstructionScanResult + 6, WeaponPickupCameraFOVInstructionMidHook);
+			WeaponPickupCameraFOVInstructionHook = safetyhook::create_mid(WeaponPickupCameraFOVInstructionScanResult, WeaponPickupCameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -467,14 +574,16 @@ void FOVChanger()
 			return;
 		}
 
-	std:uint8_t* StartingSprintCameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? 8B 54 24 20 D9 96 80 01 00 00 89 86 74 01 00 00 D9 9E 84 01 00 00 89 8E 78 01 00 00 89 96 7C 01 00 00 6A 4C D9 54 24 1C 8B 44 24 1C D9 54 24 20 8B 4C 24 20 89 86 88 01 00 00");
+	    std::uint8_t* StartingSprintCameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? 8B 54 24 20 D9 96 80 01 00 00 89 86 74 01 00 00 D9 9E 84 01 00 00 89 8E 78 01 00 00 89 96 7C 01 00 00 6A 4C D9 54 24 1C 8B 44 24 1C D9 54 24 20 8B 4C 24 20 89 86 88 01 00 00");
 		if (StartingSprintCameraFOVInstructionScanResult)
 		{
 			spdlog::info("Starting Sprint Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", StartingSprintCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
+			StartingSprintCameraFOVAddress = Memory::GetPointer<uint32_t>(StartingSprintCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+
 			Memory::PatchBytes(StartingSprintCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			StartingSprintCameraFOVInstructionHook = safetyhook::create_mid(StartingSprintCameraFOVInstructionScanResult + 6, StartingSprintCameraFOVInstructionMidHook);
+			StartingSprintCameraFOVInstructionHook = safetyhook::create_mid(StartingSprintCameraFOVInstructionScanResult, StartingSprintCameraFOVInstructionMidHook);
 		}
 		else
 		{

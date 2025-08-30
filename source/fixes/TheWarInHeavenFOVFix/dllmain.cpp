@@ -46,8 +46,6 @@ bool bFixActive;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOVMultiplier = 50.0f;
-constexpr float epsilon = 0.00001f;
 
 // Variables
 int iCurrentResX;
@@ -55,7 +53,8 @@ int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
-static float fCameraFOVTrigger;
+float fCameraFOVTrigger;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -197,6 +196,8 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraFOVTriggerInstructionScanResult = Memory::PatternScan(exeModule, "8B 86 90 00 00 00 8B 8E 94 00 00 00 89 44 24 0C 8B D0");
 		if (CameraFOVTriggerInstructionScanResult)
 		{
@@ -220,6 +221,8 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
 			static SafetyHookMid CameraFOVInstructionHook{};
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
@@ -228,14 +231,18 @@ void FOVFix()
 
 				if (fCameraFOVTrigger == 0.5f)
 				{
-					fCurrentCameraFOV = fOriginalCameraFOVMultiplier * (fOldAspectRatio / fNewAspectRatio) * (1.0f / fFOVFactor);
+					fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, 1.0f / fAspectRatioScale) / fFOVFactor;
 				}
-				else if (fabs(fCameraFOVTrigger - 0.03999999911f) < epsilon)
+				else if (Maths::isClose(fCameraFOVTrigger, 0.03999999911f))
 				{
-					fCurrentCameraFOV = fOriginalCameraFOVMultiplier * (fOldAspectRatio / fNewAspectRatio);
+					fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, 1.0f / fAspectRatioScale);
+				}
+				else
+				{
+					fNewCameraFOV = fCurrentCameraFOV;
 				}
 
-				ctx.eax = std::bit_cast<uintptr_t>(fCurrentCameraFOV);
+				*reinterpret_cast<float*>(ctx.ecx + 0x8C) = fNewCameraFOV;
 			});
 		}
 		else

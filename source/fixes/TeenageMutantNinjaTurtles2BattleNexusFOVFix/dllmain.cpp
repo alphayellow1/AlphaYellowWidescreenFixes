@@ -55,6 +55,7 @@ float fNewAspectRatio;
 float fNewAspectRatio2;
 float fNewCameraFOV;
 float fFOVFactor;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -106,7 +107,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -190,6 +191,20 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x24);
+
+	fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+	_asm
+	{
+		fadd dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::TMNT2BN && bFixActive == true)
@@ -201,14 +216,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				fNewCameraFOV = (fOriginalCameraFOV * (fNewAspectRatio / fOldAspectRatio)) * fFOVFactor;
-
-				*reinterpret_cast<float*>(ctx.ebx + 0x24) = fNewCameraFOV;
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);			
 		}
 		else
 		{
@@ -221,7 +231,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 7 - (std::uint8_t*)exeModule);
 
-			fNewAspectRatio2 = fOriginalAspectRatio * (fOldAspectRatio / fNewAspectRatio);
+			fNewAspectRatio2 = fOriginalAspectRatio / fAspectRatioScale;
 
 			Memory::Write(AspectRatioScanResult + 7, fNewAspectRatio2);
 		}
