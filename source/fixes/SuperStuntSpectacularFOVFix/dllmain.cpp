@@ -41,17 +41,17 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 0.785398185253143f; // 45� in radians
+constexpr float fOriginalCameraFOV = 0.785398185253143f; // 45 degrees in radians
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fNewCameraFOV;
-float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -103,7 +103,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -209,31 +209,6 @@ void FOVFix()
 			spdlog::error("Failed to locate aspect ratio & camera FOV memory address.");
 			return;
 		}
-
-		/*
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 0C BA 95 00 83 C4 F0 8B 15 88 B7 95 00 D8 48 74");
-		if (CameraFOVInstructionScanResult)
-		{
-			spdlog::info("Camera FOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 2 - (std::uint8_t*)exeModule);
-			
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(0x0095BA0C);
-
-				if (fCurrentCameraFOV != 1.732050776f && fCurrentCameraFOV != 3.23781991f && fCurrentCameraFOV != 2.144506931f && fCurrentCameraFOV != 1.428148031f)
-				{
-					fCurrentCameraFOV /= fFOVFactor;
-				}
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction scan memory address.");
-			return;
-		}
-		*/
 	}
 }
 

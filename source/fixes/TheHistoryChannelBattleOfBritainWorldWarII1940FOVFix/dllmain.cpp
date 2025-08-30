@@ -40,7 +40,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fPi = 3.14159265358979323846f;
 
 // Ini variables
 bool bFixActive;
@@ -53,20 +52,8 @@ float fFOVFactor;
 float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-static uint8_t* CameraHFOVValueAddress;
-static uint8_t* CameraVFOVValueAddress;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+uint8_t* CameraHFOVValueAddress;
+uint8_t* CameraVFOVValueAddress;
 
 // Game detection
 enum class Game
@@ -202,16 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atan((fFOVFactor * tan(DegToRad(fCurrentFOV / 10.0f) / 2.0f)) * fAspectRatioScale));
-}
-
-float CalculateNewVFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atan(fFOVFactor * tan(DegToRad(fCurrentFOV / 10.0f) / 2.0f)));
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::THCBOBWWII1940 && bFixActive == true)
@@ -233,7 +210,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-				fNewCameraHFOV = CalculateNewHFOV(fCurrentCameraHFOV) * 10.0f;
+				fNewCameraHFOV = Maths::CalculateNewHFOV_DegBased(fCurrentCameraHFOV / 10.0f, fAspectRatioScale, fFOVFactor) * 10.0f;
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
@@ -246,7 +223,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
 
-				fNewCameraVFOV = CalculateNewVFOV(fCurrentCameraVFOV) * 10.0f;
+				fNewCameraVFOV = Maths::CalculateNewVFOV_DegBased(fCurrentCameraVFOV / 10.0f, fFOVFactor) * 10.0f;
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});

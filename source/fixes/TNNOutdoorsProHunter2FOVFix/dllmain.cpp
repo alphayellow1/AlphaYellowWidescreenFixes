@@ -41,7 +41,8 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
+constexpr float fDefaultCameraHFOV = 1.5707963705062866f; // 90º in radians
+constexpr float fDefaultCameraVFOV = 1.3089969158172607f; // 75º in radians
 
 // Ini variables
 bool bFixActive;
@@ -188,36 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance; // 90º in radians
-}
-
-bool bIsDefaultVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - 1.3089969158172607f) < fTolerance; // 75º in radians
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::TOPH2 && bFixActive == true)
@@ -235,19 +206,19 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x140);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x140);
 
-				if (bIsDefaultHFOV(fCurrentCameraHFOV) && bIsDefaultVFOV(fCurrentCameraVFOV2))
+				if (Maths::isClose(fDefaultCameraHFOV, fCurrentCameraHFOV) && Maths::isClose(fDefaultCameraVFOV, fCurrentCameraVFOV))
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV); // Hipfire HFOV
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor); // Hipfire HFOV
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV); // All the other HFOVs during gameplay
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale); // All the other HFOVs during gameplay
 				}
 
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -268,19 +239,19 @@ void FOVFix()
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x140);
-
 				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x13C);
 
-				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && bIsDefaultVFOV(fCurrentCameraVFOV))
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x140);				
+
+				if (Maths::isClose(fDefaultCameraHFOV, fCurrentCameraHFOV2) && Maths::isClose(fDefaultCameraVFOV, fCurrentCameraVFOV2))
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV); // Hipfire VFOV
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2, fFOVFactor); // Hipfire VFOV
 				}
 				else
 				{
-					fNewCameraVFOV = fCurrentCameraVFOV; // All other gameplay VFOVs
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2); // All other gameplay VFOVs
 				}
 				
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraVFOV);
