@@ -187,18 +187,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CameraZoomFOVInstructionHook{};
 
 void CameraZoomFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentWeaponZoomFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
 
-	fNewWeaponZoomFOV = CalculateNewFOV(fCurrentWeaponZoomFOV);
+	fNewWeaponZoomFOV = Maths::CalculateNewFOV_RadBased(fCurrentWeaponZoomFOV, fAspectRatioScale);
 
 	_asm
 	{
@@ -212,7 +207,7 @@ void CameraHipfireFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
 
-	fNewWeaponHipfireFOV = CalculateNewFOV(fCurrentWeaponHipfireFOV) * fFOVFactor;
+	fNewWeaponHipfireFOV = Maths::CalculateNewFOV_RadBased(fCurrentWeaponHipfireFOV, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{
@@ -235,7 +230,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraZoomFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraZoomFOVInstructionHook = safetyhook::create_mid(CameraZoomFOVInstructionScanResult + 3, CameraZoomFOVInstructionMidHook);
+			CameraZoomFOVInstructionHook = safetyhook::create_mid(CameraZoomFOVInstructionScanResult, CameraZoomFOVInstructionMidHook);
 		}
 		else
 		{
@@ -250,7 +245,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHipfireFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraHipfireFOVInstructionHook = safetyhook::create_mid(CameraHipfireFOVInstructionScanResult + 3, CameraHipfireFOVInstructionMidHook);
+			CameraHipfireFOVInstructionHook = safetyhook::create_mid(CameraHipfireFOVInstructionScanResult, CameraHipfireFOVInstructionMidHook);
 		}
 		else
 		{

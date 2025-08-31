@@ -41,16 +41,16 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.00000001f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -186,6 +186,20 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x118);
+
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::TCNY && bFixActive == true)
@@ -217,32 +231,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static std::vector<float> vComputedFOVs;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Store a float reference to the current FOV value located in the [ECX+118] memory address
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x118);
-
-				// Skip processing if a similar FOV (within tolerance) has already been computed
-				bool bFOVAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),
-				[&](float computedValue) {
-					return std::fabs(computedValue - fCurrentCameraFOV) < fTolerance;
-				});
-
-				if (bFOVAlreadyComputed)
-				{
-					return;
-				}
-
-				// Compute the new FOV value
-				fCurrentCameraFOV *= fFOVFactor;
-
-				// Record the computed FOV for future calls
-				vComputedFOVs.push_back(fCurrentCameraFOV);
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{
