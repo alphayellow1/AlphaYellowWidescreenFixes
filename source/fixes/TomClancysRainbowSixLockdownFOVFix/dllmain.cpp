@@ -193,11 +193,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -206,15 +201,15 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV == fDefaultCameraFOV)
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fCameraFOVFactor;
+		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fCameraFOVFactor;
 	}
 	else if (fCurrentCameraFOV == fCurrentWeaponFOV)
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fWeaponFOVFactor;
+		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fWeaponFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 	}
 
 	_asm

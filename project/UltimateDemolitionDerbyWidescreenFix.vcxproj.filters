@@ -15,13 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\fixes\UltimateDemolitionDerbyFOVFix\dllmain.cpp">
+    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
-    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
+    <ClCompile Include="..\source\fixes\UltimateDemolitionDerbyWidescreenFix\dllmain.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
   </ItemGroup>
