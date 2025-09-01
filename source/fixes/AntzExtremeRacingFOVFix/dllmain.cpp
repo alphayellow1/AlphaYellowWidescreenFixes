@@ -40,7 +40,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalMenuCameraFOV = 0.5f;
 
@@ -77,18 +76,6 @@ struct GameInfo
 const std::map<Game, GameInfo> kGames = {
 	{Game::AER, {"Antz Extreme Racing", "antzextremeracing.exe"}},
 };
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 const GameInfo* game = nullptr;
 Game eGameType = Game::Unknown;
