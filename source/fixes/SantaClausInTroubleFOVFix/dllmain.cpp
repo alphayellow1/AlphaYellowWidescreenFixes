@@ -214,7 +214,7 @@ void FOVFix()
 			{
 				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
-				fNewCameraFOV = fCurrentCameraFOV * (1.0f / fFOVFactor);
+				fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
 
 				*reinterpret_cast<float*>(ctx.ecx + 0x54) = fNewCameraFOV;
 			});

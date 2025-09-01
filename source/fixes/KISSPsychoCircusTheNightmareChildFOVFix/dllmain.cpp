@@ -63,7 +63,7 @@ float fFOVFactor;
 float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-static uint16_t iIsUnderwater;
+uint16_t iIsUnderwater;
 float fMinimumUnderwaterVFOV = 1.0f / fAspectRatioScale;
 float fMaximumUnderwaterVFOV = 1.275f / fAspectRatioScale;
 

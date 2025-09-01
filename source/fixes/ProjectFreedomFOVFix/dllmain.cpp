@@ -209,7 +209,7 @@ void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV1 != 3.2f)
 	{
-		fNewCameraFOV1 = fCurrentCameraFOV1 * (1.0f / fFOVFactor);
+		fNewCameraFOV1 = fCurrentCameraFOV1 / fFOVFactor;
 	}
 	else
 	{
@@ -231,7 +231,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV2 != 3.2f)
 	{
-		fNewCameraFOV2 = fCurrentCameraFOV2 * (1.0f / fFOVFactor);
+		fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
 	}
 	else
 	{

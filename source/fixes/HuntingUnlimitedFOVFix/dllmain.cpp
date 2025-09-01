@@ -52,7 +52,7 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-static float fNewCameraFOV;
+float fNewCameraFOV;
 float fNewCameraFOV2;
 float fAspectRatioScale;
 

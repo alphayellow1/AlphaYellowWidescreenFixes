@@ -52,8 +52,8 @@ uint32_t iCurrentResY;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fNewAspectRatio;
-static uint8_t* ResolutionWidth1ValueAddress;
-static uint8_t* ResolutionHeight1ValueAddress;
+uint8_t* ResolutionWidth1ValueAddress;
+uint8_t* ResolutionHeight1ValueAddress;
 float fAspectRatioScale;
 float fFOVFactor;
 

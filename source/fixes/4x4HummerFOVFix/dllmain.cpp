@@ -53,7 +53,7 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fFOVFactor;
 float fNewCameraFOV;
-static uint32_t* pInRaceFlag;
+uint32_t* pInRaceFlag;
 static bool bInRace;
 
 // Game detection

@@ -56,7 +56,7 @@ float fNewCameraFOVProjection;
 float fNewCameraFOV;
 float fNewCameraFOV2;
 float fAspectRatioScale;
-static uint8_t* CameraFOVValueAddress = nullptr;
+uint8_t* CameraFOVValueAddress = nullptr;
 
 // Function to convert degrees to radians
 float DegToRad(float degrees)

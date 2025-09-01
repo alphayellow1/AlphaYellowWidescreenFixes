@@ -52,7 +52,7 @@ float fNewAspectRatio;
 float fNewHipfireFOV;
 float fNewZoomFOV;
 float fAspectRatioScale;
-static uint8_t* HipfireCameraFOVValueAddress;
+uint8_t* HipfireCameraFOVValueAddress;
 bool bInitializationFailed = false;
 
 // Game detection

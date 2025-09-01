@@ -59,12 +59,12 @@ float fNewWeaponHipfireFOV;
 float fNewWeaponZoomFOV;
 float fNewSniperZoomFOV;
 float fNewMinimapFOV;
-static uint8_t* CameraZoomFOVAddress;
-static uint8_t* CameraFOV2Address;
-static uint8_t* HipfireCameraFOVAddress;
-static uint8_t* CameraFOV4Address;
-static uint8_t* CameraFOV5Address;
-static uint8_t* CameraFOV6Address;
+uint8_t* CameraZoomFOVAddress;
+uint8_t* CameraFOV2Address;
+uint8_t* HipfireCameraFOVAddress;
+uint8_t* CameraFOV4Address;
+uint8_t* CameraFOV5Address;
+uint8_t* CameraFOV6Address;
 
 // Game detection
 enum class Game

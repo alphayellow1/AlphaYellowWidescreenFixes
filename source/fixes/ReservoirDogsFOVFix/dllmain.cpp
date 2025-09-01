@@ -59,8 +59,8 @@ float fAspectRatioScale;
 float fNewHipfireCameraFOV;
 float fNewZoomCameraFOV;
 float fNewHipfireCameraFOV2;
-static uint8_t* HipfireCameraFOVValueAddress;
-static uint8_t* ZoomCameraFOVValueAddress;
+uint8_t* HipfireCameraFOVValueAddress;
+uint8_t* ZoomCameraFOVValueAddress;
 
 // Game detection
 enum class Game

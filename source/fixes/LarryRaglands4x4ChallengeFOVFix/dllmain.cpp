@@ -200,7 +200,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScanResult + 3 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = (fOriginalCameraFOV / fAspectRatioScale) * (1.0f / fFOVFactor);
+			fNewCameraFOV = (fOriginalCameraFOV / fAspectRatioScale) / fFOVFactor;
 
 			Memory::Write(CameraFOVScanResult + 3, fNewCameraFOV);
 		}

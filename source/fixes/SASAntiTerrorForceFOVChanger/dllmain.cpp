@@ -50,10 +50,10 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
-static float fCurrentCameraFOV;
-static float fNewCameraFOV;
+float fCurrentCameraFOV;
+float fNewCameraFOV;
 float fNewCameraZoom;
-static uint8_t* CameraFOVAddress;
+uint8_t* CameraFOVAddress;
 
 // Game detection
 enum class Game

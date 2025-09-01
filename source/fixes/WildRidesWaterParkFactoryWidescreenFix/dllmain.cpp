@@ -40,32 +40,19 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fNewCameraFOV;
-static uint8_t* CameraFOVValueAddress;
-static uint8_t* AspectRatioValueAddress;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+float fAspectRatioScale;
+uint8_t* CameraFOVValueAddress;
 
 // Game detection
 enum class Game
@@ -201,18 +188,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVValueAddress);
 
-	fNewCameraFOV = fFOVFactor * CalculateNewFOV(fCurrentCameraFOV);
+	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 	_asm
 	{
@@ -224,10 +206,6 @@ static SafetyHookMid AspectRatioInstructionHook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentAspectRatio = *reinterpret_cast<float*>(AspectRatioValueAddress);
-
-	fCurrentAspectRatio = fNewAspectRatio;
-
 	_asm
 	{
 		fld dword ptr ds:[fNewAspectRatio]
@@ -240,45 +218,54 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 		
 		std::uint8_t* ResolutionList1ScanResult = Memory::PatternScan(exeModule, "C7 01 00 04 00 00 C7 02 00 03 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 80 04 00 00 C7 01 60 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 C0 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 40 06 00 00 C7 02 B0 04 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 80 02 00 00 C7 01 E0 01 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 00 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 05 00 00 C7 02 00 04 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 20 03 00 00 C7 01 58 02 00 00 C3 8D 49 00 65 F5 4B 00 7A F5 4B 00 8F F5 4B 00 A4 F5 4B 00 B9 F5 4B 00 CE F5 4B 00 E3 F5 4B 00 90 90 90 90 8B 44 24 04 8B 4C 24 08 C7 00 20 03 00 00 C7 01 58 02 00 00");
 		if (ResolutionList1ScanResult)
 		{
 			spdlog::info("Resolution List 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionList1ScanResult + 2, iCurrentResX); // 1024
+			// 1024x768
+			Memory::Write(ResolutionList1ScanResult + 2, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 8, iCurrentResY); // 768
+			Memory::Write(ResolutionList1ScanResult + 8, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 23, iCurrentResX); // 1152
+			// 1152x864
+			Memory::Write(ResolutionList1ScanResult + 23, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 29, iCurrentResY); // 864
+			Memory::Write(ResolutionList1ScanResult + 29, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 44, iCurrentResX); // 1280
+			// 1280x960
+			Memory::Write(ResolutionList1ScanResult + 44, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 50, iCurrentResY); // 960
+			Memory::Write(ResolutionList1ScanResult + 50, iCurrentResY);
 
 			/*
-			Memory::Write(ResolutionList1ScanResult + 65, iCurrentResX); // 1600
+			// 1600x1200
+			Memory::Write(ResolutionList1ScanResult + 65, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 71, iCurrentResY); // 1200
+			Memory::Write(ResolutionList1ScanResult + 71, iCurrentResY);
 			*/
 
-			Memory::Write(ResolutionList1ScanResult + 86, iCurrentResX); // 640
+			// 640x480
+			Memory::Write(ResolutionList1ScanResult + 86, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 92, iCurrentResY); // 480
+			Memory::Write(ResolutionList1ScanResult + 92, iCurrentResY);
 			
-			Memory::Write(ResolutionList1ScanResult + 107, iCurrentResX); // 1280
+			// 1280x768
+			Memory::Write(ResolutionList1ScanResult + 107, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 113, iCurrentResY); // 768
+			Memory::Write(ResolutionList1ScanResult + 113, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 128, iCurrentResX); // 1280
+			// 1280x1024
+			Memory::Write(ResolutionList1ScanResult + 128, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 134, iCurrentResY); // 1024
+			Memory::Write(ResolutionList1ScanResult + 134, iCurrentResY);
 
-			Memory::Write(ResolutionList1ScanResult + 149, iCurrentResX); // 800
+			// 800x600
+			Memory::Write(ResolutionList1ScanResult + 149, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 155, iCurrentResY); // 600
+			Memory::Write(ResolutionList1ScanResult + 155, iCurrentResY);
 
 			/* HUD Resolution - Causes most of the HUD to be stuck in the left side of the screen
 			Memory::Write(ResolutionList1ScanResult + 205, (int)(600 * fNewAspectRatio)); // 800
@@ -297,10 +284,6 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm1 = *reinterpret_cast<uint32_t*>(AspectRatioInstructionScanResult + 2);
-
-			AspectRatioValueAddress = reinterpret_cast<uint8_t*>(imm1);
-
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
@@ -316,9 +299,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint32_t imm2 = *reinterpret_cast<uint32_t*>(CameraFOVInstructionScanResult + 2);
-
-			CameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm2);
+			CameraFOVValueAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 			
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

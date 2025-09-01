@@ -50,7 +50,7 @@ int iCurrentResY;
 float fFOVFactor;
 float fNewCameraHFOV;
 float fNewAspectRatio;
-static uint8_t* CameraFOVValueAddress;
+uint8_t* CameraFOVValueAddress;
 float fNewCameraFOV;
 float fAspectRatioScale;
 

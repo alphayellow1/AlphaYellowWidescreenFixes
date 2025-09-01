@@ -51,7 +51,7 @@ float fNewCameraFOV;
 float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
-static float fCurrentCameraFOV;
+float fCurrentCameraFOV;
 
 // Game detection
 enum class Game
@@ -193,7 +193,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	if (fCurrentCameraFOV == 1.1344640254974365f)
 	{
-		fNewCameraFOV = (1.0f / fAspectRatioScale) * (1.0f / fFOVFactor);
+		fNewCameraFOV = (1.0f / fAspectRatioScale) / fFOVFactor;
 	}
 	else
 	{
@@ -212,7 +212,7 @@ void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
 	if (fCurrentCameraFOV == 1.1344640254974365f)
 	{
-		fNewCameraFOV = (1.0f / fAspectRatioScale) * (1.0f / fFOVFactor);
+		fNewCameraFOV = (1.0f / fAspectRatioScale) / fFOVFactor;
 	}
 	else
 	{

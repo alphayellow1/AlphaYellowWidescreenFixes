@@ -234,7 +234,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x63C);
 
-				fCurrentCameraFOV = fOriginalCameraFOV * (1.0f / fFOVFactor);
+				fCurrentCameraFOV = fOriginalCameraFOV / fFOVFactor;
 			});
 		}
 		else

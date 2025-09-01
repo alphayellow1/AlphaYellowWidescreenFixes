@@ -42,16 +42,15 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fAspectRatioScale;
@@ -190,11 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::WSTSC && bFixActive == true)
@@ -202,10 +196,6 @@ void FOVFix()
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		fNewCameraHFOV = (1.0f * (fNewAspectRatio / fOldAspectRatio)) * fFOVFactor;
-
-		fNewCameraVFOV = 1.0f * fFOVFactor;
 		
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 53 68 8B 40 04 89 43 6C");
 		if (CameraFOVInstructionScanResult)
@@ -220,7 +210,7 @@ void FOVFix()
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.edx);
 
-				fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV) * fFOVFactor;
+				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 
 				*reinterpret_cast<float*>(ctx.ebx + 0x68) = fNewCameraHFOV;
 			});

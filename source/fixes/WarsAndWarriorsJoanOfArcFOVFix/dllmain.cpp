@@ -44,12 +44,13 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -185,30 +186,41 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xC);
+
+	if (fCurrentCameraFOV == 0.9238795042f)
+	{
+		fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = fCurrentCameraFOV;
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraFOV]
+	}
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::WAWJOA && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 45 0C 8B 45 08 D8 75 FC D9");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 45 0C 8B 45 08 D8 75 FC D9 45 10 D8 F9 D9 18");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static float fLastModifiedFOV = 0.0f;
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ebp + 0xC);
-
-				if (fCurrentFOVValue == 0.9238795042f)
-				{
-					fCurrentFOVValue *= (1.0f / fFOVFactor);
-				}
-			});
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
 		else
 		{

@@ -57,7 +57,7 @@ float fNewWeaponFOV;
 float fNewCameraFOV;
 float fNewCameraFOV2;
 float fAspectRatioScale;
-static uint8_t* WeaponFOVValueAddress;
+uint8_t* WeaponFOVValueAddress;
 
 // Game detection
 enum class Game
