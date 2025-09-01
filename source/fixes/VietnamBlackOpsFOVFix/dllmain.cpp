@@ -41,7 +41,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
+constexpr float fDefaultCameraHFOV = 1.5707963705062866f;
 constexpr float fDefaultCameraVFOV = 1.1780972480773926f;
 
 // Ini variables
@@ -190,41 +190,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - 1.5707963705062866f) < fTolerance;
-}
-
-bool bIsDefaultVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - 1.1780972480773926f) < fTolerance;
-}
-
-bool bIsCroppedVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - (1.1780972480773926f / fAspectRatioScale)) < fTolerance;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::VBO && bFixActive == true)
@@ -242,19 +207,19 @@ void FOVFix()
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x138);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x13C);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);
 
-				if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
+				if (Maths::isClose(fDefaultCameraHFOV, fCurrentCameraHFOV) && (Maths::isClose(fDefaultCameraVFOV, fCurrentCameraVFOV) || Maths::isClose(fDefaultCameraVFOV / fAspectRatioScale, fCurrentCameraVFOV)))
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -275,23 +240,19 @@ void FOVFix()
 			
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);
-
 				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x138);
 
-				if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x13C);				
+
+				if (Maths::isClose(fDefaultCameraHFOV, fCurrentCameraHFOV2) && (Maths::isClose(fDefaultCameraVFOV, fCurrentCameraVFOV2) || Maths::isClose(fDefaultCameraVFOV / fAspectRatioScale, fCurrentCameraVFOV2)))
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fDefaultCameraVFOV);
-				}
-				else if (fCurrentCameraVFOV < fDefaultCameraVFOV)
-				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV * fAspectRatioScale);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fDefaultCameraVFOV, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraVFOV = fCurrentCameraVFOV;
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2);
 				}
 
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraVFOV);

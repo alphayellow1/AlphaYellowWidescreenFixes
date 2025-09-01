@@ -55,7 +55,7 @@ float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
 float fAspectRatioScale;
-static float fCurrentCameraHFOV;
+float fCurrentCameraHFOV;
 float fCurrentCameraVFOV;
 
 // Game detection

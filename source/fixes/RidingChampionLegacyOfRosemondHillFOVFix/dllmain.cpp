@@ -22,7 +22,7 @@
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
-HMODULE exeModule = NULL;    // will become game.exe’s base
+HMODULE exeModule = NULL;    // will become game.exeï¿½s base
 HMODULE thisModule;
 HANDLE monitoringThread = NULL;
 volatile BOOL stopMonitoring = FALSE;
@@ -58,9 +58,9 @@ float fNewCameraVFOV;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
 float fNewCameraFOV3;
-static uint8_t* CameraFOV1Address;
-static uint8_t* CameraFOV2Address;
-static uint8_t* CameraFOV3Address;
+uint8_t* CameraFOV1Address;
+uint8_t* CameraFOV2Address;
+uint8_t* CameraFOV3Address;
 
 // Game detection
 enum class Game
@@ -240,7 +240,7 @@ void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
     float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(CameraFOV1Address);
 
-    fNewCameraFOV1 = fCurrentCameraFOV1 * (1.0f / fFOVFactor);
+    fNewCameraFOV1 = fCurrentCameraFOV1 / fFOVFactor;
 
 	_asm
 	{
@@ -254,7 +254,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
     float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOV2Address);
 
-    fNewCameraFOV2 = fCurrentCameraFOV2 * (1.0f / fFOVFactor);
+    fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
 
 	_asm
 	{
@@ -268,7 +268,7 @@ void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
     float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(CameraFOV3Address);
 
-    fNewCameraFOV3 = fCurrentCameraFOV3 * (1.0f / fFOVFactor);
+    fNewCameraFOV3 = fCurrentCameraFOV3 / fFOVFactor;
 
 	_asm
 	{

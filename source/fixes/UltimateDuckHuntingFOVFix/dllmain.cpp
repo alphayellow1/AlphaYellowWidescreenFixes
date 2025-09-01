@@ -40,18 +40,18 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fNewFOVValue;
+float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -59,18 +59,6 @@ enum class Game
 	UDH,
 	Unknown
 };
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 struct GameInfo
 {
@@ -201,16 +189,13 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::UDH && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 81 E0 07 00 00 C3");
 		if (CameraFOVInstructionScanResult)
@@ -223,7 +208,7 @@ void FOVFix()
 			{
 				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x7E0);
 
-				fNewFOVValue = CalculateNewFOV(90.0f);
+				fNewFOVValue = Maths::CalculateNewFOV_DegBased(90.0f, fAspectRatioScale) * fFOVFactor;
 
 				fCurrentFOVValue = fNewFOVValue;
 			});

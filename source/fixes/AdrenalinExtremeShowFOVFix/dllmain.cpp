@@ -55,9 +55,9 @@ float fNewCameraFOV2;
 float fNewCameraFOV3;
 float fAspectRatioScale;
 float fFOVFactor;
-static uint8_t* CameraFOVValue1Address;
-static uint8_t* CameraFOVValue2Address;
-static uint8_t* CameraFOVValue3Address;
+uint8_t* CameraFOVValue1Address;
+uint8_t* CameraFOVValue2Address;
+uint8_t* CameraFOVValue3Address;
 
 // Game detection
 enum class Game
@@ -241,7 +241,7 @@ void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV1 != 1.732050776f && fCurrentCameraFOV1 != 3.23781991f && fCurrentCameraFOV1 != 2.144506931f && fCurrentCameraFOV1 != 1.428148031f)
 	{
-		fNewCameraFOV1 = fCurrentCameraFOV1 * (1.0f / fFOVFactor);
+		fNewCameraFOV1 = fCurrentCameraFOV1 / fFOVFactor;
 	}
 	else
 	{
@@ -262,7 +262,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV2 != 1.732050776f && fCurrentCameraFOV2 != 3.23781991f && fCurrentCameraFOV2 != 2.144506931f && fCurrentCameraFOV2 != 1.428148031f)
 	{
-		fNewCameraFOV2 = fCurrentCameraFOV2 * (1.0f / fFOVFactor);
+		fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
 	}
 	else
 	{
@@ -283,7 +283,7 @@ void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV3 != 1.732050776f && fCurrentCameraFOV3 != 3.23781991f && fCurrentCameraFOV3 != 2.144506931f && fCurrentCameraFOV3 != 1.428148031f)
 	{
-		fNewCameraFOV3 = fCurrentCameraFOV3 * (1.0f / fFOVFactor);
+		fNewCameraFOV3 = fCurrentCameraFOV3 / fFOVFactor;
 	}
 	else
 	{

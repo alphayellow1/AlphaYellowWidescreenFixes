@@ -51,7 +51,7 @@ float fNewAspectRatio;
 float fFOVFactor;
 float fNewCameraHFOV;
 float fNewCameraFOV;
-static uint8_t* Address1;
+uint8_t* Address1;
 float fAspectRatioScale;
 
 // Game detection

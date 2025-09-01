@@ -51,12 +51,12 @@ float fAspectRatioScale;
 float fFOVFactor;
 float fCurrentCameraFOV;
 float fNewCameraFOV;
-static uint8_t* MainMenuResolutionWidthAddress;
-static uint8_t* MainMenuResolutionHeightAddress;
-static uint8_t* MainMenuBitDepthAddress;
-static uint8_t* GameplayResolutionWidthAddress;
-static uint8_t* GameplayResolutionHeightAddress;
-static uint8_t* GameplayBitDepthAddress;
+uint8_t* MainMenuResolutionWidthAddress;
+uint8_t* MainMenuResolutionHeightAddress;
+uint8_t* MainMenuBitDepthAddress;
+uint8_t* GameplayResolutionWidthAddress;
+uint8_t* GameplayResolutionHeightAddress;
+uint8_t* GameplayBitDepthAddress;
 
 // Game detection
 enum class Game

@@ -199,7 +199,7 @@ void CullingInstructions1MidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentHorizontalCulling = *reinterpret_cast<float*>(HorizontalCullingAddress);
 
-	fNewHorizontalCulling = (fCurrentHorizontalCulling / fAspectRatioScale) * (1.0f / fFOVFactor);
+	fNewHorizontalCulling = (fCurrentHorizontalCulling / fAspectRatioScale) / fFOVFactor;
 
 	_asm
 	{
@@ -274,7 +274,7 @@ void FOVFix()
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 20, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ResolutionHeightAddress) = iCurrentResY;
 			});

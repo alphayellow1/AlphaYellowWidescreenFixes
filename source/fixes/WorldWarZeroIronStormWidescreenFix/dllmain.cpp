@@ -55,14 +55,14 @@ float fNewCameraFOV1;
 float fNewCameraFOV2;
 float fNewCameraFOV3;
 float fNewCameraFOV4;
-static uint8_t* ResolutionWidth1Address;
-static uint8_t* ResolutionHeight1Address;
-static uint8_t* ResolutionWidth2Address;
-static uint8_t* ResolutionHeight2Address;
-static uint8_t* ResolutionWidth3Address;
-static uint8_t* ResolutionHeight3Address;
-static uint8_t* ResolutionWidth4Address;
-static uint8_t* ResolutionHeight4Address;
+uint8_t* ResolutionWidth1Address;
+uint8_t* ResolutionHeight1Address;
+uint8_t* ResolutionWidth2Address;
+uint8_t* ResolutionHeight2Address;
+uint8_t* ResolutionWidth3Address;
+uint8_t* ResolutionHeight3Address;
+uint8_t* ResolutionWidth4Address;
+uint8_t* ResolutionHeight4Address;
 
 // Game detection
 enum class Game

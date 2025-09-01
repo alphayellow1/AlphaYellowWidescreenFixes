@@ -302,7 +302,7 @@ void WidescreenFix()
 			{
 				float fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.eax);
 
-				fNewGameplayCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentGameplayCameraFOV, 1.0f / fAspectRatioScale) * (1.0f / fFOVFactor);
+				fNewGameplayCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentGameplayCameraFOV, 1.0f / fAspectRatioScale) / fFOVFactor;
 
 				*reinterpret_cast<float*>(ctx.eax) = fNewGameplayCameraFOV;
 			});

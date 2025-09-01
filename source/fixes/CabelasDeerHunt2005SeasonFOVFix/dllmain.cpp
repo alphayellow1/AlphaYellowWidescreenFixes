@@ -54,8 +54,8 @@ float fNewAspectRatio;
 float fFOVFactor;
 float fNewCameraFOV;
 float fAspectRatioScale;
-static uint32_t iInsideCar;
-static uint8_t* InsideCarValueAddress;
+uint32_t iInsideCar;
+uint8_t* InsideCarValueAddress;
 
 // Game detection
 enum class Game

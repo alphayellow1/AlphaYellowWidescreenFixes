@@ -55,10 +55,10 @@ float fNewAspectRatio;
 float fNewCameraFOV;
 float fAspectRatioScale;
 int iDesiredBitDepth;
-static uint8_t* BitDepthAddress;
-static uint8_t* ResolutionWidthAddress;
-static uint8_t* ResolutionHeightAddress;
-static uint8_t* CameraFOV2Address;
+uint8_t* BitDepthAddress;
+uint8_t* ResolutionWidthAddress;
+uint8_t* ResolutionHeightAddress;
+uint8_t* CameraFOV2Address;
 
 // Game detection
 enum class Game
@@ -298,7 +298,7 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOV2Address);
 
-				fNewCameraFOV = fCurrentCameraFOV * (1.0f / fFOVFactor);
+				fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});

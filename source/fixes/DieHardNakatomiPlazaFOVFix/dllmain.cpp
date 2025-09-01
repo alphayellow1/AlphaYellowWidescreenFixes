@@ -63,7 +63,7 @@ float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fFOVFactor;
 float fAspectRatioScale;
-static float fUnderwaterCheckValue;
+float fUnderwaterCheckValue;
 
 // Game detection
 enum class Game

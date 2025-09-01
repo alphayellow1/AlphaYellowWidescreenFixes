@@ -50,7 +50,7 @@ int iCurrentResY;
 float fNewCameraFOV;
 float fNewAspectRatio;
 float fFOVFactor;
-static float fCurrentCameraFOV;
+float fCurrentCameraFOV;
 
 // Game detection
 enum class Game

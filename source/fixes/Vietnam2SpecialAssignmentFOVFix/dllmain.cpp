@@ -41,7 +41,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 constexpr float fDefaultCameraHFOV = 1.5707963705062866f;
 constexpr float fDefaultCameraVFOV = 1.3613568544387817f;
 
@@ -58,7 +57,7 @@ float fNewCameraHFOV;
 float fNewCameraHFOV2;
 float fNewCameraVFOV;
 float fNewCameraVFOV2;
-static float fUnderwaterCheckValue;
+float fUnderwaterCheckValue;
 
 // Game detection
 enum class Game
@@ -194,41 +193,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - fDefaultCameraHFOV) < fTolerance;
-}
-
-bool bIsDefaultVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - fDefaultCameraVFOV) < fTolerance;
-}
-
-bool bIsCroppedVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - (fDefaultCameraVFOV / fAspectRatioScale)) < fTolerance;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::V2SA && bFixActive == true)
@@ -268,28 +232,28 @@ void FOVFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
 				if (fUnderwaterCheckValue == 1.0f) // Above water
 				{
-					if (bIsDefaultHFOV(fCurrentCameraHFOV) && (bIsDefaultVFOV(fCurrentCameraVFOV2) || bIsCroppedVFOV(fCurrentCameraVFOV2)))
+					if (Maths::isClose(fDefaultCameraHFOV, fCurrentCameraHFOV) && (Maths::isClose(fDefaultCameraVFOV, fCurrentCameraVFOV) || Maths::isClose(fDefaultCameraVFOV / fAspectRatioScale, fCurrentCameraVFOV)))
 					{
-						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 					}
 					else
 					{
-						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 					}
 				}
 				else if (fUnderwaterCheckValue == 0.7000000477f) // Under water
 				{
 					if (fCurrentCameraHFOV > 1.57f && fCurrentCameraHFOV < 1.59f)
 					{
-						fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 					}
 					else
 					{
-						fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 					}
 				}
 				else
@@ -306,57 +270,6 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraHFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "8B B0 98 01 00 00 89 32");
-		if (CameraHFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::PatchBytes(CameraHFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-			
-			static SafetyHookMid CameraHFOVInstruction2MidHook{};
-			
-			CameraHFOVInstruction2MidHook = safetyhook::create_mid(CameraHFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV3 = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				float& fCurrentCameraVFOV3 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-				if (fUnderwaterCheckValue == 1.0f) // Above water
-				{
-					if (bIsDefaultHFOV(fCurrentCameraHFOV3) && (bIsDefaultVFOV(fCurrentCameraVFOV3) || bIsCroppedVFOV(fCurrentCameraVFOV3)))
-					{
-						fNewCameraHFOV2 = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV3);
-					}
-					else
-					{
-						fNewCameraHFOV2 = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV3);
-					}
-				}
-				else if (fUnderwaterCheckValue == 0.7000000477f) // Under water
-				{
-					if (fCurrentCameraHFOV3 > 1.57f && fCurrentCameraHFOV3 < 1.59f)
-					{
-						fNewCameraHFOV2 = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV3);
-					}
-					else
-					{
-						fNewCameraHFOV2 = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV3);
-					}
-				}
-				else
-				{
-					fNewCameraHFOV2 = fCurrentCameraHFOV3;
-				}
-
-				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraHFOV2);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera HFOV instruction 2 memory address.");
-			return;
-		}
-
 		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 9C 01 00 00 3B CD 89 94 24 C8 00 00 00");
 		if (CameraVFOVInstructionScanResult)
 		{
@@ -367,36 +280,36 @@ void FOVFix()
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
+			{				
 				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x198);
+
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
 
 				if (fUnderwaterCheckValue == 1.0f) // Above water
 				{
-					if (bIsDefaultHFOV(fCurrentCameraHFOV2) && (bIsDefaultVFOV(fCurrentCameraVFOV) || bIsCroppedVFOV(fCurrentCameraVFOV)))
+					if (Maths::isClose(fDefaultCameraHFOV, fCurrentCameraHFOV2) && (Maths::isClose(fDefaultCameraVFOV, fCurrentCameraVFOV2) || Maths::isClose(fDefaultCameraVFOV / fAspectRatioScale, fCurrentCameraVFOV2)))
 					{
-						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fDefaultCameraVFOV);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2, fFOVFactor);
 					}
 					else
 					{
-						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2);
 					}
 				}
 				else if (fUnderwaterCheckValue == 0.7000000477f) // Under water
 				{
-					if (fCurrentCameraVFOV > 1.34f && fCurrentCameraVFOV < 1.37f)
+					if (fCurrentCameraVFOV2 > 1.34f && fCurrentCameraVFOV2 < 1.37f)
 					{
-						fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2, fFOVFactor);
 					}
 					else
 					{
-						fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2);
 					}
 				}
 				else
 				{
-					fNewCameraVFOV = fCurrentCameraVFOV;
+					fNewCameraVFOV = fCurrentCameraVFOV2;
 				}
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
@@ -405,57 +318,6 @@ void FOVFix()
 		else
 		{
 			spdlog::error("Failed to locate camera VFOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraVFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "8B 80 9C 01 00 00 89 01");
-		if (CameraVFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera VFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::PatchBytes(CameraVFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid CameraVFOVInstruction2MidHook{};
-			
-			CameraVFOVInstruction2MidHook = safetyhook::create_mid(CameraVFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV4 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-				float& fCurrentCameraHFOV4 = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				if (fUnderwaterCheckValue == 1.0f) // Above water
-				{
-					if (bIsDefaultHFOV(fCurrentCameraHFOV4) && (bIsDefaultVFOV(fCurrentCameraVFOV4) || bIsCroppedVFOV(fCurrentCameraVFOV4)))
-					{
-						fNewCameraVFOV2 = CalculateNewVFOVWithFOVFactor(fDefaultCameraVFOV);
-					}
-					else
-					{
-						fNewCameraVFOV2 = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV4);
-					}
-				}
-				else if (fUnderwaterCheckValue == 0.7000000477f) // Under water
-				{
-					if (fCurrentCameraVFOV4 > 1.34f && fCurrentCameraVFOV4 < 1.37f)
-					{
-						fNewCameraVFOV2 = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV4);
-					}
-					else
-					{
-						fNewCameraVFOV2 = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV4);
-					}
-				}
-				else
-				{
-					fNewCameraVFOV2 = fCurrentCameraVFOV4;
-				}
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV2);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera VFOV instruction 2 memory address.");
 			return;
 		}
 	}

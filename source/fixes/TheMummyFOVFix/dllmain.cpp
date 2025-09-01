@@ -51,7 +51,7 @@ float fNewAspectRatio;
 float fNewCameraFOV;
 float fFOVFactor;
 float fAspectRatioScale;
-static uint8_t* CameraFOVInstruction1ScanResult;
+uint8_t* CameraFOVInstruction1ScanResult;
 
 // Game detection
 enum class Game

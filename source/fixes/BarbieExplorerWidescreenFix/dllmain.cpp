@@ -253,7 +253,7 @@ void WidescreenFix()
 
 		fNewCameraHFOV = (1.0f / fFOVFactor) * (1.0f / fAspectRatioScale);
 
-		fNewCameraVFOV = 1.0f * (1.0f / fFOVFactor);
+		fNewCameraVFOV = 1.0f / fFOVFactor;
 
 		std::uint8_t* CameraForegroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
 		if (CameraForegroundHFOVInstructionScanResult)

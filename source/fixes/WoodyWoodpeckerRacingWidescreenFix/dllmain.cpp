@@ -43,17 +43,17 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
-static uint8_t* AspectRatioAddress;
-static uint8_t* CameraFOVAddress;
-double dNewCameraFOV;
 float fNewAspectRatio2;
+double dNewCameraFOV;
+uint8_t* AspectRatioAddress;
+uint8_t* CameraFOVAddress;
 
 // Game detection
 enum class Game

@@ -54,7 +54,7 @@ float fNewCameraFOV2;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fFOVFactor;
-static uint8_t* CameraFOVValueAddress;
+uint8_t* CameraFOVValueAddress;
 
 // Game detection
 enum class Game
@@ -226,7 +226,7 @@ void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(CameraFOVValueAddress);
 
-	fNewCameraFOV1 = fCurrentCameraFOV1 * (1.0f / fFOVFactor);
+	fNewCameraFOV1 = fCurrentCameraFOV1 / fFOVFactor;
 
 	_asm
 	{
@@ -240,7 +240,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOVValueAddress);
 
-	fNewCameraFOV2 = fCurrentCameraFOV2 * (1.0f / fFOVFactor);
+	fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
 
 	_asm
 	{

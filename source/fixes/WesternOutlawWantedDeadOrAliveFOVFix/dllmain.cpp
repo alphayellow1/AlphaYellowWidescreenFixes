@@ -44,13 +44,13 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fFOVFactor;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 
@@ -188,26 +188,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::WOWDOA && bFixActive == true)
@@ -231,11 +211,11 @@ void FOVFix()
 
 				if (fCurrentCameraHFOV == 1.0471975803375244f || fCurrentCameraHFOV == 1.0471999645233154f)
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(1.0471975803375244f);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(1.0471975803375244f, fAspectRatioScale, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
@@ -251,11 +231,11 @@ void FOVFix()
 
 				if (fCurrentCameraVFOV == 0.8726646900177002f || fCurrentCameraVFOV == 0.8726649880409241f)
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(0.8726646900177002f);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(0.8726646900177002f, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraVFOV = CalculateNewVFOVWithoutFOVFactor(fCurrentCameraVFOV);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV);
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);

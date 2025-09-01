@@ -64,7 +64,7 @@ float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fMinimumWunderwaterVFOV = 1.0f / fAspectRatioScale;
 float fMaximumUnderwaterVFOV = 1.275f / fAspectRatioScale;
-static uint8_t iIsUnderwater;
+uint8_t iIsUnderwater;
 
 // Game detection
 enum class Game

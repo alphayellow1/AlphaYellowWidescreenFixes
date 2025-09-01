@@ -217,7 +217,7 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			static float fLastModifiedFOV = 0.0f;
+			float fLastModifiedFOV = 0.0f;
 
 			static std::vector<float> vComputedFOVs;
 
