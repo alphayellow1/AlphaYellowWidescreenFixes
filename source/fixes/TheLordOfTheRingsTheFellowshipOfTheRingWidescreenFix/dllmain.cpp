@@ -59,7 +59,6 @@ float fViewDistanceFactor;
 float fAspectRatioScale;
 double dNewCutscenesCameraFOV1;
 double dNewGameplayCameraFOV1;
-double dNewCutscenesCameraFOV1;
 uint8_t* CutscenesCameraFOV1Address;
 uint8_t* CutscenesCameraFOV2Address;
 uint8_t* GameplayCameraFOV1Address;

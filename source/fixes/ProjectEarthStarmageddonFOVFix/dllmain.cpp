@@ -46,14 +46,15 @@ constexpr float fOriginalCameraFOV = 1.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
-float fModifiedHFOVValue;
+
+// Variables
+float fNewAspectRatio;
 float fNewCameraFOV;
+float fAspectRatioScale;
+float fNewCameraHFOV;
 
 // Game detection
 enum class Game
@@ -189,9 +190,25 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOV(float fCurrentHFOVValue)
+static SafetyHookMid CameraHFOVInstructionHook{};
+
+void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	return fCurrentHFOVValue * (fNewAspectRatio / fOldAspectRatio);
+	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x138);
+
+	if (fCurrentCameraHFOV != 1.3333333730697632f)
+	{
+		fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
+	}
+	else
+	{
+		fNewCameraHFOV = fNewAspectRatio;
+	}
+
+	_asm
+	{
+		fld dword ptr ds:[fNewCameraHFOV]
+	}
 }
 
 void FOVFix()
@@ -200,48 +217,16 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 B6 38 01 00 00 8D 44 24 04 50 8D 4C 24 14");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			float fLastModifiedHFOV = 0.0f;
-
-			static std::vector<float> computedHFOVs;
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x138);
-
-				// Checks if this FOV has already been computed
-				if (std::find(computedHFOVs.begin(), computedHFOVs.end(), fCurrentCameraHFOV) != computedHFOVs.end())
-				{
-					// Value already processed, then skips the calculations
-					return;
-				}
-
-				if (fCurrentCameraHFOV != 1.3333333730697632f)
-				{
-					// Computes the new FOV value if the current FOV is different from the last modified FOV
-					fModifiedHFOVValue = CalculateNewHFOV(fCurrentCameraHFOV);
-				}
-				else
-				{
-					fModifiedHFOVValue = fNewAspectRatio;
-				}
-
-				// If the new computed value is different, updates the FOV value
-				if (fCurrentCameraHFOV != fModifiedHFOVValue)
-				{
-					fCurrentCameraHFOV = fModifiedHFOVValue;
-					fLastModifiedHFOV = fModifiedHFOVValue;
-				}
-
-				// Stores the new value so future calls can skip re-calculations
-				computedHFOVs.push_back(fModifiedHFOVValue);
-			});
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
 		}
 		else
 		{

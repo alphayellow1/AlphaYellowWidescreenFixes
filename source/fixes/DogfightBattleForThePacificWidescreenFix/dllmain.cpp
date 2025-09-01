@@ -189,30 +189,6 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds : [eax]
-		fmul dword ptr ds : [fNewCameraFOV]
-		fstp dword ptr ds : [eax]
-	}
-}
-
-static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds : [eax + 0x4]
-		fmul dword ptr ds : [fNewCameraFOV]
-		fstp dword ptr ds : [eax + 0x4]
-	}
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::DBFTP && bFixActive == true)
@@ -283,6 +259,8 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
+			static SafetyHookMid CameraHFOVInstructionHook{};
+
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
@@ -293,6 +271,8 @@ void WidescreenFix()
 			});
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);
+
+			static SafetyHookMid CameraVFOVInstructionHook{};
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
 			{
