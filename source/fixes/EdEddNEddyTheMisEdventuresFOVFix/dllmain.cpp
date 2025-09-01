@@ -213,9 +213,9 @@ void FOVFix()
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.eax);
 
 				// Compute the new HFOV value
-				float fCurrentCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
+				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ecx + 0xE4) = fCurrentCameraHFOV;
+				*reinterpret_cast<float*>(ctx.ecx + 0xE4) = fNewCameraHFOV;
 
 				// Compute the new VFOV value
 				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;

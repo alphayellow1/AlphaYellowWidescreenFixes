@@ -222,7 +222,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 	}
 	else
 	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale));
+		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
 	}
 
 	_asm
