@@ -208,13 +208,33 @@ bool DetectGame()
 	return true;
 }
 
+static SafetyHookMid AspectRatioInstructionHook{};
+
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fdiv dword ptr ds:[fNewAspectRatio]
+	}
+}
+
+static SafetyHookMid AspectRatioInstruction2Hook{};
+
+void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fld dword ptr ds:[fNewAspectRatio]
+	}
+}
+
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
 
-	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
 	_asm
 	{
