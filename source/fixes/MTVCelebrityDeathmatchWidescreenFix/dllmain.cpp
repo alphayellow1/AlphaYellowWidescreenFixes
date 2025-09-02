@@ -41,7 +41,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
@@ -56,19 +55,7 @@ float fNewCameraFOVProjection;
 float fNewCameraFOV;
 float fNewCameraFOV2;
 float fAspectRatioScale;
-uint8_t* CameraFOVValueAddress = nullptr;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+uint8_t* CameraFOVValueAddress;
 
 // Game detection
 enum class Game
@@ -214,11 +201,6 @@ bool DetectGame()
 	return false;	
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 void FOVFix()
 {
 	if ((eGameType == Game::MTVCDGAME || eGameType == Game::MTVCD_EU_EN || eGameType == Game::MTVCD_FR || eGameType == Game::MTVCD_GE || eGameType == Game::MTVCD_IT || eGameType == Game::MTVCD_SP) && bFixActive == true)
@@ -232,37 +214,45 @@ void FOVFix()
 		{
 			spdlog::info("Resolution List: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionListScanResult + 2, iCurrentResX); // 800
+			// 800x600
+			Memory::Write(ResolutionListScanResult + 2, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 8, iCurrentResY); // 600
+			Memory::Write(ResolutionListScanResult + 8, iCurrentResY);
 
-			Memory::Write(ResolutionListScanResult + 33, iCurrentResX); // 1024
+			// 1024x768
+			Memory::Write(ResolutionListScanResult + 33, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 39, iCurrentResY); // 768
+			Memory::Write(ResolutionListScanResult + 39, iCurrentResY);
 
-			Memory::Write(ResolutionListScanResult + 64, iCurrentResX); // 1280
+			// 1280x960
+			Memory::Write(ResolutionListScanResult + 64, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 70, iCurrentResY); // 960
+			Memory::Write(ResolutionListScanResult + 70, iCurrentResY);
 
-			Memory::Write(ResolutionListScanResult + 95, iCurrentResX); // 640
+			// 640x480
+			Memory::Write(ResolutionListScanResult + 95, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 101, iCurrentResY); // 480
+			Memory::Write(ResolutionListScanResult + 101, iCurrentResY);
 
-			Memory::Write(ResolutionListScanResult + 126, iCurrentResX); // 800
+			// 800x600
+			Memory::Write(ResolutionListScanResult + 126, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 132, iCurrentResY); // 600
+			Memory::Write(ResolutionListScanResult + 132, iCurrentResY);
 
-			Memory::Write(ResolutionListScanResult + 157, iCurrentResX); // 1024
+			// 1024x768
+			Memory::Write(ResolutionListScanResult + 157, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 163, iCurrentResY); // 768
+			Memory::Write(ResolutionListScanResult + 163, iCurrentResY);
 
-			Memory::Write(ResolutionListScanResult + 188, iCurrentResX); // 1280
+			// 1280x960
+			Memory::Write(ResolutionListScanResult + 188, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 194, iCurrentResY); // 960
+			Memory::Write(ResolutionListScanResult + 194, iCurrentResY);
 
-			Memory::Write(ResolutionListScanResult + 219, iCurrentResX); // 640
+			// 640x480
+			Memory::Write(ResolutionListScanResult + 219, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 225, iCurrentResY); // 480
+			Memory::Write(ResolutionListScanResult + 225, iCurrentResY);
 		}
 		else
 		{
@@ -274,28 +264,24 @@ void FOVFix()
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			uint32_t imm = *reinterpret_cast<uint32_t*>(CameraFOVInstructionScanResult + 2);
 			
-			CameraFOVValueAddress = reinterpret_cast<uint8_t*>(imm);
-
-			spdlog::info("Camera FOV value address: 0x{:X}", reinterpret_cast<uintptr_t>(CameraFOVValueAddress));
+			CameraFOVValueAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVValueAddress);
 
 				if (fCurrentCameraFOV == 60.0f)
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);

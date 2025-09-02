@@ -41,7 +41,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalBinocularsFOV = 60.0f;
 
@@ -57,18 +56,6 @@ float fAspectRatioScale;
 float fNewCameraFOV;
 float fNewWeaponFOV;
 float fNewBinocularsFOV;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -219,11 +206,6 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * fAspectRatioScale));
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::HU2 && bFixActive == true)
@@ -247,11 +229,11 @@ void FOVFix()
 
 				if (fCurrentCameraFOV > 79.0f && fCurrentCameraFOV <= 80.0f)
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 				}
 				else
 				{
-					fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
@@ -268,7 +250,7 @@ void FOVFix()
 		{
 			spdlog::info("Binoculars FOV: Address is game.dll+{:x}", BinocularsFOVScanResult + 20 - (std::uint8_t*)dllModule2);
 
-			fNewBinocularsFOV = CalculateNewFOV(fOriginalBinocularsFOV);
+			fNewBinocularsFOV = Maths::CalculateNewFOV_DegBased(fOriginalBinocularsFOV, fAspectRatioScale);
 
 			Memory::Write(BinocularsFOVScanResult + 20, fNewBinocularsFOV);
 		}
@@ -291,7 +273,7 @@ void FOVFix()
 			{
 				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.ebp + 0x2B0);
 
-				fNewWeaponFOV = CalculateNewFOV(fCurrentWeaponFOV);
+				fNewWeaponFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponFOV, fAspectRatioScale);
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewWeaponFOV);
 			});
