@@ -727,6 +727,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JohnDalysProStrokeGolfWides
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LucindaGreensEquestrianChallengeFOVFix", "LucindaGreensEquestrianChallengeFOVFix.vcxproj", "{5BE3897B-F8F5-41C5-865A-3A2E1B5C56EB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HeroesOfThePacificWidescreenFix", "HeroesOfThePacificWidescreenFix.vcxproj", "{E324F96E-D356-406C-B7C2-E817DD50DDA4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3615,6 +3617,14 @@ Global
 		{5BE3897B-F8F5-41C5-865A-3A2E1B5C56EB}.Release|x64.Build.0 = Release|x64
 		{5BE3897B-F8F5-41C5-865A-3A2E1B5C56EB}.Release|x86.ActiveCfg = Release|Win32
 		{5BE3897B-F8F5-41C5-865A-3A2E1B5C56EB}.Release|x86.Build.0 = Release|Win32
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4}.Debug|x64.ActiveCfg = Debug|x64
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4}.Debug|x64.Build.0 = Debug|x64
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4}.Debug|x86.ActiveCfg = Debug|Win32
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4}.Debug|x86.Build.0 = Debug|Win32
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4}.Release|x64.ActiveCfg = Release|x64
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4}.Release|x64.Build.0 = Release|x64
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4}.Release|x86.ActiveCfg = Release|Win32
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -3980,6 +3990,7 @@ Global
 		{17B740C3-F44E-43DA-AE17-5AE15E8A9CED} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{A7D3BE04-0F18-45FD-B15F-5BB00B2A22AC} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{5BE3897B-F8F5-41C5-865A-3A2E1B5C56EB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{E324F96E-D356-406C-B7C2-E817DD50DDA4} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
