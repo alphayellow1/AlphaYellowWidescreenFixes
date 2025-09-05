@@ -283,66 +283,6 @@ void FOVFix()
 			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
 		}
-
-		std::uint8_t* HUDAspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "D8 76 48 52 D9 5C 24 70 E8 ?? ?? ?? ?? 8D 44 24 18");
-		if (HUDAspectRatioInstruction1ScanResult)
-		{
-			spdlog::info("HUD Aspect Ratio Instruction 1: Address is{:s} + {:x}", sExeName.c_str(), HUDAspectRatioInstruction1ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(HUDAspectRatioInstruction1ScanResult, "\x90\x90\x90", 3);
-
-			HUDAspectRatioInstruction1Hook = safetyhook::create_mid(HUDAspectRatioInstruction1ScanResult, HUDAspectRatioInstruction1MidHook);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the HUD aspect ratio instruction 1 memory address.");
-			return;
-		}
-
-		std::uint8_t* HUDAspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 46 48 D8 76 44 8B 54 24 1C 8B C8 8B 44 24 18 89 44 24 10 8B 44 24 20");
-		if (HUDAspectRatioInstruction2ScanResult)
-		{
-			spdlog::info("HUD Aspect Ratio Instruction 2: Address is{:s} + {:x}", sExeName.c_str(), HUDAspectRatioInstruction2ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(HUDAspectRatioInstruction2ScanResult, "\x90\x90\x90", 3);
-
-			HUDAspectRatioInstruction2Hook = safetyhook::create_mid(HUDAspectRatioInstruction2ScanResult, HUDAspectRatioInstruction2MidHook);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the HUD aspect ratio instruction 2 memory address.");
-			return;
-		}
-
-		std::uint8_t* HUDAspectRatioInstruction3ScanResult = Memory::PatternScan(exeModule, "D9 46 48 D8 5E 44 DF E0 F6 C4 41 75 36 D9 44 24 20 D8 64 24 18");
-		if (HUDAspectRatioInstruction3ScanResult)
-		{
-			spdlog::info("HUD Aspect Ratio Instruction 3: Address is{:s} + {:x}", sExeName.c_str(), HUDAspectRatioInstruction3ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(HUDAspectRatioInstruction3ScanResult, "\x90\x90\x90", 3);
-
-			HUDAspectRatioInstruction3Hook = safetyhook::create_mid(HUDAspectRatioInstruction3ScanResult, HUDAspectRatioInstruction3MidHook);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the HUD aspect ratio instruction 3 memory address.");
-			return;
-		}
-
-		std::uint8_t* HUDAspectRatioInstruction4ScanResult = Memory::PatternScan(exeModule, "D8 70 48 8D 44 24 48 50 D9 5C 24 28 E8 ?? ?? ?? ?? 8D 4C 24 40 51");
-		if (HUDAspectRatioInstruction4ScanResult)
-		{
-			spdlog::info("HUD Aspect Ratio Instruction 4: Address is{:s} + {:x}", sExeName.c_str(), HUDAspectRatioInstruction4ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(HUDAspectRatioInstruction4ScanResult, "\x90\x90\x90", 3);
-
-			HUDAspectRatioInstruction4Hook = safetyhook::create_mid(HUDAspectRatioInstruction4ScanResult, HUDAspectRatioInstruction4MidHook);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the HUD aspect ratio instruction 4 memory address.");
-			return;
-		}
 	}
 }
 
