@@ -46,10 +46,13 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fCurrentCameraFOV;
+float fNewCameraFOV;
 uint8_t* ResolutionWidth1Address;
 uint8_t* ResolutionHeight1Address;
 uint8_t* ResolutionWidth3Address;
@@ -151,8 +154,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -273,6 +278,30 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate resolution instructions 3 scan memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 8E D0 00 00 00 D9 86 D0 00 00 00");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			static SafetyHookMid CameraFOVInstructionMidHook{};
+
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				fCurrentCameraFOV = std::bit_cast<float>(ctx.ecx);
+
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+				*reinterpret_cast<float*>(ctx.esi + 0xD0) = fNewCameraFOV;
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
