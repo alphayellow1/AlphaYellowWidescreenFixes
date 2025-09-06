@@ -733,6 +733,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WorldChampionshipSnookerWid
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WorldChampionshipSnooker2003WidescreenFix", "WorldChampionshipSnooker2003WidescreenFix.vcxproj", "{6B146F92-7E4B-4EBC-8F9D-F699767DEEB4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WorldChampionshipSnooker2004WidescreenFix", "WorldChampionshipSnooker2004WidescreenFix.vcxproj", "{6624B0B1-5373-4389-A027-C5E28F9901AE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3645,6 +3647,14 @@ Global
 		{6B146F92-7E4B-4EBC-8F9D-F699767DEEB4}.Release|x64.Build.0 = Release|x64
 		{6B146F92-7E4B-4EBC-8F9D-F699767DEEB4}.Release|x86.ActiveCfg = Release|Win32
 		{6B146F92-7E4B-4EBC-8F9D-F699767DEEB4}.Release|x86.Build.0 = Release|Win32
+		{6624B0B1-5373-4389-A027-C5E28F9901AE}.Debug|x64.ActiveCfg = Debug|x64
+		{6624B0B1-5373-4389-A027-C5E28F9901AE}.Debug|x64.Build.0 = Debug|x64
+		{6624B0B1-5373-4389-A027-C5E28F9901AE}.Debug|x86.ActiveCfg = Debug|Win32
+		{6624B0B1-5373-4389-A027-C5E28F9901AE}.Debug|x86.Build.0 = Debug|Win32
+		{6624B0B1-5373-4389-A027-C5E28F9901AE}.Release|x64.ActiveCfg = Release|x64
+		{6624B0B1-5373-4389-A027-C5E28F9901AE}.Release|x64.Build.0 = Release|x64
+		{6624B0B1-5373-4389-A027-C5E28F9901AE}.Release|x86.ActiveCfg = Release|Win32
+		{6624B0B1-5373-4389-A027-C5E28F9901AE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -4013,6 +4023,7 @@ Global
 		{E324F96E-D356-406C-B7C2-E817DD50DDA4} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{46CEB0B8-B55F-4EB3-A6BF-12D00F48B973} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{6B146F92-7E4B-4EBC-8F9D-F699767DEEB4} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{6624B0B1-5373-4389-A027-C5E28F9901AE} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
