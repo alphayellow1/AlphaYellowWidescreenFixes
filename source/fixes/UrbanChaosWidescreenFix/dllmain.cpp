@@ -1,4 +1,4 @@
-// Include necessary headers
+﻿// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -58,6 +58,7 @@ float fNewCameraFOV1;
 float fNewCameraFOV2;
 float fNewCullingX;
 float f640Res;
+float fNewHorizontalRes;
 uint8_t* AspectRatioAddress;
 uint8_t* CameraFOVAddress;
 
@@ -195,13 +196,13 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid AspectRatioInstruction2Hook{};
+static SafetyHookMid CullingCameraFOVInstructionHook{};
 
-void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
+void CullingCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fdiv dword ptr ds:[f640Res]
+		fmul dword ptr ds:[fNewHorizontalRes]
 	}
 }
 
@@ -322,31 +323,16 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 1D 88 28 EB 00 D9 05 30 19 E8 00 D8 35 98 19 E8 00");
-		if (AspectRatioInstruction2ScanResult)
+		std::uint8_t* CullingCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 98 19 E8 00 85 C0 D8 35 30 19 E8 00 74 02 DC C0");
+		if (CullingCameraFOVInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction2ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Culling Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CullingCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			f640Res = 640.0f;
+			fNewHorizontalRes = 640.0f * fAspectRatioScale * powf(fFOVFactor, 1.6f);
 
-			Memory::PatchBytes(AspectRatioInstruction2ScanResult + 12, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CullingCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult + 12, AspectRatioInstruction2MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction 2 memory address.");
-			return;
-		}
-
-		std::uint8_t* CullingCameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "C7 05 ?? ?? ?? ?? 00 00 20 44 A3 ?? ?? ?? ?? 83 E8 00 C7 05 ?? ?? ?? ?? 00 00 00 00 C7 05 ?? ?? ?? ?? 00 00 20 44");
-		if (CullingCameraFOVInstructionsScanResult)
-		{
-			spdlog::info("Culling Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CullingCameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
-
-			fNewCullingX = (float)iCurrentResX;
-
-			Memory::Write(CullingCameraFOVInstructionsScanResult + 6, fNewCullingX);
+			CullingCameraFOVInstructionHook = safetyhook::create_mid(CullingCameraFOVInstructionScanResult, CullingCameraFOVInstructionMidHook);
 		}
 		else
 		{
@@ -354,16 +340,16 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* LightingCacheCrashFixScanResult = Memory::PatternScan(exeModule, "00 80 CC 40 89 45 00");
-		if (LightingCacheCrashFixScanResult)
+		std::uint8_t* TextureResolutionFixScanResult = Memory::PatternScan(exeModule, "00 80 CC 40 89 45 00");
+		if (TextureResolutionFixScanResult)
 		{
-			spdlog::info("Lighting Cache Crash Fix Scan: Address is {:s}+{:x}", sExeName.c_str(), LightingCacheCrashFixScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Texture Resolution Fix Scan: Address is {:s}+{:x}", sExeName.c_str(), TextureResolutionFixScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(LightingCacheCrashFixScanResult + 3, "\x00", 1);
+			Memory::PatchBytes(TextureResolutionFixScanResult + 3, "\x00", 1);
 		}
 		else
 		{
-			spdlog::error("Failed to locate lighting cache crash fix scan memory address.");
+			spdlog::error("Failed to locate texture resolution fix scan memory address.");
 			return;
 		}
 	}
