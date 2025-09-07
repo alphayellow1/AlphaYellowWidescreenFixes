@@ -56,6 +56,7 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 uint16_t iGameVersion;
+uint16_t CheckValue;
 
 // Game detection
 enum class Game
@@ -196,7 +197,7 @@ uint16_t GameVersionCheck()
 	{
 		spdlog::info("Game Version Check Scan: Address is {:s}+{:x}", sExeName.c_str(), GameVersionCheckValueScanResult - (std::uint8_t*)exeModule);
 
-		uint16_t CheckValue = *reinterpret_cast<uint16_t*>(GameVersionCheckValueScanResult + 3);
+		CheckValue = *reinterpret_cast<uint16_t*>(GameVersionCheckValueScanResult + 3);
 
 		switch (CheckValue)
 		{
@@ -212,14 +213,14 @@ uint16_t GameVersionCheck()
 			spdlog::info("Unknown version detected. Exiting the fix...");
 			return 0;
 		}
-
-		return CheckValue;
 	}
 	else
 	{
 		spdlog::error("Failed to locate camera HFOV instruction memory address.");
-		return;
+		return 0;
 	}
+
+	return CheckValue;
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
