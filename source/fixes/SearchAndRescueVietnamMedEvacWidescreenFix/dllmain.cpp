@@ -205,9 +205,9 @@ void WidescreenFix()
 			{
 				spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
 
-				Maths::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult, iCurrentResX);
+				Memory::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult, iCurrentResX);
 
-				Maths::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult + 7, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult + 7, iCurrentResY);
 			}
 			else
 			{
@@ -224,9 +224,9 @@ void WidescreenFix()
 			{
 				spdlog::info("Resolution 1280x960 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1280x960ScanResult - (std::uint8_t*)exeModule);
 
-				Maths::WriteNumberAsChar8Digits(Resolution1280x960ScanResult, iCurrentResX);
+				Memory::WriteNumberAsChar8Digits(Resolution1280x960ScanResult, iCurrentResX);
 
-				Maths::WriteNumberAsChar8Digits(Resolution1280x960ScanResult + 7, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(Resolution1280x960ScanResult + 7, iCurrentResY);
 			}
 			else
 			{
@@ -243,9 +243,9 @@ void WidescreenFix()
 			{
 				spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult - (std::uint8_t*)exeModule);
 				
-				Maths::WriteNumberAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
+				Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
 
-				Maths::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 6, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 6, iCurrentResY);
 			}
 			else
 			{

@@ -56,8 +56,6 @@ float fNewAspectRatio2;
 float fNewAspectRatio3;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
-float fNewCullingX;
-float f640Res;
 float fNewHorizontalRes;
 uint8_t* AspectRatioAddress;
 uint8_t* CameraFOVAddress;
@@ -221,18 +219,18 @@ void WidescreenFix()
 
 			if ((Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 4) || (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 3))
 			{
-				Maths::WriteNumberAsChar8Digits(ResolutionStringScanResult, iCurrentResX);
+				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult, iCurrentResX);
 
-				Maths::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
 			}
 
 			if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
 			{
 				Memory::PatchBytes(ResolutionStringScanResult, "\x00", 1);
 
-				Maths::WriteNumberAsChar8Digits(ResolutionStringScanResult + 1, iCurrentResX);
+				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 1, iCurrentResX);
 
-				Maths::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
 			}
 		}
 		else

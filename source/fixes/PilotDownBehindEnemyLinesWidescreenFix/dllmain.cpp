@@ -250,9 +250,9 @@ void FOVFix()
 			{
 				spdlog::info("Resolution 1024x768 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1024x768ScanResult - (std::uint8_t*)exeModule);
 
-				Maths::WriteNumberAsChar16Digits(Resolution1024x768ScanResult, iCurrentResX);
+				Memory::WriteNumberAsChar16Digits(Resolution1024x768ScanResult, iCurrentResX);
 
-				Maths::WriteNumberAsChar16Digits(Resolution1024x768ScanResult + 14, iCurrentResY);
+				Memory::WriteNumberAsChar16Digits(Resolution1024x768ScanResult + 14, iCurrentResY);
 			}
 			else
 			{
@@ -267,18 +267,18 @@ void FOVFix()
 
 				if (Maths::digitCount(iCurrentResX) == 4 && (Maths::digitCount(iCurrentResY) == 4 || Maths::digitCount(iCurrentResY) == 3))
 				{
-					Maths::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 5, iCurrentResX);
+					Memory::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 5, iCurrentResX);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 10, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 10, iCurrentResY);
 				}
 
 				if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
 				{
-					Maths::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 5, iCurrentResX);
+					Memory::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 5, iCurrentResX);
 
 					Memory::PatchBytes(Resolution1024x768Scan2Result + 8, "\x2C", 1);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 9, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 9, iCurrentResY);
 
 					Memory::PatchBytes(Resolution1024x768Scan2Result + 12, "\x00", 1);
 				}

@@ -11,6 +11,12 @@
 #include <cstdlib>
 #include <iostream>
 
+template<typename T>
+concept Arithmetic = std::is_arithmetic_v<T>;
+
+template<typename T>
+concept Integral = std::is_integral_v<T>;
+
 namespace Memory
 {
 	template<typename T>
@@ -221,6 +227,54 @@ namespace Memory
 			return address + sizeof(T) + disp;
 		}
 	}
+
+	template<Arithmetic T, typename OutputChar = char8_t>
+	inline void WriteNumberAsChar8Digits(std::uint8_t* baseAddress, T value)
+	{
+		std::string str;
+
+		if constexpr (Integral<T>)
+		{
+			char buf[std::numeric_limits<T>::digits10 + 3];
+			auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), value);
+			str.assign(buf, p);
+		}
+		else
+		{
+			str = std::to_string(value);
+		}
+
+		for (char ch : str)
+		{
+			OutputChar out = static_cast<OutputChar>(ch);
+			Memory::Write(baseAddress, out);
+			baseAddress += sizeof(OutputChar);
+		}
+	}
+
+	template<Arithmetic T, typename OutputChar = char16_t>
+	inline void WriteNumberAsChar16Digits(std::uint8_t* baseAddress, T value)
+	{
+		std::string str;
+
+		if constexpr (Integral<T>)
+		{
+			char buf[std::numeric_limits<T>::digits10 + 3];
+			auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), value);
+			str.assign(buf, p);
+		}
+		else
+		{
+			str = std::to_string(value);
+		}
+
+		for (char ch : str)
+		{
+			OutputChar out = static_cast<OutputChar>(static_cast<unsigned char>(ch));
+			Memory::Write(baseAddress, out);
+			baseAddress += sizeof(OutputChar);
+		}
+	}
 }
 
 namespace Util
@@ -357,60 +411,6 @@ namespace Maths
 		return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad));
 	}
 
-	template<typename T>
-	concept Arithmetic = std::is_arithmetic_v<T>;
-
-	template<typename T>
-	concept Integral = std::is_integral_v<T>;
-
-	template<Arithmetic T, typename OutputChar = char8_t>
-	inline void WriteNumberAsChar8Digits(std::uint8_t* baseAddress, T value)
-	{
-		std::string str;
-
-		if constexpr (Integral<T>)
-		{
-			char buf[std::numeric_limits<T>::digits10 + 3];
-			auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), value);
-			str.assign(buf, p);
-		}
-		else
-		{
-			str = std::to_string(value);
-		}
-
-		for (char ch : str)
-		{
-			OutputChar out = static_cast<OutputChar>(ch);
-			Memory::Write(baseAddress, out);
-			baseAddress += sizeof(OutputChar);
-		}
-	}
-
-	template<Arithmetic T, typename OutputChar = char16_t>
-	inline void WriteNumberAsChar16Digits(std::uint8_t* baseAddress, T value)
-	{
-		std::string str;
-
-		if constexpr (Integral<T>)
-		{
-			char buf[std::numeric_limits<T>::digits10 + 3];
-			auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), value);
-			str.assign(buf, p);
-		}
-		else
-		{
-			str = std::to_string(value);
-		}
-
-		for (char ch : str)
-		{
-			OutputChar out = static_cast<OutputChar>(static_cast<unsigned char>(ch));
-			Memory::Write(baseAddress, out);
-			baseAddress += sizeof(OutputChar);
-		}
-	}
-	
 	template<Integral Int>
 	inline int digitCount(Int number)
 	{

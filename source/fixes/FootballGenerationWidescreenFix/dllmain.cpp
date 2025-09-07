@@ -232,13 +232,13 @@ void WidescreenFix()
 				{
 					spdlog::info("Resolution 1280x1024 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1280x1024ScanResult - (std::uint8_t*)exeModule);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1280x1024ScanResult, iCurrentResX);
+					Memory::WriteNumberAsChar8Digits(Resolution1280x1024ScanResult, iCurrentResX);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1280x1024ScanResult + 5, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(Resolution1280x1024ScanResult + 5, iCurrentResY);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1280x1024ScanResult + 20, iCurrentResX);
+					Memory::WriteNumberAsChar8Digits(Resolution1280x1024ScanResult + 20, iCurrentResX);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1280x1024ScanResult + 25, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(Resolution1280x1024ScanResult + 25, iCurrentResY);
 				}
 				else
 				{
@@ -255,13 +255,13 @@ void WidescreenFix()
 				{
 					spdlog::info("Resolution 1024x768 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1024x768ScanResult - (std::uint8_t*)exeModule);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1024x768ScanResult, iCurrentResX);
+					Memory::WriteNumberAsChar8Digits(Resolution1024x768ScanResult, iCurrentResX);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1024x768ScanResult + 5, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(Resolution1024x768ScanResult + 5, iCurrentResY);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1024x768ScanResult + 20, iCurrentResX);
+					Memory::WriteNumberAsChar8Digits(Resolution1024x768ScanResult + 20, iCurrentResX);
 
-					Maths::WriteNumberAsChar8Digits(Resolution1024x768ScanResult + 25, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(Resolution1024x768ScanResult + 25, iCurrentResY);
 				}
 				else
 				{
@@ -278,13 +278,13 @@ void WidescreenFix()
 				{
 					spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult - (std::uint8_t*)exeModule);
 
-					Maths::WriteNumberAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
+					Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
 
-					Maths::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 4, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 4, iCurrentResY);
 
-					Maths::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 16, iCurrentResX);
+					Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 16, iCurrentResX);
 
-					Maths::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 20, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 20, iCurrentResY);
 				}
 				else
 				{
