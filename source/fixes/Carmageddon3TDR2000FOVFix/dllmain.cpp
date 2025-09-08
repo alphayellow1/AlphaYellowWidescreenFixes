@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "DickJohnsonV8ChallengeFOVFix";
+std::string sFixName = "Carmageddon3TDR2000FOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -38,27 +38,24 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
 // Ini variables
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+
 // Variables
 float fNewAspectRatio;
-float fNewAspectRatio2;
 float fAspectRatioScale;
-float fNewGameplayFOV1;
-float fNewGameplayFOV2;
-float fNewPauseMenuFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	DJV8C,
+	C3TDR2000,
 	Unknown
 };
 
@@ -69,7 +66,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::DJV8C, {"Dick Johnson V8 Challenge", "Dick Johnson V8 Challenge.exe"}},
+	{Game::C3TDR2000, {"Carmageddon 3: TDR 2000", "TDR2000.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -189,127 +186,39 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid PauseMenuAspectRatioInstructionHook{};
-
-void PauseMenuAspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewAspectRatio2]
-	}
-}
-
-static SafetyHookMid GameplayAspectRatioInstruction1Hook{};
-
-void GameplayAspectRatioInstruction1MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewAspectRatio2]
-	}
-}
-
-static SafetyHookMid GameplayAspectRatioInstruction2Hook{};
-
-void GameplayAspectRatioInstruction2MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewAspectRatio2]
-	}
-}
-
 void FOVFix()
 {
-	if (eGameType == Game::DJV8C && bFixActive == true)
+	if (eGameType == Game::C3TDR2000 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		fNewAspectRatio2 = 0.75f / fAspectRatioScale;
+		fNewCameraFOV = fAspectRatioScale * fFOVFactor;
 
-		std::uint8_t* PauseMenuAspectRatioAndCameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D8 0D B0 15 4A 00 8B 11 68 00 80 BB 44 50 8B 84 24 B4 00 00 00 51 D9 1C 24 50 8B 84 24 B8 00 00 00");
-		if (PauseMenuAspectRatioAndCameraFOVInstructionsScanResult)
+		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "68 00 00 80 3F 51 8B CD D9 1C 24");
+		if (CameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Pause Menu Aspect Ratio & Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), PauseMenuAspectRatioAndCameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(PauseMenuAspectRatioAndCameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			PauseMenuAspectRatioInstructionHook = safetyhook::create_mid(PauseMenuAspectRatioAndCameraFOVInstructionsScanResult, PauseMenuAspectRatioInstructionMidHook);
-
-			Memory::PatchBytes(PauseMenuAspectRatioAndCameraFOVInstructionsScanResult + 26, "\x90\x90\x90\x90\x90\x90\x90", 7);
-
-			static SafetyHookMid PauseMenuCameraFOVMidHook{};
-
-			PauseMenuCameraFOVMidHook = safetyhook::create_mid(PauseMenuAspectRatioAndCameraFOVInstructionsScanResult + 26, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentPauseMenuFOV = *reinterpret_cast<float*>(ctx.esp + 0xB8);
-
-				fNewPauseMenuFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentPauseMenuFOV, 1.0f / fAspectRatioScale);
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewPauseMenuFOV);
-			});
+			Memory::Write(CameraFOVInstruction1ScanResult + 1, fNewCameraFOV);
 		}
 		else
 		{
-			spdlog::error("Failed to locate pause menu aspect ratio & camera FOV instructions scan memory address.");
+			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
 			return;
 		}
 
-		std::uint8_t* GameplayAspectRatioAndCameraFOVInstructions1ScanResult = Memory::PatternScan(exeModule, "D8 0D B0 15 4A 00 68 00 80 BB 45 50 8B 84 24 04 02 00 00 51 D9 1C 24 50 8B 84 24 08 02 00 00");
-		if (GameplayAspectRatioAndCameraFOVInstructions1ScanResult)
+		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "68 00 00 80 3F D8 0D 68 A4 5C 00 D9 5D 60 D9 45 54 D9 FE");
+		if (CameraFOVInstruction2ScanResult)
 		{
-			spdlog::info("Gameplay Aspect Ratio & Camera FOV Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), GameplayAspectRatioAndCameraFOVInstructions1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(GameplayAspectRatioAndCameraFOVInstructions1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
-
-			GameplayAspectRatioInstruction1Hook = safetyhook::create_mid(GameplayAspectRatioAndCameraFOVInstructions1ScanResult, GameplayAspectRatioInstruction1MidHook);
-
-			Memory::PatchBytes(GameplayAspectRatioAndCameraFOVInstructions1ScanResult + 24, "\x90\x90\x90\x90\x90\x90\x90", 7);
-
-			static SafetyHookMid GameplayCameraFOV1MidHook{};
-
-			GameplayCameraFOV1MidHook = safetyhook::create_mid(GameplayAspectRatioAndCameraFOVInstructions1ScanResult + 24, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentGameplayFOV1 = *reinterpret_cast<float*>(ctx.esp + 0x208);
-
-				fNewGameplayFOV1 = Maths::CalculateNewFOV_MultiplierBased(fCurrentGameplayFOV1, 1.0f / fAspectRatioScale) / fFOVFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewGameplayFOV1);
-			});
+			Memory::Write(CameraFOVInstruction2ScanResult + 1, fNewCameraFOV);
 		}
 		else
 		{
-			spdlog::error("Failed to locate gameplay aspect ratio & camera FOV instructions 1 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* GameplayAspectRatioAndCameraFOVInstructions2ScanResult = Memory::PatternScan(exeModule, "8B 01 D8 0D B0 15 4A 00 8B 52 40 52 8B 15 A8 15 4A 00 52 8B 94 24 04 02 00 00 51 D9 1C 24 52 8B 94 24 08 02 00 00");
-		if (GameplayAspectRatioAndCameraFOVInstructions2ScanResult)
-		{
-			spdlog::info("Gameplay Aspect Ratio & Camera FOV Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), GameplayAspectRatioAndCameraFOVInstructions2ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(GameplayAspectRatioAndCameraFOVInstructions2ScanResult + 2, "\x90\x90\x90\x90\x90\x90", 6);
-
-			GameplayAspectRatioInstruction2Hook = safetyhook::create_mid(GameplayAspectRatioAndCameraFOVInstructions2ScanResult + 2, GameplayAspectRatioInstruction2MidHook);
-
-			Memory::PatchBytes(GameplayAspectRatioAndCameraFOVInstructions2ScanResult + 31, "\x90\x90\x90\x90\x90\x90\x90", 7);
-
-			static SafetyHookMid GameplayCameraFOV2MidHook{};
-
-			GameplayCameraFOV2MidHook = safetyhook::create_mid(GameplayAspectRatioAndCameraFOVInstructions2ScanResult + 31, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentGameplayFOV2 = *reinterpret_cast<float*>(ctx.esp + 0x208);
-
-				fNewGameplayFOV2 = Maths::CalculateNewFOV_MultiplierBased(fCurrentGameplayFOV2, 1.0f / fAspectRatioScale) / fFOVFactor;
-
-				ctx.edx = std::bit_cast<uintptr_t>(fNewGameplayFOV2);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate gameplay aspect ratio & camera FOV instructions 2 scan memory address.");
+			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
 			return;
 		}
 	}
