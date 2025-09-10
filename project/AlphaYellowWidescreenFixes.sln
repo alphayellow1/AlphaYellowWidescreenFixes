@@ -745,6 +745,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Carmageddon3TDR2000FOVFix",
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MichelinRallyMastersRaceOfChampionsFOVFix", "MichelinRallyMastersRaceOfChampionsFOVFix.vcxproj", "{01F6CF1A-74A5-4496-8D3E-307A993A7AE7}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArthurAndTheInvisiblesWidescreenFix", "ArthurAndTheInvisiblesWidescreenFix.vcxproj", "{E2825E29-E910-462F-9D18-DEC642235D18}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3705,6 +3707,14 @@ Global
 		{01F6CF1A-74A5-4496-8D3E-307A993A7AE7}.Release|x64.Build.0 = Release|x64
 		{01F6CF1A-74A5-4496-8D3E-307A993A7AE7}.Release|x86.ActiveCfg = Release|Win32
 		{01F6CF1A-74A5-4496-8D3E-307A993A7AE7}.Release|x86.Build.0 = Release|Win32
+		{E2825E29-E910-462F-9D18-DEC642235D18}.Debug|x64.ActiveCfg = Debug|x64
+		{E2825E29-E910-462F-9D18-DEC642235D18}.Debug|x64.Build.0 = Debug|x64
+		{E2825E29-E910-462F-9D18-DEC642235D18}.Debug|x86.ActiveCfg = Debug|Win32
+		{E2825E29-E910-462F-9D18-DEC642235D18}.Debug|x86.Build.0 = Debug|Win32
+		{E2825E29-E910-462F-9D18-DEC642235D18}.Release|x64.ActiveCfg = Release|x64
+		{E2825E29-E910-462F-9D18-DEC642235D18}.Release|x64.Build.0 = Release|x64
+		{E2825E29-E910-462F-9D18-DEC642235D18}.Release|x86.ActiveCfg = Release|Win32
+		{E2825E29-E910-462F-9D18-DEC642235D18}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -4079,6 +4089,7 @@ Global
 		{5D6CBB36-EC28-4B53-A0EF-4A8A08D496E6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{6A0F952A-E4DD-4EC6-AEBB-047ABBCCB30F} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{01F6CF1A-74A5-4496-8D3E-307A993A7AE7} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{E2825E29-E910-462F-9D18-DEC642235D18} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
