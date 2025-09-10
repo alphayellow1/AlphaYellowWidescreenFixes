@@ -181,11 +181,11 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
-void WidescreenFix()
+void FOVChanger()
 {
 	if (eGameType == Game::AATOG && bFixActive == true)
 	{
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 10 83 C1 02 89 46 30 C1 E1 04 D9 1C 31 D9 44 24 10 D8 0D ?? ?? ?? ?? 8B CE D8 0D ?? ?? ?? ?? D9 F2");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 10 D8 0D ?? ?? ?? ?? 8B CE D8 0D ?? ?? ?? ?? D9 F2 DD D8");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -208,7 +208,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVChanger();
 	}
 	return TRUE;
 }
