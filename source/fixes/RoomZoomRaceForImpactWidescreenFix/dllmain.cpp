@@ -39,14 +39,15 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
 // Ini variables
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fCarSelectionMenuFOV = 0.785398185253f;
 
 // Variables
 float fNewAspectRatio;
@@ -267,8 +268,8 @@ void WidescreenFix()
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 4, [](SafetyHookContext& ctx)
 			{
 				fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
-				
-				if (fCurrentCameraFOV != 0.785398185253f)
+
+				if (fCurrentCameraFOV != fCarSelectionMenuFOV)
 				{
 					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 				}
