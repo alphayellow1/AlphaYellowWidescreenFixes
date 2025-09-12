@@ -25,8 +25,8 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "ExtremeSportsFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixName = "ExtremeSportsWidescreenFix";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -145,7 +145,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -189,6 +189,16 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid AspectRatioInstructionHook{};
+
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
+{
+	_asm
+	{
+		fmul dword ptr ds:[fNewAspectRatio2]
+	}
+}
+
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
@@ -210,7 +220,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 
-void FOVFix()
+void WidescreenFix()
 {
 	if (eGameType == Game::ES && bFixActive == true)
 	{
@@ -218,14 +228,31 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "87 82 89 42 ?? ?? ?? ?? 00 00 00 A0");
-		if (AspectRatioScanResult)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 05 20 8E 5E 00 80 02 00 00 C7 05 24 8E 5E 00 E0 01 00 00");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is{:s} + {:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+
+			Memory::Write(ResolutionInstructionsScanResult + 6, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScanResult + 16, iCurrentResY);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
+			return;
+		}
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? DB 44 24 00 D8 0D ?? ?? ?? ?? DE F9 59");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
 			fNewAspectRatio2 = Maths::CalculateNewFOV_MultiplierBased(fOriginalAspectRatio, fAspectRatioScale);
 
-			Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio2);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
 		}
 		else
 		{
@@ -256,7 +283,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }
