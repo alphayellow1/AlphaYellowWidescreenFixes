@@ -248,7 +248,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			fNewAspectRatio2 = Maths::CalculateNewFOV_MultiplierBased(fOriginalAspectRatio, fAspectRatioScale);
+			fNewAspectRatio2 = fOriginalAspectRatio * fAspectRatioScale;
 
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
