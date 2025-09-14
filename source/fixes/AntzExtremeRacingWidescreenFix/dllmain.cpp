@@ -240,7 +240,7 @@ static SafetyHookMid CameraVFOVInstructionHook{};
 
 void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
+	fNewCameraVFOV = fNewCameraHFOV / fOldAspectRatio;
 
 	_asm
 	{
