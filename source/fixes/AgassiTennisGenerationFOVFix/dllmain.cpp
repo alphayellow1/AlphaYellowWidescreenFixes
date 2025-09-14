@@ -308,7 +308,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 8C 85 A4 00 00 00 75 06 8B 85 98 00 00 00 D9 84 85 B8 00 00 00 8D 54 24 14 D8 8C 85 A4 00 00 00 52 D9 5C 24 18 D9 84 85 B8 00 00 00 D8 8C 85 A4 00 00 00 D8 B4 85 E8 00 00 00");
+		std::uint8_t* CutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 8C 85 ?? ?? ?? ?? 75");
 		if (CutscenesCameraFOVInstructionScanResult)
 		{
 			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -318,13 +318,13 @@ void FOVFix()
 			static SafetyHookMid CutscenesCameraFOVInstructionMidHook{};
 
 			CutscenesCameraFOVInstructionMidHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					float fCurrentCutscenesCameraFOV = std::bit_cast<float>(ctx.ecx);
+			{
+				float fCurrentCutscenesCameraFOV = std::bit_cast<float>(ctx.ecx);
 
-					fNewCutscenesCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCutscenesCameraFOV, fAspectRatioScale);
+				fNewCutscenesCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCutscenesCameraFOV, fAspectRatioScale);
 
-					*reinterpret_cast<float*>(ctx.ebp + ctx.eax * 0x4 + 0xA4) = fNewCutscenesCameraFOV;
-				});
+				*reinterpret_cast<float*>(ctx.ebp + ctx.eax * 0x4 + 0xA4) = fNewCutscenesCameraFOV;
+			});
 		}
 		else
 		{
