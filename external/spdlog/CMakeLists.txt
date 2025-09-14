@@ -33,7 +33,6 @@ elseif(NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
-
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(CMAKE_SYSTEM_NAME MATCHES "CYGWIN" OR CMAKE_SYSTEM_NAME MATCHES "MSYS" OR CMAKE_SYSTEM_NAME MATCHES "MINGW")
@@ -108,15 +107,15 @@ endif()
 if(WIN32)
     option(SPDLOG_WCHAR_SUPPORT "Support wchar api" OFF)
     option(SPDLOG_WCHAR_FILENAMES "Support wchar filenames" OFF)
-    option(SPDLOG_WCHAR_CONSOLE "Support wchar output to console" OFF)    
+    option(SPDLOG_WCHAR_CONSOLE "Support wchar output to console" OFF)
 else()
     set(SPDLOG_WCHAR_SUPPORT OFF CACHE BOOL "non supported option" FORCE)
     set(SPDLOG_WCHAR_FILENAMES OFF CACHE BOOL "non supported option" FORCE)
     set(SPDLOG_WCHAR_CONSOLE OFF CACHE BOOL "non supported option" FORCE)
 endif()
 
-if(MSVC)    
-    option(SPDLOG_MSVC_UTF8 "Enable/disable msvc /utf-8 flag required by fmt lib" ON)   
+if(MSVC)
+    option(SPDLOG_MSVC_UTF8 "Enable/disable msvc /utf-8 flag required by fmt lib" ON)
 endif()
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
@@ -133,6 +132,7 @@ option(
     "prevent spdlog from using of std::atomic log levels (use only if your code never modifies log levels concurrently"
     OFF)
 option(SPDLOG_DISABLE_DEFAULT_LOGGER "Disable default logger creation" OFF)
+option(SPDLOG_FWRITE_UNLOCKED "Use the unlocked variant of fwrite. Leave this on unless your libc doesn't have it" ON)
 
 # clang-tidy
 option(SPDLOG_TIDY "run clang-tidy" OFF)
@@ -201,9 +201,9 @@ endif()
 # sanitizer support
 if(SPDLOG_SANITIZE_ADDRESS)
     spdlog_enable_addr_sanitizer(spdlog)
-elseif (SPDLOG_SANITIZE_THREAD)
+elseif(SPDLOG_SANITIZE_THREAD)
     spdlog_enable_thread_sanitizer(spdlog)
-endif ()
+endif()
 
 # ---------------------------------------------------------------------------------------
 # Header only version
@@ -236,6 +236,22 @@ if(SPDLOG_FMT_EXTERNAL OR SPDLOG_FMT_EXTERNAL_HO)
     endif()
 
     set(PKG_CONFIG_REQUIRES fmt) # add dependency to pkg-config
+endif()
+
+# ---------------------------------------------------------------------------------------
+# Check if fwrite_unlocked/_fwrite_nolock is available
+# ---------------------------------------------------------------------------------------
+if(SPDLOG_FWRITE_UNLOCKED)
+    include(CheckSymbolExists)
+    if(WIN32)
+        check_symbol_exists(_fwrite_nolock "stdio.h" HAVE_FWRITE_UNLOCKED)
+    else()
+        check_symbol_exists(fwrite_unlocked "stdio.h" HAVE_FWRITE_UNLOCKED)
+    endif()
+    if(HAVE_FWRITE_UNLOCKED)
+        target_compile_definitions(spdlog PRIVATE SPDLOG_FWRITE_UNLOCKED)
+        target_compile_definitions(spdlog_header_only INTERFACE SPDLOG_FWRITE_UNLOCKED)
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------------------
@@ -274,9 +290,13 @@ if(MSVC)
     target_compile_options(spdlog PRIVATE "/Zc:__cplusplus")
     target_compile_options(spdlog_header_only INTERFACE "/Zc:__cplusplus")
     if(SPDLOG_MSVC_UTF8)
-	    target_compile_options(spdlog PUBLIC "/utf-8")
-	    target_compile_options(spdlog_header_only INTERFACE "/utf-8")    
-     endif()
+        # fmtlib requires the /utf-8 flag when building with msvc. see https://github.com/fmtlib/fmt/pull/4159 on the
+        # purpose of the additional
+        # "$<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:MSVC>>"
+        target_compile_options(spdlog PUBLIC $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:MSVC>>:/utf-8>)
+        target_compile_options(spdlog_header_only
+                               INTERFACE $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:MSVC>>:/utf-8>)
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------------------
@@ -284,12 +304,13 @@ endif()
 # ---------------------------------------------------------------------------------------
 if(SPDLOG_NO_EXCEPTIONS)
     if(NOT SPDLOG_FMT_EXTERNAL AND NOT SPDLOG_FMT_EXTERNAL_HO)
-        target_compile_definitions(spdlog PUBLIC FMT_EXCEPTIONS=0)
+        target_compile_definitions(spdlog PUBLIC FMT_USE_EXCEPTIONS=0)
     endif()
     if(NOT MSVC)
         target_compile_options(spdlog PRIVATE -fno-exceptions)
     else()
         target_compile_options(spdlog PRIVATE /EHs-c-)
+        target_compile_definitions(spdlog PRIVATE _HAS_EXCEPTIONS=0)
     endif()
 endif()
 # ---------------------------------------------------------------------------------------
