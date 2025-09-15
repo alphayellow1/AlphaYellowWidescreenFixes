@@ -283,21 +283,6 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "C7 81 BC 00 00 00 91 0A 06 3F C3 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90");
-		if (CameraFOVInstruction3ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
-
-			fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(0.5235987305641174f, fAspectRatioScale) * fFOVFactor;
-
-			Memory::Write(CameraFOVInstruction3ScanResult + 6, fNewCameraFOV3);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 3 memory address.");
-			return;
-		}
-
 		std::uint8_t* CameraFOVInstruction4ScanResult = Memory::PatternScan(exeModule, "89 91 BC 00 00 00 8B 10 F6 C6 01 74 09 8B 40 58 89 81 C0 00 00 00 C2 04 00 90 90 90 90 90 90 90 90 90 90 90 90 90 90 83 EC 0C 56 57 8B 7C 24 18 8B F1 8B 07 83 E8 03 0F 84 88 00 00 00 83 E8 02");
 		if (CameraFOVInstruction4ScanResult)
 		{
@@ -508,21 +493,6 @@ void FOVFix()
 		else
 		{
 			spdlog::error("Failed to locate camera FOV instruction 13 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstruction14ScanResult = Memory::PatternScan(exeModule, "D8 1D 04 03 53 00 DF E0 F6 C4 41 75 0A C7 81 BC 00 00 00 35 8D 27 40");
-		if (CameraFOVInstruction14ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 14: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction14ScanResult + 13 - (std::uint8_t*)exeModule);
-
-			fNewCameraFOV14 = Maths::CalculateNewFOV_RadBased(2.6179935932159424f, fAspectRatioScale) * fFOVFactor;
-				
-			Memory::Write(CameraFOVInstruction14ScanResult + 19, fNewCameraFOV14);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 14 memory address.");
 			return;
 		}
 

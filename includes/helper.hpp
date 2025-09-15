@@ -348,7 +348,7 @@ namespace Maths
 		{
 			T currentHalfRad = DegToRad(currentFOVDegrees);
 			T newHalfRad = std::atan(std::tan(currentHalfRad) * scale);
-			return T(2) * RadToDeg(newHalfRad);
+			return RadToDeg(newHalfRad);
 		}
 	}
 
