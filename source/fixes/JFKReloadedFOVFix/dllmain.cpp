@@ -265,7 +265,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		// DirectX renderer
+		// Direct3D 8 renderer
 		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 00 BA 00 00 80 3F D9 86 84 00 00 00");
 		if (CameraFOVInstruction1ScanResult)
 		{
