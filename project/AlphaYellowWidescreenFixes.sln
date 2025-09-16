@@ -783,6 +783,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DeadToRights2FOVChanger", "
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JFKReloadedFOVFix", "JFKReloadedFOVFix.vcxproj", "{CAC263BA-AEBD-4F34-A60A-13139F45D231}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GotchaExtremePaintballWidescreenFix", "GotchaExtremePaintballWidescreenFix.vcxproj", "{CC9887E7-8556-46DB-84A9-0F432C2DAF83}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3895,6 +3897,14 @@ Global
 		{CAC263BA-AEBD-4F34-A60A-13139F45D231}.Release|x64.Build.0 = Release|x64
 		{CAC263BA-AEBD-4F34-A60A-13139F45D231}.Release|x86.ActiveCfg = Release|Win32
 		{CAC263BA-AEBD-4F34-A60A-13139F45D231}.Release|x86.Build.0 = Release|Win32
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83}.Debug|x64.ActiveCfg = Debug|x64
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83}.Debug|x64.Build.0 = Debug|x64
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83}.Debug|x86.ActiveCfg = Debug|Win32
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83}.Debug|x86.Build.0 = Debug|Win32
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83}.Release|x64.ActiveCfg = Release|x64
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83}.Release|x64.Build.0 = Release|x64
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83}.Release|x86.ActiveCfg = Release|Win32
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -4288,6 +4298,7 @@ Global
 		{A749B59F-FF06-43D6-B2B2-154B27741C0F} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{62FF5F77-6E3F-41F6-8097-B414EBC010FF} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{CAC263BA-AEBD-4F34-A60A-13139F45D231} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{CC9887E7-8556-46DB-84A9-0F432C2DAF83} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
