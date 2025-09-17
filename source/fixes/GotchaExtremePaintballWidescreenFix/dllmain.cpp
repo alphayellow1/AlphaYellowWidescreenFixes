@@ -184,8 +184,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -194,32 +192,12 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	while ((dllModule2 = GetModuleHandleA("vision71.dll")) == nullptr)
-	{
-		spdlog::warn("vision71.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for vision71.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	while ((dllModule3 = GetModuleHandleA("vBase71.dll")) == nullptr)
-	{
-		spdlog::warn("vBase71.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for vBase71.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;	
 }
 
 void WidescreenFix()
