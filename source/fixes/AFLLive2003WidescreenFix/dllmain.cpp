@@ -63,6 +63,12 @@ enum class Game
 	Unknown
 };
 
+enum ResolutionInstructionsIndex
+{
+	RendererResolution,
+	ViewportResolution,
+};
+
 struct GameInfo
 {
 	std::string GameTitle;
@@ -198,60 +204,45 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* RendererResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? 02 00 00 00 EB 54");
-		if (RendererResolutionInstructionsScanResult)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? 02 00 00 00 EB 54", "89 4A 0C 74 05 8B 48 10 EB 06 8B 4D 08 8B 49 08 85 F6 89 4A 08");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), RendererResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResolution] - (std::uint8_t*)exeModule);
 
-			ResolutionWidthAddress = Memory::GetPointer<uint32_t>(RendererResolutionInstructionsScanResult + 2, Memory::PointerMode::Absolute);
+			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution] - (std::uint8_t*)exeModule);
+			
+			ResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[RendererResolution] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeightAddress = Memory::GetPointer<uint32_t>(RendererResolutionInstructionsScanResult + 8, Memory::PointerMode::Absolute);
+			ResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[RendererResolution] + 8, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(RendererResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolution], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
 			static SafetyHookMid RendererResolutionInstructionsMidHook{};
 
-			RendererResolutionInstructionsMidHook = safetyhook::create_mid(RendererResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			RendererResolutionInstructionsMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolution], [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ResolutionWidthAddress) = iCurrentResX;
 
 				*reinterpret_cast<int*>(ResolutionHeightAddress) = iCurrentResY;
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions scan memory address.");
-			return;
-		}
 
-		std::uint8_t* ViewportResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "89 4A 0C 74 05 8B 48 10 EB 06 8B 4D 08 8B 49 08 85 F6 89 4A 08");
-		if (ViewportResolutionInstructionsScanResult)
-		{
-			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ViewportResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::PatchBytes(ViewportResolutionInstructionsScanResult, "\x90\x90\x90", 3);
-			
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution], "\x90\x90\x90", 3);
+
 			static SafetyHookMid ViewportResolutionWidthInstructionMidHook{};
-			
-			ViewportResolutionWidthInstructionMidHook = safetyhook::create_mid(ViewportResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+
+			ViewportResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution], [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.edx + 0xC) = iCurrentResX;
-				
 			});
 
-			Memory::PatchBytes(ViewportResolutionInstructionsScanResult + 18, "\x90\x90\x90", 3);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution] + 18, "\x90\x90\x90", 3);
 
 			static SafetyHookMid ViewportResolutionHeightInstructionMidHook{};
 
-			ViewportResolutionHeightInstructionMidHook = safetyhook::create_mid(ViewportResolutionInstructionsScanResult + 18, [](SafetyHookContext& ctx)
+			ViewportResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution] + 18, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.edx + 0x8) = iCurrentResY;
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate viewport resolution instructions scan memory address.");
-			return;
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");

@@ -199,8 +199,6 @@ namespace Memory
 
 		if (missing.empty())
 		{
-			spdlog::info("PatternScan: all {} signature(s) found.", addrs.size());
-
 			return true;
 		}
 
