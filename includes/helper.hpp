@@ -10,6 +10,7 @@
 #include <climits>
 #include <cstdlib>
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 template<typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -113,6 +114,8 @@ namespace Memory
 		return bytes;
 	}
 
+	thread_local std::vector<std::string> g_last_scan_signatures;
+
 	std::uint8_t* PatternScan(void* module, const char* signature)
 	{
 		auto dosHeader = (PIMAGE_DOS_HEADER)module;
@@ -151,24 +154,72 @@ namespace Memory
 		return nullptr;
 	}
 
-	struct PatternInfo
+	template<typename... Sigs, typename = std::enable_if_t<(std::is_convertible_v<Sigs, const char*> && ...)>>
+	std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature, Sigs... otherSignatures)
 	{
-		std::string signature;
-		std::uint8_t* address;
-	};
+		g_last_scan_signatures.clear();
 
-	std::vector<PatternInfo> MultiPatternScan(void* module, const std::vector<const char*>& signatures)
-	{
-		std::vector<PatternInfo> results;
+		g_last_scan_signatures.reserve(1 + sizeof...(Sigs));
 
-		for (const auto& sig : signatures)
+		g_last_scan_signatures.emplace_back(firstSignature);
+
+		(g_last_scan_signatures.emplace_back(otherSignatures), ...);
+
+		std::vector<std::uint8_t*> results;
+
+		results.reserve(g_last_scan_signatures.size());
+
+		for (auto const& s : g_last_scan_signatures)
 		{
-			std::uint8_t* addr = Memory::PatternScan(module, sig);
-
-			results.push_back({ sig, addr });
-		}
+			results.push_back(PatternScan(module, s.c_str()));
+		}			
 
 		return results;
+	}
+
+	inline bool AreAllSignaturesValid(const std::vector<std::uint8_t*>& addrs) noexcept
+	{
+		if (addrs.empty())
+		{
+			spdlog::error("PatternScan: The address vector is empty.");
+			return false;
+		}
+
+		std::vector<std::size_t> missing;
+
+		missing.reserve(addrs.size());
+
+		for (std::size_t i = 0; i < addrs.size(); ++i)
+		{
+			if (addrs[i] == nullptr)
+			{
+				missing.push_back(i);
+			}
+		}
+
+		if (missing.empty())
+		{
+			spdlog::info("PatternScan: all {} signature(s) found.", addrs.size());
+
+			return true;
+		}
+
+		std::string msg = fmt::format("PatternScan: {} signature(s) not found. Missing indices: ", missing.size());
+
+		for (std::size_t k = 0; k < missing.size(); ++k)
+		{
+			if (k > 0) msg += ", ";
+
+			msg += fmt::format("{}", missing[k]);
+
+			if (g_last_scan_signatures.size() == addrs.size())
+			{
+				msg += fmt::format(" (\"{}\")", g_last_scan_signatures[missing[k]]);
+			}
+		}
+
+		spdlog::error("{}", msg);
+		return false;
 	}
 
 	static HMODULE GetThisDllHandle()
