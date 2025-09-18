@@ -42,17 +42,16 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.001f;
 
 // Ini variables
 bool bFixActive;
 bool bFixFOV;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fNewCameraFOV;
 
 // Game detection
@@ -191,44 +190,15 @@ bool DetectGame()
 	return false;
 }
 
-// Function that writes an integer as a series of char8_t digits
-void WriteIntAsChar8Digits(std::uint8_t* baseAddress, int value)
-{
-	std::string strValue = std::to_string(value);
-
-	for (char ch : strValue)
-	{
-		char8_t char8Value = static_cast<char8_t>(ch);
-
-		Memory::Write(baseAddress, char8Value);
-
-		baseAddress += sizeof(char8_t);
-	}
-}
-
-// Function that returns the amount of digits of a given number
-int digitCount(int number)
-{
-	int count = 0;
-
-	do
-	{
-		number /= 10;
-		++count;
-	} while (number != 0);
-
-	return count;
-}
-
 static SafetyHookMid CameraHFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fld dword ptr ds : [eax]
-		fmul dword ptr ds : [fNewCameraFOV]
-		fstp dword ptr ds : [eax]
+		fld dword ptr ds:[eax]
+		fmul dword ptr ds:[fNewCameraFOV]
+		fstp dword ptr ds:[eax]
 	}
 }
 
@@ -238,9 +208,9 @@ void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fld dword ptr ds : [eax + 0x4]
-		fmul dword ptr ds : [fNewCameraFOV]
-		fstp dword ptr ds : [eax + 0x4]
+		fld dword ptr ds:[eax + 0x4]
+		fmul dword ptr ds:[fNewCameraFOV]
+		fstp dword ptr ds:[eax + 0x4]
 	}
 }
 
@@ -251,16 +221,16 @@ void WidescreenFix()
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		// If both width and height values have 4 digits, then write the resolution values in place of the 1600x1200 one
-		if (digitCount(iCurrentResX) == 4 && digitCount(iCurrentResY) == 4)
+		if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 4)
 		{
 			std::uint8_t* Resolution1600x1200ScanResult = Memory::PatternScan(exeModule, "31 36 30 30 20 78 20 31 32 30 30 20 78 20 33 32");
 			if (Resolution1600x1200ScanResult)
 			{
 				spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
 
-				WriteIntAsChar8Digits(Resolution1600x1200ScanResult, iCurrentResX);
+				Memory::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult, iCurrentResX);
 
-				WriteIntAsChar8Digits(Resolution1600x1200ScanResult + 7, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult + 7, iCurrentResY);
 			}
 			else
 			{
@@ -270,16 +240,16 @@ void WidescreenFix()
 		}
 
 		// If width has 4 digits and height has 3 digits, then write the resolution values in place of the 1280x960 one
-		if (digitCount(iCurrentResX) == 4 && digitCount(iCurrentResY) == 3)
+		if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 3)
 		{
 			std::uint8_t* Resolution1280x960ScanResult = Memory::PatternScan(exeModule, "31 32 38 30 20 78 20 39 36 30 20 78 20 33 32");
 			if (Resolution1280x960ScanResult)
 			{
 				spdlog::info("Resolution 1280x960 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1280x960ScanResult - (std::uint8_t*)exeModule);
 
-				WriteIntAsChar8Digits(Resolution1280x960ScanResult, iCurrentResX);
+				Memory::WriteNumberAsChar8Digits(Resolution1280x960ScanResult, iCurrentResX);
 
-				WriteIntAsChar8Digits(Resolution1280x960ScanResult + 7, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(Resolution1280x960ScanResult + 7, iCurrentResY);
 			}
 			else
 			{
@@ -289,16 +259,16 @@ void WidescreenFix()
 		}
 
 		// If both width and height values have 3 digits, then write the resolution values in place of the 800x600 one
-		if (digitCount(iCurrentResX) == 3 && digitCount(iCurrentResY) == 3)
+		if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
 		{
 			std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(exeModule, "38 30 30 20 78 20 36 30 30 20 78 20 33 32");
 			if (Resolution800x600ScanResult)
 			{
 				spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult - (std::uint8_t*)exeModule);
 				
-				WriteIntAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
+				Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
 
-				WriteIntAsChar8Digits(Resolution800x600ScanResult + 6, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 6, iCurrentResY);
 			}
 			else
 			{

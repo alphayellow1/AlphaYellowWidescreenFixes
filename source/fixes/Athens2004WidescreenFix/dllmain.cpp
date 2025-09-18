@@ -65,6 +65,12 @@ enum class Game
 	Unknown
 };
 
+enum ResolutionInstructionsIndex
+{
+	MainMenuResolutionScan,
+	GameplayResolutionScan
+};
+
 struct GameInfo
 {
 	std::string GameTitle;
@@ -200,92 +206,66 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* MainMenuResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "66 A1 ?? ?? ?? ?? 66 8B 0D ?? ?? ?? ?? 66 8B 15 ?? ?? ?? ??");
-		if (MainMenuResolutionInstructionsScanResult)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "66 A1 ?? ?? ?? ?? 66 8B 0D ?? ?? ?? ?? 66 8B 15 ?? ?? ?? ??", "66 8B 0D ?? ?? ?? ?? 66 A1 ?? ?? ?? ?? 66 8B 15 ?? ?? ?? ??");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Main Menu Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), MainMenuResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Main Menu Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolutionScan] - (std::uint8_t*)exeModule);
 
-			MainMenuResolutionWidthAddress = Memory::GetPointer<uint32_t>(MainMenuResolutionInstructionsScanResult + 2, Memory::PointerMode::Absolute);
+			spdlog::info("Gameplay Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[GameplayResolutionScan] - (std::uint8_t*)exeModule);
 
-			MainMenuResolutionHeightAddress = Memory::GetPointer<uint32_t>(MainMenuResolutionInstructionsScanResult + 9, Memory::PointerMode::Absolute);
+			MainMenuResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 2, Memory::PointerMode::Absolute);
 
-			MainMenuBitDepthAddress = Memory::GetPointer<uint32_t>(MainMenuResolutionInstructionsScanResult + 16, Memory::PointerMode::Absolute);
+			MainMenuResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 9, Memory::PointerMode::Absolute);
+
+			MainMenuBitDepthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 16, Memory::PointerMode::Absolute);
+
+			GameplayResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 9, Memory::PointerMode::Absolute);
+
+			GameplayResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 3, Memory::PointerMode::Absolute);
+
+			GameplayBitDepthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 16, Memory::PointerMode::Absolute);
 
 			static SafetyHookMid MainMenuResolutionWidthInstructionMidHook{};
 
-			MainMenuResolutionWidthInstructionMidHook = safetyhook::create_mid(MainMenuResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			MainMenuResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan], [](SafetyHookContext& ctx)
 			{
-				int& iCurrentMainMenuWidth = *reinterpret_cast<int*>(MainMenuResolutionWidthAddress);
-
-				iCurrentMainMenuWidth = iCurrentResX;
+				*reinterpret_cast<int*>(MainMenuResolutionWidthAddress) = (int16_t)iCurrentResX;
 			});
 
 			static SafetyHookMid MainMenuResolutionHeightInstructionMidHook{};
 
-			MainMenuResolutionHeightInstructionMidHook = safetyhook::create_mid(MainMenuResolutionInstructionsScanResult + 6, [](SafetyHookContext& ctx)
+			MainMenuResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 6, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentMainMenuHeight = *reinterpret_cast<int*>(MainMenuResolutionHeightAddress);
-
-				iCurrentMainMenuHeight = iCurrentResY;
+				*reinterpret_cast<int*>(MainMenuResolutionHeightAddress) = (int16_t)iCurrentResY;
 			});
 
 			static SafetyHookMid MainMenuBitDepthInstructionMidHook{};
 
-			MainMenuBitDepthInstructionMidHook = safetyhook::create_mid(MainMenuResolutionInstructionsScanResult + 13, [](SafetyHookContext& ctx)
+			MainMenuBitDepthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 13, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentMainMenuBitDepth = *reinterpret_cast<int*>(MainMenuBitDepthAddress);
-
-				iCurrentMainMenuBitDepth = 32;
+				*reinterpret_cast<int*>(MainMenuBitDepthAddress) = (int16_t)32;
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate main menu resolution instructions scan memory address.");
-			return;
-		}
 
-		std::uint8_t* GameplayResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "66 8B 0D ?? ?? ?? ?? 66 A1 ?? ?? ?? ?? 66 8B 15 ?? ?? ?? ??");
-		if (GameplayResolutionInstructionsScanResult)
-		{
-			spdlog::info("Gameplay Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), GameplayResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
-
-			GameplayResolutionWidthAddress = Memory::GetPointer<uint32_t>(GameplayResolutionInstructionsScanResult + 9, Memory::PointerMode::Absolute);
-
-			GameplayResolutionHeightAddress = Memory::GetPointer<uint32_t>(GameplayResolutionInstructionsScanResult + 3, Memory::PointerMode::Absolute);
-
-			GameplayBitDepthAddress = Memory::GetPointer<uint32_t>(GameplayResolutionInstructionsScanResult + 16, Memory::PointerMode::Absolute);
-			
 			static SafetyHookMid GameplayResolutionWidthInstructionMidHook{};
 
-			GameplayResolutionWidthInstructionMidHook = safetyhook::create_mid(GameplayResolutionInstructionsScanResult + 7, [](SafetyHookContext& ctx)
+			GameplayResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan] + 7, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentGameplayWidth = *reinterpret_cast<int*>(GameplayResolutionWidthAddress);
-
-				iCurrentGameplayWidth = iCurrentResX;
+				*reinterpret_cast<int*>(GameplayResolutionWidthAddress) = (int16_t)iCurrentResX;
 			});
 
 			static SafetyHookMid GameplayResolutionHeightInstructionMidHook{};
 
-			GameplayResolutionHeightInstructionMidHook = safetyhook::create_mid(GameplayResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			GameplayResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan], [](SafetyHookContext& ctx)
 			{
-				int& iCurrentGameplayHeight = *reinterpret_cast<int*>(GameplayResolutionHeightAddress);
-
-				iCurrentGameplayHeight = iCurrentResY;
+				*reinterpret_cast<int*>(GameplayResolutionHeightAddress) = (int16_t)iCurrentResY;
 			});
-			
+
 			static SafetyHookMid GameplayBitDepthInstructionMidHook{};
 
-			GameplayBitDepthInstructionMidHook = safetyhook::create_mid(GameplayResolutionInstructionsScanResult + 13, [](SafetyHookContext& ctx)
+			GameplayBitDepthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan] + 13, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentGameplayBitDepth = *reinterpret_cast<int*>(GameplayBitDepthAddress);
-
-				iCurrentGameplayBitDepth = 32;
+				*reinterpret_cast<int*>(GameplayBitDepthAddress) = (int16_t)32;
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate gameplay resolution instructions scan memory address.");
-			return;
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 47 18 E8 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 C1 DA E9 59 59 DF E0");

@@ -40,17 +40,17 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
 float fNewAspectRatio;
 float fNewCameraHFOV;
 float fNewCameraFOV;
-float fFOVFactor;
 float fAspectRatioScale;
 
 // Game detection

@@ -45,11 +45,11 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fFOVFactor;
+double dFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
 double dNewCameraFOV;
@@ -151,10 +151,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", dFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
+	spdlog_confparse(dFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -207,7 +207,7 @@ void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 
 	if (fCurrentCameraFOV == 1.989700675f)
 	{
-		dNewCameraFOV = (1.0 / (double)fAspectRatioScale) * (1.0 / (double)fFOVFactor);
+		dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / dFOVFactor;
 	}
 	else
 	{
@@ -224,7 +224,7 @@ static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
-	float fNewCameraFOV3 = 3.1381019951f; // This is to fix the engine frustum culling
+	float fNewCameraFOV3 = 3.1381019951f; // This is to fix the engine's frustum culling, so we set the FOV here just below the maximum FOV, which is 180º (in radians)
 
 	_asm
 	{

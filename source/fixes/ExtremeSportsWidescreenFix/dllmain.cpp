@@ -45,15 +45,15 @@ constexpr float fOriginalAspectRatio = 4.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+
+// Variables
+float fAspectRatioScale;
 float fNewAspectRatio;
 float fNewAspectRatio2;
 float fNewCameraFOV;
-float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -228,7 +228,7 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 05 20 8E 5E 00 80 02 00 00 C7 05 24 8E 5E 00 E0 01 00 00");
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 05 20 8E 5E 00 20 03 00 00 C7 05 24 8E 5E 00 58 02 00 00 EB 14 C7 05 20 8E 5E 00 80 02 00 00 C7 05 24 8E 5E 00 E0 01 00 00");
 		if (ResolutionInstructionsScanResult)
 		{
 			spdlog::info("Resolution Instructions Scan: Address is{:s} + {:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
@@ -236,6 +236,10 @@ void WidescreenFix()
 			Memory::Write(ResolutionInstructionsScanResult + 6, iCurrentResX);
 
 			Memory::Write(ResolutionInstructionsScanResult + 16, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScanResult + 28, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScanResult + 28, iCurrentResY);
 		}
 		else
 		{
