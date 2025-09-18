@@ -40,11 +40,11 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
 
 // Variables
-uint32_t iCurrentResX;
-uint32_t iCurrentResY;
-float fNewCameraHFOV;
+float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -182,20 +182,20 @@ void FOVFix()
 {
 	if (eGameType == Game::BATIP && bFixActive == true)
 	{
-		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "20 0B 68 00 E1 6A 40 00 00 00 00 00 AB AA AA 3F 39 8E E3 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 25 73 3A 25");
-		if (CameraHFOVScanResult)
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "20 0B 68 00 E1 6A 40 00 00 00 00 00 AB AA AA 3F 39 8E E3 3F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 25 73 3A 25");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Camera HFOV Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);			
 
-			fNewCameraHFOV = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+			Memory::Write(AspectRatioScanResult + 12, fNewAspectRatio);
 
-			Memory::Write(CameraHFOVScanResult + 12, fNewCameraHFOV);
-
-			Memory::Write(CameraHFOVScanResult + 16, fNewCameraHFOV);
+			Memory::Write(AspectRatioScanResult + 16, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV memory address.");
+			spdlog::error("Failed to locate aspect ratio scan memory address.");
 			return;
 		}
 	}
