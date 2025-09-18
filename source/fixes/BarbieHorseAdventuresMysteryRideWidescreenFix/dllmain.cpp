@@ -44,14 +44,14 @@ constexpr float fOriginalCameraFOV = 0.5f;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Variables
-uint32_t iCurrentResX;
-uint32_t iCurrentResY;
 float fNewAspectRatio;
-float fNewCameraFOV;
-float fFOVFactor;
 float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -212,7 +212,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan1Result = Memory::PatternScan(exeModule, "75 00 A3 F0 A8 76 00 68 AB AA AA 3F");
+		std::vector<std::uint8_t*> AspectRatioScan1Result = Memory::PatternScan(exeModule, "75 00 A3 F0 A8 76 00 68 AB AA AA 3F", "8A F7 FF 83 C4 0C 68 AB AA AA 3F", "26 F7 FF 83 C4 0C 68 AB AA AA 3F 68", "A3 C4 31 77 00 68 AB AA AA 3F 68", "D8 E9 98 00 00 00 68 AB AA AA 3F 68", "04 A3 F0 A8 76 00 68 AB AA AA 3F 68", "ED FF 83 C4 04 89 45 F8 68 AB AA AA 3F 68", "15 F0 A8 76 00 89 15 C4 31 77 00 68 AB AA AA 3F", "EC FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "04 8B 0D F0 A8 76 00 89 0D C4 31 77 00 68 AB AA AA 3F 68", "D6 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "00 51 E8 58 B5 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "0D F0 A8 76 00 68 AB AA AA 3F", "00 52 E8 9F 5C EB FF 83 C4 04 A3 C4 31 77 00 A1 C4 31 77 00 A3 F0 A8 76 00 68 AB AA AA 3F 68");
 		if (AspectRatioScan1Result)
 		{
 			spdlog::info("Aspect Ratio Scan 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan1Result + 8 - (std::uint8_t*)exeModule);
@@ -225,7 +225,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan2Result = Memory::PatternScan(exeModule, "8A F7 FF 83 C4 0C 68 AB AA AA 3F");
+		std::uint8_t* AspectRatioScan2Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan2Result)
 		{
 			spdlog::info("Aspect Ratio Scan 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan2Result + 7 - (std::uint8_t*)exeModule);
@@ -238,7 +238,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan3Result = Memory::PatternScan(exeModule, "26 F7 FF 83 C4 0C 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan3Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan3Result)
 		{
 			spdlog::info("Aspect Ratio Scan 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan3Result + 7 - (std::uint8_t*)exeModule);
@@ -251,7 +251,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan4Result = Memory::PatternScan(exeModule, "A3 C4 31 77 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan4Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan4Result)
 		{
 			spdlog::info("Aspect Ratio Scan 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan4Result + 6 - (std::uint8_t*)exeModule);
@@ -264,7 +264,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan5Result = Memory::PatternScan(exeModule, "D8 E9 98 00 00 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan5Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan5Result)
 		{
 			spdlog::info("Aspect Ratio Scan 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan5Result + 7 - (std::uint8_t*)exeModule);
@@ -277,7 +277,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan6Result = Memory::PatternScan(exeModule, "04 A3 F0 A8 76 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan6Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan6Result)
 		{
 			spdlog::info("Aspect Ratio Scan 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan6Result + 7 - (std::uint8_t*)exeModule);
@@ -290,7 +290,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan7Result = Memory::PatternScan(exeModule, "ED FF 83 C4 04 89 45 F8 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan7Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan7Result)
 		{
 			spdlog::info("Aspect Ratio Scan 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan7Result + 9 - (std::uint8_t*)exeModule);
@@ -303,7 +303,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan8Result = Memory::PatternScan(exeModule, "15 F0 A8 76 00 89 15 C4 31 77 00 68 AB AA AA 3F");
+		std::uint8_t* AspectRatioScan8Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan8Result)
 		{
 			spdlog::info("Aspect Ratio Scan 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan8Result + 12 - (std::uint8_t*)exeModule);
@@ -316,7 +316,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan9Result = Memory::PatternScan(exeModule, "EC FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan9Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan9Result)
 		{
 			spdlog::info("Aspect Ratio Scan 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan9Result + 23 - (std::uint8_t*)exeModule);
@@ -329,7 +329,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan10Result = Memory::PatternScan(exeModule, "04 8B 0D F0 A8 76 00 89 0D C4 31 77 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan10Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan10Result)
 		{
 			spdlog::info("Aspect Ratio Scan 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan10Result + 14 - (std::uint8_t*)exeModule);
@@ -342,7 +342,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan11Result = Memory::PatternScan(exeModule, "D6 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan11Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan11Result)
 		{
 			spdlog::info("Aspect Ratio Scan 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan11Result + 24 - (std::uint8_t*)exeModule);
@@ -355,7 +355,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan12Result = Memory::PatternScan(exeModule, "00 51 E8 58 B5 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan12Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan12Result)
 		{
 			spdlog::info("Aspect Ratio Scan 12: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan12Result + 28 - (std::uint8_t*)exeModule);
@@ -368,7 +368,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan13Result = Memory::PatternScan(exeModule, "0D F0 A8 76 00 68 AB AA AA 3F");
+		std::uint8_t* AspectRatioScan13Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan13Result)
 		{
 			spdlog::info("Aspect Ratio Scan 13: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan13Result + 6 - (std::uint8_t*)exeModule);
@@ -381,7 +381,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioScan14Result = Memory::PatternScan(exeModule, "00 52 E8 9F 5C EB FF 83 C4 04 A3 C4 31 77 00 A1 C4 31 77 00 A3 F0 A8 76 00 68 AB AA AA 3F 68");
+		std::uint8_t* AspectRatioScan14Result = Memory::PatternScan(exeModule, );
 		if (AspectRatioScan14Result)
 		{
 			spdlog::info("Aspect Ratio Scan 14: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan14Result + 26 - (std::uint8_t*)exeModule);
