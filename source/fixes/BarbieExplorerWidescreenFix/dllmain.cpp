@@ -251,7 +251,7 @@ void WidescreenFix()
 			return;
 		}
 
-		fNewCameraHFOV = (1.0f / fFOVFactor) * (1.0f / fAspectRatioScale);
+		fNewCameraHFOV = (1.0f / fFOVFactor) / fAspectRatioScale;
 
 		fNewCameraVFOV = 1.0f / fFOVFactor;
 
