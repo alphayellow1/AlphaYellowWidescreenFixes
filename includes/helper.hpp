@@ -492,7 +492,6 @@ namespace Maths
 		GreaterThan
 	};
 
-	// existing enum and primary template (use fTolerance as default if you want)
 	template<Arithmetic T, Arithmetic U = T>
 	inline bool isClose(T originalValue,
 		T comparedValue,
@@ -510,7 +509,6 @@ namespace Maths
 			return inclusive ? (diff >= tol) : (diff > tol);
 	}
 
-	// overload that lets you specify operator but keeps the default tolerance
 	template<Arithmetic T>
 	inline bool isClose(T a, T b, ComparisonOperator op, bool inclusive = false)
 	{
