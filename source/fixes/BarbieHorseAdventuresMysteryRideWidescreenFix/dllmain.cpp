@@ -60,6 +60,42 @@ enum class Game
 	Unknown
 };
 
+enum AspectRatioInstructionsIndex
+{
+	AspectRatio1Scan,
+	AspectRatio2Scan,
+	AspectRatio3Scan,
+	AspectRatio4Scan,
+	AspectRatio5Scan,
+	AspectRatio6Scan,
+	AspectRatio7Scan,
+	AspectRatio8Scan,
+	AspectRatio9Scan,
+	AspectRatio10Scan,
+	AspectRatio11Scan,
+	AspectRatio12Scan,
+	AspectRatio13Scan,
+	AspectRatio14Scan,
+};
+
+enum CameraFOVInstructionsIndex
+{
+	CameraFOV1Scan,
+	CameraFOV2Scan,
+	CameraFOV3Scan,
+	CameraFOV4Scan,
+	CameraFOV5Scan,
+	CameraFOV6Scan,
+	CameraFOV7Scan,
+	CameraFOV8Scan,
+	CameraFOV9Scan,
+	CameraFOV10Scan,
+	CameraFOV11Scan,
+	CameraFOV12Scan,
+	CameraFOV13Scan,
+	CameraFOV14Scan,
+};
+
 struct GameInfo
 {
 	std::string GameTitle;
@@ -212,368 +248,124 @@ void WidescreenFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> AspectRatioScan1Result = Memory::PatternScan(exeModule, "75 00 A3 F0 A8 76 00 68 AB AA AA 3F", "8A F7 FF 83 C4 0C 68 AB AA AA 3F", "26 F7 FF 83 C4 0C 68 AB AA AA 3F 68", "A3 C4 31 77 00 68 AB AA AA 3F 68", "D8 E9 98 00 00 00 68 AB AA AA 3F 68", "04 A3 F0 A8 76 00 68 AB AA AA 3F 68", "ED FF 83 C4 04 89 45 F8 68 AB AA AA 3F 68", "15 F0 A8 76 00 89 15 C4 31 77 00 68 AB AA AA 3F", "EC FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "04 8B 0D F0 A8 76 00 89 0D C4 31 77 00 68 AB AA AA 3F 68", "D6 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "00 51 E8 58 B5 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "0D F0 A8 76 00 68 AB AA AA 3F", "00 52 E8 9F 5C EB FF 83 C4 04 A3 C4 31 77 00 A1 C4 31 77 00 A3 F0 A8 76 00 68 AB AA AA 3F 68");
-		if (AspectRatioScan1Result)
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "75 00 A3 F0 A8 76 00 68 AB AA AA 3F", "8A F7 FF 83 C4 0C 68 AB AA AA 3F", "26 F7 FF 83 C4 0C 68 AB AA AA 3F 68", "A3 C4 31 77 00 68 AB AA AA 3F 68", "D8 E9 98 00 00 00 68 AB AA AA 3F 68", "04 A3 F0 A8 76 00 68 AB AA AA 3F 68", "ED FF 83 C4 04 89 45 F8 68 AB AA AA 3F 68", "15 F0 A8 76 00 89 15 C4 31 77 00 68 AB AA AA 3F", "EC FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "04 8B 0D F0 A8 76 00 89 0D C4 31 77 00 68 AB AA AA 3F 68", "D6 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "00 51 E8 58 B5 EB FF 83 C4 04 A3 C4 31 77 00 8B 15 C4 31 77 00 89 15 F0 A8 76 00 68 AB AA AA 3F 68", "0D F0 A8 76 00 68 AB AA AA 3F", "00 52 E8 9F 5C EB FF 83 C4 04 A3 C4 31 77 00 A1 C4 31 77 00 A3 F0 A8 76 00 68 AB AA AA 3F 68");
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Scan 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan1Result + 8 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instructions Scan 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio1Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan1Result + 8, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 1 memory address.");
-			return;
-		}
+			spdlog::info("Aspect Ratio Instructions Scan 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan2Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan2Result)
-		{
-			spdlog::info("Aspect Ratio Scan 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan2Result + 7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instructions Scan 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio3Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan2Result + 7, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 2 memory address.");
-			return;
-		}
+			spdlog::info("Aspect Ratio Instructions Scan 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio4Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan3Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan3Result)
-		{
-			spdlog::info("Aspect Ratio Scan 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan3Result + 7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instructions Scan 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio5Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan3Result + 7, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 3 memory address.");
-			return;
-		}
+			spdlog::info("Aspect Ratio Instructions Scan 6: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio6Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan4Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan4Result)
-		{
-			spdlog::info("Aspect Ratio Scan 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan4Result + 6 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instructions Scan 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio7Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan4Result + 6, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 4 memory address.");
-			return;
-		}
+			spdlog::info("Aspect Ratio Instructions Scan 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio8Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan5Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan5Result)
-		{
-			spdlog::info("Aspect Ratio Scan 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan5Result + 7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instructions Scan 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio9Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan5Result + 7, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 5 memory address.");
-			return;
+			spdlog::info("Aspect Ratio Instructions Scan 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio10Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Aspect Ratio Instructions Scan 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio11Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Aspect Ratio Instructions Scan 12: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio12Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Aspect Ratio Instructions Scan 13: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio13Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Aspect Ratio Instructions Scan 14: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio14Scan] - (std::uint8_t*)exeModule);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio1Scan] + 8, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio2Scan] + 7, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio3Scan] + 7, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio4Scan] + 6, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio5Scan] + 7, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio6Scan] + 7, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio7Scan] + 9, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio8Scan] + 12, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio9Scan] + 23, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio10Scan] + 14, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio11Scan] + 24, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio12Scan] + 28, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio13Scan] + 6, fNewAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio14Scan] + 26, fNewAspectRatio);
 		}
 
-		std::uint8_t* AspectRatioScan6Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan6Result)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D 48", "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 B5", "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 7E", "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 CE", "68 00 00 00 3F 8B 45", "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 8A", "68 00 00 00 3F A1 C8 31 77 00 50 8B 4D", "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D C4", "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 2A", "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 97", "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 0E", "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 D2", "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 6B", "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 1A");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Scan 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan6Result + 7 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan6Result + 7, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 6 memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instructions Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan7Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan7Result)
-		{
-			spdlog::info("Aspect Ratio Scan 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan7Result + 9 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan7Result + 9, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 7 memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instructions Scan 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV4Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan8Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan8Result)
-		{
-			spdlog::info("Aspect Ratio Scan 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan8Result + 12 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV5Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan8Result + 12, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 8 memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instructions Scan 6: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV6Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan9Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan9Result)
-		{
-			spdlog::info("Aspect Ratio Scan 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan9Result + 23 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan 7: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV7Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan9Result + 23, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 9 memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instructions Scan 8: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV8Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan10Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan10Result)
-		{
-			spdlog::info("Aspect Ratio Scan 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan10Result + 14 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan 9: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV9Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan10Result + 14, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 10 memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instructions Scan 10: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV10Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan11Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan11Result)
-		{
-			spdlog::info("Aspect Ratio Scan 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan11Result + 24 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan 11: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV11Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan11Result + 24, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 11 memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instructions Scan 12: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV12Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan12Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan12Result)
-		{
-			spdlog::info("Aspect Ratio Scan 12: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan12Result + 28 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan 13: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV13Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScan12Result + 28, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 12 memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instructions Scan 14: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV14Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioScan13Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan13Result)
-		{
-			spdlog::info("Aspect Ratio Scan 13: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan13Result + 6 - (std::uint8_t*)exeModule);
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 1, fNewCameraFOV);
 
-			Memory::Write(AspectRatioScan13Result + 6, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 13 memory address.");
-			return;
-		}
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 1, fNewCameraFOV);
 
-		std::uint8_t* AspectRatioScan14Result = Memory::PatternScan(exeModule, );
-		if (AspectRatioScan14Result)
-		{
-			spdlog::info("Aspect Ratio Scan 14: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScan14Result + 26 - (std::uint8_t*)exeModule);
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV3Scan] + 1, fNewCameraFOV);
 
-			Memory::Write(AspectRatioScan14Result + 26, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio scan 14 memory address.");
-			return;
-		}
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV4Scan] + 1, fNewCameraFOV);
 
-		std::uint8_t* CameraFOVScan1Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D 48");
-		if (CameraFOVScan1Result)
-		{
-			spdlog::info("Camera FOV Scan 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan1Result + 1 - (std::uint8_t*)exeModule);
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV5Scan] + 1, fNewCameraFOV);
 
-			Memory::Write(CameraFOVScan1Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 1 memory address.");
-			return;
-		}
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV6Scan] + 1, fNewCameraFOV);
 
-		std::uint8_t* CameraFOVScan2Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 B5");
-		if (CameraFOVScan2Result)
-		{
-			spdlog::info("Camera FOV Scan 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan2Result + 1 - (std::uint8_t*)exeModule);
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV7Scan] + 1, fNewCameraFOV);
 
-			Memory::Write(CameraFOVScan2Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 2 memory address.");
-			return;
-		}
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV8Scan] + 1, fNewCameraFOV);
 
-		std::uint8_t* CameraFOVScan3Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 7E");
-		if (CameraFOVScan3Result)
-		{
-			spdlog::info("Camera FOV Scan 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan3Result + 1 - (std::uint8_t*)exeModule);
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV9Scan] + 1, fNewCameraFOV);
 
-			Memory::Write(CameraFOVScan3Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 3 memory address.");
-			return;
-		}
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV10Scan] + 1, fNewCameraFOV);
 
-		std::uint8_t* CameraFOVScan4Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 CE");
-		if (CameraFOVScan4Result)
-		{
-			spdlog::info("Camera FOV Scan 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan4Result + 1 - (std::uint8_t*)exeModule);
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV11Scan] + 1, fNewCameraFOV);
 
-			Memory::Write(CameraFOVScan4Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 4 memory address.");
-			return;
-		}
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV12Scan] + 1, fNewCameraFOV);
 
-		std::uint8_t* CameraFOVScan5Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 45");
-		if (CameraFOVScan5Result)
-		{
-			spdlog::info("Camera FOV Scan 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan5Result + 1 - (std::uint8_t*)exeModule);
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV13Scan] + 1, fNewCameraFOV);
 
-			Memory::Write(CameraFOVScan5Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 5 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan6Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 8A");
-		if (CameraFOVScan6Result)
-		{
-			spdlog::info("Camera FOV Scan 6: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan6Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan6Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 6 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan7Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 4D");
-		if (CameraFOVScan7Result)
-		{
-			spdlog::info("Camera FOV Scan 7: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan7Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan7Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 7 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan8Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D C4");
-		if (CameraFOVScan8Result)
-		{
-			spdlog::info("Camera FOV Scan 8: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan8Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan8Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 8 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan9Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 2A");
-		if (CameraFOVScan9Result)
-		{
-			spdlog::info("Camera FOV Scan 9: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan9Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan9Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 9 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan10Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 97");
-		if (CameraFOVScan10Result)
-		{
-			spdlog::info("Camera FOV Scan 10: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan10Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan10Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 10 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan11Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 0E");
-		if (CameraFOVScan11Result)
-		{
-			spdlog::info("Camera FOV Scan 11: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan11Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan11Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 11 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan12Result = Memory::PatternScan(exeModule, "68 00 00 00 3F A1 C8 31 77 00 50 8B 0D F0 A8 76 00 51 E8 D2");
-		if (CameraFOVScan12Result)
-		{
-			spdlog::info("Camera FOV Scan 12: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan12Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan12Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 12 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan13Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 15 C8 31 77 00 52 A1 F0 A8 76 00 50 E8 6B");
-		if (CameraFOVScan13Result)
-		{
-			spdlog::info("Camera FOV Scan 13: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan13Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan13Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 13 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVScan14Result = Memory::PatternScan(exeModule, "68 00 00 00 3F 8B 0D C8 31 77 00 51 8B 15 F0 A8 76 00 52 E8 1A");
-		if (CameraFOVScan14Result)
-		{
-			spdlog::info("Camera FOV Scan 14: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVScan14Result + 1 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraFOVScan14Result + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan 14 memory address.");
-			return;
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV14Scan] + 1, fNewCameraFOV);
 		}
 	}
 }

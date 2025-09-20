@@ -239,7 +239,7 @@ void WidescreenFix()
 
 			Memory::Write(ResolutionInstructionsScanResult + 28, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScanResult + 28, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScanResult + 38, iCurrentResY);
 		}
 		else
 		{
