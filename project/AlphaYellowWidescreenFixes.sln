@@ -787,6 +787,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "V8ChallengeFOVFix", "V8Chal
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AnimorphsKnowTheSecretWidescreenFix", "AnimorphsKnowTheSecretWidescreenFix.vcxproj", "{6656BB50-700A-4DDA-8C41-5FC71C5DEA1C}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ChampionshipSurferFOVFix", "ChampionshipSurferFOVFix.vcxproj", "{C7B6F51C-7D3B-4979-B855-78D3162737D6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -3915,6 +3917,14 @@ Global
 		{6656BB50-700A-4DDA-8C41-5FC71C5DEA1C}.Release|x64.Build.0 = Release|x64
 		{6656BB50-700A-4DDA-8C41-5FC71C5DEA1C}.Release|x86.ActiveCfg = Release|Win32
 		{6656BB50-700A-4DDA-8C41-5FC71C5DEA1C}.Release|x86.Build.0 = Release|Win32
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6}.Debug|x64.ActiveCfg = Debug|x64
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6}.Debug|x64.Build.0 = Debug|x64
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6}.Debug|x86.ActiveCfg = Debug|Win32
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6}.Debug|x86.Build.0 = Debug|Win32
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6}.Release|x64.ActiveCfg = Release|x64
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6}.Release|x64.Build.0 = Release|x64
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6}.Release|x86.ActiveCfg = Release|Win32
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -4310,6 +4320,7 @@ Global
 		{CC9887E7-8556-46DB-84A9-0F432C2DAF83} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{18EE1107-C48A-4089-9E08-98252F552502} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{6656BB50-700A-4DDA-8C41-5FC71C5DEA1C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{C7B6F51C-7D3B-4979-B855-78D3162737D6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
