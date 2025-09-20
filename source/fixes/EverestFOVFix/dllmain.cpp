@@ -219,7 +219,7 @@ void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 	}
 	else
 	{
-		fNewCameraFOV = (fCurrentCameraFOV / fAspectRatioScale);
+		fNewCameraFOV = fCurrentCameraFOV / fAspectRatioScale;
 	}
 
 	_asm
