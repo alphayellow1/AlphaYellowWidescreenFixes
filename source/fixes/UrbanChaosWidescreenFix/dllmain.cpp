@@ -217,7 +217,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution String Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionStringScanResult - (std::uint8_t*)exeModule);
 
-			if ((Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 4) || (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 3))
+			if (Maths::digitCount(iCurrentResX) == 4 && (Maths::digitCount(iCurrentResY) == 4 || Maths::digitCount(iCurrentResY) == 3))
 			{
 				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult, iCurrentResX);
 
