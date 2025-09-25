@@ -195,8 +195,6 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
 	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x310);
 
-	float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x314);
-
 	bInRace = (*pInRaceFlag == 1);
 
 	if (bInRace == 1)
@@ -218,9 +216,7 @@ static SafetyHookMid CameraVFOVInstructionHook{};
 
 void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x314);
-
-	float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x310);
+	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x314);	
 
 	bInRace = (*pInRaceFlag == 1);
 
