@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <spdlog/spdlog.h>
+#include <variant>
 
 template<typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -102,7 +103,7 @@ namespace Memory
 				{
 					++current;
 				}
-					
+
 				bytes.push_back(-1);
 			}
 			else
@@ -172,7 +173,69 @@ namespace Memory
 		for (auto const& s : g_last_scan_signatures)
 		{
 			results.push_back(PatternScan(module, s.c_str()));
-		}			
+		}
+
+		return results;
+	}
+
+	template<typename... Args, typename = std::enable_if_t<!std::conjunction_v<std::is_convertible<std::decay_t<Args>, const char*>...>, int>>
+	std::vector<std::uint8_t*> PatternScan(void* firstModule, Args... rest)
+	{
+		g_last_scan_signatures.clear();
+
+		using Item = std::variant<void*, const char*>;
+		std::vector<Item> items;
+		items.reserve(1 + sizeof...(rest));
+
+		auto make_variant = [](auto&& v) -> Item
+		{
+			using T = std::decay_t<decltype(v)>;
+
+			if constexpr (std::is_convertible_v<T, void*>)
+			{
+				return reinterpret_cast<void*>(v);
+			}
+			else if constexpr (std::is_convertible_v<T, const char*>)
+			{
+				return static_cast<const char*>(v);
+			}
+			else
+			{
+				static_assert(std::is_convertible_v<T, void*> || std::is_convertible_v<T, const char*>, "PatternScan(...) supports only module pointers and const char* signatures");
+			}
+		};
+
+		items.emplace_back(reinterpret_cast<void*>(firstModule));
+
+		(items.emplace_back(make_variant(rest)), ...);
+
+		std::vector<std::uint8_t*> results;
+		results.reserve(items.size());
+
+		void* currentModule = nullptr;
+
+		for (size_t i = 0; i < items.size(); ++i)
+		{
+			if (std::holds_alternative<void*>(items[i]))
+			{
+				currentModule = std::get<void*>(items[i]);
+			}
+			else
+			{
+				const char* sig = std::get<const char*>(items[i]);
+
+				g_last_scan_signatures.emplace_back(sig);
+
+				if (!currentModule)
+				{
+					spdlog::error("PatternScan: Signature provided without a preceding module pointer (sig index {})", g_last_scan_signatures.size() - 1);
+					results.push_back(nullptr);
+					continue;
+				}
+
+				results.push_back(PatternScan(currentModule, sig));
+			}
+		}
 
 		return results;
 	}
@@ -245,7 +308,7 @@ namespace Memory
 		if (address == nullptr)
 		{
 			return nullptr;
-		}			
+		}
 
 		std::int32_t offset = *reinterpret_cast<std::int32_t*>(address);
 
@@ -353,9 +416,9 @@ namespace Util
 		}
 
 		return std::equal(str1.begin(), str1.end(), str2.begin(), [](char a, char b)
-		{
-			return std::tolower(a) == std::tolower(b);
-		});
+			{
+				return std::tolower(a) == std::tolower(b);
+			});
 	}
 }
 
@@ -473,7 +536,7 @@ namespace Maths
 		if constexpr (std::is_signed_v<Int>)
 		{
 			if (number < 0) number = -number;
-		}		
+		}
 
 		while (number != 0)
 		{
