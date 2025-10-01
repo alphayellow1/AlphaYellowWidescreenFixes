@@ -1,4 +1,4 @@
-// Include necessary headers
+﻿// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -53,24 +53,14 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
-uint8_t* ResolutionWidth3Address;
-uint8_t* ResolutionHeight3Address;
-uint8_t* ResolutionWidth4Address;
-uint8_t* ResolutionHeight4Address;
+uint8_t* ResolutionWidth1Address;
+uint8_t* ResolutionHeight1Address;
 uint8_t* ResolutionWidth5Address;
 uint8_t* ResolutionHeight5Address;
 uint8_t* ResolutionWidth6Address;
 uint8_t* ResolutionHeight6Address;
 uint8_t* ResolutionWidth7Address;
 uint8_t* ResolutionHeight7Address;
-uint8_t* ResolutionWidth8Address;
-uint8_t* ResolutionHeight8Address;
-uint8_t* ResolutionWidth9Address;
-uint8_t* ResolutionHeight9Address;
-uint8_t* ResolutionWidth10Address;
-uint8_t* ResolutionHeight10Address;
-uint8_t* ResolutionWidth11Address;
-uint8_t* ResolutionHeight11Address;
 
 // Game detection
 enum class Game
@@ -91,7 +81,11 @@ enum ResolutionInstructionsIndex
 	Resolution8Scan,
 	Resolution9Scan,
 	Resolution10Scan,
-	Resolution11Scan
+	Resolution11Scan,
+	Resolution12Scan,
+	Resolution13Scan,
+	Resolution14Scan,
+	Resolution15Scan
 };
 
 struct GameInfo
@@ -258,7 +252,8 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "68 58 02 00 00 68 20 03 00 00 53 53 E8 96 0D 01". );
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 0D 18 B2 62 00 89 15 1C B2 62 00 BF 01 00 00 00 BE C4 F4 55 00", "8B 0D 40 55 AE 00 8B 15 90 55 AE 00 56 57", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 68",
+			                                                                               dllModule2, "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 35", "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? 5E", "89 35 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 35", "A3 ?? ?? ?? ?? 8B 44 24 ?? 6A 00 6A 00 68 ?? ?? ?? ?? 50 89 7C 24 ?? FF D6 85 C0 0F 85 ?? ?? ?? ?? 8B 44 24 ?? 85 C0 0F 84 ?? ?? ?? ?? 8B 4C 24 ?? 8D 54 24 ?? 8D 44 24 ?? 52 50 89 0D ?? ?? ?? ??");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
@@ -267,15 +262,106 @@ void WidescreenFix()
 
 			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution4Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 4 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution4Scan] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution5Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 5 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution5Scan] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Resolution Instructions 6 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution6Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 6 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution6Scan] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Resolution Instructions 7 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution7Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 7 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution7Scan] - (std::uint8_t*)dllModule2);
 
-			
+			ResolutionWidth1Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 2, Memory::PointerMode::Absolute);
+
+			ResolutionHeight1Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 8, Memory::PointerMode::Absolute);
+
+			ResolutionWidth5Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 8, Memory::PointerMode::Absolute);
+
+			ResolutionHeight5Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 2, Memory::PointerMode::Absolute);
+
+			ResolutionWidth6Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 8, Memory::PointerMode::Absolute);
+
+			ResolutionHeight6Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 2, Memory::PointerMode::Absolute);
+
+			ResolutionWidth7Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 1, Memory::PointerMode::Absolute);
+
+			ResolutionHeight7Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 61, Memory::PointerMode::Absolute);
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+
+			static SafetyHookMid ResolutionInstructions1MidHook{};
+
+			ResolutionInstructions1MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ResolutionWidth1Address) = iCurrentResX;
+
+				*reinterpret_cast<int*>(ResolutionHeight1Address) = iCurrentResY;
+			});
+
+			static SafetyHookMid ResolutionInstructions2MidHook{};
+
+			ResolutionInstructions2MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution2Scan], [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(0x00AE5540) = iCurrentResX;
+
+				*reinterpret_cast<int*>(0x00AE5590) = iCurrentResY;
+			});
+
+			/*
+			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 6, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 1, iCurrentResY);
+			*/
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
+
+			static SafetyHookMid ResolutionInstructions4MidHook{};
+
+			ResolutionInstructions4MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution4Scan], [](SafetyHookContext& ctx)
+			{
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
+
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution5Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+
+			static SafetyHookMid ResolutionInstructions5MidHook{};
+
+			ResolutionInstructions5MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution5Scan], [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ResolutionWidth5Address) = iCurrentResX;
+
+				*reinterpret_cast<int*>(ResolutionHeight5Address) = iCurrentResY;
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+
+			static SafetyHookMid ResolutionInstructions6MidHook{};
+
+			ResolutionInstructions6MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution6Scan], [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ResolutionWidth6Address) = iCurrentResX;
+
+				*reinterpret_cast<int*>(ResolutionHeight6Address) = iCurrentResY;
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution7Scan], "\x90\x90\x90\x90\x90", 5);
+
+			static SafetyHookMid ResolutionWidthInstruction7MidHook{};
+
+			ResolutionWidthInstruction7MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution7Scan], [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ResolutionWidth7Address) = iCurrentResX;
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution7Scan] + 59, "\x90\x90\x90\x90\x90\x90", 6);
+
+			static SafetyHookMid ResolutionHeightInstruction7MidHook{};
+
+			ResolutionHeightInstruction7MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution7Scan] + 59, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ResolutionHeight7Address) = iCurrentResY;
+			});
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D8 0D");
