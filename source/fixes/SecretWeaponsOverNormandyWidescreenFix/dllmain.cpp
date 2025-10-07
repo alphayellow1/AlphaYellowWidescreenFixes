@@ -415,7 +415,7 @@ void WidescreenFix()
 
 				fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
 
-				if (fCurrentCameraHFOV == 0.7f && fCurrentCameraVFOV == 0.525f)
+				if (fCurrentCameraHFOV == 0.6999999881f && fCurrentCameraVFOV == 0.5249999762f)
 				{
 					fNewCameraVFOV = fCurrentCameraVFOV;
 				}
