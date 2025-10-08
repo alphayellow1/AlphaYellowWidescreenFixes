@@ -25,7 +25,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "BeachVolleyHotSportsFOVFix";
+std::string sFixName = "InternationalVolleyballFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -59,7 +59,7 @@ double dNewAspectRatio;
 // Game detection
 enum class Game
 {
-	BVHS,
+	IV2009,
 	Unknown
 };
 
@@ -78,7 +78,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::BVHS, {"Beach Volley: Hot Sports", "Game.exe"}},
+	{Game::IV2009, {"International Volleyball 2009", "IV2009.exe"}},
 };
 
 const GameInfo* game = nullptr;
