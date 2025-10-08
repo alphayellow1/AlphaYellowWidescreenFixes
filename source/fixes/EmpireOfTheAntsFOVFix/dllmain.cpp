@@ -273,10 +273,6 @@ void CameraFOVInstruction6MidHook(SafetyHookContext& ctx)
 
 void CameraFOVInstruction7MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV7 = *reinterpret_cast<float*>(ctx.esp + 0x38);
-
-	fNewCameraFOV7 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV7, fAspectRatioScale, Maths::AngleMode::HalfAngle) * (float)dFOVFactor;
-
 	_asm
 	{
 		fld dword ptr ds:[fNewCameraFOV7]
@@ -375,6 +371,8 @@ void FOVFix()
 			CameraFOVInstruction6Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV6Scan], CameraFOVInstruction6MidHook);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV7Scan], "\x90\x90\x90\x90", 4);
+
+			fNewCameraFOV7 = 5.0f;
 
 			CameraFOVInstruction7Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV7Scan], CameraFOVInstruction7MidHook);
 		}
