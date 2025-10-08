@@ -315,7 +315,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate gameplay camera FOV instruction memory address.");
+			spdlog::error("Failed to locate cutscene camera FOV instructions scan memory address.");
 			return;
 		}
 	}
