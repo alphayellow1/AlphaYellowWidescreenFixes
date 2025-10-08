@@ -51,7 +51,9 @@ int iCurrentResX;
 int iCurrentResY;
 float fNewAspectRatio;
 float fFOVFactor;
-float fNewCameraFOV;
+float fNewGameplayCameraFOV;
+float fNewCutsceneCameraFOV1;
+float fNewCutsceneCameraFOV2;
 double dNewAspectRatio;
 
 // Game detection
@@ -59,6 +61,14 @@ enum class Game
 {
 	BVHS,
 	Unknown
+};
+
+enum AspectRatioInstructionsIndex
+{
+	AspectRatio1Scan,
+	AspectRatio2Scan,
+	AspectRatio3Scan,
+	AspectRatio4Scan
 };
 
 struct GameInfo
@@ -189,6 +199,12 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstruction1Hook{};
+static SafetyHookMid AspectRatioInstruction2Hook{};
+static SafetyHookMid AspectRatioInstruction3Hook{};
+static SafetyHookMid AspectRatioInstruction4Hook{};
+
+static SafetyHookMid CutsceneCameraFOVInstruction1Hook{};
+static SafetyHookMid CutsceneCameraFOVInstruction2Hook{};
 
 void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
 {
@@ -198,13 +214,35 @@ void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
 	}
 }
 
-static SafetyHookMid AspectRatioInstruction2Hook{};
-
 void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
 {
 	_asm
 	{
-		fld qword ptr ds:[dNewAspectRatio]
+		fdiv dword ptr ds:[fNewAspectRatio]
+	}
+}
+
+void CutsceneCameraFOVInstruction1MidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCutsceneCameraFOV1 = *reinterpret_cast<float*>(ctx.edx + 0x1C);
+
+	fNewCutsceneCameraFOV1 = fCurrentCutsceneCameraFOV1 * fFOVFactor;
+
+	_asm
+	{
+		fmul dword ptr ds:[fNewCutsceneCameraFOV1]
+	}
+}
+
+void CutsceneCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentCutsceneCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x50);
+
+	fNewCutsceneCameraFOV2 = fCurrentCutsceneCameraFOV2 * fFOVFactor;
+
+	_asm
+	{
+		fmul dword ptr ds:[fNewCutsceneCameraFOV2]
 	}
 }
 
@@ -216,34 +254,68 @@ void FOVFix()
 
 		dNewAspectRatio = (double)fNewAspectRatio;
 
-		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? 83 EC 08 DD 1C 24 8B 45 08 D9 40 18 83 EC 08");
-		if (AspectRatioInstruction1ScanResult)
-		{
-			Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? 83 EC 08 DD 1C 24 8B 45 08 D9 40 18 83 EC 08", "D8 35 ?? ?? ?? ?? 8B 4D ?? D9 99 ?? ?? ?? ?? 8B 55 ?? 52 8B 45 ?? 83 C0 ?? 50 8D 4D ?? 51 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 68 ?? ?? ?? ?? 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 8D 45 ?? 50 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 8B 4D ?? 81 C1 ?? ?? ?? ?? 51 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 8D 45 ?? 50 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 6A ?? 8B 4D ?? 51 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 E8 ?? ?? ?? ?? 83 C4 ?? 8B E5 5D C2 ?? ?? CC CC CC CC CC CC CC CC CC 55", "DD 05 ?? ?? ?? ?? 83 EC 08 DD 1C 24 8B 55 08 D9 42 18 83 EC 08", "D8 35 ?? ?? ?? ?? 8B 4D ?? D9 99 ?? ?? ?? ?? 8B 55 ?? 52 8B 45 ?? 83 C0 ?? 50 8D 4D ?? 51 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 68 ?? ?? ?? ?? 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 8D 45 ?? 50 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 8B 4D ?? 81 C1 ?? ?? ?? ?? 51 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 8D 45 ?? 50 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 6A ?? 8B 4D ?? 51 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 E8 ?? ?? ?? ?? 83 C4 ?? 8B E5 5D C2 ?? ?? CC CC CC CC CC CC CC CC CC CC");
+		
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 40 ?? 83 EC ?? DD 1C ?? E8", "D9 41 ?? D8 0D ?? ?? ?? ?? D8 35 ?? ?? ?? ?? 51 D9 1C ?? E8 ?? ?? ?? ?? 83 C4 ?? D8 3D ?? ?? ?? ?? 8B 55 ?? D9 9A ?? ?? ?? ?? 8B 45 ?? D9 80 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? 8B 4D ?? D9 99 ?? ?? ?? ?? 8B 55 ?? 52 8B 45 ?? 83 C0 ?? 50 8D 4D ?? 51 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 68 ?? ?? ?? ?? 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 8D 45 ?? 50 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 8B 4D ?? 81 C1 ?? ?? ?? ?? 51 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 8D 45 ?? 50 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 6A ?? 8B 4D ?? 51 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 E8 ?? ?? ?? ?? 83 C4 ?? 8B E5 5D C2 ?? ?? CC CC CC CC CC CC CC CC CC CC", "D9 42 ?? 83 EC ?? DD 1C ?? E8", "D9 41 ?? D8 0D ?? ?? ?? ?? D8 35 ?? ?? ?? ?? 51 D9 1C ?? E8 ?? ?? ?? ?? 83 C4 ?? D8 3D ?? ?? ?? ?? 8B 55 ?? D9 9A ?? ?? ?? ?? 8B 45 ?? D9 80 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? 8B 4D ?? D9 99 ?? ?? ?? ?? 8B 55 ?? 52 8B 45 ?? 83 C0 ?? 50 8D 4D ?? 51 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 68 ?? ?? ?? ?? 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 8D 45 ?? 50 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 8B 4D ?? 81 C1 ?? ?? ?? ?? 51 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 8D 45 ?? 50 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4D ?? 81 C1 ?? ?? ?? ?? E8 ?? ?? ?? ?? DD D8 6A ?? 8B 4D ?? 51 8B 55 ?? 81 C2 ?? ?? ?? ?? 52 E8 ?? ?? ?? ?? 83 C4 ?? 8B E5 5D C2 ?? ?? CC CC CC CC CC CC CC CC CC CC");
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult, AspectRatioInstruction1MidHook);
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
+		{
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio3Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio4Scan] - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], AspectRatioInstruction1MidHook);
+
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], AspectRatioInstruction2MidHook);
+
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], AspectRatioInstruction1MidHook);
+
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio4Scan], "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], AspectRatioInstruction2MidHook);
 		}
 
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? 83 EC 08 DD 1C 24 8B 55 08 D9 42 18 83 EC 08");
-		if (AspectRatioInstruction2ScanResult)
+		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 45 FC 5E BA 59 42 8D 4D E4 51 8B 4D B0");
+		if (GameplayCameraFOVInstructionScanResult)
 		{
-			Memory::PatchBytes(AspectRatioInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, AspectRatioInstruction2MidHook);
-		}
+			fNewGameplayCameraFOV = fOriginalCameraFOV * fFOVFactor;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 45 FC 5E BA 59 42 8D 4D E4 51 8B 4D B0");
-		if (CameraFOVInstructionScanResult)
-		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
-			
-			Memory::Write(CameraFOVInstructionScanResult + 3, fNewCameraFOV);
+			Memory::Write(GameplayCameraFOVInstructionScanResult + 3, fNewGameplayCameraFOV);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate gameplay camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CutsceneCameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D8 4A 1C 8B 85 70 FE FF FF D9 45 A0 D8 48 50");
+		if (CutsceneCameraFOVInstructionsScanResult)
+		{
+			spdlog::info("Cutscene Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CutsceneCameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CutsceneCameraFOVInstructionsScanResult, "\x90\x90\x90", 3);
+
+			CutsceneCameraFOVInstruction1Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult, CutsceneCameraFOVInstruction1MidHook);
+
+			Memory::PatchBytes(CutsceneCameraFOVInstructionsScanResult + 12, "\x90\x90\x90", 3);
+
+			CutsceneCameraFOVInstruction2Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult + 12, CutsceneCameraFOVInstruction2MidHook);
+		}
+		else
+		{
+			spdlog::error("Failed to locate gameplay camera FOV instruction memory address.");
 			return;
 		}
 	}
