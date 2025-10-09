@@ -14,4 +14,15 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\source\fixes\InternationalVolleyball2009FOVFix\dllmain.cpp">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\safetyhook\Zydis.c">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+  </ItemGroup>
 </Project>
