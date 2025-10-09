@@ -54,7 +54,8 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 int16_t iNewCameraFOV;
-std::vector<int16_t> vComputedFOVs;
+float fCurrentCameraFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -221,7 +222,14 @@ void WidescreenFix()
 			{
 				int16_t iCurrentCameraFOV = ctx.eax & 0xFFFF;
 
-				iNewCameraFOV = (int16_t)((iCurrentCameraFOV * fAspectRatioScale) * fFOVFactor);
+				if (iCurrentCameraFOV != iNewCameraFOV)
+				{
+					fCurrentCameraFOV = (iCurrentCameraFOV * 360.0f) / 32768.0f;
+
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+					iNewCameraFOV = (int16_t)((fNewCameraFOV * 32768.0f) / 360.0f);
+				}
 
 				*reinterpret_cast<int16_t*>(ctx.ecx + 0x94) = iNewCameraFOV;
 			});
