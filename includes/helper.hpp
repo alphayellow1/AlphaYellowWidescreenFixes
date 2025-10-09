@@ -12,6 +12,7 @@
 #include <iostream>
 #include <spdlog/spdlog.h>
 #include <variant>
+#include <bit>
 
 template<typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -281,6 +282,69 @@ namespace Memory
 
 		spdlog::error("{}", msg);
 		return false;
+	}
+
+	template<typename PartT, typename FullT = uintptr_t>
+	inline PartT ReadRegister(FullT full, unsigned start_bit, unsigned end_bit) noexcept
+	{
+		const unsigned full_bits = sizeof(FullT) * 8;
+
+		const unsigned width = end_bit - start_bit + 1u;
+
+		assert(width <= sizeof(PartT) * 8u);
+
+		FullT mask;
+
+		if (width >= full_bits) mask = ~FullT(0);
+
+		else mask = ((FullT(1) << (width - 1)) << 1) - FullT(1);
+
+		FullT sliced = (full >> start_bit) & mask;
+
+		if constexpr (std::is_signed_v<PartT>)
+		{
+			using UnsignedPart = std::make_unsigned_t<PartT>;
+			UnsignedPart u = static_cast<UnsignedPart>(sliced);
+			PartT out;
+			std::memcpy(&out, &u, sizeof(out)); // preserve bit pattern
+			return out;
+		}
+		else
+		{
+			return static_cast<PartT>(sliced);
+		}
+	}
+
+	template<typename PartT, typename FullT = uintptr_t>
+	inline void WriteRegister(FullT& target, unsigned start_bit, unsigned end_bit, PartT value) noexcept
+	{
+		static_assert(std::is_integral_v<PartT>, "PartT must be integral");
+		static_assert(std::is_unsigned_v<FullT>, "FullT must be unsigned");
+
+		const unsigned full_bits = sizeof(FullT) * 8;
+		assert(start_bit <= end_bit && end_bit < full_bits);
+
+		const unsigned width = end_bit - start_bit + 1u;
+		assert(width <= sizeof(PartT) * 8u);
+
+		// Build mask for bit range
+		FullT mask;
+		if (width >= full_bits) mask = ~FullT(0);
+		else mask = ((FullT(1) << (width - 1)) << 1) - FullT(1);
+
+		FullT shifted_mask = (width >= full_bits) ? ~FullT(0) : (mask << start_bit);
+
+		// Convert value to unsigned type (preserve bits if signed)
+		using UnsignedPart = std::make_unsigned_t<PartT>;
+		UnsignedPart u;
+		if constexpr (std::is_signed_v<PartT>)
+			std::memcpy(&u, &value, sizeof(u)); // bit-preserve signed pattern
+		else
+			u = static_cast<UnsignedPart>(value);
+
+		FullT value_masked = (static_cast<FullT>(u) & mask) << start_bit;
+
+		target = (target & ~shifted_mask) | value_masked;
 	}
 
 	static HMODULE GetThisDllHandle()
