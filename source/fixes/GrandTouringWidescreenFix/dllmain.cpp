@@ -53,7 +53,8 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-int16_t iNewCameraFOV;
+int16_t iCurrentCameraFOV;
+int16_t iNewCameraFOV = 0;
 float fCurrentCameraFOV;
 float fNewCameraFOV;
 
@@ -220,13 +221,13 @@ void WidescreenFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				int16_t iCurrentCameraFOV = ctx.eax & 0xFFFF;
+				iCurrentCameraFOV = ctx.eax & 0xFFFF;
 
 				if (iCurrentCameraFOV != iNewCameraFOV)
 				{
 					fCurrentCameraFOV = (iCurrentCameraFOV * 360.0f) / 32768.0f;
 
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * powf(fFOVFactor, 0.5f);
 
 					iNewCameraFOV = (int16_t)((fNewCameraFOV * 32768.0f) / 360.0f);
 				}
