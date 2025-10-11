@@ -299,26 +299,6 @@ void WidescreenFix()
 			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution4Scan] + 1, iNewMenuResY);
 
 			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution5Scan] + 2, iNewMenuResX);
-
-			/*
-			Memory::PatchBytes(MenuResolutionInstructionsScansResult[MenuResolution6Scan] + 4, "\x90\x90\x90", 3);
-
-			static SafetyHookMid MenuResolutionHeightInstruction6MidHook{};
-
-			MenuResolutionHeightInstruction6MidHook = safetyhook::create_mid(MenuResolutionInstructionsScansResult[MenuResolution6Scan] + 4, [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(iNewMenuResY);
-			});
-
-			Memory::PatchBytes(MenuResolutionInstructionsScansResult[MenuResolution6Scan], "\x90\x90", 2);
-
-			static SafetyHookMid MenuResolutionWidthInstruction6MidHook{};
-
-			MenuResolutionWidthInstruction6MidHook = safetyhook::create_mid(MenuResolutionInstructionsScansResult[MenuResolution6Scan], [](SafetyHookContext& ctx)
-			{
-				ctx.edx = std::bit_cast<uintptr_t>(iNewMenuResX);
-			});
-			*/
 		}
 
 		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "66 C7 41 58 90 01 66 C7 41 5A 2C 01 C2 04 00 66 C7 41 58 00 02 66 C7 41 5A 80 01 C2 04 00 66 C7 41 58 80 02 66 C7 41 5A 90 01 C2 04 00 66 C7 41 58 80 02 66 C7 41 5A E0 01 C2 04 00 66 C7 41 58 20 03 66 C7 41 5A 58 02 C2 04 00 66 C7 41 58 00 04 66 C7 41 5A 00 03 C2 04 00 66 C7 41 58 00 05 66 C7 41 5A 00 04 C2 04 00 66 C7 41 58 40 06 66 C7 41 5A B0 04");
