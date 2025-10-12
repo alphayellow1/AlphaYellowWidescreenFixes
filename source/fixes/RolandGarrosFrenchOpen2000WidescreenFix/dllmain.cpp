@@ -25,7 +25,7 @@ HMODULE thisModule;
 HMODULE dllModule2;
 
 // Fix details
-std::string sFixName = "RolandGarrosFrenchOpen2001WidescreenFix";
+std::string sFixName = "RolandGarrosFrenchOpen2000WidescreenFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -59,17 +59,14 @@ float fNewCameraVFOV;
 // Game detection
 enum class Game
 {
-	RGFO2001,
+	RGFO2000,
 	Unknown
 };
 
 enum MenuResolutionInstructionsScan
 {
 	MenuResolution1Scan,
-	MenuResolution2Scan,
-	MenuResolution3Scan,
-	MenuResolution4Scan,
-	MenuResolution5Scan
+	MenuResolution2Scan
 };
 
 struct GameInfo
@@ -79,7 +76,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::RGFO2001, {"Roland Garros French Open 2001", "RG2001.exe"}},
+	{Game::RGFO2000, {"Roland Garros French Open 2000", "RG2000.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -219,64 +216,33 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("rcMain.dll")) == nullptr)
+	while ((dllModule2 = GetModuleHandleA("3DGT.dll")) == nullptr)
 	{
-		spdlog::warn("rcMain.dll not loaded yet. Waiting...");
+		spdlog::warn("3DGT.dll not loaded yet. Waiting...");
 	}
 
-	spdlog::info("Successfully obtained handle for rcMain.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	spdlog::info("Successfully obtained handle for 3DGT.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(safetyhook::Context& ctx)
-{
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x144);
-
-	fNewCameraHFOV = (fCurrentCameraHFOV / fAspectRatioScale) / fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
-static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(safetyhook::Context& ctx)
-{
-	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x148);
-
-	fNewCameraVFOV = fCurrentCameraVFOV / fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
+static SafetyHookMid CameraHFOVInstructionMidHook{};
+static SafetyHookMid CameraVFOVInstructionMidHook{};
 
 void WidescreenFix()
 {
-	if (eGameType == Game::RGFO2001 && bFixActive == true)
+	if (eGameType == Game::RGFO2000 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iNewMatchResX) / static_cast<float>(iNewMatchResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> MenuResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 0D", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF D5 8B 0D", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF D7 8B 0D", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 15", "81 38 ?? ?? ?? ?? 0F 95 ?? 84 C0 74 ?? 8B 0D");
+		std::vector<std::uint8_t*> MenuResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 83 C4 ?? 8B 3D ?? ?? ?? ?? 83 C9 ?? 33 C0 F2 ?? F7 D1 2B F9 8B C1", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 83 C4 ?? 8B 3D ?? ?? ?? ?? 83 C9 ?? 33 C0 F2 ?? F7 D1 2B F9 8B D1");
 		if (Memory::AreAllSignaturesValid(MenuResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Menu Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution1Scan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Menu Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution2Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Menu Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution3Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Menu Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution4Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Menu Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution5Scan] - (std::uint8_t*)exeModule);
 
 			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution1Scan] + 6, iNewMenuResX);
 
@@ -285,76 +251,73 @@ void WidescreenFix()
 			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution2Scan] + 6, iNewMenuResX);
 
 			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution2Scan] + 1, iNewMenuResY);
-
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution3Scan] + 6, iNewMenuResX);
-
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution3Scan] + 1, iNewMenuResY);
-
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution4Scan] + 6, iNewMenuResX);
-
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution4Scan] + 1, iNewMenuResY);
-
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution5Scan] + 2, iNewMenuResX);
 		}
 
-		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "66 C7 41 58 90 01 66 C7 41 5A 2C 01 C2 04 00 66 C7 41 58 00 02 66 C7 41 5A 80 01 C2 04 00 66 C7 41 58 80 02 66 C7 41 5A 90 01 C2 04 00 66 C7 41 58 80 02 66 C7 41 5A E0 01 C2 04 00 66 C7 41 58 20 03 66 C7 41 5A 58 02 C2 04 00 66 C7 41 58 00 04 66 C7 41 5A 00 03 C2 04 00 66 C7 41 58 00 05 66 C7 41 5A 00 04 C2 04 00 66 C7 41 58 40 06 66 C7 41 5A B0 04");
+		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "C7 01 80 02 00 00 C7 41 04 E0 01 00 00 C2 04 00 C7 01 20 03 00 00 C7 41 04 58 02 00 00 C2 04 00 C7 01 00 04 00 00 C7 41 04 00 03 00 00 C2 04 00 C7 01 00 05 00 00 C7 41 04 00 04 00 00 C2 04 00 C7 01 40 06 00 00 C7 41 04 B0 04 00 00");
 		if (ResolutionListScanResult)
 		{
 			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionListScanResult + 4, (uint16_t)iNewMatchResX);
+			// 640x480
+			Memory::Write(ResolutionListScanResult + 2, iNewMatchResX);
 
-			Memory::Write(ResolutionListScanResult + 10, (uint16_t)iNewMatchResY);
+			Memory::Write(ResolutionListScanResult + 9, iNewMatchResY);
 
-			Memory::Write(ResolutionListScanResult + 19, (uint16_t)iNewMatchResX);
+			// 800x600
+			Memory::Write(ResolutionListScanResult + 18, iNewMatchResX);
 
-			Memory::Write(ResolutionListScanResult + 25, (uint16_t)iNewMatchResY);
+			Memory::Write(ResolutionListScanResult + 25, iNewMatchResY);
 
-			Memory::Write(ResolutionListScanResult + 34, (uint16_t)iNewMatchResX);
+			// 1024x768
+			Memory::Write(ResolutionListScanResult + 34, iNewMatchResX);
 
-			Memory::Write(ResolutionListScanResult + 40, (uint16_t)iNewMatchResY);
+			Memory::Write(ResolutionListScanResult + 41, iNewMatchResY);
 
-			Memory::Write(ResolutionListScanResult + 49, (uint16_t)iNewMatchResX);
+			// 1280x1024
+			Memory::Write(ResolutionListScanResult + 50, iNewMatchResX);
 
-			Memory::Write(ResolutionListScanResult + 55, (uint16_t)iNewMatchResY);
+			Memory::Write(ResolutionListScanResult + 57, iNewMatchResY);
 
-			Memory::Write(ResolutionListScanResult + 64, (uint16_t)iNewMatchResX);
+			// 1600x1200
+			Memory::Write(ResolutionListScanResult + 66, iNewMatchResX);
 
-			Memory::Write(ResolutionListScanResult + 70, (uint16_t)iNewMatchResY);
-
-			Memory::Write(ResolutionListScanResult + 79, (uint16_t)iNewMatchResX);
-
-			Memory::Write(ResolutionListScanResult + 85, (uint16_t)iNewMatchResY);
-
-			Memory::Write(ResolutionListScanResult + 94, (uint16_t)iNewMatchResX);
-
-			Memory::Write(ResolutionListScanResult + 100, (uint16_t)iNewMatchResY);
-
-			Memory::Write(ResolutionListScanResult + 109, (uint16_t)iNewMatchResX);
-
-			Memory::Write(ResolutionListScanResult + 115, (uint16_t)iNewMatchResY);
+			Memory::Write(ResolutionListScanResult + 73, iNewMatchResY);
 		}
 		else
 		{
 			spdlog::info("Cannot locate the resolution list memory address.");
 			return;
-		}		
+		}
 
-		// Located in rcMain.Runn::RCamera::think
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 86 44 01 00 00 D8 A6 3C 01 00 00 D8 C9 D8 86 3C 01 00 00 D9 54 24 04 D9 9E 3C 01 00 00 D9 86 48 01 00 00");
+		// Located in 3DGT.Camera::GetLens
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 91 38 01 00 00 89 10 8B 89 3C 01 00 00");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction Scan: Address is rcMain.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera HFOV Instruction Scan: Address is 3DGT.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera VFOV Instruction Scan: Address is rcMain.dll+{:x}", CameraFOVInstructionScanResult + 30 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera VFOV Instruction Scan: Address is 3DGT.dll+{:x}", CameraFOVInstructionScanResult + 8 - (std::uint8_t*)dllModule2);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x138);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 30, "\x90\x90\x90\x90\x90\x90", 6);
+				fNewCameraHFOV = (fCurrentCameraHFOV / fAspectRatioScale) / fFOVFactor;
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 30, CameraVFOVInstructionMidHook);
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
+			});
+
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 8, "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 8, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x13C);
+
+				fNewCameraVFOV = fCurrentCameraVFOV / fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+			});
 		}
 		else
 		{
