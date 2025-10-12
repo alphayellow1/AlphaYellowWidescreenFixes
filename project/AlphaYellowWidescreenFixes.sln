@@ -837,6 +837,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RolandGarrosFrenchOpen2000W
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PowerSpikeProBeachVolleyballWidescreenFix", "PowerSpikeProBeachVolleyballWidescreenFix.vcxproj", "{BF84CAC7-EF96-46AD-ABD9-1D0981A54B97}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DucatiWorldRacingChallengeFOVFix", "DucatiWorldRacingChallengeFOVFix.vcxproj", "{CF031746-2A6F-408C-AE9F-C4FF788FE483}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4165,6 +4167,14 @@ Global
 		{BF84CAC7-EF96-46AD-ABD9-1D0981A54B97}.Release|x64.Build.0 = Release|x64
 		{BF84CAC7-EF96-46AD-ABD9-1D0981A54B97}.Release|x86.ActiveCfg = Release|Win32
 		{BF84CAC7-EF96-46AD-ABD9-1D0981A54B97}.Release|x86.Build.0 = Release|Win32
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483}.Debug|x64.ActiveCfg = Debug|x64
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483}.Debug|x64.Build.0 = Debug|x64
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483}.Debug|x86.ActiveCfg = Debug|Win32
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483}.Debug|x86.Build.0 = Debug|Win32
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483}.Release|x64.ActiveCfg = Release|x64
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483}.Release|x64.Build.0 = Release|x64
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483}.Release|x86.ActiveCfg = Release|Win32
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -4585,6 +4595,7 @@ Global
 		{DF250C1C-D42B-4299-981D-F288F478A00B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{E653770D-DAF1-44A6-A7B6-6BC29D78FFCB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{BF84CAC7-EF96-46AD-ABD9-1D0981A54B97} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{CF031746-2A6F-408C-AE9F-C4FF788FE483} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
