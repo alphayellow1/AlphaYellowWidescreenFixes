@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "DucatiWorldRacingChallengeFOVFix";
+std::string sFixName = "RollcageFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -60,7 +60,7 @@ uint8_t* CameraVFOVAddress;
 // Game detection
 enum class Game
 {
-	DWRC,
+	ROLLCAGE,
 	Unknown
 };
 
@@ -77,7 +77,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::DWRC, {"Ducati World: Racing Challenge", "ducati.exe"}},
+	{Game::ROLLCAGE, {"Rollcage", "Rollcage.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -202,7 +202,7 @@ static SafetyHookMid CameraVFOVInstructionMidHook{};
 
 void FOVFix()
 {
-	if (eGameType == Game::DWRC && bFixActive == true)
+	if (eGameType == Game::ROLLCAGE && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -223,7 +223,7 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraHFOVScan], [](SafetyHookContext& ctx)
 			{
-				iCurrentCameraHFOV = ctx.eax & 0xFFFF;
+				iCurrentCameraHFOV = Memory::ReadRegister<int16_t>(ctx.eax, 0, 15);
 				
 				iNewCameraHFOV = (int16_t)((iCurrentCameraHFOV / fAspectRatioScale) / fFOVFactor);
 				
@@ -234,7 +234,7 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraVFOVScan], [](SafetyHookContext& ctx)
 			{
-				iCurrentCameraVFOV = ctx.eax & 0xFFFF;
+				iCurrentCameraVFOV = Memory::ReadRegister<int16_t>(ctx.eax, 0, 15);
 
 				iNewCameraVFOV = (int16_t)((iCurrentCameraVFOV / fAspectRatioScale) / fFOVFactor);
 
