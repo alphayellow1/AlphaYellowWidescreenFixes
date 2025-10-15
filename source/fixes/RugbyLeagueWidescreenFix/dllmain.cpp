@@ -46,7 +46,6 @@ bool bFixActive;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
 
 // Variables
 int iCurrentResX;
@@ -63,6 +62,18 @@ enum class Game
 {
 	RL,
 	Unknown
+};
+
+enum ResolutionInstructionsIndex
+{
+	ResolutionInstruction1,
+	ResolutionInstruction2,
+	ResolutionInstruction3,
+	ResolutionInstruction4,
+	ResolutionInstruction5,
+	ResolutionInstruction6,
+	GameplayResolutionInstruction1,
+	GameplayResolutionInstruction2,
 };
 
 struct GameInfo
@@ -200,23 +211,11 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		enum ResolutionInstructionsIndex
-		{
-			ResolutionInstruction1,
-			ResolutionInstruction2,
-			ResolutionInstruction3,
-			ResolutionInstruction4,
-			ResolutionInstruction5,
-			ResolutionInstruction6,
-			GameplayResolutionInstruction1,
-			GameplayResolutionInstruction2,
-		};
-
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "6A 20 68 E0 01 00 00 68 80 02 00 00 C7 86 0C 01 00", "FF F6 FF 68 E0 01 00 00 68 80 02 00 00 6A 00 50 8D",
 			"E8 26 F9 F6 FF 68 E0 01 00 00 68 80 02 00 00 6A 00 50 8D 44 24 20 81", "CF F1 F6 FF 68 E0 01 00 00 68 80 02 00 00 6A 00 50 8D 4C", "6A 20 BF E0 01 00 00 57 BE 80 02 00 00 56 E8 A8 85 0F", "C8 7D 49 BE 80 02 00 00 BF E0 01 00 00 51 8D 4C 24",
 			"89 0D C0 09 71 00 8B 57 04 89 15 C4 09 71 00 C7 05 D4 09 71 00 02 00 00 00", "8B 48 60 DB 41 0C 8B 51 10 89 54 24 14");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
-		{
+		{			
 			Memory::Write(ResolutionInstructionsScansResult[ResolutionInstruction1] + 8, iCurrentResX);
 
 			Memory::Write(ResolutionInstructionsScansResult[ResolutionInstruction1] + 3, iCurrentResY);
@@ -283,18 +282,12 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax);
 
-				if (fCurrentCameraHFOV == 0.5f)
-				{
-					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
-				}
-				else if (fCurrentCameraHFOV != 1.0f && fCurrentCameraHFOV != 1.016010642f && fCurrentCameraHFOV != 0.564445615f && fCurrentCameraHFOV != 0.846668303f)
+				spdlog::info("[Hook] Raw incoming HFOV: {:.12f}", fCurrentCameraHFOV);
+
+				if (fCurrentCameraHFOV != fNewCameraHFOV)
 				{
 					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
-				}
-				else
-				{
-					fNewCameraHFOV = fCurrentCameraHFOV;
-				}
+				}				
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
