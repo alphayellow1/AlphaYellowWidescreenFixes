@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\fixes\DeepFighterFOVFix\dllmain.cpp">
+    <ClCompile Include="..\source\fixes\PowerdromeFOVFix\dllmain.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
