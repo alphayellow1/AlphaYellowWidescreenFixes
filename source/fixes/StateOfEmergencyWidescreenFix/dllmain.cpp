@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "StateOfEmergencyWidescreenFix";
-std::string sFixVersion = "1.5";
+std::string sFixVersion = "1.5.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -252,31 +252,27 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6B C0 5C 8B 0E 8B 54 08 04 57 89 15 ?? ?? ?? ??");
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 04 10 57 A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6B C0 ?? 8B 0E 8B 54 08 ??");
 		if (ResolutionInstructionsScanResult)
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 1, Memory::PointerMode::Absolute);
-
-			ResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 22, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90", 5);
+			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90", 3);
 
 			static SafetyHookMid ResolutionWidthInstructionMidHook{};
 
 			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionWidthAddress) = iCurrentResX;
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult + 20, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(ResolutionInstructionsScanResult + 19, "\x90\x90\x90\x90", 4);
 
 			static SafetyHookMid ResolutionHeightInstructionMidHook{};
 
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 20, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 19, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeightAddress) = iCurrentResY;
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 		}
 		else
@@ -285,12 +281,12 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "3F 75 08 C7 44 24 48 00 00 A0 3F D9 44 24 54 8B");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "C7 44 24 ?? 00 00 A0 3F D9 44 24 ?? 8B 44 24 ??");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 7 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioInstructionScanResult + 7, fNewAspectRatio);
+			Memory::Write(AspectRatioInstructionScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{
