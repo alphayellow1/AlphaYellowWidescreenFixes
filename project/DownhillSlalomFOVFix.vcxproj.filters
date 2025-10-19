@@ -25,4 +25,9 @@
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x86.asm">
+      <Filter>Arquivos de Origem</Filter>
+    </MASM>
+  </ItemGroup>
 </Project>

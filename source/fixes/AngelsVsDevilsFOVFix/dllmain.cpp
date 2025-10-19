@@ -45,23 +45,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraHFOV;
-float fNewCameraHFOV2;
-float fNewCameraHFOV3;
-float fNewCameraHFOV4;
-float fNewCameraHFOV5;
 float fNewCameraVFOV;
-float fNewCameraVFOV2;
-float fNewCameraVFOV3;
-float fNewCameraVFOV4;
-float fNewCameraVFOV5;
 
 // Game detection
 enum class Game
@@ -214,11 +206,15 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstruction1Hook{};	
+static SafetyHookMid CameraHFOVInstruction1Hook{};
+static SafetyHookMid CameraHFOVInstruction2Hook{};
+static SafetyHookMid CameraHFOVInstruction3Hook{};
+static SafetyHookMid CameraHFOVInstruction4Hook{};
+static SafetyHookMid CameraHFOVInstruction5Hook{};
 
-void CameraHFOVInstruction1MidHook(SafetyHookContext& ctx)
+void CameraHFOVInstructionMidHook(uintptr_t CameraHFOVAddress)
 {
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ebx + 0x1C);
+	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(CameraHFOVAddress);
 
 	if (fCurrentCameraHFOV == 0.7853981853f)
 	{
@@ -229,199 +225,29 @@ void CameraHFOVInstruction1MidHook(SafetyHookContext& ctx)
 		fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
 	}
 
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
-static SafetyHookMid CameraHFOVInstruction2Hook{};
-
-void CameraHFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x1C);
-
-	if (fCurrentCameraHFOV2 == 0.7853981853f)
-	{
-		fNewCameraHFOV2 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV2, fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraHFOV2 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV2, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV2]
-	}
-}
-
-static SafetyHookMid CameraHFOVInstruction3Hook{};
-
-void CameraHFOVInstruction3MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV3 = *reinterpret_cast<float*>(ctx.esi + 0x1C);
-
-	if (fCurrentCameraHFOV3 == 0.7853981853f)
-	{
-		fNewCameraHFOV3 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV3, fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraHFOV3 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV3, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV3]
-	}
-}
-
-static SafetyHookMid CameraHFOVInstruction4Hook{};
-
-void CameraHFOVInstruction4MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV4 = *reinterpret_cast<float*>(ctx.esi + 0x1C);
-
-	if (fCurrentCameraHFOV4 == 0.7853981853f)
-	{
-		fNewCameraHFOV4 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV4, fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraHFOV4 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV4, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV4]
-	}
-}
-
-static SafetyHookMid CameraHFOVInstruction5Hook{};
-
-void CameraHFOVInstruction5MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV5 = *reinterpret_cast<float*>(ctx.esi + 0x1C);
-
-	if (fCurrentCameraHFOV5 == 0.7853981853f)
-	{
-		fNewCameraHFOV5 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV5, fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraHFOV5 = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV5, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV5]
-	}
+	FPU::FLD(fNewCameraHFOV);
 }
 
 static SafetyHookMid CameraVFOVInstruction1Hook{};
-
-void CameraVFOVInstruction1MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraVFOV1 = *reinterpret_cast<float*>(ctx.ebx + 0x20);
-
-	if (Maths::isClose(fCurrentCameraVFOV1, 0.589048624f / fAspectRatioScale))
-	{
-		fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV1 * fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV1 * fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstruction2Hook{};
-
-void CameraVFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x20);
-
-	if (Maths::isClose(fCurrentCameraVFOV2, 0.589048624f / fAspectRatioScale))
-	{
-		fNewCameraVFOV2 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraVFOV2 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV2]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstruction3Hook{};
-
-void CameraVFOVInstruction3MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraVFOV3 = *reinterpret_cast<float*>(ctx.esi + 0x20);
-
-	if (Maths::isClose(fCurrentCameraVFOV3, 0.589048624f / fAspectRatioScale))
-	{
-		fNewCameraVFOV3 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV3 * fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraVFOV3 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV3 * fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV3]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstruction4Hook{};
-
-void CameraVFOVInstruction4MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraVFOV4 = *reinterpret_cast<float*>(ctx.esi + 0x20);
-
-	if (Maths::isClose(fCurrentCameraVFOV4, 0.589048624f / fAspectRatioScale))
-	{
-		fNewCameraVFOV4 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV4 * fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraVFOV4 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV4 * fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV4]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstruction5Hook{};
 
-void CameraVFOVInstruction5MidHook(SafetyHookContext& ctx)
+void CameraVFOVInstructionMidHook(uintptr_t CameraVFOVAddress)
 {
-	float& fCurrentCameraVFOV5 = *reinterpret_cast<float*>(ctx.esi + 0x20);
+	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
 
-	if (Maths::isClose(fCurrentCameraVFOV5, 0.589048624f / fAspectRatioScale))
+	if (Maths::isClose(fCurrentCameraVFOV, 0.589048624f / fAspectRatioScale))
 	{
-		fNewCameraVFOV5 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV5 * fAspectRatioScale, fFOVFactor);
+		fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
 	}
 	else
 	{
-		fNewCameraVFOV5 = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV5 * fAspectRatioScale);
+		fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale);
 	}
 
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV5]
-	}
+	FPU::FLD(fNewCameraVFOV);
 }
 
 void FOVFix()
@@ -447,23 +273,23 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], CameraHFOVInstruction1MidHook);
+			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.ebx + 0x1C); });
 
 			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], CameraHFOVInstruction2MidHook);
+			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.esi + 0x1C); });
 
 			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV3Scan], "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV3Scan], CameraHFOVInstruction3MidHook);
+			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV3Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.esi + 0x1C); });
 
 			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV4Scan], "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV4Scan], CameraHFOVInstruction4MidHook);
+			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV4Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.esi + 0x1C); });
 
 			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV5Scan], "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraHFOVInstruction5Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV5Scan], CameraHFOVInstruction5MidHook);
+			CameraHFOVInstruction5Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV5Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.esi + 0x1C); });
 		}
 
 		std::vector<std::uint8_t*> CameraVFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 5D 00 D9 43 20 D8 0D ?? ?? ?? ?? D9 F2 DD D8", "D9 9E C8 00 00 00 D9 46 20 D8 0D ?? ?? ?? ?? 51 D9 1C 24 E8 ?? ?? ?? ?? 83 EC 08", "D9 9E 98 00 00 00 D9 46 20 D8 0D ?? ?? ?? ?? C7 44 24 54 00 00 00 00 8B 4C 24 54 51", "D9 9E 98 00 00 00 D9 46 20 D8 0D ?? ?? ?? ?? 51 D9 1C 24 E8 ?? ?? ?? ?? 83 EC 08 8B C4", "D9 9E A8 00 00 00 D9 46 20 D8 0D ?? ?? ?? ?? C7 44 24 54 00 00 00 00 8B 4C 24 54 51 C7 44 24 54 00 00 00 00 8B 44 24 54");
@@ -481,23 +307,23 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV1Scan] + 3, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraVFOVInstruction1Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV1Scan] + 3, CameraVFOVInstruction1MidHook);
+			CameraVFOVInstruction1Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV1Scan] + 3, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.ebx + 0x20); });
 
 			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV2Scan] + 6, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraVFOVInstruction2Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV2Scan] + 6, CameraVFOVInstruction2MidHook);
+			CameraVFOVInstruction2Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV2Scan] + 6, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.esi + 0x20); });
 
 			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV3Scan] + 6, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraVFOVInstruction3Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV3Scan] + 6, CameraVFOVInstruction3MidHook);
+			CameraVFOVInstruction3Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV3Scan] + 6, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.esi + 0x20); });
 
 			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV4Scan] + 6, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraVFOVInstruction4Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV4Scan] + 6, CameraVFOVInstruction4MidHook);
+			CameraVFOVInstruction4Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV4Scan] + 6, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.esi + 0x20); });
 
 			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV5Scan] + 6, "\x90\x90\x90", 3); // NOP out the original instruction
 
-			CameraVFOVInstruction5Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV5Scan] + 6, CameraVFOVInstruction5MidHook);
+			CameraVFOVInstruction5Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV5Scan] + 6, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.esi + 0x20); });
 		}
 	}
 }

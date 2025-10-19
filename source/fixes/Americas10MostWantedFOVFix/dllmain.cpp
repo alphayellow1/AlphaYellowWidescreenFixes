@@ -43,16 +43,16 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
-float fNewCameraHFOV;
+
+// Variables
 float fNewAspectRatio;
-uint8_t* CameraFOVValueAddress;
-float fNewCameraFOV;
 float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraFOV;
+uint8_t* CameraFOVValueAddress;
 
 // Game detection
 enum class Game
@@ -189,16 +189,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewCameraHFOV = 0.75f / fAspectRatioScale;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -215,7 +206,9 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult + 96, "\x90\x90\x90\x90\x90\x90", 6); // NOP the original instruction so we write our own
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 96, CameraHFOVInstructionMidHook);
+			fNewCameraHFOV = 0.75f / fAspectRatioScale;
+
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 96, [](SafetyHookContext& ctx) { FPU::FLD(fNewCameraHFOV); });
 		}
 		else
 		{
@@ -232,9 +225,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 5, "\x90\x90\x90\x90\x90", 5); // NOP the original instruction so we write our own
 			
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
