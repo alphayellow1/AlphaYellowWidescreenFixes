@@ -487,6 +487,10 @@ namespace Util
 }
 
 extern "C" {
+	void FILD16_from_ptr(void* p);
+	void FILD32_from_ptr(void* p);
+	void FILD64_from_ptr(void* p);
+
 	void FIADD16_from_ptr(void* p);
 	void FIADD32_from_ptr(void* p);
 	void FIADD64_from_ptr(void* p);
@@ -541,6 +545,15 @@ extern "C" {
 
 namespace FPU
 {
+	template<typename T>
+	inline void FILD(const T& v)
+	{
+		static_assert(std::is_integral_v<T>, "FILD requires integer type");
+		if constexpr (sizeof(T) == 2) FILD16_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 4) FILD32_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 8) FILD64_from_ptr((void*)std::addressof(v));
+	}
+
 	template<typename T>
 	inline void FIADD(const T& v)
 	{

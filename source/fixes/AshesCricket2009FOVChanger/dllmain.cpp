@@ -171,19 +171,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi);
-
-	fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
-}
 
 void FOVChanger()
 {
@@ -196,11 +185,9 @@ void FOVChanger()
 
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90", 5);
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90", 5);			
 
-			static SafetyHookMid CameraFOVInstruction1MidHook{};
-
-			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraFOV1 = ctx.xmm0.f32[0];
 
@@ -211,7 +198,14 @@ void FOVChanger()
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90", 2);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], CameraFOVInstruction2MidHook);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi);
+
+				fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV2);
+			});
 		}
 	}
 }

@@ -242,30 +242,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x3C);
-
-	fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewCameraVFOV = fNewCameraHFOV / fOldAspectRatio;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
 
 void WidescreenFix()
 {
@@ -599,11 +576,23 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x3C);
+
+				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
+
+				FPU::FLD(fNewCameraHFOV);
+			});
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 15, "\x90\x90\x90", 3);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 15, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 15, [](SafetyHookContext& ctx)
+			{
+				fNewCameraVFOV = fNewCameraHFOV / fOldAspectRatio;
+
+				FPU::FLD(fNewCameraVFOV);
+			});
 		}
 		else
 		{

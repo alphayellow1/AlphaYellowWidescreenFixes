@@ -169,28 +169,25 @@ bool DetectGame()
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
-
-	_asm
-	{
-		fmul dword ptr ds : [fNewCameraFOV]
-	}
-}
-
 void FOVChanger()
 {
 	if (eGameType == Game::ARCHANGEL && bFixActive == true)
 	{
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 8A 81 EB 00 00 00 84 C0 D9 F2 DD D8 D8 4D 08 D9 C0 D9 E0 DD 54 24 08");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 81 D4 00 00 00 D8 0D ?? ?? ?? ?? 8A 81 EB 00 00 00 84 C0 D9 F2 DD D8 D8 4D 08 D9 C0 D9 E0 DD 54 24 08 D9 41 70 D8 C9 DD 54 24 18 D9 41 70 D8 CB DD 54 24 10");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0xD4);
+
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{

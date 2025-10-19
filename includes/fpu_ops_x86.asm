@@ -63,6 +63,30 @@ PUBLIC preserve_FDIV_f32_from_ptr
 ; ========== Implementations ==========
 ; All minimal variants expect pointer argument at [esp+4]
 
+; ----- FILD loaders for 16/32/64 (32-bit calling conv: pointer at [esp+4]) -----
+
+PUBLIC FILD16_from_ptr
+PUBLIC FILD32_from_ptr
+PUBLIC FILD64_from_ptr
+
+FILD16_from_ptr PROC
+    mov eax, [esp+4]
+    FILD WORD PTR [eax]
+    ret
+FILD16_from_ptr ENDP
+
+FILD32_from_ptr PROC
+    mov eax, [esp+4]
+    FILD DWORD PTR [eax]
+    ret
+FILD32_from_ptr ENDP
+
+FILD64_from_ptr PROC
+    mov eax, [esp+4]
+    FILD QWORD PTR [eax]
+    ret
+FILD64_from_ptr ENDP
+
 ; ----- FIADD (16/32) -----
 FIADD16_from_ptr PROC
     mov eax, [esp+4]
