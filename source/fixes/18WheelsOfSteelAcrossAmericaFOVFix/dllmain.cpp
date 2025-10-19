@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "18WheelsOfSteelAcrossAmericaFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,29 +40,18 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
 
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -191,18 +180,11 @@ bool DetectGame()
 			eGameType = type;
 			game = &info;
 			return true;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
+		}		
 	}
-}
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio))));
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
 void FOVFix()
@@ -211,6 +193,8 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 74 24 0C D9 5C 24 10 D9 41 08");
 		if (CameraFOVInstructionScanResult)
 		{
@@ -218,29 +202,23 @@ void FOVFix()
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			float fLastModifiedFOV = 0.0f;
-
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 8, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOVValue = *reinterpret_cast<float*>(ctx.ecx + 0x8);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x8);
 
-				if (fCurrentFOVValue == 60.0f || fCurrentFOVValue == 70.0f)
+				if (fCurrentCameraFOV != fNewCameraFOV)
 				{
-					fCurrentFOVValue = CalculateNewFOV(fCurrentFOVValue);
-					fLastModifiedFOV = fCurrentFOVValue;
-					return;
-				}
-
-				if (fCurrentFOVValue != fLastModifiedFOV && fCurrentFOVValue != 60.0f && fCurrentFOVValue != CalculateNewFOV(60.0f) && fCurrentFOVValue != 70.0f && fCurrentFOVValue != CalculateNewFOV(70.0f))
-				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
-
-					if (fCurrentFOVValue != fModifiedFOVValue)
+					if (fCurrentCameraFOV == 60.0f || fCurrentCameraFOV == 70.0f)
 					{
-						fCurrentFOVValue = fModifiedFOVValue;
-						fLastModifiedFOV = fModifiedFOVValue;
+						fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 					}
 				}
+
+				fCurrentCameraFOV = fNewCameraFOV;
 			});
 		}
 		else

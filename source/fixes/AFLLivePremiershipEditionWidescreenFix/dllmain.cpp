@@ -44,15 +44,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-float fAspectRatioScale;
 uint8_t* ResolutionWidthAddress;
 uint8_t* ResolutionHeightAddress;
 
@@ -204,33 +204,29 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 8B 57 04 89 15 ?? ?? ?? ??", "89 4D 0C 74 05 8B 48 10 EB 03 8B 4A 08 85 FF 89 4D 08");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 0F 89 0D ?? ?? ?? ?? 8B 57 04", "89 4D 0C 74 05 8B 48 10 EB 03 8B 4A 08 85 FF 89 4D 08");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Renderer Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResolution] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution] - (std::uint8_t*)exeModule);
 
-			ResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[RendererResolution] + 2, Memory::PointerMode::Absolute);
-
-			ResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[RendererResolution] + 11, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolution], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolution], "\x90\x90", 2);
 
 			static SafetyHookMid RendererResolutionWidthInstructionMidHook{};
 
 			RendererResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolution], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionWidthAddress) = iCurrentResX;
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolution] + 9, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolution] + 8, "\x90\x90\x90", 3);
 
 			static SafetyHookMid RendererResolutionHeightInstructionMidHook{};
 
-			RendererResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolution] + 9, [](SafetyHookContext& ctx)
+			RendererResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolution] + 8, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeightAddress) = iCurrentResY;
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution], "\x90\x90\x90", 3);

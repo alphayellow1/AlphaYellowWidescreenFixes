@@ -52,8 +52,7 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fNewGameplayCameraFOV;
-float fNewCutsceneCameraFOV1;
-float fNewCutsceneCameraFOV2;
+float fNewCutsceneCameraFOV;
 double dNewAspectRatio;
 
 // Game detection
@@ -206,44 +205,13 @@ static SafetyHookMid AspectRatioInstruction4Hook{};
 static SafetyHookMid CutsceneCameraFOVInstruction1Hook{};
 static SafetyHookMid CutsceneCameraFOVInstruction2Hook{};
 
-void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
+void CutsceneCameraFOVInstructionMidHook(uintptr_t CameraFOVAddress)
 {
-	_asm
-	{
-		fld qword ptr ds:[dNewAspectRatio]
-	}
-}
+	float& fCurrentCutsceneCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
 
-void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fdiv dword ptr ds:[fNewAspectRatio]
-	}
-}
+	fNewCutsceneCameraFOV = fCurrentCutsceneCameraFOV * fFOVFactor;
 
-void CutsceneCameraFOVInstruction1MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCutsceneCameraFOV1 = *reinterpret_cast<float*>(ctx.edx + 0x1C);
-
-	fNewCutsceneCameraFOV1 = fCurrentCutsceneCameraFOV1 * fFOVFactor;
-
-	_asm
-	{
-		fmul dword ptr ds:[fNewCutsceneCameraFOV1]
-	}
-}
-
-void CutsceneCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCutsceneCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x50);
-
-	fNewCutsceneCameraFOV2 = fCurrentCutsceneCameraFOV2 * fFOVFactor;
-
-	_asm
-	{
-		fmul dword ptr ds:[fNewCutsceneCameraFOV2]
-	}
+	FPU::FMUL(fNewCutsceneCameraFOV);
 }
 
 void FOVFix()
@@ -270,19 +238,19 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], AspectRatioInstruction1MidHook);
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx) { FPU::FLD(dNewAspectRatio); });
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], AspectRatioInstruction2MidHook);
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx) { FPU::FDIV(fNewAspectRatio); });
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio3Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], AspectRatioInstruction1MidHook);
+			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], [](SafetyHookContext& ctx) { FPU::FLD(dNewAspectRatio); });
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio4Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], AspectRatioInstruction2MidHook);
+			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], [](SafetyHookContext& ctx) { FPU::FDIV(fNewAspectRatio); });
 		}
 
 		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 45 FC 5E BA 59 42 8D 4D E4 51 8B 4D B0");
@@ -307,11 +275,11 @@ void FOVFix()
 
 			Memory::PatchBytes(CutsceneCameraFOVInstructionsScanResult, "\x90\x90\x90", 3);
 
-			CutsceneCameraFOVInstruction1Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult, CutsceneCameraFOVInstruction1MidHook);
+			CutsceneCameraFOVInstruction1Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx) { CutsceneCameraFOVInstructionMidHook(ctx.edx + 0x1C); });
 
 			Memory::PatchBytes(CutsceneCameraFOVInstructionsScanResult + 12, "\x90\x90\x90", 3);
 
-			CutsceneCameraFOVInstruction2Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult + 12, CutsceneCameraFOVInstruction2MidHook);
+			CutsceneCameraFOVInstruction2Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult + 12, [](SafetyHookContext& ctx) { CutsceneCameraFOVInstructionMidHook(ctx.eax + 0x50); });
 		}
 		else
 		{

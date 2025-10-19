@@ -44,15 +44,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-float fAspectRatioScale;
 uint8_t* ResolutionWidthAddress;
 uint8_t* ResolutionHeightAddress;
 
