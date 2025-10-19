@@ -41,14 +41,14 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.00001f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
+
 float fNewAspectRatio;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
@@ -190,11 +190,6 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::AGR && bFixActive == true)
@@ -234,13 +229,13 @@ void FOVFix()
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				if (fabsf(fCurrentCameraFOV - 0.8999999762f) < fTolerance)
+				if (Maths::isClose(fCurrentCameraFOV, 0.8999999762f))
 				{
 					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor; // Apply FOV factor if the current camera FOV is 0.9
 				}
 				else
 				{
-					fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
@@ -254,7 +249,7 @@ void FOVFix()
 			{
 				float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
 
-				if (fabsf(fCurrentCameraFOV - 0.8999999762f) < fTolerance)
+				if (Maths::isClose(fCurrentCameraFOV, 0.8999999762f))
 				{
 					fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor; // Apply FOV factor if the current camera FOV is 0.9
 				}

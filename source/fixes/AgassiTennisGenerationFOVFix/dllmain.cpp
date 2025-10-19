@@ -206,6 +206,10 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid MenuAspectRatioInstructionMidHook{};
+static SafetyHookMid GameplayAspectRatioInstructionMidHook{};
+static SafetyHookMid CutscenesAspectRatioInstructionMidHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::ATG && bFixActive == true)
@@ -222,32 +226,26 @@ void FOVFix()
 			spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[GameplayAspectRatioScan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CutscenesAspectRatioScan] - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid MenuAspectRatioInstructionMidHook{};
+			
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[MenuAspectRatioScan], "\x90\x90\x90\x90\x90\x90\x90", 7);
 
 			MenuAspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[MenuAspectRatioScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuAspectRatio = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xE8);
-
-				fCurrentMenuAspectRatio = fNewAspectRatio;
+				FPU::FDIV(fNewAspectRatio);
 			});
 
-			static SafetyHookMid GameplayAspectRatioInstructionMidHook{};
-
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[GameplayAspectRatioScan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			
 			GameplayAspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[GameplayAspectRatioScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGameplayAspectRatio = *reinterpret_cast<float*>(ctx.esi + ctx.eax * 0x4 + 0xE8);
-
-				fCurrentGameplayAspectRatio = fNewAspectRatio;
+				FPU::FDIV(fNewAspectRatio);
 			});
-
-			static SafetyHookMid CutscenesAspectRatioInstructionMidHook{};
+			
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[CutscenesAspectRatioScan], "\x90\x90\x90\x90\x90\x90\x90", 7);
 
 			CutscenesAspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesAspectRatioScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCutscenesAspectRatio = *reinterpret_cast<float*>(ctx.ebp + ctx.eax * 0x4 + 0xE8);
-
-				fCurrentCutscenesAspectRatio = fNewAspectRatio;
+				FPU::FDIV(fNewAspectRatio);
 			});
 		}
 

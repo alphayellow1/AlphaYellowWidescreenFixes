@@ -480,9 +480,175 @@ namespace Util
 		}
 
 		return std::equal(str1.begin(), str1.end(), str2.begin(), [](char a, char b)
-			{
-				return std::tolower(a) == std::tolower(b);
-			});
+		{
+			return std::tolower(a) == std::tolower(b);
+		});
+	}
+}
+
+namespace FPU
+{
+	template<typename T>
+	inline void FLD(T value)
+	{
+		if constexpr (std::is_same_v<T, float>)
+			__asm { fld dword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, double>)
+			__asm { fld qword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, long double>)
+			__asm { fld tbyte ptr ds:[value] }
+		else
+			static_assert(sizeof(T) == 0, "FPU::FLD unsupported type");
+	}
+
+	template<typename T>
+	inline void FADD(T value)
+	{
+		if constexpr (std::is_integral_v<T>)
+		{
+			if constexpr (sizeof(T) == 2) __asm { fadd word ptr ds:[value] }
+			else if constexpr (sizeof(T) == 4) __asm { fadd dword ptr ds:[value] }
+			else if constexpr (sizeof(T) == 8) __asm { fadd qword ptr ds:[value] }
+		}
+		else if constexpr (std::is_same_v<T, float>)  __asm { fadd dword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, double>) __asm { fadd qword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, long double>) __asm { fadd tbyte ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FSUB(T value)
+	{
+		if constexpr (std::is_integral_v<T>)
+		{
+			if constexpr (sizeof(T) == 2) __asm { fsub word ptr ds:[value] }
+			else if constexpr (sizeof(T) == 4) __asm { fsub dword ptr ds:[value] }
+			else if constexpr (sizeof(T) == 8) __asm { fsub qword ptr ds:[value] }
+		}
+		else if constexpr (std::is_same_v<T, float>)  __asm { fsub dword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, double>) __asm { fsub qword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, long double>) __asm { fsub tbyte ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FSUBR(T value)
+	{
+		if constexpr (std::is_integral_v<T>)
+		{
+			if constexpr (sizeof(T) == 2) __asm { fsubr word ptr ds:[value] }
+			else if constexpr (sizeof(T) == 4) __asm { fsubr dword ptr ds:[value] }
+			else if constexpr (sizeof(T) == 8) __asm { fsubr qword ptr ds:[value] }
+		}
+		else if constexpr (std::is_same_v<T, float>)  __asm { fsubr dword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, double>) __asm { fsubr qword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, long double>) __asm { fsubr tbyte ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FMUL(T value)
+	{
+		if constexpr (std::is_integral_v<T>)
+		{
+			if constexpr (sizeof(T) == 2) __asm { fmul word ptr ds:[value] }
+			else if constexpr (sizeof(T) == 4) __asm { fmul dword ptr ds:[value] }
+			else if constexpr (sizeof(T) == 8) __asm { fmul qword ptr ds:[value] }
+		}
+		else if constexpr (std::is_same_v<T, float>)  __asm { fmul dword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, double>) __asm { fmul qword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, long double>) __asm { fmul tbyte ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FDIV(T value)
+	{
+		if constexpr (std::is_integral_v<T>)
+		{
+			if constexpr (sizeof(T) == 2) __asm { fdiv word ptr ds:[value] }
+			else if constexpr (sizeof(T) == 4) __asm { fdiv dword ptr ds:[value] }
+			else if constexpr (sizeof(T) == 8) __asm { fdiv qword ptr ds:[value] }
+		}
+		else if constexpr (std::is_same_v<T, float>)  __asm { fdiv dword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, double>) __asm { fdiv qword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, long double>) __asm { fdiv tbyte ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FDIVR(T value)
+	{
+		if constexpr (std::is_integral_v<T>)
+		{
+			if constexpr (sizeof(T) == 2) __asm { fdivr word ptr ds:[value] }
+			else if constexpr (sizeof(T) == 4) __asm { fdivr dword ptr ds:[value] }
+			else if constexpr (sizeof(T) == 8) __asm { fdivr qword ptr ds:[value] }
+		}
+		else if constexpr (std::is_same_v<T, float>)  __asm { fdivr dword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, double>) __asm { fdivr qword ptr ds:[value] }
+		else if constexpr (std::is_same_v<T, long double>) __asm { fdivr tbyte ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FILD(T value)
+	{
+		static_assert(std::is_integral_v<T>, "FPU::FILD requires an integral type");
+		if constexpr (sizeof(T) == 2)
+			__asm { fild word ptr ds:[value] }
+		else if constexpr (sizeof(T) == 4)
+			__asm { fild dword ptr ds:[value] }
+		else if constexpr (sizeof(T) == 8)
+			__asm { fild qword ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FIADD(T value)
+	{
+		static_assert(std::is_integral_v<T>, "FPU::FIADD requires an integral type");
+		if constexpr (sizeof(T) == 2) __asm { fiadd word ptr ds:[value] }
+		else if constexpr (sizeof(T) == 4) __asm { fiadd dword ptr ds:[value] }
+		else if constexpr (sizeof(T) == 8) __asm { fiadd qword ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FISUB(T value)
+	{
+		static_assert(std::is_integral_v<T>, "FPU::FISUB requires an integral type");
+		if constexpr (sizeof(T) == 2) __asm { fisub word ptr ds:[value] }
+		else if constexpr (sizeof(T) == 4) __asm { fisub dword ptr ds:[value] }
+		else if constexpr (sizeof(T) == 8) __asm { fisub qword ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FISUBR(T value)
+	{
+		static_assert(std::is_integral_v<T>, "FPU::FISUBR requires an integral type");
+		if constexpr (sizeof(T) == 2) __asm { fisubr word ptr ds:[value] }
+		else if constexpr (sizeof(T) == 4) __asm { fisubr dword ptr ds:[value] }
+		else if constexpr (sizeof(T) == 8) __asm { fisubr qword ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FIMUL(T value)
+	{
+		static_assert(std::is_integral_v<T>, "FPU::FIMUL requires an integral type");
+		if constexpr (sizeof(T) == 2) __asm { fimul word ptr ds:[value] }
+		else if constexpr (sizeof(T) == 4) __asm { fimul dword ptr ds:[value] }
+		else if constexpr (sizeof(T) == 8) __asm { fimul qword ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FIDIV(T value)
+	{
+		static_assert(std::is_integral_v<T>, "FPU::FIDIV requires an integral type");
+		if constexpr (sizeof(T) == 2) __asm { fidiv word ptr ds:[value] }
+		else if constexpr (sizeof(T) == 4) __asm { fidiv dword ptr ds:[value] }
+		else if constexpr (sizeof(T) == 8) __asm { fidiv qword ptr ds:[value] }
+	}
+
+	template<typename T>
+	inline void FIDIVR(T value)
+	{
+		static_assert(std::is_integral_v<T>, "FPU::FIDIVR requires an integral type");
+		if constexpr (sizeof(T) == 2) __asm { fidivr word ptr ds:[value] }
+		else if constexpr (sizeof(T) == 4) __asm { fidivr dword ptr ds:[value] }
+		else if constexpr (sizeof(T) == 8) __asm { fidivr qword ptr ds:[value] }
 	}
 }
 
