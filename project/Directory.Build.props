@@ -1,11 +1,25 @@
 <Project>
-  <PropertyGroup>
-    <AdditionalIncludeDirectories>
-      $(AdditionalIncludeDirectories);
-      $(SolutionDir)..\external\inipp;
-      $(SolutionDir)..\external\safetyhook;
-      $(SolutionDir)..\external\spdlog\include;
-      $(SolutionDir)..\includes
-    </AdditionalIncludeDirectories>
+  <PropertyGroup Condition="'$(Platform)'=='Win32'">
+    <EnableMASM>true</EnableMASM>
   </PropertyGroup>
+  <ItemGroup Condition="'$(Platform)'=='Win32'">
+    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x86.asm" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(Platform)'=='x64'">
+    <EnableMASM>true</EnableMASM>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(Platform)'=='x64'">
+    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x64.asm" />
+  </ItemGroup>
+
+	<ImportGroup Label="ExtensionSettings">
+		<Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props"
+				Condition="Exists('$(VCTargetsPath)\BuildCustomizations\masm.props')" />
+	</ImportGroup>
+
+	<ImportGroup Label="ExtensionTargets">
+		<Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets"
+				Condition="Exists('$(VCTargetsPath)\BuildCustomizations\masm.targets')" />
+	</ImportGroup>
 </Project>
