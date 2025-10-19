@@ -44,15 +44,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraHFOV;
-float fNewCameraFOV;
 float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -189,30 +189,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewCameraHFOV = 1.0f / fAspectRatioScale;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x20);
-
-	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -229,7 +206,12 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, CameraHFOVInstructionMidHook);
+			fNewCameraHFOV = 1.0f / fAspectRatioScale;
+
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(fNewCameraHFOV);
+			});
 		}
 		else
 		{
@@ -244,7 +226,14 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x20);
+
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{

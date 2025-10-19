@@ -197,10 +197,7 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
+	FPU::FLD(fNewCameraHFOV);
 }
 
 static SafetyHookMid CameraVFOVInstructionHook{};
@@ -211,10 +208,7 @@ void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
 
 	fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
 
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
+	FPU::FLD(fNewCameraVFOV);
 }
 
 void FOVFix()

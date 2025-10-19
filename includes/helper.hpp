@@ -486,170 +486,142 @@ namespace Util
 	}
 }
 
+extern "C" {
+	void FIADD16_from_ptr(void* p);
+	void FIADD32_from_ptr(void* p);
+	void FIADD64_from_ptr(void* p);
+
+	void FISUB16_from_ptr(void* p);
+	void FISUB32_from_ptr(void* p);
+	void FISUB64_from_ptr(void* p);
+
+	void FISUBR16_from_ptr(void* p);
+	void FISUBR32_from_ptr(void* p);
+	void FISUBR64_from_ptr(void* p);
+
+	void FIMUL16_from_ptr(void* p);
+	void FIMUL32_from_ptr(void* p);
+	void FIMUL64_from_ptr(void* p);
+
+	void FIDIV16_from_ptr(void* p);
+	void FIDIV32_from_ptr(void* p);
+	void FIDIV64_from_ptr(void* p);
+
+	void FIDIVR16_from_ptr(void* p);
+	void FIDIVR32_from_ptr(void* p);
+	void FIDIVR64_from_ptr(void* p);
+
+	void FLD_f32_from_ptr(void* p);
+	void FADD_f32_from_ptr(void* p);
+	void FSUB_f32_from_ptr(void* p);
+	void FSUBR_f32_from_ptr(void* p);
+	void FMUL_f32_from_ptr(void* p);
+	void FDIV_f32_from_ptr(void* p);
+	void FDIVR_f32_from_ptr(void* p);
+
+	void FLD_f64_from_ptr(void* p);
+	void FADD_f64_from_ptr(void* p);
+	void FSUB_f64_from_ptr(void* p);
+	void FSUBR_f64_from_ptr(void* p);
+	void FMUL_f64_from_ptr(void* p);
+	void FDIV_f64_from_ptr(void* p);
+	void FDIVR_f64_from_ptr(void* p);
+
+	void preserve_FIADD32_from_ptr(void* p);
+	void preserve_FISUB32_from_ptr(void* p);
+	void preserve_FIMUL32_from_ptr(void* p);
+	void preserve_FIDIV32_from_ptr(void* p);
+	void preserve_FIDIVR32_from_ptr(void* p);
+
+	void preserve_FLD_f32_from_ptr(void* p);
+	void preserve_FADD_f32_from_ptr(void* p);
+	void preserve_FMUL_f32_from_ptr(void* p);
+	void preserve_FDIV_f32_from_ptr(void* p);
+}
+
 namespace FPU
 {
 	template<typename T>
-	inline void FLD(T value)
+	inline void FIADD(const T& v)
 	{
-		if constexpr (std::is_same_v<T, float>)
-			__asm { fld dword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, double>)
-			__asm { fld qword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, long double>)
-			__asm { fld tbyte ptr ds:[value] }
-		else
-			static_assert(sizeof(T) == 0, "FPU::FLD unsupported type");
+		static_assert(std::is_integral_v<T>, "FIADD requires integer type");
+		if constexpr (sizeof(T) == 2) FIADD16_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 4) FIADD32_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 8) FIADD64_from_ptr((void*)std::addressof(v));
 	}
 
 	template<typename T>
-	inline void FADD(T value)
+	inline void FISUB(const T& v)
 	{
-		if constexpr (std::is_integral_v<T>)
-		{
-			if constexpr (sizeof(T) == 2) __asm { fadd word ptr ds:[value] }
-			else if constexpr (sizeof(T) == 4) __asm { fadd dword ptr ds:[value] }
-			else if constexpr (sizeof(T) == 8) __asm { fadd qword ptr ds:[value] }
-		}
-		else if constexpr (std::is_same_v<T, float>)  __asm { fadd dword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, double>) __asm { fadd qword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, long double>) __asm { fadd tbyte ptr ds:[value] }
+		static_assert(std::is_integral_v<T>, "FISUB requires integer type");
+		if constexpr (sizeof(T) == 2) FISUB16_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 4) FISUB32_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 8) FISUB64_from_ptr((void*)std::addressof(v));
 	}
 
 	template<typename T>
-	inline void FSUB(T value)
+	inline void FISUBR(const T& v)
 	{
-		if constexpr (std::is_integral_v<T>)
-		{
-			if constexpr (sizeof(T) == 2) __asm { fsub word ptr ds:[value] }
-			else if constexpr (sizeof(T) == 4) __asm { fsub dword ptr ds:[value] }
-			else if constexpr (sizeof(T) == 8) __asm { fsub qword ptr ds:[value] }
-		}
-		else if constexpr (std::is_same_v<T, float>)  __asm { fsub dword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, double>) __asm { fsub qword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, long double>) __asm { fsub tbyte ptr ds:[value] }
+		static_assert(std::is_integral_v<T>, "FISUBR requires integer type");
+		if constexpr (sizeof(T) == 2) FISUBR16_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 4) FISUBR32_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 8) FISUBR64_from_ptr((void*)std::addressof(v));
 	}
 
 	template<typename T>
-	inline void FSUBR(T value)
+	inline void FIMUL(const T& v)
 	{
-		if constexpr (std::is_integral_v<T>)
-		{
-			if constexpr (sizeof(T) == 2) __asm { fsubr word ptr ds:[value] }
-			else if constexpr (sizeof(T) == 4) __asm { fsubr dword ptr ds:[value] }
-			else if constexpr (sizeof(T) == 8) __asm { fsubr qword ptr ds:[value] }
-		}
-		else if constexpr (std::is_same_v<T, float>)  __asm { fsubr dword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, double>) __asm { fsubr qword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, long double>) __asm { fsubr tbyte ptr ds:[value] }
+		static_assert(std::is_integral_v<T>, "FIMUL requires integer type");
+		if constexpr (sizeof(T) == 2) FIMUL16_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 4) FIMUL32_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 8) FIMUL64_from_ptr((void*)std::addressof(v));
 	}
 
 	template<typename T>
-	inline void FMUL(T value)
+	inline void FIDIV(const T& v)
 	{
-		if constexpr (std::is_integral_v<T>)
-		{
-			if constexpr (sizeof(T) == 2) __asm { fmul word ptr ds:[value] }
-			else if constexpr (sizeof(T) == 4) __asm { fmul dword ptr ds:[value] }
-			else if constexpr (sizeof(T) == 8) __asm { fmul qword ptr ds:[value] }
-		}
-		else if constexpr (std::is_same_v<T, float>)  __asm { fmul dword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, double>) __asm { fmul qword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, long double>) __asm { fmul tbyte ptr ds:[value] }
+		static_assert(std::is_integral_v<T>, "FIDIV requires integer type");
+		if constexpr (sizeof(T) == 2) FIDIV16_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 4) FIDIV32_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 8) FIDIV64_from_ptr((void*)std::addressof(v));
 	}
 
 	template<typename T>
-	inline void FDIV(T value)
+	inline void FIDIVR(const T& v)
 	{
-		if constexpr (std::is_integral_v<T>)
-		{
-			if constexpr (sizeof(T) == 2) __asm { fdiv word ptr ds:[value] }
-			else if constexpr (sizeof(T) == 4) __asm { fdiv dword ptr ds:[value] }
-			else if constexpr (sizeof(T) == 8) __asm { fdiv qword ptr ds:[value] }
-		}
-		else if constexpr (std::is_same_v<T, float>)  __asm { fdiv dword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, double>) __asm { fdiv qword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, long double>) __asm { fdiv tbyte ptr ds:[value] }
+		static_assert(std::is_integral_v<T>, "FIDIVR requires integer type");
+		if constexpr (sizeof(T) == 2) FIDIVR16_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 4) FIDIVR32_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 8) FIDIVR64_from_ptr((void*)std::addressof(v));
 	}
 
-	template<typename T>
-	inline void FDIVR(T value)
-	{
-		if constexpr (std::is_integral_v<T>)
-		{
-			if constexpr (sizeof(T) == 2) __asm { fdivr word ptr ds:[value] }
-			else if constexpr (sizeof(T) == 4) __asm { fdivr dword ptr ds:[value] }
-			else if constexpr (sizeof(T) == 8) __asm { fdivr qword ptr ds:[value] }
-		}
-		else if constexpr (std::is_same_v<T, float>)  __asm { fdivr dword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, double>) __asm { fdivr qword ptr ds:[value] }
-		else if constexpr (std::is_same_v<T, long double>) __asm { fdivr tbyte ptr ds:[value] }
-	}
+	inline void FLD(const float& v) { FLD_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FADD(const float& v) { FADD_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FSUB(const float& v) { FSUB_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FSUBR(const float& v) { FSUBR_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FMUL(const float& v) { FMUL_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FDIV(const float& v) { FDIV_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FDIVR(const float& v) { FDIVR_f32_from_ptr((void*)std::addressof(v)); }
 
-	template<typename T>
-	inline void FILD(T value)
-	{
-		static_assert(std::is_integral_v<T>, "FPU::FILD requires an integral type");
-		if constexpr (sizeof(T) == 2)
-			__asm { fild word ptr ds:[value] }
-		else if constexpr (sizeof(T) == 4)
-			__asm { fild dword ptr ds:[value] }
-		else if constexpr (sizeof(T) == 8)
-			__asm { fild qword ptr ds:[value] }
-	}
+	inline void FLD(const double& v) { FLD_f64_from_ptr((void*)std::addressof(v)); }
+	inline void FADD(const double& v) { FADD_f64_from_ptr((void*)std::addressof(v)); }
+	inline void FSUB(const double& v) { FSUB_f64_from_ptr((void*)std::addressof(v)); }
+	inline void FSUBR(const double& v) { FSUBR_f64_from_ptr((void*)std::addressof(v)); }
+	inline void FMUL(const double& v) { FMUL_f64_from_ptr((void*)std::addressof(v)); }
+	inline void FDIV(const double& v) { FDIV_f64_from_ptr((void*)std::addressof(v)); }
+	inline void FDIVR(const double& v) { FDIVR_f64_from_ptr((void*)std::addressof(v)); }
 
-	template<typename T>
-	inline void FIADD(T value)
-	{
-		static_assert(std::is_integral_v<T>, "FPU::FIADD requires an integral type");
-		if constexpr (sizeof(T) == 2) __asm { fiadd word ptr ds:[value] }
-		else if constexpr (sizeof(T) == 4) __asm { fiadd dword ptr ds:[value] }
-		else if constexpr (sizeof(T) == 8) __asm { fiadd qword ptr ds:[value] }
-	}
+	inline void P_FIADD32(const int32_t& v) { preserve_FIADD32_from_ptr((void*)std::addressof(v)); }
+	inline void P_FISUB32(const int32_t& v) { preserve_FISUB32_from_ptr((void*)std::addressof(v)); }
+	inline void P_FIMUL32(const int32_t& v) { preserve_FIMUL32_from_ptr((void*)std::addressof(v)); }
+	inline void P_FIDIV32(const int32_t& v) { preserve_FIDIV32_from_ptr((void*)std::addressof(v)); }
+	inline void P_FIDIVR32(const int32_t& v) { preserve_FIDIVR32_from_ptr((void*)std::addressof(v)); }
 
-	template<typename T>
-	inline void FISUB(T value)
-	{
-		static_assert(std::is_integral_v<T>, "FPU::FISUB requires an integral type");
-		if constexpr (sizeof(T) == 2) __asm { fisub word ptr ds:[value] }
-		else if constexpr (sizeof(T) == 4) __asm { fisub dword ptr ds:[value] }
-		else if constexpr (sizeof(T) == 8) __asm { fisub qword ptr ds:[value] }
-	}
+	inline void P_FLD_f32(const float& v) { preserve_FLD_f32_from_ptr((void*)std::addressof(v)); }
+	inline void P_FADD_f32(const float& v) { preserve_FADD_f32_from_ptr((void*)std::addressof(v)); }
+	inline void P_FMUL_f32(const float& v) { preserve_FMUL_f32_from_ptr((void*)std::addressof(v)); }
+	inline void P_FDIV_f32(const float& v) { preserve_FDIV_f32_from_ptr((void*)std::addressof(v)); }
 
-	template<typename T>
-	inline void FISUBR(T value)
-	{
-		static_assert(std::is_integral_v<T>, "FPU::FISUBR requires an integral type");
-		if constexpr (sizeof(T) == 2) __asm { fisubr word ptr ds:[value] }
-		else if constexpr (sizeof(T) == 4) __asm { fisubr dword ptr ds:[value] }
-		else if constexpr (sizeof(T) == 8) __asm { fisubr qword ptr ds:[value] }
-	}
-
-	template<typename T>
-	inline void FIMUL(T value)
-	{
-		static_assert(std::is_integral_v<T>, "FPU::FIMUL requires an integral type");
-		if constexpr (sizeof(T) == 2) __asm { fimul word ptr ds:[value] }
-		else if constexpr (sizeof(T) == 4) __asm { fimul dword ptr ds:[value] }
-		else if constexpr (sizeof(T) == 8) __asm { fimul qword ptr ds:[value] }
-	}
-
-	template<typename T>
-	inline void FIDIV(T value)
-	{
-		static_assert(std::is_integral_v<T>, "FPU::FIDIV requires an integral type");
-		if constexpr (sizeof(T) == 2) __asm { fidiv word ptr ds:[value] }
-		else if constexpr (sizeof(T) == 4) __asm { fidiv dword ptr ds:[value] }
-		else if constexpr (sizeof(T) == 8) __asm { fidiv qword ptr ds:[value] }
-	}
-
-	template<typename T>
-	inline void FIDIVR(T value)
-	{
-		static_assert(std::is_integral_v<T>, "FPU::FIDIVR requires an integral type");
-		if constexpr (sizeof(T) == 2) __asm { fidivr word ptr ds:[value] }
-		else if constexpr (sizeof(T) == 4) __asm { fidivr dword ptr ds:[value] }
-		else if constexpr (sizeof(T) == 8) __asm { fidivr qword ptr ds:[value] }
-	}
 }
 
 namespace Maths
@@ -682,7 +654,6 @@ namespace Maths
 
 		if (rep == AngleMode::FullAngle)
 		{
-			// existing behaviour: convert to half-rad, scale, convert back
 			T halfRad = std::tan(DegToRad(currentFOVDegrees * T(0.5))) * scale;
 			return T(2) * RadToDeg(std::atan(halfRad));
 		}
