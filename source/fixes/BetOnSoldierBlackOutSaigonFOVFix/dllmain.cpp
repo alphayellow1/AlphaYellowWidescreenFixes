@@ -28,7 +28,7 @@ HMODULE dllModule4 = nullptr;
 
 // Fix details
 std::string sFixName = "BetOnSoldierBlackOutSaigonFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -349,7 +349,7 @@ void FOVFix()
 		std::uint8_t* HipfireAndZoomCameraFOVInstructionsScanResult = Memory::PatternScan(dllModule3, "A1 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 53 56 8B F1 8B 0D ?? ?? ?? ?? 89 44 24 08 89 4C 24 10 89 54 24 0C 74 1D A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ??");
 		if (HipfireAndZoomCameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is Bos.dll+{:x}", HipfireAndZoomCameraFOVInstructionsScanResult - (std::uint8_t*)dllModule3);
+			spdlog::info("Hipfire & Zoom Camera FOV Instruction: Address is Bos.dll+{:x}", HipfireAndZoomCameraFOVInstructionsScanResult - (std::uint8_t*)dllModule3);
 
 			HipfireCameraFOVAddress = Memory::GetPointer<uint32_t>(HipfireAndZoomCameraFOVInstructionsScanResult + 1, Memory::PointerMode::Absolute);
 
@@ -404,7 +404,7 @@ void FOVFix()
 			{
 				float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.ecx + 0x3C);
 
-				fNewWeaponHipfireFOV = Maths::CalculateNewFOV_RadBased(fCurrentWeaponHipfireFOV, fAspectRatioScale);
+				fNewWeaponHipfireFOV = fCurrentWeaponHipfireFOV * fWeaponFOVFactor;
 
 				FPU::FLD(fNewWeaponHipfireFOV);
 			});
