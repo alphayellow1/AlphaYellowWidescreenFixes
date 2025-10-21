@@ -222,23 +222,13 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid CameraFOVInstruction1Hook{};
-
-void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		idiv [iNewCameraFOV1]
-	}
-}
-
 void FOVFix(HMODULE dllModule)
 {
 	std::lock_guard<std::mutex> lock(g_patchMutex);
 
 	if (bSOURCEPatched.load())
 	{
-		// Already applied — skip.
+		// Already applied â€” skip.
 		return;
 	}
 
