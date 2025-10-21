@@ -244,55 +244,9 @@ bool DetectGame()
 
 static SafetyHookMid AspectRatioInstruction2Hook{};
 
-void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fdiv dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ebp + 0xD4);
-
-	fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
-}
-
 static SafetyHookMid CameraFOVInstruction3Hook{};
-
-void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.esi + 0xD4);
-
-	fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV3]
-	}
-}
-
 static SafetyHookMid WeaponHipfireFOVInstructionHook{};
-
-void WeaponHipfireFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.ecx + 0x3C);
-
-	fNewWeaponHipfireFOV = fCurrentWeaponHipfireFOV * fWeaponFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewWeaponHipfireFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -329,15 +283,16 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, AspectRatioInstruction2MidHook);
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FDIV(fNewAspectRatio);
+			});
 		}
 		else
 		{
 			spdlog::info("Cannot locate the aspect ratio instruction 2 memory address.");
 			return;
 		}
-
-		// 
 
 		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule4, "8B 8D ?? ?? ?? ?? 52 50 51 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 13 8D 44 24 ?? 50 8B CB FF 92 ?? ?? ?? ?? 83 BD ?? ?? ?? ?? ?? 75 ?? 8B 13 68 ?? ?? ?? ?? 8B CB FF 92 ?? ?? ?? ?? 8B F8 85 FF 74 ?? 8B 0D ?? ?? ?? ?? 8B 01 68 ?? ?? ?? ?? FF 50 ?? 8B F0 85 F6 74 ?? 8B 16 8B CE FF 52 ?? 8B 8D ?? ?? ?? ?? 85 C9 74 ?? 8B 01 FF 50 ?? 8B CE 89 B5 ?? ?? ?? ?? 8B 11 57 FF 52 ?? 8B 8D ?? ?? ?? ?? 85 C9 0F 84 ?? ?? ?? ?? 8B 01 FF 50 ?? 8B F8 8D 83 ?? ?? ?? ?? 50 8D 8B ?? ?? ?? ?? 8D B3 ?? ?? ?? ?? 51 8B CE 89 7C 24 ?? FF 15 ?? ?? ?? ?? B9 ?? ?? ?? ?? 8D 54 24 ?? F3 ?? 8B 8B ?? ?? ?? ?? 52 FF 15 ?? ?? ?? ?? 8B 54 24 ?? 8B F0 8D 7A ?? B9 ?? ?? ?? ?? F3 ?? 8D BA ?? ?? ?? ?? B9 ?? ?? ?? ?? 8D B3 ?? ?? ?? ?? F3 ?? 8B 8D ?? ?? ?? ?? 8B 01 FF 50 ?? 8B 48 ?? 85 C9 DB 40 ?? 7D ?? D8 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8B 44 24 ?? D9 C0 D9 98 ?? ?? ?? ?? D9 85 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 F2 DD D8 D8 F9 D9 98 ?? ?? ?? ?? 8B 8D ?? ?? ?? ?? 8B 11 DD D8 FF 92 ?? ?? ?? ?? 8B 03 8B CB FF 90 ?? ?? ?? ?? 8B 08 8D 94 24 ?? ?? ?? ?? 52 50 FF 51 ?? 8B 45 ?? 8D B5 ?? ?? ?? ?? 56 8B CD FF 90 ?? ?? ?? ?? 8B 13 56 8B CB FF 92 ?? ?? ?? ?? 80 7C 24 ?? ?? 74 ?? 8B 8D ?? ?? ?? ?? 85 C9 74 ?? 8B 01 FF 50 ?? C7 85 ?? ?? ?? ?? ?? ?? ?? ?? 5F 5E 5D 5B 81 C4 ?? ?? ?? ?? C2 ?? ?? CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC 81 EC");
 		if (CameraFOVInstruction1ScanResult)
@@ -370,7 +325,14 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ebp + 0xD4);
+
+				fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
+
+				FPU::FLD(fNewCameraFOV2);
+			});
 		}
 		else
 		{
@@ -385,7 +347,14 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult, CameraFOVInstruction3MidHook);
+			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.esi + 0xD4);
+
+				fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
+
+				FPU::FLD(fNewCameraFOV3);
+			});
 		}
 		else
 		{
@@ -449,7 +418,14 @@ void FOVFix()
 
 			Memory::PatchBytes(WeaponFOVInstructionScanResult + 6, "\x90\x90\x90", 3);
 
-			WeaponHipfireFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 6, WeaponHipfireFOVInstructionMidHook);
+			WeaponHipfireFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.ecx + 0x3C);
+
+				fNewWeaponHipfireFOV = fCurrentWeaponHipfireFOV * fWeaponFOVFactor;
+
+				FPU::FLD(fNewWeaponHipfireFOV);
+			});
 		}
 		else
 		{

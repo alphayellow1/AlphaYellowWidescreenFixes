@@ -238,19 +238,31 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx) { FPU::FLD(dNewAspectRatio); });
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
+			{ 
+				FPU::FLD(dNewAspectRatio);
+			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx) { FPU::FDIV(fNewAspectRatio); });
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
+			{ 
+				FPU::FDIV(fNewAspectRatio);
+			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio3Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], [](SafetyHookContext& ctx) { FPU::FLD(dNewAspectRatio); });
+			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(dNewAspectRatio);
+			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio4Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], [](SafetyHookContext& ctx) { FPU::FDIV(fNewAspectRatio); });
+			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], [](SafetyHookContext& ctx)
+			{
+				FPU::FDIV(fNewAspectRatio);
+			});
 		}
 
 		std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 45 FC 5E BA 59 42 8D 4D E4 51 8B 4D B0");
@@ -275,11 +287,17 @@ void FOVFix()
 
 			Memory::PatchBytes(CutsceneCameraFOVInstructionsScanResult, "\x90\x90\x90", 3);
 
-			CutsceneCameraFOVInstruction1Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx) { CutsceneCameraFOVInstructionMidHook(ctx.edx + 0x1C); });
+			CutsceneCameraFOVInstruction1Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+			{
+				CutsceneCameraFOVInstructionMidHook(ctx.edx + 0x1C);
+			});
 
 			Memory::PatchBytes(CutsceneCameraFOVInstructionsScanResult + 12, "\x90\x90\x90", 3);
 
-			CutsceneCameraFOVInstruction2Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult + 12, [](SafetyHookContext& ctx) { CutsceneCameraFOVInstructionMidHook(ctx.eax + 0x50); });
+			CutsceneCameraFOVInstruction2Hook = safetyhook::create_mid(CutsceneCameraFOVInstructionsScanResult + 12, [](SafetyHookContext& ctx)
+			{
+				CutsceneCameraFOVInstructionMidHook(ctx.eax + 0x50);
+			});
 		}
 		else
 		{
