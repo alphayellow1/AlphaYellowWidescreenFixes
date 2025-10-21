@@ -293,7 +293,10 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
 
-				fNewCameraHFOV = (fCurrentCameraHFOV * fAspectRatioScale) * fFOVFactor;
+				if (fCurrentCameraHFOV != fNewCameraHFOV)
+				{
+					fNewCameraHFOV = (fCurrentCameraHFOV * fAspectRatioScale) * fFOVFactor;
+				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
@@ -304,7 +307,10 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
 
-				fNewCameraVFOV = (fCurrentCameraVFOV * fAspectRatioScale) * fFOVFactor;
+				if (fCurrentCameraVFOV != fNewCameraVFOV)
+				{
+					fNewCameraVFOV = (fCurrentCameraVFOV * fAspectRatioScale) * fFOVFactor;
+				}
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});
