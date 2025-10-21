@@ -213,7 +213,7 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		fNewCameraFOV = fFOVFactor * Maths::CalculateNewFOV_MultiplierBased(fOriginalCameraFOV, fAspectRatioScale);
+		fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fOriginalCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "3C 81 FD 80 02 00 00 7C 46 8B 4C 24 40 81 F9 E0 01 00 00");
 		if (ResolutionInstructionsScanResult)

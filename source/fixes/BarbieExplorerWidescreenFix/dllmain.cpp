@@ -53,6 +53,10 @@ float fNewCameraVFOV;
 float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
+int16_t iNewForegroundCameraHFOV;
+int16_t iNewForegroundCameraVFOV;
+int16_t iNewBackgroundCameraHFOV;
+float fNewBackgroundCameraVFOV;
 
 // Game detection
 enum class Game
@@ -189,43 +193,13 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraForegroundHFOVInstructionHook{};
-
-void CameraForegroundHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraForegroundVFOVInstructionHook{};
-
-void CameraForegroundVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewCameraVFOV]
-	}
-}
-
 static SafetyHookMid CameraBackgroundHFOVInstructionHook{};
-
-void CameraBackgroundHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraBackgroundVFOVInstructionHook{};
 
-void CameraBackgroundVFOVInstructionMidHook(SafetyHookContext& ctx)
+void CameraFOVInstructionMidHook(float fNewCameraFOV)
 {
-	_asm
-	{
-		fmul dword ptr ds:[fNewCameraVFOV]
-	}
+	FPU::FMUL(fNewCameraFOV);
 }
 
 void WidescreenFix()
@@ -235,6 +209,10 @@ void WidescreenFix()
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		fNewCameraHFOV = (1.0f / fFOVFactor) / fAspectRatioScale;
+
+		fNewCameraVFOV = 1.0f / fFOVFactor;
 
 		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 05 80 AB 59 00 80 02 00 00 C7 05 90 AC 59 00 E0 01 00 00");
 		if (ResolutionInstructionsScanResult)
@@ -251,16 +229,12 @@ void WidescreenFix()
 			return;
 		}
 
-		fNewCameraHFOV = (1.0f / fFOVFactor) / fAspectRatioScale;
-
-		fNewCameraVFOV = 1.0f / fFOVFactor;
-
 		std::uint8_t* CameraForegroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
 		if (CameraForegroundHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera Foreground HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundHFOVInstructionScanResult + 3 - (std::uint8_t*)exeModule);
 
-			CameraForegroundHFOVInstructionHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 3, CameraForegroundHFOVInstructionMidHook);
+			CameraForegroundHFOVInstructionHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 3, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraHFOV); });
 		}
 		else
 		{
@@ -273,7 +247,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera Foreground VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundVFOVInstructionScanResult + 3 - (std::uint8_t*)exeModule);
 
-			CameraForegroundVFOVInstructionHook = safetyhook::create_mid(CameraForegroundVFOVInstructionScanResult + 3, CameraForegroundVFOVInstructionMidHook);
+			CameraForegroundVFOVInstructionHook = safetyhook::create_mid(CameraForegroundVFOVInstructionScanResult + 3, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraVFOV); });
 		}
 		else
 		{
@@ -288,7 +262,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraBackgroundHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraBackgroundHFOVInstructionHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult, CameraBackgroundHFOVInstructionMidHook);
+			CameraBackgroundHFOVInstructionHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraHFOV); });
 		}
 		else
 		{
@@ -303,7 +277,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraBackgroundVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraBackgroundVFOVInstructionHook = safetyhook::create_mid(CameraBackgroundVFOVInstructionScanResult, CameraBackgroundVFOVInstructionMidHook);
+			CameraBackgroundVFOVInstructionHook = safetyhook::create_mid(CameraBackgroundVFOVInstructionScanResult, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraVFOV); });
 		}
 		else
 		{

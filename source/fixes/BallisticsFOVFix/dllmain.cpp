@@ -52,8 +52,9 @@ double dFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-double dNewCameraFOV;
 float fCurrentCameraFOV;
+double dNewCameraFOV;
+float fNewCameraFOV3;
 
 // Game detection
 enum class Game
@@ -191,45 +192,12 @@ bool DetectGame()
 
 static SafetyHookMid AspectRatioInstructionHook{};
 
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0x13C);
-
-	if (fCurrentCameraFOV == 1.989700675f)
-	{
-		dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / dFOVFactor;
-	}
-	else
-	{
-		dNewCameraFOV = 1.0 / (double)fAspectRatioScale;
-	}
-	
-	_asm
-	{
-		fdivr qword ptr ds:[dNewCameraFOV]
-	}
-}
-
 static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
-	float fNewCameraFOV3 = 3.1381019951f; // This is to fix the engine's frustum culling, so we set the FOV here just below the maximum FOV, which is 180º (in radians)
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV3]
-	}
+	
 }
 
 void FOVFix()
@@ -247,7 +215,10 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(fNewAspectRatio);
+			});
 		}
 		else
 		{
@@ -280,7 +251,21 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0x13C);
+
+				if (fCurrentCameraFOV == 1.989700675f)
+				{
+					dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / dFOVFactor;
+				}
+				else
+				{
+					dNewCameraFOV = 1.0 / (double)fAspectRatioScale;
+				}
+				
+				FPU::FDIVR(dNewCameraFOV);
+			});
 		}
 		else
 		{
@@ -288,6 +273,7 @@ void FOVFix()
 			return;
 		}
 
+		// This is to fix the engine's frustum culling, so we set the FOV here just below the maximum FOV, which is 180º (in radians)
 		std::uint8_t* CameraFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "D9 86 3C 01 00 00 8B 86 48 01 00 00 D8 0D ?? ?? ?? ?? 57 51 8D 9E D4 01 00 00 D9 F2");
 		if (CameraFOVInstruction3ScanResult)
 		{
@@ -295,7 +281,12 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult, CameraFOVInstruction3MidHook);
+			fNewCameraFOV3 = 3.1381019951f;
+
+			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(fNewCameraFOV3);
+			});
 		}
 		else
 		{

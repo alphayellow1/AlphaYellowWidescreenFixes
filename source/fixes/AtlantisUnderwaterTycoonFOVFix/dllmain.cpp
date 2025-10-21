@@ -196,14 +196,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraCullingInstructionHook{};
-
-void CameraCullingInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fadd dword ptr ds:[fNewCullingValue]
-	}
-}
+static SafetyHookMid AspectRatioInstruction3Hook{};
 
 void FOVFix()
 {
@@ -222,7 +215,10 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraCullingInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraCullingInstructionHook = safetyhook::create_mid(CameraCullingInstructionScanResult, CameraCullingInstructionMidHook);
+			CameraCullingInstructionHook = safetyhook::create_mid(CameraCullingInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FADD(fNewCullingValue);
+			});
 		}
 		else
 		{
@@ -251,9 +247,7 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan], "\x90\x90\x90\x90", 4);
 
-			static SafetyHookMid AspectRatioInstruction3MidHook{};
-
-			AspectRatioInstruction3MidHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});			

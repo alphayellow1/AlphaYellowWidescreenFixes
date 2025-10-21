@@ -206,23 +206,7 @@ bool DetectGame()
 
 static SafetyHookMid AspectRatioInstructionHook{};
 
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fdivr dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void WidescreenFix()
 {
@@ -239,7 +223,10 @@ void WidescreenFix()
 			
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(fNewAspectRatio);
+			});
 		}
 		else
 		{
@@ -256,7 +243,10 @@ void WidescreenFix()
 
 			fNewCameraFOV = (1.0f / fAspectRatioScale) / fFOVFactor;
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FDIVR(fNewCameraFOV);
+			});
 		}
 		else
 		{

@@ -44,15 +44,14 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -196,33 +195,22 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 ?? D8 0D ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D8 0D");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			static SafetyHookMid CameraFOVInstructionMidHook{};
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x38);
 
-				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
+				fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
-			});
-
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);
-
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
-			{
-				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
-
-				*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
+				FPU::FLD(fNewCameraFOV);
 			});
 		}
 		else

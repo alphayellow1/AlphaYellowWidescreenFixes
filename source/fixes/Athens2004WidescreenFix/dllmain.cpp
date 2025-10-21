@@ -39,16 +39,18 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
 // Ini variables
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fFOVFactor;
+
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+
+// Variables
 float fCurrentCameraFOV;
 float fNewCameraFOV;
 uint8_t* MainMenuResolutionWidthAddress;

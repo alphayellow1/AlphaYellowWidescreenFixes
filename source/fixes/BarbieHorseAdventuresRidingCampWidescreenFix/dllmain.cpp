@@ -186,19 +186,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edi + 0x7C);
-
-	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void WidescreenFix()
 {
@@ -224,11 +213,9 @@ void WidescreenFix()
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 86 B0 00 00 00 83 C4 0C 57 8D 9E F4 00 00 00 53 83 EC 10");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);			
 
-			static SafetyHookMid AspectRatioInstructionMidHook{};
-
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0xB0);
 				
@@ -248,7 +235,14 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edi + 0x7C);
+
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
