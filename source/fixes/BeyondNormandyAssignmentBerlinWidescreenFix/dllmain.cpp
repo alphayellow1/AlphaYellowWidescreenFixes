@@ -282,10 +282,10 @@ void WidescreenFix()
 			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 13, newHeightBig);
 		}
 
-		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8b 4C 24 ?? 8B 16 89 4E");
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 44 24 0C 56 8B F1 8B 4C 24 14 8B 16 89 4E 0C");
 		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instruction Pattern 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraFOVInstructionsScanResult, "\x90\x90\x90\x90", 4);
 
