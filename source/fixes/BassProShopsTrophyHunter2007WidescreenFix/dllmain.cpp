@@ -44,6 +44,8 @@ bool bFixActive;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalBulletCameraFOV1 = 90.0f;
+constexpr float fOriginalBulletCameraFOV2 = 95.0f;
 
 // Variables
 int iCurrentResX;
@@ -193,21 +195,10 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid ResolutionWidthInstructionHook{};
+static SafetyHookMid ResolutionHeightInstructionHook{};
+
 static SafetyHookMid WeaponFOVInstructionHook{};
-
-void WeaponFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.ecx + 0x80);
-
-	fNewWeaponFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponFOV, fAspectRatioScale);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewWeaponFOV]
-	}
-}
-
-
 
 void WidescreenFix()
 {
@@ -222,20 +213,16 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid ResolutionWidthInstructionMidHook{};
-
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.ecx + 0x1C) = iCurrentResX;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult + 7, "\x90\x90\x90", 3);
+			Memory::PatchBytes(ResolutionInstructionsScanResult + 7, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid ResolutionHeightInstructionMidHook{};
-
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 7, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 7, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.ecx + 0x20) = iCurrentResY;
 			});
@@ -313,7 +300,14 @@ void WidescreenFix()
 			
 			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
-			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, WeaponFOVInstructionMidHook);
+			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.ecx + 0x80);
+
+				fNewWeaponFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponFOV, fAspectRatioScale);
+
+				FPU::FLD(fNewWeaponFOV);
+			});
 		}
 		else
 		{
@@ -326,7 +320,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Bullet Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), BulletCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			fNewBulletCameraFOV1 = Maths::CalculateNewFOV_DegBased(90.0f, fAspectRatioScale);
+			fNewBulletCameraFOV1 = Maths::CalculateNewFOV_DegBased(fOriginalBulletCameraFOV1, fAspectRatioScale);
 
 			Memory::Write(BulletCameraFOVInstructionScanResult + 3, fNewBulletCameraFOV1);
 		}
@@ -341,7 +335,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Bullet Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), BulletCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 			
-			fNewBulletCameraFOV2 = Maths::CalculateNewFOV_DegBased(95.0f, fAspectRatioScale);
+			fNewBulletCameraFOV2 = Maths::CalculateNewFOV_DegBased(fOriginalBulletCameraFOV2, fAspectRatioScale);
 
 			Memory::Write(BulletCameraFOVInstruction2ScanResult + 3, fNewBulletCameraFOV2);
 		}

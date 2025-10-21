@@ -43,19 +43,18 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraVFOV;
-float fNewCameraFOV;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewAspectRatio2;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -215,31 +214,8 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewCameraVFOV = fAspectRatioScale;
-
-	_asm
-	{
-		fdivr dword ptr ds:[fNewCameraVFOV]
-	}
-}
-
+static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
-
-	fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fmul dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void WidescreenFix()
 {
@@ -275,14 +251,19 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(dllModule, "D8 3D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 C2 D8 4D 1C D8 C9 D9 18 D9 EE D9 58 04 D9 EE D9 58 08 D9 EE D9 58 0C D9 EE D9 58 10 D9 C1 D8 4D 1C D8 C9 D9 58 14 DD D8 D9 EE D9 58 18 D9 EE D9 58 1C D9 45 0C D8 45 10 D8 CA D9 58 20 D9 45 14 D8 45 18 D8 C9 D9 58 24 DD D8 DD D8 D9 45 1C D8 65 20 D8 7D 20 D9 50 28 D9 EE D9 58 30 D9 EE D9 58 34 D8 4D 1C D9 58 38");
-		if (CameraVFOVInstructionScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule, "D8 3D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 C2 D8 4D 1C D8 C9 D9 18 D9 EE D9 58 04 D9 EE D9 58 08 D9 EE D9 58 0C D9 EE D9 58 10 D9 C1 D8 4D 1C D8 C9 D9 58 14 DD D8 D9 EE D9 58 18 D9 EE D9 58 1C D9 45 0C D8 45 10 D8 CA D9 58 20 D9 45 14 D8 45 18 D8 C9 D9 58 24 DD D8 DD D8 D9 45 1C D8 65 20 D8 7D 20 D9 50 28 D9 EE D9 58 30 D9 EE D9 58 34 D8 4D 1C D9 58 38");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV Instruction: Address is osr_dx8_vf.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule);
+			spdlog::info("Camera VFOV Instruction: Address is osr_dx8_vf.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule);
 
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, CameraVFOVInstructionMidHook);
+			fNewAspectRatio2 = fAspectRatioScale;
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FDIVR(fNewAspectRatio2);
+			});
 		}
 		else
 		{
@@ -298,7 +279,14 @@ void WidescreenFix()
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
 			// Hook is located in the AdjustCameraToViewport function
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+
+				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+				FPU::FMUL(fNewCameraFOV);
+			});
 		}
 		else
 		{
