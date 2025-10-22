@@ -30,6 +30,10 @@ PUBLIC FIDIVR16_from_ptr
 PUBLIC FIDIVR32_from_ptr
 PUBLIC FIDIVR64_from_ptr    ; implemented via FILD qword + FDIVRP
 
+PUBLIC FICOMP16_from_ptr
+PUBLIC FICOMP32_from_ptr
+PUBLIC FICOMP64_from_ptr
+
 ; Float (32-bit)
 PUBLIC FLD_f32_from_ptr
 PUBLIC FADD_f32_from_ptr
@@ -38,6 +42,7 @@ PUBLIC FSUBR_f32_from_ptr
 PUBLIC FMUL_f32_from_ptr
 PUBLIC FDIV_f32_from_ptr
 PUBLIC FDIVR_f32_from_ptr
+PUBLIC FCOMP_f32_from_ptr
 
 ; Double (64-bit)
 PUBLIC FLD_f64_from_ptr
@@ -47,6 +52,7 @@ PUBLIC FSUBR_f64_from_ptr
 PUBLIC FMUL_f64_from_ptr
 PUBLIC FDIV_f64_from_ptr
 PUBLIC FDIVR_f64_from_ptr
+PUBLIC FCOMP_f64_from_ptr
 
 ; --- Preserving wrappers (32-bit examples) ---
 PUBLIC preserve_FIADD32_from_ptr
@@ -175,6 +181,37 @@ FIMUL64_from_ptr PROC
     ret
 FIMUL64_from_ptr ENDP
 
+; ----- FICOMP (16/32/64) + FCOMP (float/double) -----
+
+; 16-bit integer compare & pop
+FICOMP16_from_ptr PROC
+    mov eax, [esp+4]
+    FICOMP WORD PTR [eax]
+    ret
+FICOMP16_from_ptr ENDP
+
+; 32-bit integer compare & pop
+FICOMP32_from_ptr PROC
+    mov eax, [esp+4]
+    FICOMP DWORD PTR [eax]
+    ret
+FICOMP32_from_ptr ENDP
+
+; 64-bit integer compare & pop (emulated)
+; Emulation steps:
+;  - FILD QWORD PTR [eax]  ; push integer (Y)
+;  - FXCH ST(1)            ; swap -> ST0 = original (X), ST1 = integer (Y)
+;  - FCOMP ST(1)           ; compare X with Y and pop X (sets condition flags)
+;  - FSTP ST(0)            ; pop the remaining integer (Y), restoring original stack minus X
+FICOMP64_from_ptr PROC
+    mov eax, [esp+4]
+    FILD QWORD PTR [eax]
+    FXCH ST(1)
+    FCOMP ST(1)
+    FSTP ST(0)
+    ret
+FICOMP64_from_ptr ENDP
+
 ; ----- FIDIV (16/32) -----
 FIDIV16_from_ptr PROC
     mov eax, [esp+4]
@@ -262,6 +299,12 @@ FDIVR_f32_from_ptr PROC
     ret
 FDIVR_f32_from_ptr ENDP
 
+FCOMP_f32_from_ptr PROC
+    mov eax, [esp+4]
+    FCOMP DWORD PTR [eax]    ; compare ST0 with memory float and pop ST0
+    ret
+FCOMP_f32_from_ptr ENDP
+
 ; ----- double (64-bit) ops -----
 FLD_f64_from_ptr PROC
     mov eax, [esp+4]
@@ -304,6 +347,12 @@ FDIVR_f64_from_ptr PROC
     FDIVR QWORD PTR [eax]
     ret
 FDIVR_f64_from_ptr ENDP
+
+FCOMP_f64_from_ptr PROC
+    mov eax, [esp+4]
+    FCOMP QWORD PTR [eax]    ; compare ST0 with memory double and pop ST0
+    ret
+FCOMP_f64_from_ptr ENDP
 
 ; -----------------------
 ; Preserve wrappers (32-bit examples)

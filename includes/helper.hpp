@@ -515,6 +515,10 @@ extern "C" {
 	void FIDIVR32_from_ptr(void* p);
 	void FIDIVR64_from_ptr(void* p);
 
+	void FICOMP16_from_ptr(void* p);
+	void FICOMP32_from_ptr(void* p);
+	void FICOMP64_from_ptr(void* p);
+
 	void FLD_f32_from_ptr(void* p);
 	void FADD_f32_from_ptr(void* p);
 	void FSUB_f32_from_ptr(void* p);
@@ -522,6 +526,7 @@ extern "C" {
 	void FMUL_f32_from_ptr(void* p);
 	void FDIV_f32_from_ptr(void* p);
 	void FDIVR_f32_from_ptr(void* p);
+	void FCOMP_f32_from_ptr(void* p);
 
 	void FLD_f64_from_ptr(void* p);
 	void FADD_f64_from_ptr(void* p);
@@ -530,6 +535,7 @@ extern "C" {
 	void FMUL_f64_from_ptr(void* p);
 	void FDIV_f64_from_ptr(void* p);
 	void FDIVR_f64_from_ptr(void* p);
+	void FCOMP_f64_from_ptr(void* p);
 
 	void preserve_FIADD32_from_ptr(void* p);
 	void preserve_FISUB32_from_ptr(void* p);
@@ -608,6 +614,16 @@ namespace FPU
 		else if constexpr (sizeof(T) == 8) FIDIVR64_from_ptr((void*)std::addressof(v));
 	}
 
+	template<typename T>
+	inline void FICOMP(const T& v)
+	{
+		static_assert(std::is_integral_v<T>, "FICOMP requires integer type");
+		if constexpr (sizeof(T) == 2) FICOMP16_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 4) FICOMP32_from_ptr((void*)std::addressof(v));
+		else if constexpr (sizeof(T) == 8) FICOMP64_from_ptr((void*)std::addressof(v));
+		else static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported integer size for FICOMP");
+	}
+
 	inline void FLD(const float& v) { FLD_f32_from_ptr((void*)std::addressof(v)); }
 	inline void FADD(const float& v) { FADD_f32_from_ptr((void*)std::addressof(v)); }
 	inline void FSUB(const float& v) { FSUB_f32_from_ptr((void*)std::addressof(v)); }
@@ -615,6 +631,7 @@ namespace FPU
 	inline void FMUL(const float& v) { FMUL_f32_from_ptr((void*)std::addressof(v)); }
 	inline void FDIV(const float& v) { FDIV_f32_from_ptr((void*)std::addressof(v)); }
 	inline void FDIVR(const float& v) { FDIVR_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FCOMP(const float& v) { FCOMP_f32_from_ptr((void*)std::addressof(v)); }
 
 	inline void FLD(const double& v) { FLD_f64_from_ptr((void*)std::addressof(v)); }
 	inline void FADD(const double& v) { FADD_f64_from_ptr((void*)std::addressof(v)); }
@@ -623,6 +640,7 @@ namespace FPU
 	inline void FMUL(const double& v) { FMUL_f64_from_ptr((void*)std::addressof(v)); }
 	inline void FDIV(const double& v) { FDIV_f64_from_ptr((void*)std::addressof(v)); }
 	inline void FDIVR(const double& v) { FDIVR_f64_from_ptr((void*)std::addressof(v)); }
+	inline void FCOMP(const double& v) { FCOMP_f64_from_ptr((void*)std::addressof(v)); }
 
 	inline void P_FIADD32(const int32_t& v) { preserve_FIADD32_from_ptr((void*)std::addressof(v)); }
 	inline void P_FISUB32(const int32_t& v) { preserve_FISUB32_from_ptr((void*)std::addressof(v)); }
@@ -634,7 +652,6 @@ namespace FPU
 	inline void P_FADD_f32(const float& v) { preserve_FADD_f32_from_ptr((void*)std::addressof(v)); }
 	inline void P_FMUL_f32(const float& v) { preserve_FMUL_f32_from_ptr((void*)std::addressof(v)); }
 	inline void P_FDIV_f32(const float& v) { preserve_FDIV_f32_from_ptr((void*)std::addressof(v)); }
-
 }
 
 namespace Maths
