@@ -45,13 +45,13 @@ constexpr float fOriginalAspectRatio = 0.75f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fNewAspectRatio2;
-float fFOVFactor;
 float fAspectRatioScale;
 float fNewCameraFOV;
 
@@ -190,31 +190,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
-
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewAspectRatio2 = fOriginalAspectRatio / fAspectRatioScale;
-
-	_asm
-	{
-		fmul dword ptr ds:[fNewAspectRatio2]
-	}
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
-
-	// Computes the new FOV value
-	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -229,9 +205,14 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
+			fNewAspectRatio2 = fOriginalAspectRatio / fAspectRatioScale;
+
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(fNewAspectRatio2);
+			});
 		}
 		else
 		{
@@ -246,7 +227,15 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+
+				// Computes the new FOV value
+				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
