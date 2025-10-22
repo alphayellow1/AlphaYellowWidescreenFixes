@@ -191,14 +191,6 @@ static SafetyHookMid ResolutionInstructionsMidHook{};
 static SafetyHookMid AspectRatioAndCameraFOVInstructionsMidHook{};
 static SafetyHookMid FrustumCullingInstructionHook{};
 
-void FrustumCullingInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fdivr dword ptr ds:[fNewFrustumCullingValue]
-	}
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::BTG && bFixActive == true)
@@ -260,7 +252,10 @@ void WidescreenFix()
 
 			fNewFrustumCullingValue = 16.0f;
 
-			FrustumCullingInstructionHook = safetyhook::create_mid(FrustumCullingInstructionScanResult, FrustumCullingInstructionMidHook);
+			FrustumCullingInstructionHook = safetyhook::create_mid(FrustumCullingInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FDIVR(fNewFrustumCullingValue);
+			});
 		}
 		else
 		{
