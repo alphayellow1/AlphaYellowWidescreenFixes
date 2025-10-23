@@ -519,6 +519,22 @@ extern "C" {
 	void FICOMP32_from_ptr(void* p);
 	void FICOMP64_from_ptr(void* p);
 
+	void FSIN_from_ptr(void* p);
+	void FCOS_from_ptr(void* p);
+	void FSINCOS_from_ptr(void* p);
+
+	void FPTAN_from_ptr(void* p);
+	void FPATAN_from_ptr(void* p);
+
+	void FPREM_from_ptr(void* p);
+	void FPREM1_from_ptr(void* p);
+
+	void FYL2X_from_ptr(void* p);
+	void FYL2XP1_from_ptr(void* p);
+
+	void FSCALE_from_ptr(void* p);
+	void FSQRT_from_ptr(void* p);
+
 	void FLD_f32_from_ptr(void* p);
 	void FADD_f32_from_ptr(void* p);
 	void FSUB_f32_from_ptr(void* p);
@@ -641,6 +657,22 @@ namespace FPU
 	inline void FDIV(const double& v) { FDIV_f64_from_ptr((void*)std::addressof(v)); }
 	inline void FDIVR(const double& v) { FDIVR_f64_from_ptr((void*)std::addressof(v)); }
 	inline void FCOMP(const double& v) { FCOMP_f64_from_ptr((void*)std::addressof(v)); }
+
+	inline void FSIN() { FSIN_from_ptr((void*)nullptr); }
+	inline void FCOS() { FCOS_from_ptr((void*)nullptr); }
+	inline void FSINCOS() { FSINCOS_from_ptr((void*)nullptr); }
+
+	inline void FPTAN() { FPTAN_from_ptr((void*)nullptr); }
+	inline void FPATAN() { FPATAN_from_ptr((void*)nullptr); }
+
+	inline void FPREM() { FPREM_from_ptr((void*)nullptr); }
+	inline void FPREM1() { FPREM1_from_ptr((void*)nullptr); }
+
+	inline void FYL2X() { FYL2X_from_ptr((void*)nullptr); }
+	inline void FYL2XP1() { FYL2XP1_from_ptr((void*)nullptr); }
+
+	inline void FSCALE() { FSCALE_from_ptr((void*)nullptr); }
+	inline void FSQRT() { FSQRT_from_ptr((void*)nullptr); }
 
 	inline void P_FIADD32(const int32_t& v) { preserve_FIADD32_from_ptr((void*)std::addressof(v)); }
 	inline void P_FISUB32(const int32_t& v) { preserve_FISUB32_from_ptr((void*)std::addressof(v)); }

@@ -59,6 +59,12 @@ enum class Game
 	Unknown
 };
 
+enum CameraFOVInstructionsIndex
+{
+	CameraFOV1Scan,
+	CameraFOV2Scan
+};
+
 struct GameInfo
 {
 	std::string GameTitle;
@@ -196,30 +202,16 @@ void FOVFix()
 
 		fNewCameraFOV = fAspectRatioScale * fFOVFactor;
 
-		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "68 00 00 80 3F 51 8B CD D9 1C 24");
-		if (CameraFOVInstruction1ScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 00 00 80 3F 51 8B CD D9 1C 24", "68 00 00 80 3F D8 0D 68 A4 5C 00 D9 5D 60 D9 45 54 D9 FE");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraFOVInstruction1ScanResult + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "68 00 00 80 3F D8 0D 68 A4 5C 00 D9 5D 60 D9 45 54 D9 FE");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 1, fNewCameraFOV);
 
-			Memory::Write(CameraFOVInstruction2ScanResult + 1, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
-			return;
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 1, fNewCameraFOV);
 		}
 	}
 }

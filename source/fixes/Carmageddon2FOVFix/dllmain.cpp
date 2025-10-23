@@ -189,25 +189,10 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid AspectRatioInstruction1Hook{};
 static SafetyHookMid AspectRatioInstruction2Hook{};
-
-void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 static SafetyHookMid AspectRatioInstruction3Hook{};
-
-void AspectRatioInstruction3MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
+static SafetyHookMid AspectRatioInstruction4Hook{};
 
 void FOVFix()
 {
@@ -222,28 +207,30 @@ void FOVFix()
 
 			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90", 3);
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90", 3);			
 
-			static SafetyHookMid AspectRatioInstruction1MidHook{};
-
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90", 3);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], AspectRatioInstruction2MidHook);
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(fNewAspectRatio);
+			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio3Scan], "\x90\x90\x90", 3);
 
-			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], AspectRatioInstruction3MidHook);
+			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(fNewAspectRatio);
+			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio4Scan], "\x90\x90\x90", 3);
 
-			static SafetyHookMid AspectRatioInstruction4MidHook{};
-
-			AspectRatioInstruction4MidHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
