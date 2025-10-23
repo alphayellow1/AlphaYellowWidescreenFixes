@@ -234,8 +234,6 @@ void FOVFix()
 
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
 
-				spdlog::info("[Hook] Raw incoming HFOV: {:.12f}", fCurrentCameraHFOV);
-
 				if (fCurrentCameraHFOV != fNewCameraHFOV)
 				{
 					if ((Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) || Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV2)) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV2)))
@@ -258,8 +256,6 @@ void FOVFix()
 				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x198);
 
 				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
-
-				spdlog::info("[Hook] Raw incoming VFOV: {:.12f}", fCurrentCameraVFOV2);
 
 				if (fCurrentCameraVFOV2 != fNewCameraVFOV)
 				{
