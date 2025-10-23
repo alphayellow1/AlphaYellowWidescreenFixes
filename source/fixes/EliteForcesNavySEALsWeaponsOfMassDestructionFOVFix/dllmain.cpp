@@ -42,20 +42,18 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fFOVFactor;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-float fNewZoomCameraHFOV;
 
 // Game detection
 enum class Game
@@ -203,56 +201,6 @@ bool DetectGame()
 	}
 
 	return true;
-}
-
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
-bool bIsDefaultHFOV(float fCurrentHFOV)
-{
-	return fabsf(fCurrentHFOV - 1.0471975803375244f) < fTolerance;
-}
-
-bool bIsDefaultVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - 0.8726646900177002f) < fTolerance;
-}
-
-bool bIsCroppedVFOV(float fCurrentVFOV)
-{
-	return fabsf(fCurrentVFOV - (0.8726646900177002f / fAspectRatioScale)) < fTolerance;
-}
-
-static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	// Access the HFOV value at the ESI + 0x85FC memory address
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x85FC);
-
-	fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
-
-	_asm
-	{
-		fld dword ptr ds : [fNewCameraHFOV]
-	}
 }
 
 void FOVFix()
