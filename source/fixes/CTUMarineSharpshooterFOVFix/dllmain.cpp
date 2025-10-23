@@ -43,15 +43,22 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float epsilon = 0.00001f;
+constexpr float fDefaultCameraHFOV = 1.0471975803375244f; // 60 degrees in radians
+constexpr float fDefaultCameraHFOV2 = 1.046400427818f;
+constexpr float fDefaultCameraVFOV = 0.8726646900177002f; // 50 degrees in radians
+constexpr float fDefaultCameraVFOV2 = 0.871933996677f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -149,8 +156,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -169,6 +178,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -177,27 +188,30 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	Sleep(2000);
-
-	if (!dllModule2)
+	if (bGameFound == false)
 	{
-		dllModule2 = GetModuleHandleA("CSHELL.DLL");
-		spdlog::info("Waiting for cshell.dll to load...");
-		Sleep(1000);
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
 	}
 
-	spdlog::info("Successfully obtained handle for cshell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	while ((dllModule2 = GetModuleHandleA("CSHELL.DLL")) == nullptr)
+	{
+		spdlog::warn("CSHELL.DLL not loaded yet. Waiting...");
+		Sleep(100);
+	}
+
+	spdlog::info("Successfully obtained handle for CSHELL.DLL: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
 
 	return true;
 }
+
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -205,45 +219,61 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		/*
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
-		if (CameraHFOVInstructionScanResult)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+		
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC 8B 81 9C 01 00 00");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.04719758f || *reinterpret_cast<float*>(ctx.ecx + 0x198) == 1.046400428f)
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
+
+				spdlog::info("[Hook] Raw incoming HFOV: {:.12f}", fCurrentCameraHFOV);
+
+				if (fCurrentCameraHFOV != fNewCameraHFOV)
 				{
-					*reinterpret_cast<float*>(ctx.ecx + 0x198) = 2.0f * atanf(tanf(1.04719758f / 2.0f) * (fNewAspectRatio / fOldAspectRatio));
+					if ((Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) || Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV2)) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV2)))
+					{
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
+					}
+					else
+					{
+						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
+					}					
 				}
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
-		}
-		*/
 
-		std::uint8_t* CameraHFOVZoomInstructionScanResult = Memory::PatternScan(dllModule2, "89 86 FC 85 00 00 8D 86 78 87 00 00");
-		if (CameraHFOVZoomInstructionScanResult)
-		{
-			spdlog::info("Camera HFOV Zoom Instruction: Address is cshell.dll+{:x}", CameraHFOVZoomInstructionScanResult - (std::uint8_t*)dllModule2);
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static SafetyHookMid CameraHFOVZoomInstructionMidHook{};
-
-			CameraHFOVZoomInstructionMidHook = safetyhook::create_mid(CameraHFOVZoomInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
 			{
-				if (ctx.eax == std::bit_cast<uint32_t>(0.5235987902f))
+				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+
+				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
+
+				spdlog::info("[Hook] Raw incoming VFOV: {:.12f}", fCurrentCameraVFOV2);
+
+				if (fCurrentCameraVFOV2 != fNewCameraVFOV)
 				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.5235987902f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
+					if ((Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) || Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV2)) && (Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV2)))
+					{
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2, fFOVFactor);
+					}
+					else
+					{
+						fNewCameraVFOV = fCurrentCameraVFOV2;
+					}
 				}
-				else if (ctx.eax == std::bit_cast<uint32_t>(0.174532935f))
-				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.174532935f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
-				}
-				else if (ctx.eax == std::bit_cast<uint32_t>(0.06981316954f))
-				{
-					ctx.eax = std::bit_cast<uint32_t>(2.0f * atanf(tanf(0.06981316954f / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
-				}
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});
 		}
 	}
