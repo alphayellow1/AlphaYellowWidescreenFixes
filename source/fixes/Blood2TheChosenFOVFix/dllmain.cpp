@@ -26,7 +26,7 @@ HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "Blood2FOVFix";
+std::string sFixName = "Blood2TheChosenFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -50,10 +50,6 @@ float fFOVFactor;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fDefaultCameraHFOV = 1.5707963705062866f;
 constexpr float fDefaultCameraVFOV = 1.2566360235214233f;
-constexpr float fTolerance = 0.0001f;
-
-// 1.2566360235214233f, 1.256296039
-
 
 // Variables
 float fNewAspectRatio;
