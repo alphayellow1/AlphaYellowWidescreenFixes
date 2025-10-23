@@ -46,15 +46,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewCameraFOVProjection;
 float fNewCameraFOV;
-float fAspectRatioScale;
 uint8_t* CameraFOVValueAddress;
 
 // Game detection
@@ -217,6 +217,8 @@ bool DetectGame()
 	return true;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
 void FOVFix()
 {
 	if ((eGameType == Game::CC || eGameType == Game::CC_VERSION2) && bFixActive == true)
@@ -228,7 +230,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVProjectionInstructionScanResult = Memory::PatternScan(dllModule2, "B9 00 00 80 3F 89 8E 40 01 00 00 C7 46 50 00 3C 1C C6 89 8E A4 00 00 00");
 		if (CameraFOVProjectionInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Projection Instruction: Address is Engine.dll+{:x}", CameraFOVProjectionInstructionScanResult + 1 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Projection Instruction: Address is Engine.dll+{:x}", CameraFOVProjectionInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			fNewCameraFOVProjection = 1.0f / fAspectRatioScale;
 
@@ -247,11 +249,9 @@ void FOVFix()
 
 			CameraFOVValueAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);			
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVValueAddress);
 

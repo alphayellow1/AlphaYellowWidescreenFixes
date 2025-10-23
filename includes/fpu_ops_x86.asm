@@ -34,6 +34,22 @@ PUBLIC FICOMP16_from_ptr
 PUBLIC FICOMP32_from_ptr
 PUBLIC FICOMP64_from_ptr
 
+PUBLIC FSIN_from_ptr
+PUBLIC FCOS_from_ptr
+PUBLIC FSINCOS_from_ptr
+
+PUBLIC FPTAN_from_ptr
+PUBLIC FPATAN_from_ptr
+
+PUBLIC FPREM_from_ptr
+PUBLIC FPREM1_from_ptr
+
+PUBLIC FYL2X_from_ptr
+PUBLIC FYL2XP1_from_ptr
+
+PUBLIC FSCALE_from_ptr
+PUBLIC FSQRT_from_ptr
+
 ; Float (32-bit)
 PUBLIC FLD_f32_from_ptr
 PUBLIC FADD_f32_from_ptr
@@ -255,6 +271,79 @@ FIDIVR64_from_ptr PROC
     FDIVRP ST(1), ST(0)
     ret
 FIDIVR64_from_ptr ENDP
+
+FSIN_from_ptr PROC
+    mov eax, [esp+4]
+    FSIN
+    ret
+FSIN_from_ptr ENDP
+
+FCOS_from_ptr PROC
+    mov eax, [esp+4]
+    FCOS
+    ret
+FCOS_from_ptr ENDP
+
+; computes sine(st0) -> st0, pushes cosine onto stack (st0 = cos pushed, st1 = sin)
+FSINCOS_from_ptr PROC
+    mov eax, [esp+4]
+    FSINCOS
+    ret
+FSINCOS_from_ptr ENDP
+
+; partial tangent: tangent(st0) -> st0, pushes 1.0 onto stack
+FPTAN_from_ptr PROC
+    mov eax, [esp+4]
+    FPTAN
+    ret
+FPTAN_from_ptr ENDP
+
+; partial arctangent: uses ST(1)=Y and ST(0)=X; result placed appropriately per x87 semantics
+FPATAN_from_ptr PROC
+    mov eax, [esp+4]
+    FPATAN
+    ret
+FPATAN_from_ptr ENDP
+
+; partial remainder instructions
+FPREM_from_ptr PROC
+    mov eax, [esp+4]
+    FPREM
+    ret
+FPREM_from_ptr ENDP
+
+FPREM1_from_ptr PROC
+    mov eax, [esp+4]
+    FPREM1
+    ret
+FPREM1_from_ptr ENDP
+
+; logarithm helpers
+FYL2X_from_ptr PROC
+    mov eax, [esp+4]
+    FYL2X
+    ret
+FYL2X_from_ptr ENDP
+
+FYL2XP1_from_ptr PROC
+    mov eax, [esp+4]
+    FYL2XP1
+    ret
+FYL2XP1_from_ptr ENDP
+
+; scale (uses ST(0) and ST(1))
+FSCALE_from_ptr PROC
+    mov eax, [esp+4]
+    FSCALE
+    ret
+FSCALE_from_ptr ENDP
+
+; sqrt
+FSQRT_from_ptr PROC
+    mov eax, [esp+4]
+    FSQRT
+    ret
+FSQRT_from_ptr ENDP
 
 ; ----- float (32-bit) ops -----
 FLD_f32_from_ptr PROC

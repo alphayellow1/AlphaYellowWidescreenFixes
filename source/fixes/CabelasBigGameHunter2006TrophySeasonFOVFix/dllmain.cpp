@@ -46,12 +46,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 uint32_t iInsideCar;
@@ -214,37 +214,10 @@ bool DetectGame()
 	return true;
 }
 
+static SafetyHookMid InsideCarTriggerInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
-
-	if (iInsideCar == 0)
-	{
-		if (fCurrentCameraFOV == 75.0f)
-		{
-			fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-		}
-		else
-		{
-			fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-		}
-	}
-	else if (iInsideCar == 1)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
+static SafetyHookMid AspectRatioInstruction1Hook{};
+static SafetyHookMid AspectRatioInstruction2Hook{};
 
 void FOVFix()
 {
@@ -258,10 +231,8 @@ void FOVFix()
 		if (InsideCarTriggerInstructionScanResult)
 		{
 			spdlog::info("Inside Car Trigger Instruction: Address is GameDll6.dll+{:x}", InsideCarTriggerInstructionScanResult - (std::uint8_t*)dllModule3);
-
-			static SafetyHookMid InsideCarTriggerInstructionMidHook{};
-
-			InsideCarTriggerInstructionMidHook = safetyhook::create_mid(InsideCarTriggerInstructionScanResult, [](SafetyHookContext& ctx)
+			
+			InsideCarTriggerInstructionHook = safetyhook::create_mid(InsideCarTriggerInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				iInsideCar = std::bit_cast<uint32_t>(ctx.eax);
 			});
@@ -279,7 +250,32 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+
+				if (iInsideCar == 0)
+				{
+					if (fCurrentCameraFOV == 75.0f)
+					{
+						fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
+					}
+				}
+				else if (iInsideCar == 1)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
@@ -290,11 +286,9 @@ void FOVFix()
 		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
 		if (AspectRatioInstruction1ScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll6.dll+{:x}", AspectRatioInstruction1ScanResult + 6 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is EngineDll6.dll+{:x}", AspectRatioInstruction1ScanResult + 6 - (std::uint8_t*)dllModule2);			
 
-			static SafetyHookMid AspectRatioInstruction1MidHook{};
-
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / fAspectRatioScale;
 			});
@@ -310,9 +304,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction 2: Address is EngineDll6.dll+{:x}", AspectRatioInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
-			static SafetyHookMid AspectRatioInstruction2MidHook{};
-
-			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebx + 0xD8) = 1.0f;
 			});
