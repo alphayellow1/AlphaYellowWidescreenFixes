@@ -22,12 +22,11 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
-HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "MichaelSchumacherWorldTourKart2004WidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,6 +43,10 @@ std::string sExeName;
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -95,7 +98,7 @@ void Logging()
 		spdlog::info("----------");
 		spdlog::info("Module Name: {0:s}", sExeName.c_str());
 		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)dllModule);
+		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
 		spdlog::info("----------");
 		spdlog::info("DLL has been successfully loaded.");
 	}
@@ -141,8 +144,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -177,22 +182,46 @@ bool DetectGame()
 	return false;		
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
 void WidescreenFix()
 {
 	if (eGameType == Game::MSWTK2004 && bFixActive == true)
 	{
-		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "80 02 00 00 E0 01 00 00 00 00 00 00 20 03 00 00 58 02 00 00 00 00 00 00 00 04 00 00 00 03 00 00 00 00 00 00 80 04 00 00 60 03 00 00 00 00 00 00 00 05 00 00 C0 03 00 00 00 00 00 00 40 06 00 00 B0 04 00 00");
-		if (ResolutionScanResult)
+		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "80 02 00 00 E0 01 00 00 00 00 00 00 20 03 00 00 58 02 00 00 00 00 00 00 00 04 00 00 00 03 00 00 00 00 00 00 80 04 00 00 60 03 00 00 00 00 00 00 00 05 00 00 C0 03 00 00 00 00 00 00 40 06 00 00 B0 04 00 00");
+		if (ResolutionListScanResult)
 		{
-			spdlog::info("Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::Write(ResolutionScanResult + 48, iCurrentResX);
+			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionScanResult + 52, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 60, iCurrentResX);
+
+			Memory::Write(ResolutionListScanResult + 64, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution scan memory address.");
+			spdlog::error("Failed to locate resolution list scan memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 41 ?? C3");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+
+				fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
