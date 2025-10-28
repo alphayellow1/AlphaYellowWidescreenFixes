@@ -67,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::SWA, {"Snow Wave Avalahnce", "SnowBoard.exe"}},
+	{Game::SWA, {"Snow Wave Avalanche", "SnowBoard.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -201,7 +201,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 08 D8 0D B4 06 44 00 D9 44 24 0C D8 0D B4 06 44 00 D9 C9 D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Ground Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
