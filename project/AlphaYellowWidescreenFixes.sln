@@ -865,6 +865,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CrazyFrogRacerFOVFix", "Cra
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ViperRacingWidescreenFix", "ViperRacingWidescreenFix.vcxproj", "{A42255E2-E531-49A0-A6AD-AAB6AE2E3A43}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AirborneHeroDDayFrontline1944WidescreenFix", "AirborneHeroDDayFrontline1944WidescreenFix.vcxproj", "{647117B4-315A-4942-B269-9DFA9BEC2A8A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4305,6 +4307,14 @@ Global
 		{A42255E2-E531-49A0-A6AD-AAB6AE2E3A43}.Release|x64.Build.0 = Release|x64
 		{A42255E2-E531-49A0-A6AD-AAB6AE2E3A43}.Release|x86.ActiveCfg = Release|Win32
 		{A42255E2-E531-49A0-A6AD-AAB6AE2E3A43}.Release|x86.Build.0 = Release|Win32
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A}.Debug|x64.ActiveCfg = Debug|x64
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A}.Debug|x64.Build.0 = Debug|x64
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A}.Debug|x86.ActiveCfg = Debug|Win32
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A}.Debug|x86.Build.0 = Debug|Win32
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A}.Release|x64.ActiveCfg = Release|x64
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A}.Release|x64.Build.0 = Release|x64
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A}.Release|x86.ActiveCfg = Release|Win32
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -4739,6 +4749,7 @@ Global
 		{E4A275E3-8634-4D77-8FDF-D0DD4AFB5582} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{E5C46A63-E0A9-45FF-9551-EBC15B60A80B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{A42255E2-E531-49A0-A6AD-AAB6AE2E3A43} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{647117B4-315A-4942-B269-9DFA9BEC2A8A} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
