@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "RCDaredevilFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,6 @@ std::string sExeName;
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 75.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
@@ -52,9 +51,9 @@ float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
-float fNewAspectRatio2;
-float fNewCameraFOV;
 float fAspectRatioScale;
+float fNewCameraVFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -192,14 +191,6 @@ bool DetectGame()
 
 static SafetyHookMid AspectRatioInstructionHook{};
 
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewAspectRatio2]
-	}
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::RCD && bFixActive == true)
@@ -208,109 +199,21 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 4C 24 08 51 DC 0D ?? ?? ?? ?? DC 0D ?? ?? ?? ??");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 ?? D8 4C 24");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			if (std::fabs(fNewAspectRatio - (5.0f / 4.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 1.05f;
-				spdlog::info("Aspect ratio is 5:4.");
-			}
-			else if (std::fabs(fNewAspectRatio - (4.0f / 3.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 1.0f;
-				spdlog::info("Aspect ratio is 4:3.");
-			}
-			else if (std::fabs(fNewAspectRatio - (3.0f / 2.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.9190000892f;
-				spdlog::info("Aspect ratio is 3:2.");
-			}
-			else if (std::fabs(fNewAspectRatio - (16.0f / 10.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.8793799281f;
-				spdlog::info("Aspect ratio is 16:10.");
-			}
-			else if (std::fabs(fNewAspectRatio - (15.0f / 9.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.8560000658f;
-				spdlog::info("Aspect ratio is 15:9.");
-			}
-			else if (std::fabs(fNewAspectRatio - (16.0f / 9.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.8212999701f;
-				spdlog::info("Aspect ratio is 16:9.");
-			}
-			else if (std::fabs(fNewAspectRatio - (1.85f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.8026000261f;
-				spdlog::info("Aspect ratio is 1.85:1.");
-			}
-			else if (std::fabs(fNewAspectRatio - (2560.0f / 1080.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.6975000501f;
-				spdlog::info("Aspect ratio is 64:27 (2560x1080).");
-			}
-			else if ((std::fabs(fNewAspectRatio - (3440.0f / 1440.0f)) < fTolerance) ||
-				(std::fabs(fNewAspectRatio - 2.39f) < fTolerance))
-			{
-				fNewAspectRatio2 = 0.6948000789f;
-				spdlog::info("Aspect ratio is 21:9 (3440x1440) or 2.39:1.");
-			}
-			else if (std::fabs(fNewAspectRatio - (3840.0f / 1600.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.6939001083f;
-				spdlog::info("Aspect ratio is 21:9 (3840x1600).");
-			}
-			else if (std::fabs(fNewAspectRatio - (2.76f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.6500000358f;
-				spdlog::info("Aspect ratio is 2.76:1.");
-			}
-			else if (std::fabs(fNewAspectRatio - (32.0f / 10.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.6100006104f;
-				spdlog::info("Aspect ratio is 32:10.");
-			}
-			else if (std::fabs(fNewAspectRatio - (32.0f / 9.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.5863001347f;
-				spdlog::info("Aspect ratio is 32:9.");
-			}
-			else if (std::fabs(fNewAspectRatio - (15.0f / 4.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.5750004053f;
-				spdlog::info("Aspect ratio is 15:4.");
-			}
-			else if (std::fabs(fNewAspectRatio - (12.0f / 3.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.5638000965f;
-				spdlog::info("Aspect ratio is 12:3.");
-			}
-			else if (std::fabs(fNewAspectRatio - (48.0f / 10.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.5348800421f;
-				spdlog::info("Aspect ratio is 48:10.");
-			}
-			else if (std::fabs(fNewAspectRatio - (45.0f / 9.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.5292950273f;
-				spdlog::info("Aspect ratio is 45:9.");
-			}
-			else if (std::fabs(fNewAspectRatio - (48.0f / 9.0f)) < fTolerance)
-			{
-				fNewAspectRatio2 = 0.5212549567f;
-				spdlog::info("Aspect ratio is 48:9.");
-			}
-			else
-			{
-				spdlog::warn("Aspect ratio not supported, exiting the fix.");
-				return;
-			}
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 4, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x1C);
+
+				fNewCameraVFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraVFOV, 1.0f / fAspectRatioScale);
+
+				FPU::FLD(fNewCameraVFOV);
+			});
 		}
 		else
 		{
@@ -318,7 +221,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 44 24 1C 00 00 96 42 75 08 8B 06 55 8B CE FF 50 18");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 44 24 ?? ?? ?? ?? ?? 75 ?? 8B 06");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
