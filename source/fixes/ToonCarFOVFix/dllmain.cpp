@@ -67,14 +67,14 @@ enum class Game
 	Unknown
 };
 
-enum AspectRatioInstructionsScans
+enum AspectRatioInstructionsScansIndex
 {
 	MenuAspectRatioScan,
 	GameplayAspectRatioScan,
 	AnnouncerAspectRatioScan
 };
 
-enum CameraFOVInstructionsScans
+enum CameraFOVInstructionsScansIndex
 {
 	MenuCameraFOVScan,
 	GameplayCameraFOVScan,
