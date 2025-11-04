@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "FroggersAdventuresTheRescueFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,14 +44,14 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Variables
-uint32_t iCurrentResX;
-uint32_t iCurrentResY;
 float fNewAspectRatio;
-float fFOVFactor;
-float fNewCameraFOV;
 float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -187,19 +187,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xC);
-
-	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -214,17 +203,13 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid AspectRatioInstructionMidHook{};
-
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				uint32_t iNewResX = (uint32_t)(480.0f * fNewAspectRatio);
 
-				uint32_t& iCurrentResX2 = *reinterpret_cast<uint32_t*>(ctx.ecx + 0x48);
-
-				iCurrentResX2 = iNewResX;
+				*reinterpret_cast<uint32_t*>(ctx.ecx + 0x48) = iNewResX;
 			});
 		}
 		else
@@ -240,7 +225,14 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0xC);
+
+				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
