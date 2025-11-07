@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -45,16 +46,17 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fNewWeaponHFOV;
+float fNewWeaponHFOV2;
 float fNewWeaponVFOV;
 
 // Game detection
@@ -153,10 +155,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	// inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	// spdlog_confparse(fFOVFactor);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -191,19 +193,10 @@ bool DetectGame()
 	return false;	
 }
 
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
 static SafetyHookMid WeaponHFOVInstructionHook{};
-
-void WeaponHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentWeaponHFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
-
-	fNewWeaponHFOV = Maths::CalculateNewHFOV_RadBased(2.356194496155f, 1.0f / fAspectRatioScale);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewWeaponHFOV]
-	}
-}
+static SafetyHookMid WeaponVFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -213,45 +206,77 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 D0 01 00 00 89 94 24 AC 00 00 00 74 1E");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 88 D4 01 00 00 89 94 24 C4 00 00 00 8B 90 B0 00 00 00 89 8C 24 B0 00 00 00 39 A8 D8 01 00 00 89 94 24 CC 00 00 00 8B 90 D0 01 00 00");
+		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-			
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			Memory::PatchBytes(CameraFOVInstructionsScanResult + 39, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
 
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 39, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x1D0
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x1D0);
 
-				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
+				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
+			});
+
+			Memory::PatchBytes(CameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
+
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+			{
+				// Access the VFOV value at the memory address EAX + 0x1D4
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x1D4);
+
+				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 			return;
 		}
 
-		std::uint8_t* WeaponHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 8B 44 24 08 D8 0D ?? ?? ?? ??");
-		if (WeaponHFOVInstructionScanResult)
+		/*
+		std::uint8_t* WeaponFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D9 83 94 00 00 00 D9 E8 D9 F3 DC C0 D8 2D ?? ?? ?? ?? D9 5B 4C D9 83 98 00 00 00");
+		if (WeaponFOVInstructionsScanResult)
 		{
-			spdlog::info("Weapon VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Weapon FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(WeaponHFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
+			Memory::PatchBytes(WeaponFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			WeaponHFOVInstructionHook = safetyhook::create_mid(WeaponHFOVInstructionScanResult, WeaponHFOVInstructionMidHook);
+			WeaponHFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentWeaponHFOV = *reinterpret_cast<float*>(ctx.ebx + 0x94);
+
+				fNewWeaponHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentWeaponHFOV, fAspectRatioScale, fFOVFactor);
+
+				fNewWeaponHFOV2 = Maths::CalculateNewHFOV_RadBased(fNewWeaponHFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle);
+
+				FPU::FLD(fNewWeaponHFOV2);
+			});
+
+			Memory::PatchBytes(WeaponFOVInstructionsScanResult + 21, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+
+			WeaponVFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionsScanResult + 21, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentWeaponVFOV = *reinterpret_cast<float*>(ctx.ebx + 0x98);
+
+				fNewWeaponVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentWeaponVFOV, fFOVFactor);
+
+				FPU::FLD(fNewWeaponVFOV);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera VFOV instruction memory address.");
+			spdlog::error("Failed to locate weapon FOV instructions scan memory address.");
 			return;
 		}
+		*/
 	}
 }
 

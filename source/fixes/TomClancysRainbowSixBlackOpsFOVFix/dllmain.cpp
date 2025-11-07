@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TomClancysRainbowSixBlackOpsFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.0.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -45,13 +45,13 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
-float fAspectRatioScale;
+
+// Variables
 float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewCameraFOV;
 
 // Game detection
@@ -188,6 +188,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::TCRSBO && bFixActive == true)
@@ -196,18 +198,16 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 		
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 48 74 C2 04 00 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 43 ?? D8 0D ?? ?? ?? ?? D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.ecx);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x74);
 
 				if (fCurrentCameraFOV == 1.8f)
 				{
@@ -218,7 +218,7 @@ void FOVFix()
 					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
-				*reinterpret_cast<float*>(ctx.eax + 0x74) = fNewCameraFOV;
+				FPU::FLD(fNewCameraFOV);
 			});
 		}
 		else
