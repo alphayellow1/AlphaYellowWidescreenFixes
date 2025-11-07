@@ -753,37 +753,69 @@ namespace Maths
 	}
 
 	template<typename T, typename U, typename V = U>
-	inline T CalculateNewHFOV_RadBased(T currentHFOVRadians, U aspectRatioScale, V fovFactor = V(1))
+	inline T CalculateNewHFOV_RadBased(T currentHFOVRadians, U aspectRatioScale, V fovFactor = V(1), AngleMode rep = AngleMode::FullAngle)
 	{
 		T scale = static_cast<T>(aspectRatioScale);
 
 		T factor = static_cast<T>(fovFactor);
 
-		return T(2) * std::atan(factor * std::tan(currentHFOVRadians * T(0.5)) * scale);
+		if (rep == AngleMode::FullAngle)
+		{
+			return T(2) * std::atan(factor * std::tan(currentHFOVRadians * T(0.5)) * scale);
+		}
+		else if (rep == AngleMode::HalfAngle)
+		{
+			return std::atan(factor * std::tan(currentHFOVRadians) * scale);
+		}
 	}
 
 	template<typename T, typename V = T>
-	inline T CalculateNewVFOV_RadBased(T currentVFOVRadians, V fovFactor = V(1))
+	inline T CalculateNewVFOV_RadBased(T currentVFOVRadians, V fovFactor = V(1), AngleMode rep = AngleMode::FullAngle)
 	{
 		T factor = static_cast<T>(fovFactor);
 
-		return T(2) * std::atan(factor * std::tan(currentVFOVRadians * T(0.5)));
+		if (rep == AngleMode::FullAngle)
+		{
+			return T(2) * std::atan(factor * std::tan(currentVFOVRadians * T(0.5)));
+		}
+		else if (rep == AngleMode::HalfAngle)
+		{
+			return std::atan(factor * std::tan(currentVFOVRadians));
+		}
 	}
 
 	template<typename T, typename U, typename V = U>
-	inline T CalculateNewHFOV_DegBased(T currentHFOVDegrees, U aspectRatioScale, V fovFactor = V(1))
+	inline T CalculateNewHFOV_DegBased(T currentHFOVDegrees, U aspectRatioScale, V fovFactor = V(1), AngleMode rep = AngleMode::FullAngle)
 	{
-		T halfRad = std::tan(DegToRad(currentHFOVDegrees * T(0.5)));
+		if (rep == AngleMode::FullAngle)
+		{
+			T halfRad = std::tan(DegToRad(currentHFOVDegrees * T(0.5)));
 
-		return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad * static_cast<T>(aspectRatioScale)));
+			return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad * static_cast<T>(aspectRatioScale)));
+		}
+		else if (rep == AngleMode::HalfAngle)
+		{
+			T fullRad = std::tan(DegToRad(currentHFOVDegrees));
+
+			return RadToDeg(std::atan(static_cast<T>(fovFactor) * fullRad * static_cast<T>(aspectRatioScale)));
+		}
 	}
 
 	template<typename T, typename V = T>
-	inline T CalculateNewVFOV_DegBased(T currentVFOVDegrees, V fovFactor = V(1))
+	inline T CalculateNewVFOV_DegBased(T currentVFOVDegrees, V fovFactor = V(1), AngleMode rep = AngleMode::FullAngle)
 	{
-		T halfRad = std::tan(DegToRad(currentVFOVDegrees * T(0.5)));
+		if (rep == AngleMode::FullAngle)
+		{
+			T halfRad = std::tan(DegToRad(currentVFOVDegrees * T(0.5)));
 
-		return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad));
+			return RadToDeg(T(2) * std::atan(static_cast<T>(fovFactor) * halfRad));
+		}
+		else if (rep == AngleMode::HalfAngle)
+		{
+			T fullRad = std::tan(DegToRad(currentVFOVDegrees));
+
+			return RadToDeg(std::atan(static_cast<T>(fovFactor) * fullRad));
+		}
 	}
 
 	template<Integral Int>

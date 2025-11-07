@@ -44,21 +44,27 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraFOV;
-float fAspectRatioScale;
 
 // Game detection
 enum class Game
 {
 	NPB,
 	Unknown
+};
+
+enum ResolutionInstructionsIndex
+{
+	RendererResolutionScan,
+	ViewportResolution1Scan
 };
 
 struct GameInfo
@@ -188,31 +194,8 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
-
+static SafetyHookMid CameraHFOVInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x18);
-
-	if (fCurrentCameraFOV == 0.6981317401f)
-	{
-		fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = fCurrentCameraFOV;
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -227,15 +210,13 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
-				fNewCameraHFOV = CalculateNewFOV(fCurrentCameraHFOV);
+				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
@@ -253,7 +234,21 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);			
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x18);
+
+				if (fCurrentCameraFOV == 0.6981317401f)
+				{
+					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = fCurrentCameraFOV;
+				}
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
