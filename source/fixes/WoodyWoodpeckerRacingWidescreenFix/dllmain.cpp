@@ -246,9 +246,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			AspectRatioAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 23, Memory::PointerMode::Absolute);
+			AspectRatioAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 23, Memory::PointerMode::Absolute);
 
-			CameraFOVAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult + 22, "\x90\x90\x90\x90\x90", 5);
 

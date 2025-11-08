@@ -388,7 +388,7 @@ namespace Memory
 	};
 
 	template<typename T>
-	std::uint8_t* GetPointer(std::uint8_t* address, PointerMode mode) noexcept
+	std::uint8_t* GetPointerFromAddress(std::uint8_t* address, PointerMode mode) noexcept
 	{
 		if (!address) return nullptr;
 
@@ -712,17 +712,17 @@ namespace Maths
 	template<typename T, typename U>
 	inline T CalculateNewFOV_DegBased(T currentFOVDegrees, U aspectRatioScale, AngleMode rep = AngleMode::FullAngle)
 	{
-		T scale = static_cast<T>(aspectRatioScale);
+		T arScale = static_cast<T>(aspectRatioScale);
 
 		if (rep == AngleMode::FullAngle)
 		{
-			T halfRad = std::tan(DegToRad(currentFOVDegrees * T(0.5))) * scale;
+			T halfRad = std::tan(DegToRad(currentFOVDegrees * T(0.5))) * arScale;
 			return T(2) * RadToDeg(std::atan(halfRad));
 		}
 		else if (rep == AngleMode::HalfAngle)
 		{
 			T currentHalfRad = DegToRad(currentFOVDegrees);
-			T newHalfRad = std::atan(std::tan(currentHalfRad) * scale);
+			T newHalfRad = std::atan(std::tan(currentHalfRad) * arScale);
 			return RadToDeg(newHalfRad);
 		}
 	}
@@ -730,24 +730,24 @@ namespace Maths
 	template<typename T, typename U>
 	inline T CalculateNewFOV_RadBased(T currentFOVRadians, U aspectRatioScale, AngleMode rep = AngleMode::FullAngle)
 	{
-		T scale = static_cast<T>(aspectRatioScale);
+		T arScale = static_cast<T>(aspectRatioScale);
 
 		if (rep == AngleMode::FullAngle)
 		{
-			return T(2) * std::atan(std::tan(currentFOVRadians * T(0.5)) * scale);
+			return T(2) * std::atan(std::tan(currentFOVRadians * T(0.5)) * arScale);
 		}
 		else if (rep == AngleMode::HalfAngle)
 		{
-			return std::atan(std::tan(currentFOVRadians) * scale);
+			return std::atan(std::tan(currentFOVRadians) * arScale);
 		}
 	}
 
 	template<typename T, typename U>
 	inline T CalculateNewFOV_MultiplierBased(T currentFOVMultiplier, U aspectRatioScale)
 	{
-		T scale = static_cast<T>(aspectRatioScale);
+		T arScale = static_cast<T>(aspectRatioScale);
 
-		T newMultiplierFOV = currentFOVMultiplier * scale;
+		T newMultiplierFOV = currentFOVMultiplier * arScale;
 
 		return newMultiplierFOV;
 	}
@@ -755,17 +755,17 @@ namespace Maths
 	template<typename T, typename U, typename V = U>
 	inline T CalculateNewHFOV_RadBased(T currentHFOVRadians, U aspectRatioScale, V fovFactor = V(1), AngleMode rep = AngleMode::FullAngle)
 	{
-		T scale = static_cast<T>(aspectRatioScale);
+		T arScale = static_cast<T>(aspectRatioScale);
 
 		T factor = static_cast<T>(fovFactor);
 
 		if (rep == AngleMode::FullAngle)
 		{
-			return T(2) * std::atan(factor * std::tan(currentHFOVRadians * T(0.5)) * scale);
+			return T(2) * std::atan(factor * std::tan(currentHFOVRadians * T(0.5)) * arScale);
 		}
 		else if (rep == AngleMode::HalfAngle)
 		{
-			return std::atan(factor * std::tan(currentHFOVRadians) * scale);
+			return std::atan(factor * std::tan(currentHFOVRadians) * arScale);
 		}
 	}
 

@@ -394,7 +394,7 @@ void FOVChanger()
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
-			CameraFOV1Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction1ScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction1ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -411,7 +411,7 @@ void FOVChanger()
 		{
 			spdlog::info("Camera FOV Instruction 2: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
-			CameraFOV2Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction2ScanResult + 40, Memory::PointerMode::Absolute);
+			CameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction2ScanResult + 40, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult + 38, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -428,7 +428,7 @@ void FOVChanger()
 		{
 			spdlog::info("Camera FOV Instruction 3: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction3ScanResult - (std::uint8_t*)dllModule2);
 
-			CameraFOV3Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction3ScanResult + 28, Memory::PointerMode::Absolute);
+			CameraFOV3Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction3ScanResult + 28, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstruction3ScanResult + 26, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -445,7 +445,7 @@ void FOVChanger()
 		{
 			spdlog::info("Camera FOV Instruction 4: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction4ScanResult - (std::uint8_t*)dllModule2);
 
-			CameraFOV4Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction4ScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOV4Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction4ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstruction4ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -477,7 +477,7 @@ void FOVChanger()
 		{
 			spdlog::info("Actor Initialize FOV Instruction: Address is CloakNTEngine.dll+{:x}", ActorInitializeFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			ActorInitializeFOVAddress = Memory::GetPointer<uint32_t>(ActorInitializeFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			ActorInitializeFOVAddress = Memory::GetPointerFromAddress<uint32_t>(ActorInitializeFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ActorInitializeFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -494,7 +494,7 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Reload Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", WeaponReloadCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			WeaponReloadCameraFOVAddress = Memory::GetPointer<uint32_t>(WeaponReloadCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponReloadCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(WeaponReloadCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponReloadCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -511,7 +511,7 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Change Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", WeaponChangeCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			WeaponChangeCameraFOVAddress = Memory::GetPointer<uint32_t>(WeaponChangeCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponChangeCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(WeaponChangeCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponChangeCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -528,7 +528,7 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Reset Camera FOV Instruction 1: Address is CloakNTEngine.dll+{:x}", WeaponResetCameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
-			WeaponResetCamera1FOVAddress = Memory::GetPointer<uint32_t>(WeaponResetCameraFOVInstruction1ScanResult + 26, Memory::PointerMode::Absolute);
+			WeaponResetCamera1FOVAddress = Memory::GetPointerFromAddress<uint32_t>(WeaponResetCameraFOVInstruction1ScanResult + 26, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponResetCameraFOVInstruction1ScanResult + 24, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -545,7 +545,7 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Reset Camera FOV Instruction 2: Address is CloakNTEngine.dll+{:x}", WeaponResetCameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
 
-			WeaponResetCamera2FOVAddress = Memory::GetPointer<uint32_t>(WeaponResetCameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponResetCamera2FOVAddress = Memory::GetPointerFromAddress<uint32_t>(WeaponResetCameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponResetCameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -562,7 +562,7 @@ void FOVChanger()
 		{
 			spdlog::info("Weapon Pickup Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", WeaponPickupCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			WeaponPickupCameraFOVAddress = Memory::GetPointer<uint32_t>(WeaponPickupCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponPickupCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(WeaponPickupCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponPickupCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -579,7 +579,7 @@ void FOVChanger()
 		{
 			spdlog::info("Starting Sprint Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", StartingSprintCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			StartingSprintCameraFOVAddress = Memory::GetPointer<uint32_t>(StartingSprintCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			StartingSprintCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(StartingSprintCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(StartingSprintCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

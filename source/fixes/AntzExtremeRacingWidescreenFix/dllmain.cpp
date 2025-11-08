@@ -285,53 +285,53 @@ void WidescreenFix()
 
 			spdlog::info("Viewport Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Viewport2Scan] - (std::uint8_t*)exeModule);
 
-			ResolutionWidth1Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 2, Memory::PointerMode::Absolute);
+			ResolutionWidth1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeight1Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 8, Memory::PointerMode::Absolute);
+			ResolutionHeight1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 8, Memory::PointerMode::Absolute);
 
-			ResolutionWidth2Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution2Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution2Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight2Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution2Scan] + 8, Memory::PointerMode::Absolute);
+			ResolutionHeight2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution2Scan] + 8, Memory::PointerMode::Absolute);
 
-			ResolutionWidth3Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution3Scan] + 2, Memory::PointerMode::Absolute);
+			ResolutionWidth3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution3Scan] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeight3Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution3Scan] + 16, Memory::PointerMode::Absolute);
+			ResolutionHeight3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution3Scan] + 16, Memory::PointerMode::Absolute);
 
-			ResolutionWidth6Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 2, Memory::PointerMode::Absolute);
+			ResolutionWidth6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeight6Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 11, Memory::PointerMode::Absolute);
+			ResolutionHeight6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 11, Memory::PointerMode::Absolute);
 
-			ResolutionWidth7Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight7Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 9, Memory::PointerMode::Absolute);
+			ResolutionHeight7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 9, Memory::PointerMode::Absolute);
 
-			ResolutionWidth8Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution8Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth8Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution8Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight8Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution8Scan] + 10, Memory::PointerMode::Absolute);
+			ResolutionHeight8Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution8Scan] + 10, Memory::PointerMode::Absolute);
 
-			ResolutionWidth9Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution9Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth9Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution9Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight9Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution9Scan] + 10, Memory::PointerMode::Absolute);
+			ResolutionHeight9Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution9Scan] + 10, Memory::PointerMode::Absolute);
 
-			ResolutionWidth10Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution10Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth10Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution10Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight10Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution10Scan] + 14, Memory::PointerMode::Absolute);
+			ResolutionHeight10Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution10Scan] + 14, Memory::PointerMode::Absolute);
 
-			ResolutionWidth11Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution11Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth11Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution11Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight11Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution11Scan] + 7, Memory::PointerMode::Absolute);
+			ResolutionHeight11Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution11Scan] + 7, Memory::PointerMode::Absolute);
 
-			ResolutionWidth12Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution12Scan] + 12, Memory::PointerMode::Absolute);
+			ResolutionWidth12Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution12Scan] + 12, Memory::PointerMode::Absolute);
 
-			ResolutionHeight12Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution12Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionHeight12Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution12Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionWidth13Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution13Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth13Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution13Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight13Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution13Scan] + 7, Memory::PointerMode::Absolute);
+			ResolutionHeight13Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution13Scan] + 7, Memory::PointerMode::Absolute);
 
-			ResolutionWidth14Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution14Scan] + 12, Memory::PointerMode::Absolute);
+			ResolutionWidth14Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution14Scan] + 12, Memory::PointerMode::Absolute);
 
-			ResolutionHeight14Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution14Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionHeight14Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution14Scan] + 1, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 

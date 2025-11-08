@@ -263,7 +263,7 @@ void FOVFix()
 		{
 			spdlog::info("HUD Vertical Position Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDVerticalPositionInstructionScanResult - (std::uint8_t*)exeModule);
 
-			fCurrentHUDVerticalPositionAddress = Memory::GetPointer<uint32_t>(HUDVerticalPositionInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			fCurrentHUDVerticalPositionAddress = Memory::GetPointerFromAddress<uint32_t>(HUDVerticalPositionInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(HUDVerticalPositionInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

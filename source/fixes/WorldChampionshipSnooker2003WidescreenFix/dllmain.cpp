@@ -247,13 +247,13 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidth1Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 2, Memory::PointerMode::Absolute);
+			ResolutionWidth1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeight1Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 8, Memory::PointerMode::Absolute);
+			ResolutionHeight1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 8, Memory::PointerMode::Absolute);
 
-			ResolutionWidth2Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 34, Memory::PointerMode::Absolute);
+			ResolutionWidth2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 34, Memory::PointerMode::Absolute);
 
-			ResolutionHeight2Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 40, Memory::PointerMode::Absolute);
+			ResolutionHeight2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 40, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
@@ -289,9 +289,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions2ScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidth3Address = Memory::GetPointer<uint32_t>(ResolutionInstructions2ScanResult + 2, Memory::PointerMode::Absolute);
+			ResolutionWidth3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeight3Address = Memory::GetPointer<uint32_t>(ResolutionInstructions2ScanResult + 22, Memory::PointerMode::Absolute);
+			ResolutionHeight3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 22, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructions2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -322,9 +322,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions3ScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidth4Address = Memory::GetPointer<uint32_t>(ResolutionInstructions3ScanResult + 61, Memory::PointerMode::Absolute);
+			ResolutionWidth4Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions3ScanResult + 61, Memory::PointerMode::Absolute);
 
-			ResolutionHeight4Address = Memory::GetPointer<uint32_t>(ResolutionInstructions3ScanResult + 1, Memory::PointerMode::Absolute);
+			ResolutionHeight4Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions3ScanResult + 1, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructions3ScanResult + 59, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -355,13 +355,13 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions4ScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidth5Address = Memory::GetPointer<uint32_t>(ResolutionInstructions4ScanResult + 9, Memory::PointerMode::Absolute);
+			ResolutionWidth5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions4ScanResult + 9, Memory::PointerMode::Absolute);
 
-			ResolutionHeight5Address = Memory::GetPointer<uint32_t>(ResolutionInstructions4ScanResult + 1, Memory::PointerMode::Absolute);
+			ResolutionHeight5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions4ScanResult + 1, Memory::PointerMode::Absolute);
 
-			ResolutionWidth6Address = Memory::GetPointer<uint32_t>(ResolutionInstructions4ScanResult + 43, Memory::PointerMode::Absolute);
+			ResolutionWidth6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions4ScanResult + 43, Memory::PointerMode::Absolute);
 
-			ResolutionHeight6Address = Memory::GetPointer<uint32_t>(ResolutionInstructions4ScanResult + 35, Memory::PointerMode::Absolute);
+			ResolutionHeight6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions4ScanResult + 35, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructions4ScanResult + 7, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -410,9 +410,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions5ScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidth7Address = Memory::GetPointer<uint32_t>(ResolutionInstructions5ScanResult + 7, Memory::PointerMode::Absolute);
+			ResolutionWidth7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions5ScanResult + 7, Memory::PointerMode::Absolute);
 
-			ResolutionHeight7Address = Memory::GetPointer<uint32_t>(ResolutionInstructions5ScanResult + 2, Memory::PointerMode::Absolute);
+			ResolutionHeight7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions5ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructions5ScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
 
@@ -436,9 +436,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 6 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions6ScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidth8Address = Memory::GetPointer<uint32_t>(ResolutionInstructions6ScanResult + 10, Memory::PointerMode::Absolute);
+			ResolutionWidth8Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions6ScanResult + 10, Memory::PointerMode::Absolute);
 
-			ResolutionHeight8Address = Memory::GetPointer<uint32_t>(ResolutionInstructions6ScanResult + 2, Memory::PointerMode::Absolute);
+			ResolutionHeight8Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions6ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructions6ScanResult + 8, "\x90\x90\x90\x90\x90\x90", 6);
 

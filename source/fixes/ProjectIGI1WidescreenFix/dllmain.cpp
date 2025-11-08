@@ -309,7 +309,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Inside Computer Instruction: Address is{:s} + {:x}", sExeName.c_str(), InsideComputerInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint8_t* InsideComputerValueAddress = Memory::GetPointer<uint32_t>(InsideComputerInstructionScanResult + 1, Memory::PointerMode::Absolute);
+			uint8_t* InsideComputerValueAddress = Memory::GetPointerFromAddress<uint32_t>(InsideComputerInstructionScanResult + 1, Memory::PointerMode::Absolute);
 
 			iInsideComputer = reinterpret_cast<int8_t*>(InsideComputerValueAddress);
 		}
@@ -352,7 +352,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			WeaponFOVValue1Address = Memory::GetPointer<uint32_t>(WeaponFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponFOVValue1Address = Memory::GetPointerFromAddress<uint32_t>(WeaponFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -369,7 +369,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Weapon FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			WeaponFOVValue2Address = Memory::GetPointer<uint32_t>(WeaponFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponFOVValue2Address = Memory::GetPointerFromAddress<uint32_t>(WeaponFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -386,7 +386,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Weapon FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
 
-			WeaponFOVValue3Address = Memory::GetPointer<uint32_t>(WeaponFOVInstruction3ScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponFOVValue3Address = Memory::GetPointerFromAddress<uint32_t>(WeaponFOVInstruction3ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

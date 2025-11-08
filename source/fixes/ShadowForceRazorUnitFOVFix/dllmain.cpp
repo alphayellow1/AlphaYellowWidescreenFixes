@@ -298,7 +298,7 @@ void FOVFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			WeaponFOVValueAddress = Memory::GetPointer<uint32_t>(WeaponFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			WeaponFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(WeaponFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

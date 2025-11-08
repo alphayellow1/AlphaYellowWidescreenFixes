@@ -284,21 +284,21 @@ void WidescreenFix()
 
 			spdlog::info("Camera FOV Instruction 8: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV8Scan] - (std::uint8_t*)exeModule);
 
-			CameraFOV1Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 2, Memory::PointerMode::Absolute);
 
-			CameraFOV2Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 2, Memory::PointerMode::Absolute);
 
-			CameraFOV3Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV3Scan] + 1, Memory::PointerMode::Absolute);
+			CameraFOV3Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV3Scan] + 1, Memory::PointerMode::Absolute);
 
-			CameraFOV4Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV4Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV4Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV4Scan] + 2, Memory::PointerMode::Absolute);
 
-			CameraFOV5Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV5Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV5Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV5Scan] + 2, Memory::PointerMode::Absolute);
 
-			CameraFOV6Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV6Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV6Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV6Scan] + 2, Memory::PointerMode::Absolute);
 
-			CameraFOV7Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV7Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV7Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV7Scan] + 2, Memory::PointerMode::Absolute);
 
-			CameraFOV8Address = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV8Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV8Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV8Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 

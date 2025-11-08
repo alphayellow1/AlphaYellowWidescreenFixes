@@ -217,9 +217,9 @@ void FOVFix()
 
 			spdlog::info("Camera VFOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraVFOVScan] - (std::uint8_t*)exeModule);
 
-			CameraHFOVAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraHFOVScan] + 2, Memory::PointerMode::Absolute);
+			CameraHFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraHFOVScan] + 2, Memory::PointerMode::Absolute);
 
-			CameraVFOVAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionsScansResult[CameraVFOVScan] + 2, Memory::PointerMode::Absolute);
+			CameraVFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraVFOVScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraHFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 

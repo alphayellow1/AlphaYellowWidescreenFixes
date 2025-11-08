@@ -291,13 +291,13 @@ void WidescreenFix()
 
 			spdlog::info("Resolution Instructions 7 Scan: Address is PTBase.dll+{:x}", ResolutionInstructionsScansResult[Resolution7Scan] - (std::uint8_t*)dllModule4);
 
-			ResolutionWidth6Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 2, Memory::PointerMode::Absolute);
+			ResolutionWidth6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeight6Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 8, Memory::PointerMode::Absolute);
+			ResolutionHeight6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 8, Memory::PointerMode::Absolute);
 
-			ResolutionWidth7Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight7Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 17, Memory::PointerMode::Absolute);
+			ResolutionHeight7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 17, Memory::PointerMode::Absolute);
 
 			/*
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90\x90", 4);
@@ -437,7 +437,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is vision.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			CameraFOVAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -454,7 +454,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera HFOV Instruction: Address is vision.dll+{:x}", CameraHFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			CameraHFOVAddress = Memory::GetPointer<uint32_t>(CameraHFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			CameraHFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraHFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

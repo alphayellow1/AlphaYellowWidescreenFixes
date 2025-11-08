@@ -315,7 +315,7 @@ void FOVFix()
 		{
 			spdlog::info("Is Player on a Race Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), IsPlayerOnARaceTriggerInstructionScanResult - (std::uint8_t*)exeModule);
 
-			IsPlayerOnARaceTriggerAddress = Memory::GetPointer<uint32_t>(IsPlayerOnARaceTriggerInstructionScanResult + 1, Memory::PointerMode::Absolute);
+			IsPlayerOnARaceTriggerAddress = Memory::GetPointerFromAddress<uint32_t>(IsPlayerOnARaceTriggerInstructionScanResult + 1, Memory::PointerMode::Absolute);
 
 			static SafetyHookMid IsPlayerOnARaceTriggerInstructionMidHook{};
 

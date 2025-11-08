@@ -310,7 +310,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera Zoom FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			CameraZoomAddress = Memory::GetPointer<uint32_t>(CameraZoomFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			CameraZoomAddress = Memory::GetPointerFromAddress<uint32_t>(CameraZoomFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraZoomFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

@@ -272,7 +272,7 @@ void ApplyD3DFix(HMODULE dllModule)
 
 	if (bD3DPatched.load())
 	{
-		// Already applied — skip.
+		// Already applied ï¿½ skip.
 		return;
 	}
 
@@ -289,17 +289,17 @@ void ApplyD3DFix(HMODULE dllModule)
 
 		spdlog::info("Resolution Instructions 5 Scan: Address is D3DDRV.DLL+{:x}", ResolutionInstructionsScans2Result[Resolution5Scan] - (std::uint8_t*)dllModule);
 
-		ResolutionWidth3Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScans2Result[Resolution3Scan] + 2, Memory::PointerMode::Absolute);
+		ResolutionWidth3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScans2Result[Resolution3Scan] + 2, Memory::PointerMode::Absolute);
 
-		ResolutionHeight3Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScans2Result[Resolution3Scan] + 14, Memory::PointerMode::Absolute);
+		ResolutionHeight3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScans2Result[Resolution3Scan] + 14, Memory::PointerMode::Absolute);
 		
-		ResolutionWidth4Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScans2Result[Resolution4Scan] + 2, Memory::PointerMode::Absolute);
+		ResolutionWidth4Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScans2Result[Resolution4Scan] + 2, Memory::PointerMode::Absolute);
 		
-		ResolutionHeight4Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScans2Result[Resolution4Scan] + 13, Memory::PointerMode::Absolute);
+		ResolutionHeight4Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScans2Result[Resolution4Scan] + 13, Memory::PointerMode::Absolute);
 
-		ResolutionWidth5Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScans2Result[Resolution5Scan] + 2, Memory::PointerMode::Absolute);
+		ResolutionWidth5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScans2Result[Resolution5Scan] + 2, Memory::PointerMode::Absolute);
 
-		ResolutionHeight5Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScans2Result[Resolution5Scan] + 8, Memory::PointerMode::Absolute);
+		ResolutionHeight5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScans2Result[Resolution5Scan] + 8, Memory::PointerMode::Absolute);
 
 		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution3Scan], "\x90\x90\x90\x90\x90\x90", 6);
 

@@ -215,17 +215,17 @@ void WidescreenFix()
 
 			spdlog::info("Gameplay Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[GameplayResolutionScan] - (std::uint8_t*)exeModule);
 
-			MainMenuResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 2, Memory::PointerMode::Absolute);
+			MainMenuResolutionWidthAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 2, Memory::PointerMode::Absolute);
 
-			MainMenuResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 9, Memory::PointerMode::Absolute);
+			MainMenuResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 9, Memory::PointerMode::Absolute);
 
-			MainMenuBitDepthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 16, Memory::PointerMode::Absolute);
+			MainMenuBitDepthAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 16, Memory::PointerMode::Absolute);
 
-			GameplayResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 9, Memory::PointerMode::Absolute);
+			GameplayResolutionWidthAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 9, Memory::PointerMode::Absolute);
 
-			GameplayResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 3, Memory::PointerMode::Absolute);
+			GameplayResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 3, Memory::PointerMode::Absolute);
 
-			GameplayBitDepthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 16, Memory::PointerMode::Absolute);
+			GameplayBitDepthAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[GameplayResolutionScan] + 16, Memory::PointerMode::Absolute);
 
 			static SafetyHookMid MainMenuResolutionWidthInstructionMidHook{};
 
