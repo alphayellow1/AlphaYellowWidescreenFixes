@@ -50,6 +50,7 @@ float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
+float fNewAspectRatio2;
 float fNewCameraFOV;
 float fNewCameraFOV2;
 
@@ -256,7 +257,18 @@ void FOVFix()
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
 			{
-				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
+				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0xBC);
+
+				if (fCurrentAspectRatio == 1.333299994f)
+				{
+					fNewAspectRatio2 = fNewAspectRatio;
+				}
+				else
+				{
+					fNewAspectRatio2 = fCurrentAspectRatio;
+				}
+
+				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio2);
 			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
