@@ -66,9 +66,7 @@ enum AspectRatioInstructionsIndex
 	AspectRatio1Scan,
 	AspectRatio2Scan,
 	AspectRatio3Scan,
-	AspectRatio4Scan,
-	AspectRatio5Scan,
-	AspectRatio6Scan
+	AspectRatio4Scan
 };
 
 enum CameraFOVInstructionsIndex
