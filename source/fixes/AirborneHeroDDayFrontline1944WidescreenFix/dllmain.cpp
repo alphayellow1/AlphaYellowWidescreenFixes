@@ -277,9 +277,9 @@ void WidescreenFix()
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			ResolutionWidth5Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight5Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 13, Memory::PointerMode::Absolute);
+			ResolutionHeight5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 13, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution5Scan], "\x90\x90\x90\x90\x90", 5);
 
@@ -321,7 +321,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			CameraFOVAddress = Memory::GetPointer<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

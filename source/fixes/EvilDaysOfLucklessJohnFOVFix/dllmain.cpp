@@ -44,23 +44,23 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	EDOLJGE,
-	EDOLJEN,
-	EDOLJES,
-	EDOLJFR,
-	EDOLJIT,
+	EDOLJ_GE,
+	EDOLJ_EN,
+	EDOLJ_ES,
+	EDOLJ_FR,
+	EDOLJ_IT,
 	Unknown
 };
 
@@ -71,11 +71,11 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::EDOLJGE, {"Evil Days of Luckless Days (GERMAN)", "enginede.exe"}},
-	{Game::EDOLJEN, {"Evil Days of Luckless Days (ENGLISH)", "engineen.exe"}},
-	{Game::EDOLJES, {"Evil Days of Luckless Days (SPANISH)", "enginees.exe"}},
-	{Game::EDOLJFR, {"Evil Days of Luckless Days (FRENCH)", "enginefr.exe"}},
-	{Game::EDOLJIT, {"Evil Days of Luckless Days (ITALIAN)", "engineit.exe"}},
+	{Game::EDOLJ_GE, {"Evil Days of Luckless Days (GERMAN)", "enginede.exe"}},
+	{Game::EDOLJ_EN, {"Evil Days of Luckless Days (ENGLISH)", "engineen.exe"}},
+	{Game::EDOLJ_ES, {"Evil Days of Luckless Days (SPANISH)", "enginees.exe"}},
+	{Game::EDOLJ_FR, {"Evil Days of Luckless Days (FRENCH)", "enginefr.exe"}},
+	{Game::EDOLJ_IT, {"Evil Days of Luckless Days (ITALIAN)", "engineit.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -195,9 +195,11 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
 void FOVFix()
 {
-	if ((eGameType == Game::EDOLJEN || eGameType == Game::EDOLJES || eGameType == Game::EDOLJFR || eGameType == Game::EDOLJGE || eGameType == Game::EDOLJIT) && bFixActive == true)
+	if ((eGameType == Game::EDOLJ_EN || eGameType == Game::EDOLJ_ES || eGameType == Game::EDOLJ_FR || eGameType == Game::EDOLJ_GE || eGameType == Game::EDOLJ_IT) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -219,11 +221,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Reference the de-referenced [EBX+650] pointer that contains the current camera FOV
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x650);

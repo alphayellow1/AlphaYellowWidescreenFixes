@@ -202,7 +202,7 @@ void FOVFix()
 		{
 			spdlog::info("Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), HipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			HipfireCameraFOVValueAddress = Memory::GetPointer<uint32_t>(HipfireCameraFOVInstructionScanResult + 4, Memory::PointerMode::Absolute);
+			HipfireCameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(HipfireCameraFOVInstructionScanResult + 4, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
 

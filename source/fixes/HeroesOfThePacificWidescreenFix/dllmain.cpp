@@ -426,7 +426,7 @@ void WidescreenFix()
 
 			BriefingScreenAspectRatioInstruction1Hook = safetyhook::create_mid(BriefingScreenAspectRatioAndCameraFOVInstructions1ScanResult + 23, BriefingScreenAspectRatioInstruction1MidHook);
 
-			BriefingScreenCameraFOV1Address = Memory::GetPointer<uint32_t>(BriefingScreenAspectRatioAndCameraFOVInstructions1ScanResult + 2, Memory::PointerMode::Absolute);
+			BriefingScreenCameraFOV1Address = Memory::GetPointerFromAddress<uint32_t>(BriefingScreenAspectRatioAndCameraFOVInstructions1ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(BriefingScreenAspectRatioAndCameraFOVInstructions1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -447,7 +447,7 @@ void WidescreenFix()
 
 			BriefingScreenAspectRatioInstruction2Hook = safetyhook::create_mid(BriefingScreenAspectRatioAndCameraFOVInstructions2ScanResult + 22, BriefingScreenAspectRatioInstruction2MidHook);
 
-			BriefingScreenCameraFOV2Address = Memory::GetPointer<uint32_t>(BriefingScreenAspectRatioAndCameraFOVInstructions2ScanResult + 2, Memory::PointerMode::Absolute);
+			BriefingScreenCameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(BriefingScreenAspectRatioAndCameraFOVInstructions2ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(BriefingScreenAspectRatioAndCameraFOVInstructions2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

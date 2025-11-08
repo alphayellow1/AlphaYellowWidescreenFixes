@@ -355,11 +355,11 @@ void FOVFix()
 		{
 			spdlog::info("Hipfire & Zoom Camera FOV Instructions Scan: Address is Bos.dll+{:x}", HipfireAndZoomCameraFOVInstructionsScanResult - (std::uint8_t*)dllModule3);
 
-			HipfireCameraFOVAddress = Memory::GetPointer<uint32_t>(HipfireAndZoomCameraFOVInstructionsScanResult + 1, Memory::PointerMode::Absolute);
+			HipfireCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(HipfireAndZoomCameraFOVInstructionsScanResult + 1, Memory::PointerMode::Absolute);
 
-			ShieldZoomFOVAddress = Memory::GetPointer<uint32_t>(HipfireAndZoomCameraFOVInstructionsScanResult + 7, Memory::PointerMode::Absolute);
+			ShieldZoomFOVAddress = Memory::GetPointerFromAddress<uint32_t>(HipfireAndZoomCameraFOVInstructionsScanResult + 7, Memory::PointerMode::Absolute);
 
-			StandardZoomFOVAddress = Memory::GetPointer<uint32_t>(HipfireAndZoomCameraFOVInstructionsScanResult + 17, Memory::PointerMode::Absolute);
+			StandardZoomFOVAddress = Memory::GetPointerFromAddress<uint32_t>(HipfireAndZoomCameraFOVInstructionsScanResult + 17, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(HipfireAndZoomCameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
 

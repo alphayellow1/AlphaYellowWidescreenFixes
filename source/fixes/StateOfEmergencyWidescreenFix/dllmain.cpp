@@ -299,7 +299,7 @@ void FOVFix()
 		{
 			spdlog::info("Culling Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), CullingInstructions1ScanResult - (std::uint8_t*)exeModule);
 
-			HorizontalCullingAddress = Memory::GetPointer<uint32_t>(CullingInstructions1ScanResult + 2, Memory::PointerMode::Absolute);
+			HorizontalCullingAddress = Memory::GetPointerFromAddress<uint32_t>(CullingInstructions1ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CullingInstructions1ScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 10);
 

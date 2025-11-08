@@ -379,9 +379,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidthAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 24, Memory::PointerMode::Absolute);
+			ResolutionWidthAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 24, Memory::PointerMode::Absolute);
 
-			ResolutionHeightAddress = Memory::GetPointer<uint32_t>(ResolutionInstructionsScanResult + 30, Memory::PointerMode::Absolute);
+			ResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 30, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
@@ -418,7 +418,7 @@ void WidescreenFix()
 
 			Memory::Write(AspectRatioAndCameraFOVInstructionsScanResult + 9, fNewAspectRatio);
 
-			CameraFOVAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

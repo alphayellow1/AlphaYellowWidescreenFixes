@@ -270,21 +270,21 @@ void WidescreenFix()
 
 			spdlog::info("Resolution Instructions 7 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution7Scan] - (std::uint8_t*)dllModule2);
 
-			ResolutionWidth1Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 2, Memory::PointerMode::Absolute);
+			ResolutionWidth1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeight1Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 8, Memory::PointerMode::Absolute);
+			ResolutionHeight1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution1Scan] + 8, Memory::PointerMode::Absolute);
 
-			ResolutionWidth5Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 8, Memory::PointerMode::Absolute);
+			ResolutionWidth5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 8, Memory::PointerMode::Absolute);
 
-			ResolutionHeight5Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 2, Memory::PointerMode::Absolute);
+			ResolutionHeight5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionWidth6Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 8, Memory::PointerMode::Absolute);
+			ResolutionWidth6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 8, Memory::PointerMode::Absolute);
 
-			ResolutionHeight6Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 2, Memory::PointerMode::Absolute);
+			ResolutionHeight6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution6Scan] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionWidth7Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight7Address = Memory::GetPointer<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 61, Memory::PointerMode::Absolute);
+			ResolutionHeight7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 61, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 

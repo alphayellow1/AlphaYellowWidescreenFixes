@@ -339,7 +339,7 @@ void FOVFix()
             {
                 spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-                CameraFOV1Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction1ScanResult + 2, Memory::PointerMode::Absolute);
+                CameraFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction1ScanResult + 2, Memory::PointerMode::Absolute);
                 
                 Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -361,7 +361,7 @@ void FOVFix()
             {
                 spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
                 
-                CameraFOV2Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
+                CameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
 
                 Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
                 
@@ -383,7 +383,7 @@ void FOVFix()
             {
                 spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
 
-                CameraFOV3Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction3ScanResult + 2, Memory::PointerMode::Absolute);
+                CameraFOV3Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction3ScanResult + 2, Memory::PointerMode::Absolute);
 
                 Memory::PatchBytes(CameraFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

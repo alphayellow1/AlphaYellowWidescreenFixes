@@ -305,9 +305,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions1ScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidth1Address = Memory::GetPointer<uint32_t>(ResolutionInstructions1ScanResult + 8, Memory::PointerMode::Absolute);
+			ResolutionWidth1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions1ScanResult + 8, Memory::PointerMode::Absolute);
 
-			ResolutionHeight1Address = Memory::GetPointer<uint32_t>(ResolutionInstructions1ScanResult + 2, Memory::PointerMode::Absolute);
+			ResolutionHeight1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions1ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructions1ScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
@@ -331,9 +331,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions2ScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidth2Address = Memory::GetPointer<uint32_t>(ResolutionInstructions2ScanResult + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight2Address = Memory::GetPointer<uint32_t>(ResolutionInstructions2ScanResult + 9, Memory::PointerMode::Absolute);
+			ResolutionHeight2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 9, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ResolutionInstructions2ScanResult, "\x90\x90\x90\x90\x90", 5);
 
@@ -364,9 +364,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions3ScanResult - (std::uint8_t*)exeModule);
 			
-			ResolutionWidth3Address = Memory::GetPointer<uint32_t>(ResolutionInstructions3ScanResult + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions3ScanResult + 1, Memory::PointerMode::Absolute);
 			
-			ResolutionHeight3Address = Memory::GetPointer<uint32_t>(ResolutionInstructions3ScanResult + 7, Memory::PointerMode::Absolute);
+			ResolutionHeight3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions3ScanResult + 7, Memory::PointerMode::Absolute);
 			
 			Memory::PatchBytes(ResolutionInstructions3ScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
 
@@ -390,9 +390,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions4ScanResult - (std::uint8_t*)exeModule);
 			
-			ResolutionWidth4Address = Memory::GetPointer<uint32_t>(ResolutionInstructions4ScanResult + 2, Memory::PointerMode::Absolute);
+			ResolutionWidth4Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions4ScanResult + 2, Memory::PointerMode::Absolute);
 			
-			ResolutionHeight4Address = Memory::GetPointer<uint32_t>(ResolutionInstructions4ScanResult + 7, Memory::PointerMode::Absolute);
+			ResolutionHeight4Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions4ScanResult + 7, Memory::PointerMode::Absolute);
 			
 			Memory::PatchBytes(ResolutionInstructions4ScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
 			

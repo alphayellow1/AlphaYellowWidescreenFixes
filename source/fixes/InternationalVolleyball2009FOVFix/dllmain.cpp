@@ -303,7 +303,7 @@ void FOVFix()
 		{
 			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			GameplayCameraFOVAddress = Memory::GetPointer<uint32_t>(GameplayCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			GameplayCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(GameplayCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(GameplayCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 

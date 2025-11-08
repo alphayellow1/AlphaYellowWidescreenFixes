@@ -53,9 +53,7 @@ float fFOVFactor;
 float fAspectRatioScale;
 float fNewAspectRatio;
 float fNewAspectRatio2;
-float fNewAspectRatio3;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
+float fNewCameraFOV;
 float fNewHorizontalRes;
 uint8_t* AspectRatioAddress;
 uint8_t* CameraFOVAddress;
@@ -194,15 +192,9 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid AspectRatioAndCameraFOVInstructions1Hook{};
+static SafetyHookMid AspectRatioAndCameraFOVInstructions2Hook{};
 static SafetyHookMid CullingCameraFOVInstructionHook{};
-
-void CullingCameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewHorizontalRes]
-	}
-}
 
 void WidescreenFix()
 {
@@ -259,60 +251,41 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio & Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			AspectRatioAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 7, Memory::PointerMode::Absolute);
+			AspectRatioAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 7, Memory::PointerMode::Absolute);
 
-			CameraFOVAddress = Memory::GetPointer<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
 
-			static SafetyHookMid AspectRatioAndCameraFOVInstructions1Hook{};
-
 			AspectRatioAndCameraFOVInstructions1Hook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio1 = *reinterpret_cast<float*>(AspectRatioAddress);
+				float& fCurrentAspectRatio = *reinterpret_cast<float*>(AspectRatioAddress);
 
-				fNewAspectRatio2 = fCurrentAspectRatio1 / fAspectRatioScale;
+				fNewAspectRatio2 = fCurrentAspectRatio / fAspectRatioScale;
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio2);
 
-				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(CameraFOVAddress);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
 
-				if (fCurrentCameraFOV1 == 1.875f)
+				if (fCurrentCameraFOV == 1.875f)
 				{
-					fNewCameraFOV1 = fCurrentCameraFOV1 / fFOVFactor;
+					fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
 				}
 				else
 				{
-					fNewCameraFOV1 = fCurrentCameraFOV1;
+					fNewCameraFOV = fCurrentCameraFOV;
 				}
 
-				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 
-			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult + 24, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
-
-			static SafetyHookMid AspectRatioAndCameraFOVInstructions2Hook{};
+			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult + 24, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);			
 
 			AspectRatioAndCameraFOVInstructions2Hook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult + 24, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio2 = *reinterpret_cast<float*>(AspectRatioAddress);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio2);
 
-				fNewAspectRatio3 = fCurrentAspectRatio2 / fAspectRatioScale;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio3);
-
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOVAddress);
-
-				if (fCurrentCameraFOV2 == 1.875f)
-				{
-					fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV2 = fCurrentCameraFOV2;
-				}
-
-				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV2);
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else
@@ -330,7 +303,10 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CullingCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CullingCameraFOVInstructionHook = safetyhook::create_mid(CullingCameraFOVInstructionScanResult, CullingCameraFOVInstructionMidHook);
+			CullingCameraFOVInstructionHook = safetyhook::create_mid(CullingCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(fNewHorizontalRes);
+			});
 		}
 		else
 		{

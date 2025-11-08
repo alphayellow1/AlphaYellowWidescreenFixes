@@ -254,7 +254,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction 2: Address is CloakNTEngine.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
 			
-			CameraFOV2Address = Memory::GetPointer<uint32_t>(CameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
 			

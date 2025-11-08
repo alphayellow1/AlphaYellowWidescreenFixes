@@ -314,7 +314,7 @@ void FOVFix()
 		{
 			spdlog::info("Hipfire Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), HipfireCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			HipfireCameraFOVValueAddress = Memory::GetPointer<uint32_t>(HipfireCameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
+			HipfireCameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(HipfireCameraFOVInstruction2ScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(HipfireCameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -331,7 +331,7 @@ void FOVFix()
 		{
 			spdlog::info("Zoom Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ZoomCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			ZoomCameraFOVValueAddress = Memory::GetPointer<uint32_t>(ZoomCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			ZoomCameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(ZoomCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
