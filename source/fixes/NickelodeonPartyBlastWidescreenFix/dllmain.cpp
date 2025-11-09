@@ -25,8 +25,8 @@ HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "NickelodeonPartyBlastFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "NickelodeonPartyBlastWidescreenFix";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,6 +53,7 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraFOV;
+int iNewHorizontalRes;
 
 // Game detection
 enum class Game
@@ -64,7 +65,10 @@ enum class Game
 enum ResolutionInstructionsIndex
 {
 	RendererResolutionScan,
-	ViewportResolution1Scan
+	ViewportResolution1Scan,
+	ViewportResolution2Scan,
+	ViewportResolution3Scan,
+	ViewportResolution4Scan
 };
 
 struct GameInfo
@@ -150,7 +154,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -194,16 +198,94 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid RendererResolutionInstructionsHook{};
+static SafetyHookMid ViewportResolutionWidthInstruction1Hook{};
+static SafetyHookMid ViewportResolutionHeightInstruction1Hook{};
+static SafetyHookMid ViewportResolutionWidthInstruction2Hook{};
+static SafetyHookMid ViewportResolutionHeightInstruction2Hook{};
+static SafetyHookMid ViewportResolutionWidthInstruction3Hook{};
+static SafetyHookMid ViewportResolutionHeightInstruction3Hook{};
+static SafetyHookMid ViewportResolutionWidthInstruction4Hook{};
 static SafetyHookMid CameraHFOVInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void FOVFix()
+void WidescreenFix()
 {
 	if (eGameType == Game::NPB && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB", "8B 4D ?? A1 ?? ?? ?? ?? 89 4C 24", "8B 4E ?? 89 54 24 ?? 8B 56 ?? 89 44 24 ?? A1", "DB 41 ?? 56", "DB 05 ?? ?? ?? ?? C7 44 24 5C 00 00 00 00 C7 44 24 60 00 00 00 3F C7 44 24 6C 00 00 00 00 C7 44 24 70 00 00 00 3F D8 0D ?? ?? ?? ?? C7 44 24 7C 00 00 00 00 C7 84 24 80 00 00 00 00 00 00 3F C7 84 24 8C 00 00 00 00 00 00 00 C7 84 24 90 00 00 00 00 00 00 3F D8 08 C7 84 24 9C 00 00 00 00 00 00 00 C7 84 24 A0 00 00 00 00 00 00 3F C7 84 24 AC 00 00 00 00 00 00 00 C7 84 24 B0 00 00 00 00 00 00 3F 8D 6C 24 58 8D B4 24 B4 00 00 00 D9 18 DB 05 ?? ?? ?? ?? 8B 08 89 4C 24 74 89 8C 24 84 00 00 00 D8 0D ?? ?? ?? ?? D8 48 08 D9 58 08 DB 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 48 04 D9 58 04 DB 05 ?? ?? ?? ??");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		{
+			spdlog::info("Renderer Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResolutionScan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Viewport Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Viewport Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution2Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Viewport Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution3Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Viewport Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution4Scan] - (std::uint8_t*)exeModule);
+
+			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolutionScan], [](SafetyHookContext& ctx)
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
+
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution1Scan], "\x90\x90\x90", 3);
+
+			ViewportResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution1Scan], [](SafetyHookContext& ctx)
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution1Scan] + 12, "\x90\x90\x90", 3);
+
+			ViewportResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution1Scan] + 12, [](SafetyHookContext& ctx)
+			{
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution2Scan], "\x90\x90\x90", 3);
+
+			ViewportResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan], [](SafetyHookContext& ctx)
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 7, "\x90\x90\x90", 3);
+
+			ViewportResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 7, [](SafetyHookContext& ctx)
+			{
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution3Scan], "\x90\x90\x90", 3);
+
+			iNewHorizontalRes = (int)(640.0f * fAspectRatioScale);
+
+			ViewportResolutionWidthInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution3Scan], [](SafetyHookContext& ctx)
+			{
+				FPU::FILD(iNewHorizontalRes);
+			});
+
+			int* iNewHorizontalResPtr = &iCurrentResX;
+
+			int* iNewVerticalResPtr = &iCurrentResY;
+
+			Memory::Write(ResolutionInstructionsScansResult[ViewportResolution4Scan] + 2, iNewHorizontalResPtr);
+
+			Memory::Write(ResolutionInstructionsScansResult[ViewportResolution4Scan] + 146, iNewHorizontalResPtr);
+
+			Memory::Write(ResolutionInstructionsScansResult[ViewportResolution4Scan] + 177, iNewVerticalResPtr);
+
+			Memory::Write(ResolutionInstructionsScansResult[ViewportResolution4Scan] + 195, iNewVerticalResPtr);
+		}
 
 		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0 D9 5E 70");
 		if (CameraHFOVInstructionScanResult)
@@ -264,7 +346,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }
