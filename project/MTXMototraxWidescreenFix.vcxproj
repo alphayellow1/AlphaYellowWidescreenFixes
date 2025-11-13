@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{b66d3e6d-1693-41c7-ae44-5c545fe92ba1}</ProjectGuid>
-    <RootNamespace>MTXMototraxFOVFix</RootNamespace>
+    <ProjectGuid>{c21d6654-8e8a-4d15-b409-5351e178a9a6}</ProjectGuid>
+    <RootNamespace>MTXMototraxWidescreenFix</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -72,8 +72,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetExt>.asi</TargetExt>
-    <IncludePath>..\external\inipp;..\external\safetyhook;..\external\spdlog\include;..\includes;;$(IncludePath)</IncludePath>
-    <ExternalIncludePath />
+    <IncludePath>..\external\inipp;..\external\safetyhook;..\external\spdlog\include;..\includes;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -98,17 +97,15 @@
       <LanguageStandard>stdcpp23</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <DebugInformationFormat>None</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
+      <Profile>true</Profile>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <AdditionalOptions />
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -134,15 +131,13 @@
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp" />
     <ClCompile Include="..\external\safetyhook\Zydis.c" />
-    <ClCompile Include="..\source\fixes\MTXMototraxFOVFix\dllmain.cpp" />
+    <ClCompile Include="..\source\fixes\MTXMototraxWidescreenFix\dllmain.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
