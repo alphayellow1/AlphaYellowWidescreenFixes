@@ -885,6 +885,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MuscleCar3IllegalStreetWide
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TonkaSpaceStationWidescreenFix", "TonkaSpaceStationWidescreenFix.vcxproj", "{3DBDB82D-CDC6-4468-8F9C-B3AB01A9FBBB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Starsky&HutchFOVFix", "Starsky&HutchFOVFix.vcxproj", "{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4405,6 +4407,14 @@ Global
 		{3DBDB82D-CDC6-4468-8F9C-B3AB01A9FBBB}.Release|x64.Build.0 = Release|x64
 		{3DBDB82D-CDC6-4468-8F9C-B3AB01A9FBBB}.Release|x86.ActiveCfg = Release|Win32
 		{3DBDB82D-CDC6-4468-8F9C-B3AB01A9FBBB}.Release|x86.Build.0 = Release|Win32
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}.Debug|x64.ActiveCfg = Debug|x64
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}.Debug|x64.Build.0 = Debug|x64
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}.Debug|x86.ActiveCfg = Debug|Win32
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}.Debug|x86.Build.0 = Debug|Win32
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}.Release|x64.ActiveCfg = Release|x64
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}.Release|x64.Build.0 = Release|x64
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}.Release|x86.ActiveCfg = Release|Win32
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -4849,6 +4859,7 @@ Global
 		{757F2B11-3E5C-495A-BE57-0C297CBE8968} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{69E8C6F7-E659-4C1C-A10B-AE0A2C0B46E9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{3DBDB82D-CDC6-4468-8F9C-B3AB01A9FBBB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{02D15B67-CDBC-42AD-A36C-BB2B75FBF6EA} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
