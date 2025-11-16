@@ -41,20 +41,19 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fFOVFactor;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -190,67 +189,8 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewHFOVWithoutFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewHFOVWithFOVFactor(float fCurrentHFOV)
-{
-	return 2.0f * atanf((fFOVFactor * tanf(fCurrentHFOV / 2.0f)) * fAspectRatioScale);
-}
-
-float CalculateNewVFOVWithoutFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentVFOV / 2.0f));
-}
-
-float CalculateNewVFOVWithFOVFactor(float fCurrentVFOV)
-{
-	return 2.0f * atanf(fFOVFactor * tanf(fCurrentVFOV / 2.0f));
-}
-
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
-
-	if (fCurrentCameraHFOV == 1.39626348f)
-	{
-		fNewCameraHFOV = CalculateNewHFOVWithFOVFactor(fCurrentCameraHFOV);
-	}
-	else
-	{
-		fNewCameraHFOV = CalculateNewHFOVWithoutFOVFactor(fCurrentCameraHFOV);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
-
-	if (fCurrentCameraVFOV == 1.04719758f)
-	{
-		fNewCameraVFOV = CalculateNewVFOVWithFOVFactor(fCurrentCameraVFOV);
-	}
-	else
-	{
-		fNewCameraVFOV = fCurrentCameraVFOV;
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -267,11 +207,39 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+
+				if (fCurrentCameraHFOV == 1.39626348f)
+				{
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
+				}
+				else
+				{
+					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraHFOV);
+			});
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 48, "\x90\x90\x90\x90", 4);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 48, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 48, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+
+				if (fCurrentCameraVFOV == 1.04719758f)
+				{
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
+				}
+				else
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV;
+				}
+
+				FPU::FLD(fNewCameraVFOV);
+			});
 		}
 		else
 		{

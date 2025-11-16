@@ -43,18 +43,18 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
 float fNewAspectRatio;
-float fFOVFactor;
+float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-float fAspectRatioScale;
 
 // Game detection
 enum class Game
@@ -190,6 +190,9 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::MCC && bFixActive == true)
@@ -203,11 +206,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
@@ -227,11 +228,9 @@ void FOVFix()
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
 			{
 				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
 

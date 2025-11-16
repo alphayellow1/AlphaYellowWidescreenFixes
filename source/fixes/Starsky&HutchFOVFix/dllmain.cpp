@@ -26,7 +26,7 @@ HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "IndianaJonesAndTheInfernalMachineFOVFix";
+std::string sFixName = "Starsky&HutchFOVFix";
 std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
@@ -53,11 +53,12 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
+uint8_t* CameraFOVAddress;
 
 // Game detection
 enum class Game
 {
-	IJATIM,
+	SH,
 	Unknown
 };
 
@@ -68,7 +69,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::IJATIM, {"Indiana Jones and the Infernal Machine", "Indy3D.exe"}},
+	{Game::SH, {"Starsky & Hutch", "StarskyPC.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -192,26 +193,35 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
-	if (eGameType == Game::IJATIM && bFixActive == true)
+	if (eGameType == Game::SH && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D9 C9 D9 5C 24 ?? D8 74 24");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 55 ?? D8 35 ?? ?? ?? ?? 51");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
 
-				fNewCameraFOV = (fCurrentCameraFOV / fAspectRatioScale) / fFOVFactor;
+				if (fCurrentCameraFOV == 85.0f)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
 
-				FPU::FLD(fNewCameraFOV);
+				FPU::FMUL(fNewCameraFOV);
 			});
 		}
 		else

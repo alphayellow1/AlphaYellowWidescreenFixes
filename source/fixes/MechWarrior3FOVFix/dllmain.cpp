@@ -45,15 +45,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fFOVFactor;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -190,32 +190,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
-
-	fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
-
-	fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -232,11 +207,25 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 4, "\x90\x90\x90\x90", 4);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 4, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 4, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
+
+				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
+
+				FPU::FLD(fNewCameraHFOV);
+			});
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 			
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
+
+				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
+
+				FPU::FLD(fNewCameraVFOV);
+			});
 		}
 		else
 		{
