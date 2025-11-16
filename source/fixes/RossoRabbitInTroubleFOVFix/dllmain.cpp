@@ -24,7 +24,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "RossoRabbitInTroubleFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -185,12 +185,12 @@ void FOVFix()
 {
 	if (eGameType == Game::RRIT && bFixActive == true)
 	{
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
 		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "8D 86 B0 00 00 00 68 ?? ?? ?? ?? 50 E8 48 A7 00 00");
 		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 7 - (std::uint8_t*)exeModule);
-
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 7 - (std::uint8_t*)exeModule);			
 
 			Memory::Write(AspectRatioScanResult + 7, fNewAspectRatio);
 		}
