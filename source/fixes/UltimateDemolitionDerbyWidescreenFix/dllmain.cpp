@@ -277,18 +277,6 @@ void ViewportResolutionHeightInstruction49MidHook(SafetyHookContext& ctx)
 
 static SafetyHookMid CameraVFOVInstructionHook{};
 
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fCurrentCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
-
-	fNewCameraVFOV = (fCurrentCameraVFOV * fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fmul dword ptr ds:[fNewCameraVFOV]
-	}
-}
-
 void WidescreenFix()
 {
 	if (eGameType == Game::UDD && bFixActive == true)
@@ -1512,7 +1500,14 @@ void WidescreenFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 44, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 44, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 44, [](SafetyHookContext& ctx)
+			{
+				fCurrentCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
+
+				fNewCameraVFOV = (fCurrentCameraVFOV * fAspectRatioScale) * fFOVFactor;
+
+				FPU::FMUL(fNewCameraVFOV);
+			});
 		}
 		else
 		{
