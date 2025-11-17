@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "TheHistoryChannelCivilWarANationDividedFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -210,6 +210,10 @@ bool DetectGame()
 	return true;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid ZoomCameraFOVInstructionHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::THCCWAND && bFixActive == true)
@@ -223,11 +227,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xB0);
 
@@ -258,9 +260,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
 			
-			static SafetyHookMid CameraFOVInstruction2MidHook{};
-			
-			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOV2Address);
 
@@ -282,9 +282,7 @@ void FOVFix()
 			
 			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 			
-			static SafetyHookMid ZoomCameraFOVInstructionMidHook{};
-			
-			ZoomCameraFOVInstructionMidHook = safetyhook::create_mid(ZoomCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			ZoomCameraFOVInstructionHook = safetyhook::create_mid(ZoomCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentZoomCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x8);				
 				
