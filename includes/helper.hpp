@@ -13,6 +13,7 @@
 #include <spdlog/spdlog.h>
 #include <variant>
 #include <bit>
+#include <chrono>
 
 template<typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -379,6 +380,34 @@ namespace Memory
 		std::uint8_t* absoluteAddress = address + 4 + offset;
 
 		return absoluteAddress;
+	}
+
+	static HMODULE GetHandle(const std::string& moduleName, unsigned int retryDelayMs = 200, int maxAttempts = 0)
+	{
+		// attempt counter
+		int attempts = 0;
+
+		while (true)
+		{
+			HMODULE h = GetModuleHandleA(moduleName.c_str());
+			if (h != nullptr)
+			{
+				spdlog::info("Obtained handle for {}: 0x{:x}", moduleName, reinterpret_cast<uintptr_t>(h));
+				return h;
+			}
+
+			++attempts;
+
+			// If maxAttempts > 0 and we've exhausted them, log and return nullptr
+			if (maxAttempts > 0 && attempts >= maxAttempts)
+			{
+				spdlog::error("Failed to get handle of {}.", moduleName);
+				return nullptr;
+			}
+
+			// Sleep before trying again
+			std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
+		}
 	}
 
 	enum class PointerMode
