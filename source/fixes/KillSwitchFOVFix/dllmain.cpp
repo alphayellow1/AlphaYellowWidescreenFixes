@@ -45,12 +45,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCutscenesCameraFOV;
 float fNewGameplayCameraFOV;
@@ -190,39 +190,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CutscenesCameraFOVInstructionHook{};
-
-void CutscenesCameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCutscenesCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
-
-	fNewCutscenesCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCutscenesCameraFOV, fAspectRatioScale);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCutscenesCameraFOV]
-	}
-}
-
 static SafetyHookMid GameplayCameraFOVInstructionHook{};
-
-void GameplayCameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x54);
-
-	if (fCurrentGameplayCameraFOV == 0.7853981853f)
-	{
-		fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayCameraFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewGameplayCameraFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -239,7 +207,14 @@ void FOVFix()
 
 			Memory::PatchBytes(CutscenesCameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, CutscenesCameraFOVInstructionMidHook);
+			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CutscenesCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCutscenesCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
+
+				fNewCutscenesCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCutscenesCameraFOV, fAspectRatioScale);
+
+				FPU::FLD(fNewCutscenesCameraFOV);
+			});
 		}
 		else
 		{
@@ -254,7 +229,21 @@ void FOVFix()
 
 			Memory::PatchBytes(GameplayCameraFOVInstructionScanResult, "\x90\x90\x90", 3);			
 
-			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, GameplayCameraFOVInstructionMidHook);			
+			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x54);
+
+				if (fCurrentGameplayCameraFOV == 0.7853981853f)
+				{
+					fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayCameraFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewGameplayCameraFOV);
+			});
 		}
 		else
 		{
