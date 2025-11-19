@@ -53,6 +53,7 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
+float fNewCameraFOV3;
 uint8_t* CameraFOV1Address;
 uint8_t* CameraFOV2OffsetAddress;
 
@@ -66,7 +67,8 @@ enum class Game
 enum CameraFOVInstructionsIndex
 {
 	CameraFOV1Scan,
-	CameraFOV2Scan
+	CameraFOV2Scan,
+	CameraFOV3Scan
 };
 
 struct GameInfo
@@ -207,12 +209,14 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 15 ?? ?? ?? ?? D9 1D", "D9 81 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 0D");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 15 ?? ?? ?? ?? D9 1D", "D9 81 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 0D", "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 33 F6");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)exeModule);
 
 			CameraFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 2, Memory::PointerMode::Absolute);
 
@@ -239,6 +243,10 @@ void FOVFix()
 
 				FPU::FLD(fNewCameraFOV2);
 			});
+
+			fNewCameraFOV3 = 500.0f / fAspectRatioScale;
+
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV3Scan] + 6, fNewCameraFOV3);
 		}
 	}
 }
