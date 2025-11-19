@@ -46,14 +46,14 @@ constexpr float fOriginalCameraFOV = 90.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
-float fNewCameraFOV;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -219,7 +219,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 6 - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = fFOVFactor * Maths::CalculateNewFOV_DegBased(fOriginalCameraFOV, fAspectRatioScale);
+			fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fOriginalCameraFOV, fAspectRatioScale) * fFOVFactor;
 
 			Memory::Write(CameraFOVInstructionScanResult + 6, fNewCameraFOV);
 		}
