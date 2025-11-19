@@ -239,19 +239,19 @@ void FOVFix()
 
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult;
 
-		if (D3D6DLLHandle != nullptr)
+		if (D3D6DLLHandle)
 		{
 			CameraFOVInstructionsScansResult = Memory::PatternScan(EngineDLLHandle, "D9 82 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24", RenderDLLHandle, "D9 81 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24");
 		}
-		if (D3D8DLLHandle != nullptr)
+		if (D3D8DLLHandle)
 		{
 			CameraFOVInstructionsScansResult = Memory::PatternScan(EngineDLLHandle, "D9 82 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24", RenderDLLHandle, "D9 81 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24", D3D8DLLHandle, "D9 81 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24");
 		}
-		else if (D3D9DLLHandle != nullptr)
+		else if (D3D9DLLHandle)
 		{
 			CameraFOVInstructionsScansResult = Memory::PatternScan(EngineDLLHandle, "D9 82 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24", RenderDLLHandle, "D9 81 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24", D3D9DLLHandle, "D9 81 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24");
 		}
-		else if (OpenGLDLLHandle != nullptr)
+		else if (OpenGLDLLHandle)
 		{
 			CameraFOVInstructionsScansResult = Memory::PatternScan(EngineDLLHandle, "D9 82 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24", RenderDLLHandle, "D9 81 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24", OpenGLDLLHandle, "D9 80 EC 02 00 00 DC 0D ?? ?? ?? ?? DD 1C 24");
 		}
@@ -262,15 +262,15 @@ void FOVFix()
 
 			spdlog::info("Camera FOV Instruction 2: Address is Render.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)RenderDLLHandle);
 
-			if (D3D8DLLHandle != nullptr)
+			if (D3D8DLLHandle)
 			{
 				spdlog::info("Camera FOV Instruction 3: Address is D3D8Drv.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)D3D8DLLHandle);
 			}
-			else if (D3D9DLLHandle != nullptr)
+			else if (D3D9DLLHandle)
 			{
 				spdlog::info("Camera FOV Instruction 3: Address is D3D9Drv.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)D3D9DLLHandle);
 			}
-			else if (OpenGLDLLHandle != nullptr)
+			else if (OpenGLDLLHandle)
 			{
 				spdlog::info("Camera FOV Instruction 3: Address is OpenGLDrv.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)OpenGLDLLHandle);
 			}
@@ -281,7 +281,10 @@ void FOVFix()
 			{
 				fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.edx + 0x2EC);
 
-				fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
+				if (fCurrentCameraFOV1 != fNewCameraFOV1)
+				{
+					fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
+				}				
 
 				FPU::FLD(fNewCameraFOV1);
 			});
@@ -292,18 +295,21 @@ void FOVFix()
 			{
 				fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x2EC);
 
-				fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
+				if (fCurrentCameraFOV2 != fNewCameraFOV2)
+				{
+					fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
+				}
 
 				FPU::FLD(fNewCameraFOV2);
 			});
 
-			if (D3D6DLLHandle != nullptr)
+			if (D3D8DLLHandle || D3D9DLLHandle || OpenGLDLLHandle)
 			{
 				Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
 				CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], [](SafetyHookContext& ctx)
 				{
-					if (OpenGLDLLHandle != nullptr)
+					if (OpenGLDLLHandle)
 					{
 						fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.eax + 0x2EC);
 					}
@@ -312,7 +318,10 @@ void FOVFix()
 						fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.ecx + 0x2EC);
 					}
 
-					fNewCameraFOV3 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
+					if (fCurrentCameraFOV3 != fNewCameraFOV3)
+					{
+						fNewCameraFOV3 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
+					}
 
 					FPU::FLD(fNewCameraFOV3);
 				});
