@@ -247,7 +247,7 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[MenuAspectRatioScan], "\x90\x90\x90", 3);
 
-			RacesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[RacesAspectRatioScan], [](SafetyHookContext& ctx)
+			MenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[MenuAspectRatioScan], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentMenuAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x30);
 
