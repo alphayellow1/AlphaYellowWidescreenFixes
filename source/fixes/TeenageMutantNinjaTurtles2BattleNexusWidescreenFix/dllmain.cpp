@@ -26,8 +26,8 @@ HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "TeenageMutantNinjaTurtles2BattleNexusFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "TeenageMutantNinjaTurtles2BattleNexusWidescreenFix";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -62,6 +62,13 @@ enum class Game
 {
 	TMNT2BN,
 	Unknown
+};
+
+enum ResolutionInstructionsIndex
+{
+	RendererResolutionScan,
+	ViewportResolution1Scan,
+	ViewportResolution2Scan
 };
 
 enum AspectRatioInstructionsIndex
@@ -159,7 +166,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -203,6 +210,12 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid RendererResolutionWidthInstructionHook{};
+static SafetyHookMid RendererResolutionHeightInstructionHook{};
+static SafetyHookMid ViewportResolutionWidthInstruction1Hook{};
+static SafetyHookMid ViewportResolutionHeightInstruction1Hook{};
+static SafetyHookMid ViewportResolutionWidthInstruction2Hook{};
+static SafetyHookMid ViewportResolutionHeightInstruction2Hook{};
 static SafetyHookMid GameplayAspectRatioInstructionHook{};
 static SafetyHookMid CutscenesAspectRatioInstructionHook{};
 static SafetyHookMid GameplayCameraFOVInstructionHook{};
@@ -213,13 +226,61 @@ void AspectRatioInstructionsMidHook(SafetyHookContext& ctx)
 	FPU::FMUL(fNewAspectRatio2);
 }
 
-void FOVFix()
+void WidescreenFix()
 {
 	if (eGameType == Game::TMNT2BN && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;		
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 08 89 0D ?? ?? ?? ?? 8B 50 ?? 89 15 ?? ?? ?? ?? C7 05", "89 46 ?? 8B 3D", "A3 ?? ?? ?? ?? 8B 11 FF 52");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		{
+			spdlog::info("Renderer Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResolutionScan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Viewport Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Viewport Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution2Scan] - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolutionScan], "\x90\x90", 2);
+
+			RendererResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolutionScan], [](SafetyHookContext& ctx)
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolutionScan] + 8, "\x90\x90\x90", 3);
+
+			RendererResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolutionScan] + 8, [](SafetyHookContext& ctx)
+			{
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution1Scan], "\x90\x90\x90", 3);
+
+			ViewportResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution1Scan], [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ctx.esi + 0xC) = iCurrentResX;
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution1Scan] + 33, "\x90\x90\x90", 3);
+
+			ViewportResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution1Scan] + 33, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ctx.esi + 0x10) = iCurrentResY;
+			});
+
+			ViewportResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan], [](SafetyHookContext& ctx)
+			{
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
+			});
+
+			ViewportResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 16, [](SafetyHookContext& ctx)
+			{
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+		}
 
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 51 D9 5C 24 ?? 8B 53", "D8 0D ?? ?? ?? ?? 51 D9 5C 24 ?? 8B 50");		
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
@@ -279,7 +340,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }
