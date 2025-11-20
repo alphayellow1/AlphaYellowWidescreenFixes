@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "SearchAndRescueVietnamMedEvacWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -60,6 +60,16 @@ enum class Game
 {
 	SARVME,
 	Unknown
+};
+
+enum ResolutionInstructionsIndex
+{
+	MainMenuResolution1Scan,
+	MainMenuResolution2Scan,
+	MainMenuResolution3Scan,
+	Resolution1600x1200Scan,
+	Resolution1280x960Scan,
+	Resolution800x600Scan
 };
 
 struct GameInfo
@@ -189,6 +199,9 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
+
 void WidescreenFix()
 {
 	if (eGameType == Game::SARVME && bFixActive == true)
@@ -197,73 +210,67 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		// If both width and height values have 4 digits, then write the resolution values in place of the 1600x1200 one
-		if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 4)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "20 03 00 00 58 02 00 00 10 00 00 00 01 00 00 00 08 7E 51 00", "58 02 00 00 7D 24 8B CE F7 D9 3B C1 7E 1C 8B 15 4C D5 59 00 50 8B 45 08 68 20 03 00 00", "C7 05 EC E2 59 00 20 03 00 00 C7 05 F0 E2 59 00 58 02 00 00", "31 36 30 30 20 78 20 31 32 30 30 20 78 20 33 32", "31 32 38 30 20 78 20 39 36 30 20 78 20 33 32", "38 30 30 20 78 20 36 30 30 20 78 20 33 32");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			std::uint8_t* Resolution1600x1200ScanResult = Memory::PatternScan(exeModule, "31 36 30 30 20 78 20 31 32 30 30 20 78 20 33 32");
-			if (Resolution1600x1200ScanResult)
+			spdlog::info("Main Menu Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolution1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Main Menu Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolution2Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Main Menu Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolution3Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1600x1200Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution 1280x960 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1280x960Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution800x600Scan] - (std::uint8_t*)exeModule);
+
+			// Main menu resolution
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution1Scan], iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution1Scan] + 4, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution2Scan] + 25, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution2Scan], iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution3Scan] + 6, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution3Scan] + 16, iCurrentResY);
+
+			// If both width and height values have 4 digits, then write the resolution values in place of the 1600x1200 one
+			if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 4)
 			{
-				spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
+				Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1600x1200Scan], iCurrentResX);
 
-				Memory::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult, iCurrentResX);
-
-				Memory::WriteNumberAsChar8Digits(Resolution1600x1200ScanResult + 7, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1600x1200Scan] + 7, iCurrentResY);
 			}
-			else
+
+			// If width has 4 digits and height has 3 digits, then write the resolution values in place of the 1280x960 one
+			if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 3)
 			{
-				spdlog::error("Failed to locate resolution 1600x1200 scan memory address.");
-				return;
-			}
-		}
+				Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1280x960Scan], iCurrentResX);
 
-		// If width has 4 digits and height has 3 digits, then write the resolution values in place of the 1280x960 one
-		if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 3)
-		{
-			std::uint8_t* Resolution1280x960ScanResult = Memory::PatternScan(exeModule, "31 32 38 30 20 78 20 39 36 30 20 78 20 33 32");
-			if (Resolution1280x960ScanResult)
+				Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1280x960Scan] + 7, iCurrentResY);
+			}
+
+			// If both width and height values have 3 digits, then write the resolution values in place of the 800x600 one
+			if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
 			{
-				spdlog::info("Resolution 1280x960 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1280x960ScanResult - (std::uint8_t*)exeModule);
+				Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution800x600Scan], iCurrentResX);
 
-				Memory::WriteNumberAsChar8Digits(Resolution1280x960ScanResult, iCurrentResX);
-
-				Memory::WriteNumberAsChar8Digits(Resolution1280x960ScanResult + 7, iCurrentResY);
+				Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution800x600Scan] + 6, iCurrentResY);
 			}
-			else
-			{
-				spdlog::error("Failed to locate resolution 1280x960 scan memory address.");
-				return;
-			}
-		}
-
-		// If both width and height values have 3 digits, then write the resolution values in place of the 800x600 one
-		if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
-		{
-			std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(exeModule, "38 30 30 20 78 20 36 30 30 20 78 20 33 32");
-			if (Resolution800x600ScanResult)
-			{
-				spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult - (std::uint8_t*)exeModule);
-				
-				Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult, iCurrentResX);
-
-				Memory::WriteNumberAsChar8Digits(Resolution800x600ScanResult + 6, iCurrentResY);
-			}
-			else
-			{
-				spdlog::error("Failed to locate resolution 800x600 scan memory address.");
-				return;
-			}
-		}
+		}		
 		
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Store the value inside the ECX register into a float variable
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
@@ -275,11 +282,9 @@ void WidescreenFix()
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);
+			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
 			{
 				// Calculate the new VFOV based on the new HFOV and aspect ratio
 				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
