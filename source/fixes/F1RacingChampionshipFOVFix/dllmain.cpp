@@ -51,7 +51,8 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewAspectRatio2;
+float fNewMenuAspectRatio;
+float fNewRacesAspectRatio;
 float fNewCameraFOV;
 
 // Game detection
@@ -59,6 +60,12 @@ enum class Game
 {
 	F1RC,
 	Unknown
+};
+
+enum AspectRatioInstructionsIndex
+{
+	MenuAspectRatioScan,
+	RacesAspectRatioScan
 };
 
 struct GameInfo
@@ -188,8 +195,9 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid MenuAspectRatioInstructionHook{};
+static SafetyHookMid RacesAspectRatioInstructionHook{};
 
 void FOVFix()
 {
@@ -230,27 +238,36 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "E8 7D 68 F0 FF 8B 46 1C 8B 4E 18 8B 56 14");
-		if (AspectRatioInstructionScanResult)
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D9 46 ?? D8 76 ?? 8B 56", "E8 7D 68 F0 FF 8B 46 1C 8B 4E 18 8B 56 14");
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[MenuAspectRatioScan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult + 11, "\x90\x90\x90", 3);
+			spdlog::info("Races Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[RacesAspectRatioScan] + 11 - (std::uint8_t*)exeModule);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 11, [](SafetyHookContext& ctx)
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[MenuAspectRatioScan], "\x90\x90\x90", 3);
+
+			RacesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[RacesAspectRatioScan], [](SafetyHookContext& ctx)
 			{
-				// Stores the derreferenced memory address represented by ESI + 14 into a float variable reference
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x14);
+				float& fCurrentMenuAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x30);
 
-				fNewAspectRatio2 = Maths::CalculateNewFOV_MultiplierBased(fCurrentAspectRatio, fAspectRatioScale);
+				fNewMenuAspectRatio = Maths::CalculateNewFOV_MultiplierBased(fCurrentMenuAspectRatio, 1.0f / fAspectRatioScale);
 
-				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio2);
+				FPU::FLD(fNewMenuAspectRatio);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
-			return;
+
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[RacesAspectRatioScan] + 11, "\x90\x90\x90", 3);
+
+			RacesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[RacesAspectRatioScan] + 11, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentRacesAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x14);
+
+				spdlog::info("[Hook] Raw incoming races aspect ratio: {:.12f}", fCurrentRacesAspectRatio);
+
+				fNewRacesAspectRatio = Maths::CalculateNewFOV_MultiplierBased(fCurrentRacesAspectRatio, 1.0f / fAspectRatioScale);
+
+				ctx.edx = std::bit_cast<uintptr_t>(fNewRacesAspectRatio);
+			});
 		}
 	}
 }
