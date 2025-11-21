@@ -15,7 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\fixes\GTR400FOVFix\dllmain.cpp">
+    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x86.asm">
+      <Filter>Arquivos de Origem</Filter>
+    </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\source\fixes\GTR400WidescreenFix\dllmain.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
@@ -24,10 +29,5 @@
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x86.asm">
-      <Filter>Arquivos de Origem</Filter>
-    </MASM>
   </ItemGroup>
 </Project>
