@@ -191,25 +191,6 @@ bool DetectGame()
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0xAB8);
-
-	if (fCurrentCameraFOV == 90.0f || fCurrentCameraFOV == 120.0f)
-	{
-		fNewCameraFOV = fFOVFactor * Maths::CalculateNewFOV_DegBased(90.0f, fAspectRatioScale);
-	}
-	else
-	{
-		fNewCameraFOV = fCurrentCameraFOV;
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::FLORIBELLA && bFixActive == true)
@@ -225,7 +206,17 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0xAB8);
+
+				if (fCurrentCameraFOV != fNewCameraFOV)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}				
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
