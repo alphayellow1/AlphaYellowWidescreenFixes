@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "SWAT3FOVChanger";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,6 +41,9 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+
+// Constants
+constexpr float fDefaultCameraFOV = 1.0471975803375244f;
 
 // Variables
 float fNewCameraFOV;
@@ -166,18 +169,6 @@ bool DetectGame()
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x8C);
-
-	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
-
 void FOVChanger()
 {
 	if (eGameType == Game::S3 && bFixActive == true)
@@ -189,7 +180,21 @@ void FOVChanger()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x8C);
+
+				if (fCurrentCameraFOV == fDefaultCameraFOV)
+				{
+					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = fCurrentCameraFOV;
+				}
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
