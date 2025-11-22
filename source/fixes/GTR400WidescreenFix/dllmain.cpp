@@ -45,12 +45,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 float fNewCameraFOV2;
@@ -66,7 +66,8 @@ enum ResolutionInstructionsIndex
 {
 	Resolution1Scan,
 	Resolution2Scan,
-	Resolution3Scan
+	Resolution3Scan,
+	Resolution4Scan
 };
 
 enum CameraFOVInstructionsIndex
@@ -217,7 +218,7 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? A1 ?? ?? ?? ?? 57", "A3 ?? ?? ?? ?? 7D ?? D8 05 ?? ?? ?? ?? 85 C0", "8B 86 ?? ?? ?? ?? 85 C0 A3");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? A1 ?? ?? ?? ?? 57", "A3 ?? ?? ?? ?? 7D ?? D8 05 ?? ?? ?? ?? 85 C0", "8B 86 ?? ?? ?? ?? 85 C0 A3", "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB ?? 68 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? 83 C4 ?? 85 C0 75 ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB ?? 68 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? 83 C4 ?? 85 C0 75 ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB ?? 68 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? 83 C4 ?? 85 C0 75 ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Resolution Width Instruction 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
@@ -225,6 +226,8 @@ void WidescreenFix()
 			spdlog::info("Resolution Height Instruction 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution4Scan] - (std::uint8_t*)exeModule);
 
 			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
 			{
@@ -249,6 +252,16 @@ void WidescreenFix()
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 6, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 36, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 66, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 96, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 126, iCurrentResX);
 		}
 
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 C9 89 51");
