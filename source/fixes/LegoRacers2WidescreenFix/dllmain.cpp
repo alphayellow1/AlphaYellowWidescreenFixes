@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "LegoRacers2WidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,7 +40,6 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalCameraFOV = 90.0f;
 
@@ -53,13 +52,20 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fNewCameraFOV1;
+float fNewCameraFOV2;
 
 // Game detection
 enum class Game
 {
 	LR2,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndex
+{
+	CameraFOV1Scan,
+	CameraFOV2Scan
 };
 
 struct GameInfo
@@ -189,6 +195,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstruction1Hook{};
+
 void WidescreenFix()
 {
 	if (eGameType == Game::LR2 && bFixActive == true)
@@ -214,19 +222,27 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 83 A4 01 00 00 00 00 B4 42 8B 54 24 1C 8D 86 68 01 00 00 8B C8");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 8E ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 96 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 F2 DD D8 DB 44 24 ?? DA 74 24 ?? DE C9 D9 E8 D9 F3 DC C0 D9 9E ?? ?? ?? ?? D9 86", "C7 83 A4 01 00 00 00 00 B4 42 8B 54 24 1C 8D 86 68 01 00 00 8B C8");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fOriginalCameraFOV, fAspectRatioScale) * fFOVFactor;
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraFOVInstructionScanResult + 6, fNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV scan memory address.");
-			return;
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x1A4);
+
+				fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale);
+
+				FPU::FMUL(fNewCameraFOV1);
+			});
+
+			fNewCameraFOV2 = fOriginalCameraFOV * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 6, fNewCameraFOV2);
 		}
 	}
 }

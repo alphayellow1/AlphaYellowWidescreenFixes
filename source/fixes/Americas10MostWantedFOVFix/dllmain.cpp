@@ -50,7 +50,6 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewAspectRatio2;
 float fNewCameraFOV;
 uint8_t* CameraFOVValueAddress;
 
