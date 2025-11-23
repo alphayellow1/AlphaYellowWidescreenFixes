@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TomClancysRainbowSixRogueSpearFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -45,22 +45,23 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+
+// Variables
 float fAspectRatioScale;
 float fNewAspectRatio;
+float fCurrentCameraFOV;
 float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	TCRSRS,
-	TCRSRSUO,
-	TCRSRSCOE,
-	TCRSRSBT,
+	R6_RS,
+	R6_UO,
+	R6_COE,
+	R6_BT,
 	Unknown
 };
 
@@ -71,10 +72,10 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::TCRSRS, {"Tom Clancy's Rainbow Six: Rogue Spear", "RogueSpear2.exe"}},
-	{Game::TCRSRSUO, {"Tom Clancy's Rainbow Six: Rogue Spear - Urban Operations", "UrbanOperations.exe"}},
-	{Game::TCRSRSCOE, {"Tom Clancy's Rainbow Six: Rogue Spear - Covert Ops Essentials", "CovertOperations.exe"}},
-	{Game::TCRSRSBT, {"Tom Clancy's Rainbow Six: Rogue Spear - Black Thorn", "BlackThorn.exe"}},
+	{Game::R6_RS, {"Tom Clancy's Rainbow Six: Rogue Spear", "RogueSpear2.exe"}},
+	{Game::R6_UO, {"Tom Clancy's Rainbow Six: Rogue Spear - Urban Operations", "UrbanOperations.exe"}},
+	{Game::R6_COE, {"Tom Clancy's Rainbow Six: Rogue Spear - Covert Ops Essentials", "CovertOperations.exe"}},
+	{Game::R6_BT, {"Tom Clancy's Rainbow Six: Rogue Spear - Black Thorn", "BlackThorn.exe"}},
 
 };
 
@@ -195,26 +196,33 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
 void FOVFix()
 {
-	if ((eGameType == Game::TCRSRS || eGameType == Game::TCRSRSUO || eGameType == Game::TCRSRSCOE || eGameType == Game::TCRSRSBT) && bFixActive == true)
+	if ((eGameType == Game::R6_RS || eGameType == Game::R6_UO || eGameType == Game::R6_COE || eGameType == Game::R6_BT) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 		
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 48 74 C2 04 00 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 ?? ?? D8 0D ?? ?? ?? ?? D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.ecx);
+				if (eGameType == Game::R6_RS)
+				{
+					fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edi + 0x74);
+				}
+				else
+				{
+					fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x74);
+				}					
 
 				if (fCurrentCameraFOV == 1.8f)
 				{
@@ -225,7 +233,7 @@ void FOVFix()
 					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
-				*reinterpret_cast<float*>(ctx.eax + 0x74) = fNewCameraFOV;
+				FPU::FLD(fNewCameraFOV);
 			});
 		}
 		else
