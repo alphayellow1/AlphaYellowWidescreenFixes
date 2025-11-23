@@ -895,6 +895,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CrescentSuzukiRacingWidescr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheLandBeforeTimeBigWaterAdventureWidescreenFix", "TheLandBeforeTimeBigWaterAdventureWidescreenFix.vcxproj", "{D9FF460F-85EF-4E68-93F9-F1A73FFD9A13}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HarryPotterQuidditchWorldCupFOVFix", "HarryPotterQuidditchWorldCupFOVFix.vcxproj", "{9A060857-97E4-4335-84EE-401E5F1EBFDD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4455,6 +4457,14 @@ Global
 		{D9FF460F-85EF-4E68-93F9-F1A73FFD9A13}.Release|x64.Build.0 = Release|x64
 		{D9FF460F-85EF-4E68-93F9-F1A73FFD9A13}.Release|x86.ActiveCfg = Release|Win32
 		{D9FF460F-85EF-4E68-93F9-F1A73FFD9A13}.Release|x86.Build.0 = Release|Win32
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD}.Debug|x64.ActiveCfg = Debug|x64
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD}.Debug|x64.Build.0 = Debug|x64
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD}.Debug|x86.ActiveCfg = Debug|Win32
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD}.Debug|x86.Build.0 = Debug|Win32
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD}.Release|x64.ActiveCfg = Release|x64
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD}.Release|x64.Build.0 = Release|x64
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD}.Release|x86.ActiveCfg = Release|Win32
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -4904,6 +4914,7 @@ Global
 		{5CC10B5C-86AE-40E6-8F33-1386F53F21F3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{FFD9AF76-6542-4803-B329-4570EBFFA925} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{D9FF460F-85EF-4E68-93F9-F1A73FFD9A13} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{9A060857-97E4-4335-84EE-401E5F1EBFDD} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}

@@ -44,15 +44,13 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// New INI variables
+int iCurrentResX;
+int iCurrentResY;
 float fFOVFactor;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
-float fAspectRatioScale;
 float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewHipfireCameraFOV;
 float fNewZoomCameraFOV;
 float fNewMainMenuCameraFOV;
@@ -213,32 +211,8 @@ bool DetectGame()
 }
 
 static SafetyHookMid HipfireCameraFOVInstructionHook{};
-
-void HipfireCameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentHipfireCameraFOV = *reinterpret_cast<float*>(HipfireCameraFOVAddress);
-
-	fNewHipfireCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentHipfireCameraFOV, fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewHipfireCameraFOV]
-	}
-}
-
 static SafetyHookMid MainMenuCameraFOVInstructionHook{};
-
-void MainMenuCameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentMainMenuCameraFOV = *reinterpret_cast<float*>(MainMenuCameraFOVAddress);
-
-	fNewMainMenuCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentMainMenuCameraFOV, fAspectRatioScale);
-
-	_asm
-	{
-		fmul dword ptr ds:[fNewMainMenuCameraFOV]
-	}
-}
+static SafetyHookMid ZoomCameraFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -257,7 +231,14 @@ void FOVFix()
 
 			Memory::PatchBytes(HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			HipfireCameraFOVInstructionHook = safetyhook::create_mid(HipfireCameraFOVInstructionScanResult, HipfireCameraFOVInstructionMidHook);
+			HipfireCameraFOVInstructionHook = safetyhook::create_mid(HipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentHipfireCameraFOV = *reinterpret_cast<float*>(HipfireCameraFOVAddress);
+
+				fNewHipfireCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentHipfireCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+				FPU::FLD(fNewHipfireCameraFOV);
+			});
 		}
 		else
 		{
@@ -272,11 +253,9 @@ void FOVFix()
 
 			ZoomCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(ZoomCameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
 			
-			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);
-
-			static SafetyHookMid ZoomCameraFOVInstructionMidHook{};
+			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);			
 			
-			ZoomCameraFOVInstructionMidHook = safetyhook::create_mid(ZoomCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			ZoomCameraFOVInstructionHook = safetyhook::create_mid(ZoomCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentZoomCameraFOV = *reinterpret_cast<float*>(ZoomCameraFOVAddress);
 
@@ -300,7 +279,14 @@ void FOVFix()
 			
 			Memory::PatchBytes(MainMenuCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
-			MainMenuCameraFOVInstructionHook = safetyhook::create_mid(MainMenuCameraFOVInstructionScanResult, MainMenuCameraFOVInstructionMidHook);
+			MainMenuCameraFOVInstructionHook = safetyhook::create_mid(MainMenuCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentMainMenuCameraFOV = *reinterpret_cast<float*>(MainMenuCameraFOVAddress);
+
+				fNewMainMenuCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentMainMenuCameraFOV, fAspectRatioScale);
+
+				FPU::FMUL(fNewMainMenuCameraFOV);
+			});
 		}
 		else
 		{
