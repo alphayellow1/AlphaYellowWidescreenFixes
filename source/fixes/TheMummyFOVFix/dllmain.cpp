@@ -253,10 +253,10 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CullingFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 
+			dNewCullingFOV = 100.0;
+
 			CullingFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CullingFOVScan], [](SafetyHookContext& ctx)
 			{
-				dNewCullingFOV = 100.0;
-
 				FPU::FMUL(dNewCullingFOV);
 			});
 		}		
