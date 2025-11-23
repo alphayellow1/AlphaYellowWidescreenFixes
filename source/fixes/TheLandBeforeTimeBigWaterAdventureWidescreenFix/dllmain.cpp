@@ -12,23 +12,21 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule2 = nullptr;
+HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "MightAndMagic9FOVFix";
-std::string sFixVersion = "1.4";
+std::string sFixName = "TheLandBeforeTimeBigWaterAdventureWidescreenFix";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,8 +41,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fDefaultCameraHFOV = 1.5707963705062866f; // 90 degrees in radians
-constexpr float fDefaultCameraVFOV = 1.1780972480773926f; // 67.5 degrees in radians
 
 // Ini variables
 bool bFixActive;
@@ -55,14 +51,15 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
-float fUnderwaterCheckValue;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	MM9,
+	TLBTBWA,
+	TLBTBWA_3DNOW,
+	TLBTBWA_SIMD,
+	TLBTBWA_95,
 	Unknown
 };
 
@@ -73,7 +70,10 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::MM9, {"Might and Magic 9/IX", "lithtech.exe"}},
+	{Game::TLBTBWA, {"The Land Before Time: Big Water Adventure", "lbt.exe"}},
+	{Game::TLBTBWA_3DNOW, {"The Land Before Time: Big Water Adventure (3DNow!)", "lbt_3dnow.exe"}},
+	{Game::TLBTBWA_SIMD, {"The Land Before Time: Big Water Adventure (SIMD)", "lbt_simd.exe"}},
+	{Game::TLBTBWA_95, {"The Land Before Time: Big Water Adventure (95)", "lbt95.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -89,7 +89,7 @@ void Logging()
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
+	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
@@ -149,7 +149,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -177,8 +177,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -187,132 +185,59 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	while ((dllModule2 = GetModuleHandleA("d3d.ren")) == nullptr)
-	{
-		spdlog::warn("d3d.ren not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for d3d.ren: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-static SafetyHookMid UnderwaterCheckInstructionHook{};
-static SafetyHookMid CameraHFOVInstructionHook{};
-static SafetyHookMid CameraVFOVInstructionHook{};
+static SafetyHookMid ResolutionWidthInstructionHook{};
+static SafetyHookMid ResolutionHeightInstructionHook{};
 
-void FOVFix()
+void WidescreenFix()
 {
-	if (eGameType == Game::MM9 && bFixActive == true)
+	if ((eGameType == Game::TLBTBWA || eGameType == Game::TLBTBWA_3DNOW || eGameType == Game::TLBTBWA_SIMD || eGameType == Game::TLBTBWA_95) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* UnderwaterCheckInstructionScanResult = Memory::PatternScan(dllModule2, "D9 41 ?? D8 29");
-		if (UnderwaterCheckInstructionScanResult)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 8C 90 ?? ?? ?? ?? 89 0D");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Underwater Check Instruction: Address is d3d.ren+{:x}", UnderwaterCheckInstructionScanResult - (std::uint8_t*)exeModule);			
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			UnderwaterCheckInstructionHook = safetyhook::create_mid(UnderwaterCheckInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90", 7);
+
+			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				fUnderwaterCheckValue = *reinterpret_cast<float*>(ctx.ecx + 0xC);
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
+			});
+
+			Memory::PatchBytes(ResolutionInstructionsScanResult + 25, "\x90\x90\x90", 3);
+
+			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 25, [](SafetyHookContext& ctx)
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate underwater check instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 88 98 01 00 00 89 4D B0 8B 88 9C 01 00 00");
-		if (CameraFOVInstructionsScanResult)
-		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
-
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult + 9 - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-				if (fUnderwaterCheckValue == 0.9999999404f)
-				{
-					if (Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV / fAspectRatioScale)))
-					{
-						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
-					}
-					else
-					{
-						fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale);
-					}
-				}
-				else
-				{
-					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
-				}
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
-			});
-
-			Memory::PatchBytes(CameraFOVInstructionsScanResult + 9, "\x90\x90\x90\x90\x90\x90", 6);			
-
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 9, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
-
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
-
-				if (fUnderwaterCheckValue == 0.9999999404f)
-				{
-					if (Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV) || Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV / fAspectRatioScale)))
-					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
-					}
-					else
-					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV);
-					}
-				}
-				else
-				{
-					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
-				}
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 	}
 }
 
-DWORD __stdcall Main(void*)
+static DWORD __stdcall Main(void*)
 {
 	Logging();
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }
