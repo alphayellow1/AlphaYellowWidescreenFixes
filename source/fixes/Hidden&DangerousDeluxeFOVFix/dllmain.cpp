@@ -51,9 +51,9 @@ float fRenderingDistanceFactor;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
-float fAspectRatioScale;
 float fNewAspectRatio;
 float fNewAspectRatio2;
+float fAspectRatioScale;
 float fNewCameraFOV;
 float fNewCameraFOV2;
 float fNewCameraFOV3;
@@ -220,152 +220,17 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x1E4);
-
-	if (fCurrentCameraFOV == 1.483529806f)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
-
+static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x1E4);
-
-	if (fCurrentCameraFOV2 == 1.483529806f)
-	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
-}
-
 static SafetyHookMid CameraFOVInstruction3Hook{};
-
-void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.eax + 0x1E4);
-
-	if (fCurrentCameraFOV3 == 1.483529806f)
-	{
-		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV3]
-	}
-}
-
 static SafetyHookMid CameraFOVInstruction4Hook{};
 
-void CameraFOVInstruction4MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV4 = *reinterpret_cast<float*>(ctx.ecx + 0x1E4);
-
-	if (fCurrentCameraFOV4 == 1.483529806f)
-	{
-		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV4]
-	}
-}
-
 static SafetyHookMid RenderingDistanceInstruction1Hook{};
-
-void RenderingDistanceInstruction1MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentRenderingDistance1 = *reinterpret_cast<float*>(ctx.eax + 0x1EC);
-
-	if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance1 == 50.0f)
-	{
-		fNewRenderingDistance1 = fCurrentRenderingDistance1 * fRenderingDistanceFactor;
-	}
-	else
-	{
-		fNewRenderingDistance1 = fCurrentRenderingDistance1;
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewRenderingDistance1]
-	}
-}
-
 static SafetyHookMid RenderingDistanceInstruction2Hook{};
-
-void RenderingDistanceInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentRenderingDistance2 = *reinterpret_cast<float*>(ctx.ebx + 0x1EC);
-
-	if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance2 == 50.0f)
-	{
-		fNewRenderingDistance2 = fCurrentRenderingDistance2 * fRenderingDistanceFactor;
-	}
-	else
-	{
-		fNewRenderingDistance2 = fCurrentRenderingDistance2;
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewRenderingDistance2]
-	}
-}
-
 static SafetyHookMid RenderingDistanceInstruction3Hook{};
-
-void RenderingDistanceInstruction3MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentRenderingDistance3 = *reinterpret_cast<float*>(ctx.ebx + 0x1EC);
-
-	if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance3 == 50.0f)
-	{
-		fNewRenderingDistance3 = fCurrentRenderingDistance3 / fRenderingDistanceFactor;
-	}
-	else
-	{
-		fNewRenderingDistance3 = fCurrentRenderingDistance3;
-	}
-
-	_asm
-	{
-		fdivr dword ptr ds:[fNewRenderingDistance3]
-	}
-}
+static SafetyHookMid RenderingDistanceInstruction4Hook{};
+static SafetyHookMid RenderingDistanceInstruction5Hook{};
+static SafetyHookMid RenderingDistanceInstruction6Hook{};
 
 void FOVFix()
 {
@@ -390,18 +255,32 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 E4 01 00 00 D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC D9 FE");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 83 E4 01 00 00 D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC D9 FE");
+		if (CameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is i3d2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is i3d2.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
+			{
+				fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x1E4);
+
+				if (fCurrentCameraFOV == 1.483529806f)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
 			return;
 		}
 
@@ -412,7 +291,21 @@ void FOVFix()
 			
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x1E4);
+
+				if (fCurrentCameraFOV2 == 1.483529806f)
+				{
+					fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV2);
+			});
 		}
 		else
 		{
@@ -427,7 +320,21 @@ void FOVFix()
 			
 			Memory::PatchBytes(CameraFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult, CameraFOVInstruction3MidHook);
+			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.eax + 0x1E4);
+
+				if (fCurrentCameraFOV3 == 1.483529806f)
+				{
+					fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV3);
+			});
 		}
 		else
 		{
@@ -442,7 +349,21 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction4ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstruction4ScanResult, CameraFOVInstruction4MidHook);
+			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstruction4ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV4 = *reinterpret_cast<float*>(ctx.ecx + 0x1E4);
+
+				if (fCurrentCameraFOV4 == 1.483529806f)
+				{
+					fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV4);
+			});
 		}
 		else
 		{
@@ -457,7 +378,21 @@ void FOVFix()
 
 			Memory::PatchBytes(RenderingDistanceInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			RenderingDistanceInstruction1Hook = safetyhook::create_mid(RenderingDistanceInstruction1ScanResult, RenderingDistanceInstruction1MidHook);
+			RenderingDistanceInstruction1Hook = safetyhook::create_mid(RenderingDistanceInstruction1ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentRenderingDistance1 = *reinterpret_cast<float*>(ctx.eax + 0x1EC);
+
+				if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance1 == 50.0f)
+				{
+					fNewRenderingDistance1 = fCurrentRenderingDistance1 * fRenderingDistanceFactor;
+				}
+				else
+				{
+					fNewRenderingDistance1 = fCurrentRenderingDistance1;
+				}
+
+				FPU::FLD(fNewRenderingDistance1);
+			});
 		}
 		else
 		{
@@ -472,7 +407,21 @@ void FOVFix()
 
 			Memory::PatchBytes(RenderingDistanceInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			RenderingDistanceInstruction2Hook = safetyhook::create_mid(RenderingDistanceInstruction2ScanResult, RenderingDistanceInstruction2MidHook);
+			RenderingDistanceInstruction2Hook = safetyhook::create_mid(RenderingDistanceInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentRenderingDistance2 = *reinterpret_cast<float*>(ctx.ebx + 0x1EC);
+
+				if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance2 == 50.0f)
+				{
+					fNewRenderingDistance2 = fCurrentRenderingDistance2 * fRenderingDistanceFactor;
+				}
+				else
+				{
+					fNewRenderingDistance2 = fCurrentRenderingDistance2;
+				}
+
+				FPU::FLD(fNewRenderingDistance2);
+			});
 		}
 		else
 		{
@@ -487,7 +436,21 @@ void FOVFix()
 
 			Memory::PatchBytes(RenderingDistanceInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			RenderingDistanceInstruction3Hook = safetyhook::create_mid(RenderingDistanceInstruction3ScanResult, RenderingDistanceInstruction3MidHook);
+			RenderingDistanceInstruction3Hook = safetyhook::create_mid(RenderingDistanceInstruction3ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentRenderingDistance3 = *reinterpret_cast<float*>(ctx.ebx + 0x1EC);
+
+				if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance3 == 50.0f)
+				{
+					fNewRenderingDistance3 = fCurrentRenderingDistance3 / fRenderingDistanceFactor;
+				}
+				else
+				{
+					fNewRenderingDistance3 = fCurrentRenderingDistance3;
+				}
+
+				FPU::FDIVR(fNewRenderingDistance3);
+			});
 		}
 		else
 		{
@@ -502,9 +465,7 @@ void FOVFix()
 
 			Memory::PatchBytes(RenderingDistanceInstruction4ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			static SafetyHookMid RenderingDistanceInstruction4MidHook{};
-
-			RenderingDistanceInstruction4MidHook = safetyhook::create_mid(RenderingDistanceInstruction4ScanResult, [](SafetyHookContext& ctx)
+			RenderingDistanceInstruction4Hook = safetyhook::create_mid(RenderingDistanceInstruction4ScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentRenderingDistance4 = *reinterpret_cast<float*>(ctx.eax + 0x1EC);
 
@@ -524,11 +485,9 @@ void FOVFix()
 		{
 			spdlog::info("Rendering Distance Instruction 5: Address is i3d2.dll+{:x}", RenderingDistanceInstruction5ScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(RenderingDistanceInstruction5ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::PatchBytes(RenderingDistanceInstruction5ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
 
-			static SafetyHookMid RenderingDistanceInstruction5MidHook{};
-
-			RenderingDistanceInstruction5MidHook = safetyhook::create_mid(RenderingDistanceInstruction5ScanResult, [](SafetyHookContext& ctx)
+			RenderingDistanceInstruction5Hook = safetyhook::create_mid(RenderingDistanceInstruction5ScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentRenderingDistance5 = *reinterpret_cast<float*>(ctx.edi + 0x1EC);
 
@@ -550,9 +509,7 @@ void FOVFix()
 
 			Memory::PatchBytes(RenderingDistanceInstruction6ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			static SafetyHookMid RenderingDistanceInstruction6MidHook{};
-
-			RenderingDistanceInstruction6MidHook = safetyhook::create_mid(RenderingDistanceInstruction6ScanResult, [](SafetyHookContext& ctx)
+			RenderingDistanceInstruction6Hook = safetyhook::create_mid(RenderingDistanceInstruction6ScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentRenderingDistance6 = *reinterpret_cast<float*>(ctx.eax + 0x1EC);
 

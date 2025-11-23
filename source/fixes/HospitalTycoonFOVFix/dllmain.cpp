@@ -44,12 +44,13 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+double dNewAspectRatio;
 float fNewCameraFOV;
 
 // Game detection
@@ -187,33 +188,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
-
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	double dNewAspectRatio = (double)fNewAspectRatio;
-
-	_asm
-	{
-		fld qword ptr ds:[dNewAspectRatio]
-	}
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	// Store a float reference to the current FOV value located in the [ECX+1E8] memory address
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x1E8);
-
-	// Compute the new FOV value
-	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-	// Store the new FOV value in the FPU stack with an FLD instruction
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -228,7 +203,12 @@ void FOVFix()
 
 			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+			dNewAspectRatio = (double)fNewAspectRatio;
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(dNewAspectRatio);
+			});
 		}
 		else
 		{
@@ -243,7 +223,17 @@ void FOVFix()
 			
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Store a float reference to the current FOV value located in the [ECX+1E8] memory address
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x1E8);
+
+				// Compute the new FOV value
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+				// Store the new FOV value in the FPU stack with an FLD instruction
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
