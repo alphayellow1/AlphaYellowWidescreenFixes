@@ -50,7 +50,7 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraHFOV;
+float fNewAspectRatio2;
 float fNewCameraFOV;
 uint8_t* CameraFOVValueAddress;
 
@@ -188,7 +188,7 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
@@ -199,39 +199,22 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 1D ?? ?? ?? ?? E8 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? C7 05 ?? ?? ?? ?? 00 00 00 00 C7 05 ?? ?? ?? ?? 00 00 00 00 8B 45 FC 5F 5E 5B 8B E5 5D C3 CC CC CC CC CC CC CC CC 55 8B EC 83 EC 40 53 56 57 D9 05 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C3 CC CC CC CC CC CC CC CC CC CC 55 8B EC 83 EC 40 53 56 57 D9 05 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C3");
-		if (CameraHFOVInstructionScanResult)
-		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult + 96 - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraHFOVInstructionScanResult + 96, "\x90\x90\x90\x90\x90\x90", 6); // NOP the original instruction so we write our own
-
-			fNewCameraHFOV = 0.75f / fAspectRatioScale;
-
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 96, [](SafetyHookContext& ctx) { FPU::FLD(fNewCameraHFOV); });
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "A1 ?? ?? ?? ?? A3 ?? ?? ?? ?? A1 ?? ?? ?? ?? 50 8B 0D ?? ?? ?? ??");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 4D ?? 51 D9 1C ?? 8B 45");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 5 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			CameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 6, Memory::PointerMode::Absolute);
+			CameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 5, "\x90\x90\x90\x90\x90", 5); // NOP the original instruction so we write our own
-			
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP the original instruction so we write our own
+
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVValueAddress);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				*reinterpret_cast<float*>(CameraFOVValueAddress) = fNewCameraFOV;
+				FPU::FLD(fNewCameraFOV);
 			});
 		}
 		else
@@ -239,6 +222,24 @@ void FOVFix()
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 45 10 50 8B 4D 0C 51 8B 55 BC");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 8 - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(AspectRatioInstructionScanResult + 8, "\x90\x90\x90", 3); // NOP the original instruction so we write our own
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 8, [](SafetyHookContext& ctx)
+			{
+				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}		
 	}
 }
 
