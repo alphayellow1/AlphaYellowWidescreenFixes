@@ -46,15 +46,15 @@ constexpr float fNewAspectRatio2 = 0.75f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
-float fNewAspectRatio;
-float fFOVFactor;
-float fAspectRatioScale;
 float fNewCameraHFOV;
 
 // Game detection
@@ -193,46 +193,10 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0xE0);
-
-	if (fCurrentCameraFOV2 == 0.959931492805481f)
-	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
-	}
-	
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
-}
-
 static SafetyHookMid AspectRatioInstruction1Hook{};
-
-void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio2]
-	}
-}
-
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fdivr dword ptr ds:[fNewCameraHFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -299,7 +263,10 @@ void FOVFix()
 
 				Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-				AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult, AspectRatioInstruction1MidHook);
+				AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult, [](SafetyHookContext& ctx)
+				{
+					FPU::FLD(fNewAspectRatio2);
+				});
 
 				Memory::PatchBytes(AspectRatioInstruction1ScanResult + 10, "\x90\x90\x90\x90\x90\x90", 6);
 			}
@@ -316,9 +283,7 @@ void FOVFix()
 
 				Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-				static SafetyHookMid CameraFOVInstruction1MidHook{};
-
-				CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
+				CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.eax + 0xE0);
 
@@ -343,11 +308,25 @@ void FOVFix()
 			std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "90 90 90 90 90 90 D9 81 E0 00 00 00");
 			if (CameraFOVInstruction2ScanResult)
 			{
-				spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult + 6 - (std::uint8_t*)exeModule);
 
 				Memory::PatchBytes(CameraFOVInstruction2ScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
 				
-				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 6, CameraFOVInstruction2MidHook);
+				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 6, [](SafetyHookContext& ctx)
+				{
+					float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0xE0);
+
+					if (fCurrentCameraFOV2 == 0.959931492805481f)
+					{
+						fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
+					}
+
+					FPU::FLD(fNewCameraFOV2);
+				});
 			}
 			else
 			{
@@ -364,7 +343,10 @@ void FOVFix()
 
 				fNewCameraHFOV = 1.0f / fAspectRatioScale;
 
-				CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+				CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				{
+					FPU::FDIVR(fNewCameraHFOV);
+				});
 			}
 			else
 			{
