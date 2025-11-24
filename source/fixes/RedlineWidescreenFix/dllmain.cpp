@@ -194,6 +194,11 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid ResolutionWidthInstructionHook{};
+static SafetyHookMid ResolutionHeightInstructionHook{};
+static SafetyHookMid BitDepthInstructionHook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
+
 void WidescreenFix()
 {
 	if (eGameType == Game::RL && bFixActive == true)
@@ -222,11 +227,9 @@ void WidescreenFix()
 
 			BitDepthAddress = Memory::GetPointerFromAddress<uint32_t>(BithDepthInstructionScanResult + 3, Memory::PointerMode::Absolute);
 
-			iDesiredBitDepth = 32;
-			
-			static SafetyHookMid BitDepthInstructionMidHook{};
+			iDesiredBitDepth = 32;			
 
-			BitDepthInstructionMidHook = safetyhook::create_mid(BithDepthInstructionScanResult, [](SafetyHookContext& ctx)
+			BitDepthInstructionHook = safetyhook::create_mid(BithDepthInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(BitDepthAddress) = iDesiredBitDepth;
 			});
@@ -244,18 +247,14 @@ void WidescreenFix()
 
 			ResolutionWidthAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 12, Memory::PointerMode::Absolute);
 
-			ResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 3, Memory::PointerMode::Absolute);
+			ResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 3, Memory::PointerMode::Absolute);			
 
-			static SafetyHookMid ResolutionWidthInstructionMidHook{};
-
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 10, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 10, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int16_t*>(ResolutionWidthAddress) = iCurrentResX;
-			});
+			});			
 
-			static SafetyHookMid ResolutionHeightInstructionMidHook{};
-
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int16_t*>(ResolutionHeightAddress) = iCurrentResY;
 			});
@@ -291,10 +290,8 @@ void WidescreenFix()
 			CameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction2ScanResult, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid CameraFOVInstruction2MidHook{};
 			
-			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOV2Address);
 

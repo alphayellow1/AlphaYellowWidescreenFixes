@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "RequiemAvengingAngelFOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -188,19 +188,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x938);
-
-	fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
-}
 
 void FOVFix()
 {
@@ -232,24 +221,22 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 86 FC 09 00 00 8B 86 38 09 00 00 51 89 8E 00 0A 00 00");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "89 86 FC 09 00 00 8B 86 38 09 00 00 51 89 8E 00 0A 00 00");
+		if (CameraFOVInstruction1ScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 6 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult + 6 - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x938);
+				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x938);
 
-				if (fCurrentCameraFOV < 120.0f) // Hell levels
+				if (fCurrentCameraFOV1 < 120.0f) // Hell levels
 				{
 					Memory::Write(CameraHFOVInstructionScanResult + 7, 1.0f / fAspectRatioScale);
 
 					Memory::Write(CameraVFOVInstructionScanResult + 7, 1.0f);
 				}
-				else if (fCurrentCameraFOV == 120.0f) // City/Earth levels
+				else if (fCurrentCameraFOV1 == 120.0f) // City/Earth levels
 				{
 					Memory::Write(CameraHFOVInstructionScanResult + 7, 1.0f / fAspectRatioScale);
 
@@ -259,7 +246,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
 			return;
 		}
 
@@ -270,7 +257,14 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x938);
+
+				fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV2);
+			});
 		}
 		else
 		{

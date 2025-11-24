@@ -48,15 +48,15 @@ constexpr float MaximumHFOVUnderwater = 1.65f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-float fFOVFactor;
 float MinimumVFOVUnderwater = 1.05f / fAspectRatioScale;
 float MaximumVFOVUnderwater = 1.27f / fAspectRatioScale;
 
