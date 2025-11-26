@@ -28,7 +28,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "SecretServiceSecurityBreachFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,15 +52,21 @@ float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
-float fNewCameraFOV;
-float fNewCameraFOV2;
 float fAspectRatioScale;
+float fNewCameraFOV1;
+float fNewCameraFOV2;
 
 // Game detection
 enum class Game
 {
 	SSSB,
 	Unknown
+};
+
+enum CameraFOVInstructionsScansIndices
+{
+	CameraFOV1Scan,
+	CameraFOV2Scan
 };
 
 struct GameInfo
@@ -206,33 +212,8 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp + 0x4);
-
-	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
-
+static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x200);
-
-	fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
-}
 
 void FOVFix()
 {
@@ -242,34 +223,34 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 45 04 D8 0D ?? ?? ?? ?? F6 46 04 01 D9 F2");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 45 04 D8 0D ?? ?? ?? ?? F6 46 04 01 D9 F2", "D9 81 00 02 00 00 83 EC 08 8B CE D9 5C 24 04 D9 44 24 14");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is ss2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is ss2.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			spdlog::info("Camera FOV Instruction 2: Address is ss2.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90", 3);
 
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 81 00 02 00 00 83 EC 08 8B CE D9 5C 24 04 D9 44 24 14");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is ss2.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebp + 0x4);
 
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
-			return;
+				FPU::FLD(fNewCameraFOV1);
+			});
+
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x200);
+
+				fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV2);
+			});
 		}
 	}
 }
