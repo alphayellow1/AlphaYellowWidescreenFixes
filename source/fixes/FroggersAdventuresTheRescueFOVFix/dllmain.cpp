@@ -52,6 +52,7 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
+int iNewResX;
 
 // Game detection
 enum class Game
@@ -203,13 +204,13 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);			
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
+
+			iNewResX = (int)(480.0f * fNewAspectRatio);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				uint32_t iNewResX = (uint32_t)(480.0f * fNewAspectRatio);
-
-				*reinterpret_cast<uint32_t*>(ctx.ecx + 0x48) = iNewResX;
+				*reinterpret_cast<int*>(ctx.ecx + 0x48) = iNewResX;
 			});
 		}
 		else
