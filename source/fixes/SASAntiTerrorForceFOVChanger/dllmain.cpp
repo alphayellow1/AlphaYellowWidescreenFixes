@@ -45,11 +45,11 @@ constexpr float fOriginalCameraZoom = 0.5f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+
+// Variables
 float fCurrentCameraFOV;
 float fNewCameraFOV;
 float fNewCameraZoom;
@@ -188,18 +188,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
-
-	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-	_asm
-	{
-		fsubr dword ptr ds:[fNewCameraFOV]
-	}
-}
+static SafetyHookMid CameraZoomInstructionHook{};
 
 void FOVFix()
 {
@@ -214,7 +203,14 @@ void FOVFix()
 			
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+				FPU::FSUBR(fNewCameraFOV);
+			});
 		}
 		else
 		{
@@ -227,11 +223,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera Zoom Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraZoomInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraZoomInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraZoomInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
 
-			static SafetyHookMid CameraZoomInstructionMidHook{};
-
-			CameraZoomInstructionMidHook = safetyhook::create_mid(CameraZoomInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraZoomInstructionHook = safetyhook::create_mid(CameraZoomInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraZoom = *reinterpret_cast<float*>(ctx.eax + 0xEC);
 
