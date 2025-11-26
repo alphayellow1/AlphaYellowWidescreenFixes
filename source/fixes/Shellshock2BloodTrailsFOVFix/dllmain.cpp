@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "Shellshock2BloodTrailsFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -49,10 +49,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewMainMenuFOV;
+float fNewCutscenesFOV;
 float fNewHipfireFOV;
 float fNewZoomFOV;
-float fAspectRatioScale;
-uint8_t* HipfireCameraFOVValueAddress;
+uint8_t* HipfireCameraFOVAddress;
 bool bInitializationFailed = false;
 
 // Game detection
@@ -60,6 +62,14 @@ enum class Game
 {
 	SS2BT,
 	Unknown
+};
+
+enum CameraFOVInstructionsScansIndices
+{
+	MainMenuFOVScan,
+	CutscenesFOVScan,
+	HipfireFOVScan,
+	ZoomFOVScan
 };
 
 struct GameInfo
@@ -189,6 +199,11 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid MainMenuCameraFOVInstructionHook{};
+static SafetyHookMid CutscenesCameraFOVInstructionHook{};
+static SafetyHookMid HipfireCameraFOVInstructionHook{};
+static SafetyHookMid ZoomCameraFOVInstructionHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::SS2BT && bFixActive == true)
@@ -197,42 +212,55 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* HipfireCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 11 05 ?? ?? ?? ?? E8 ?? ?? ?? ?? F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 05 ?? ?? ?? ?? E8 ?? ?? ?? ??");
-		if (HipfireCameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 10 86 FC 00 00 00 0F 5A C0 0F 5A C9 F2 0F 5E C1 66 0F 5A C0", "D9 86 B4 00 00 00 D9 1C 24", "F3 0F 11 05 ?? ?? ?? ?? E8 ?? ?? ?? ?? F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 05 ?? ?? ?? ?? E8 ?? ?? ?? ??", "F3 0F 10 58 5C EB 06 F3 0F 10 5C 24 1C");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), HipfireCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MainMenuFOVScan] - (std::uint8_t*)exeModule);
 
-			HipfireCameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(HipfireCameraFOVInstructionScanResult + 4, Memory::PointerMode::Absolute);
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CutscenesFOVScan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			spdlog::info("Hipfire Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HipfireFOVScan] - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid HipfireCameraFOVInstructionMidHook{};
+			spdlog::info("Zoom Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[ZoomFOVScan] - (std::uint8_t*)exeModule);
 
-			HipfireCameraFOVInstructionMidHook = safetyhook::create_mid(HipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[MainMenuFOVScan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+
+			MainMenuCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenuFOVScan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentHipfireFOV = ctx.xmm0.f32[0];
+				float& fCurrentMainMenuFOV = *reinterpret_cast<float*>(ctx.esi + 0xFC);
+
+				fNewMainMenuFOV = Maths::CalculateNewFOV_RadBased(fCurrentMainMenuFOV, fAspectRatioScale);
+
+				ctx.xmm0.f32[0] = fNewMainMenuFOV;
+			});
+
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CutscenesFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
+
+			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOVScan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCutscenesFOV = *reinterpret_cast<float*>(ctx.esi + 0xB4);
+
+				fNewCutscenesFOV = Maths::CalculateNewFOV_RadBased(fCurrentCutscenesFOV, fAspectRatioScale);
+
+				FPU::FLD(fNewCutscenesFOV);
+			});
+
+			HipfireCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[HipfireFOVScan] + 4, Memory::PointerMode::Absolute);
+
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[HipfireFOVScan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+
+			HipfireCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireFOVScan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentHipfireFOV = ctx.xmm0.f32[0];
 
 				fNewHipfireFOV = Maths::CalculateNewFOV_DegBased(fCurrentHipfireFOV, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(HipfireCameraFOVValueAddress) = fNewHipfireFOV;
+				*reinterpret_cast<float*>(HipfireCameraFOVAddress) = fNewHipfireFOV;
 			});
-		}
-		else
-		{
-			spdlog::info("Cannot locate the hipfire camera FOV instruction memory address.");
-			return;
-		}
 
-		std::uint8_t* ZoomCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 10 58 5C EB 06 F3 0F 10 5C 24 1C");
-		if (ZoomCameraFOVInstructionScanResult)
-		{
-			spdlog::info("Zoom Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ZoomCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[ZoomFOVScan], "\x90\x90\x90\x90\x90", 5);
 
-			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);
-
-			static SafetyHookMid ZoomCameraFOVInstructionMidHook{};
-
-			ZoomCameraFOVInstructionMidHook = safetyhook::create_mid(ZoomCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			ZoomCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ZoomFOVScan], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.eax + 0x5C);
 
@@ -240,11 +268,6 @@ void FOVFix()
 
 				ctx.xmm3.f32[0] = fNewZoomFOV;
 			});
-		}
-		else
-		{
-			spdlog::info("Cannot locate the zoom camera FOV instruction memory address.");
-			return;
 		}
 	}
 }
