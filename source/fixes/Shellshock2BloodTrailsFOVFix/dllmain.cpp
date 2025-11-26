@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "Shellshock2BloodTrailsFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.2.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +42,8 @@ std::string sExeName;
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
-float fFOVFactor;
+float fCameraFOVFactor;
+float fZoomFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
@@ -161,10 +162,12 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "CameraFOVFactor", fCameraFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "ZoomFOVFactor", fZoomFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
+	spdlog_confparse(fCameraFOVFactor);
+	spdlog_confparse(fZoomFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -212,7 +215,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 10 86 FC 00 00 00 0F 5A C0 0F 5A C9 F2 0F 5E C1 66 0F 5A C0", "D9 86 B4 00 00 00 D9 1C 24", "F3 0F 11 05 ?? ?? ?? ?? E8 ?? ?? ?? ?? F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 05 ?? ?? ?? ?? E8 ?? ?? ?? ??", "F3 0F 10 58 5C EB 06 F3 0F 10 5C 24 1C");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 10 86 FC 00 00 00 0F 5A C0 0F 5A C9 F2 0F 5E C1 66 0F 5A C0", "D9 86 B4 00 00 00 D9 1C 24", "F3 0F 10 05 ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 44 24 08 F3 0F 11 5C 24 1C", "F3 0F 10 58 5C EB 06 F3 0F 10 5C 24 1C");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MainMenuFOVScan] - (std::uint8_t*)exeModule);
@@ -251,11 +254,11 @@ void FOVFix()
 
 			HipfireCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHipfireFOV = ctx.xmm0.f32[0];
+				float& fCurrentHipfireFOV = *reinterpret_cast<float*>(HipfireCameraFOVAddress);
 
-				fNewHipfireFOV = Maths::CalculateNewFOV_DegBased(fCurrentHipfireFOV, fAspectRatioScale) * fFOVFactor;
+				fNewHipfireFOV = Maths::CalculateNewFOV_DegBased(fCurrentHipfireFOV, fAspectRatioScale) * fCameraFOVFactor;
 
-				*reinterpret_cast<float*>(HipfireCameraFOVAddress) = fNewHipfireFOV;
+				ctx.xmm0.f32[0] = fNewHipfireFOV;
 			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[ZoomFOVScan], "\x90\x90\x90\x90\x90", 5);
@@ -264,7 +267,7 @@ void FOVFix()
 			{
 				float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.eax + 0x5C);
 
-				fNewZoomFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponHipfireFOV, fAspectRatioScale);
+				fNewZoomFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponHipfireFOV, fAspectRatioScale) / fZoomFOVFactor;
 
 				ctx.xmm3.f32[0] = fNewZoomFOV;
 			});
