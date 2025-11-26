@@ -26,7 +26,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "HannahMontanaTheMovieFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,21 +44,32 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
 	HMTM,
 	Unknown
+};
+
+enum AspectRatioInstructionScansIndices
+{
+	AspectRatio1Scan,
+	AspectRatio2Scan
+};
+
+enum CameraFOVInstructionScansIndices
+{
+	CameraFOV1Scan,
+	CameraFOV2Scan
 };
 
 struct GameInfo
@@ -189,53 +200,23 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstruction1Hook{};
-
-void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 static SafetyHookMid AspectRatioInstruction2Hook{};
-
-void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 static SafetyHookMid CameraFOVInstruction1Hook{};
-
-void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x1D8);
-
-	fNewCameraFOV1 = fCurrentCameraFOV1 * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV1]
-	}
-}
-
 static SafetyHookMid CameraFOVInstruction2Hook{};
 
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
+void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x90);
-
-	fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
+	FPU::FLD(fNewAspectRatio);
 }
 
+void CameraFOVInstructionMidHook(uintptr_t CameraFOVAddress)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+
+	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+	FPU::FLD(fNewCameraFOV);
+}
 
 void FOVFix()
 {
@@ -245,64 +226,42 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 41 BC D9 5C 24 04 D9 44 24 14");
-		if (AspectRatioInstruction1ScanResult)
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D9 41 BC D9 5C 24 04 D9 44 24 14", "D9 40 04 8B C7 D9 5C 24 04 D9 86 90 00 00 00 D9 1C 24 56");
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio1Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90", 3); // NOP out the instruction
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)exeModule);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult, AspectRatioInstruction1MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction 1 scan memory address.");
-			return;
-		}
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90", 3); // NOP out the instruction
 
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 40 04 8B C7 D9 5C 24 04 D9 86 90 00 00 00 D9 1C 24 56");
-		if (AspectRatioInstruction2ScanResult)
-		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction2ScanResult - (std::uint8_t*)exeModule);
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], AspectRatioInstructionMidHook);
 
-			Memory::PatchBytes(AspectRatioInstruction2ScanResult, "\x90\x90\x90", 3); // NOP out the instruction
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90", 3); // NOP out the instruction
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, AspectRatioInstruction2MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction 2 memory address.");
-			return;
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], AspectRatioInstructionMidHook);
 		}
 
-		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 86 D8 01 00 00 D9 1C 24 FF D2 8B 8E 40 01 00 00 8B 01 8B 50 04 8D BE BC 00 00 00");
-		if (CameraFOVInstruction1ScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 86 D8 01 00 00 D9 1C 24 FF D2 8B 8E 40 01 00 00 8B 01 8B 50 04 8D BE BC 00 00 00", "D9 86 90 00 00 00 D9 1C 24 56 E8 ?? ?? ?? ?? 5F 5E 5B");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the instruction
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, CameraFOVInstruction1MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
-			return;
-		}
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the instruction
 
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 86 90 00 00 00 D9 1C 24 56 E8 ?? ?? ?? ?? 5F 5E 5B");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionMidHook(ctx.esi + 0x1D8);
+			});
 
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the instruction
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the instruction
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
-			return;
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionMidHook(ctx.esi + 0x90);
+			});
 		}
 	}
 }
