@@ -224,7 +224,7 @@ void WidescreenFix()
 			return;
 		}
 		
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 11 86 98 00 00 00 0F 57 C0 8B CF 8B 11 8D 46 70", "F3 0F 11 85 98 00 00 00 8B 17 89 10 8B 4F 04 89 48 04 8B 57 08", "F3 0F 11 9E 98 00 00 00 F3 0F 10 1D ?? ?? ?? ??", "89 91 98 00 00 00 8B 90 9C 00 00 00 89 91 9C 00 00 00");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 87 9C 00 00 00 D8 87 98 00 00 00 F3 0F 10 05 ?? ?? ?? ??", "D9 80 9C 00 00 00 D8 80 98 00 00 00 D8 0D ?? ?? ?? ??", "D9 86 ?? ?? ?? ?? D8 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 F2 DD D8", "D9 87 ?? ?? ?? ?? D8 87 ?? ?? ?? ?? D8 0D");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
@@ -235,48 +235,48 @@ void WidescreenFix()
 
 			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV4Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);			
-
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{				
-				float fCurrentCameraFOV1 = ctx.xmm0.f32[0];
+				float fCurrentCameraFOV1 = *(float*)(ctx.edi + 0x9C) + *(float*)(ctx.edi + 0x98);
 
 				fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0x98) = fNewCameraFOV1;				
+				FPU::FLD(fNewCameraFOV1);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);			
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV2 = ctx.xmm0.f32[0];
+				float fCurrentCameraFOV2 = *(float*)(ctx.eax + 0x9C) + *(float*)(ctx.eax + 0x98);
 
 				fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ebp + 0x98) = fNewCameraFOV2;
+				FPU::FLD(fNewCameraFOV2);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);			
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV3 = ctx.xmm3.f32[0];
+				float fCurrentCameraFOV3 = *(float*)(ctx.esi + 0x00A133FC) + *(float*)(ctx.esi + 0x00A133F8);
 
 				fNewCameraFOV3 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0x98) = fNewCameraFOV3;
+				FPU::FLD(fNewCameraFOV3);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV4Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
 			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV4Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV4 = std::bit_cast<float>(ctx.edx);
+				float fCurrentCameraFOV4 = *(float*)(ctx.edi + 0x9C) + *(float*)(ctx.edi + 0x98);
 
 				fNewCameraFOV4 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV4, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ecx + 0x98) = fNewCameraFOV4;
+				FPU::FLD(fNewCameraFOV4);
 			});
 		}
 	}
