@@ -51,10 +51,8 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
-float fNewCameraFOV3;
-float fNewCameraFOV4;
+float fCurrentCameraFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -203,6 +201,15 @@ static SafetyHookMid CameraFOVInstruction2Hook{};
 static SafetyHookMid CameraFOVInstruction3Hook{};
 static SafetyHookMid CameraFOVInstruction4Hook{};
 
+void CameraFOVInstructionMidHook(uintptr_t CameraFOVAddress1, uintptr_t CameraFOVAddress2)
+{
+	fCurrentCameraFOV = *(float*)(CameraFOVAddress1) + *(float*)(CameraFOVAddress2);
+
+	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+	FPU::FLD(fNewCameraFOV);
+}
+
 void WidescreenFix()
 {
 	if (eGameType == Game::DW4 && bFixActive == true)
@@ -238,45 +245,29 @@ void WidescreenFix()
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 			
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
-			{				
-				float fCurrentCameraFOV1 = *(float*)(ctx.edi + 0x9C) + *(float*)(ctx.edi + 0x98);
-
-				fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
-
-				FPU::FLD(fNewCameraFOV1);
+			{
+				CameraFOVInstructionMidHook(ctx.edi + 0x9C, ctx.edi + 0x98);
 			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV2 = *(float*)(ctx.eax + 0x9C) + *(float*)(ctx.eax + 0x98);
-
-				fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
-
-				FPU::FLD(fNewCameraFOV2);
+				CameraFOVInstructionMidHook(ctx.eax + 0x9C, ctx.eax + 0x98);
 			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV3 = *(float*)(ctx.esi + 0x00A133FC) + *(float*)(ctx.esi + 0x00A133F8);
-
-				fNewCameraFOV3 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
-
-				FPU::FLD(fNewCameraFOV3);
+				CameraFOVInstructionMidHook(ctx.esi + 0x00A133FC, ctx.esi + 0x00A133F8);
 			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV4Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
 			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV4Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV4 = *(float*)(ctx.edi + 0x9C) + *(float*)(ctx.edi + 0x98);
-
-				fNewCameraFOV4 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV4, fAspectRatioScale) * fFOVFactor;
-
-				FPU::FLD(fNewCameraFOV4);
+				CameraFOVInstructionMidHook(ctx.edi + 0x9C, ctx.edi + 0x98);
 			});
 		}
 	}
