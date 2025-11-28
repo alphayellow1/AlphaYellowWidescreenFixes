@@ -196,6 +196,7 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CharactersNameAspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
 static SafetyHookMid CameraFOVInstruction3Hook{};
@@ -228,6 +229,24 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate resolution list unlock scan memory address.");
+			return;
+		}
+
+		std::uint8_t* CharactersNameAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 10 05 38 61 65 00 F3 0F 11 44 24 10");
+		if (CharactersNameAspectRatioInstructionScanResult)
+		{
+			spdlog::info("Characters Name Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), CharactersNameAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			
+			Memory::PatchBytes(CharactersNameAspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8); // NOP out the original instruction
+			
+			CharactersNameAspectRatioInstructionHook = safetyhook::create_mid(CharactersNameAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				ctx.xmm0.f32[0] = fNewAspectRatio;
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate character name aspect ratio instruction memory address.");
 			return;
 		}
 		
