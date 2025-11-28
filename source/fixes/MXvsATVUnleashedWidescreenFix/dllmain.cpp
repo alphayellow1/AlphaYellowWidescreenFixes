@@ -43,6 +43,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+float fNewFramerate;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
@@ -51,7 +52,6 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
-float fNewFramerate;
 
 // Game detection
 enum class Game
