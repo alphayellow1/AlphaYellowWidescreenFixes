@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BeyondNormandyAssignmentBerlinWidescreenFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -51,7 +51,6 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
 float fCompassNeedleWidth;
 float fLoadingBarX;
 float fRedCrossAndMenuTextWidth;
