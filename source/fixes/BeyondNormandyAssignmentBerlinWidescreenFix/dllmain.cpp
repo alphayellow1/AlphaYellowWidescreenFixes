@@ -227,9 +227,7 @@ bool DetectGame()
 
 static SafetyHookMid CameraHFOVInstructionHook{};
 static SafetyHookMid CameraVFOVInstructionHook{};
-
 static SafetyHookMid CompassNeedleWidthInstructionHook{};
-
 static SafetyHookMid UnknownHUDElement1InstructionHook{};
 
 void WidescreenFix()
