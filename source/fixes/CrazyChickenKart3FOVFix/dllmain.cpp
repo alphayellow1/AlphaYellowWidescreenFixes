@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CrazyChickenKart3FOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,16 +43,17 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
-float fAspectRatioScale;
 uint32_t* pInRaceFlag;
+uint8_t* TriggerValueAddress;
 static bool bInRace;
 
 // Game detection
@@ -190,54 +191,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x30C);
-
-	float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x310);
-
-	bInRace = (*pInRaceFlag == 1);
-
-	if (bInRace == 1)
-	{
-		fNewCameraHFOV = Maths::CalculateNewHFOV_DegBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraHFOV = Maths::CalculateNewHFOV_DegBased(fCurrentCameraHFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x310);
-	
-	float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x30C);
-
-	bInRace = (*pInRaceFlag == 1);
-
-	if (bInRace == 1)
-	{
-		fNewCameraVFOV = Maths::CalculateNewVFOV_DegBased(fCurrentCameraVFOV, fFOVFactor);
-	}
-	else
-	{
-		fNewCameraVFOV = fCurrentCameraVFOV;
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -252,7 +206,7 @@ void FOVFix()
 		{
 			spdlog::info("In A Race Trigger Instruction: Address is {:s}+{:x}", sExeName.c_str(), InARaceTriggerInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint8_t* TriggerValueAddress = Memory::GetPointerFromAddress<uint32_t>(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			TriggerValueAddress = Memory::GetPointerFromAddress<uint32_t>(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			pInRaceFlag = reinterpret_cast<uint32_t*>(TriggerValueAddress);
 		}
@@ -269,7 +223,23 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x30C);
+
+				bInRace = (*pInRaceFlag == 1);
+
+				if (bInRace == 1)
+				{
+					fNewCameraHFOV = Maths::CalculateNewHFOV_DegBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
+				}
+				else
+				{
+					fNewCameraHFOV = Maths::CalculateNewHFOV_DegBased(fCurrentCameraHFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraHFOV);
+			});
 		}
 		else
 		{
@@ -284,7 +254,23 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x310);				
+
+				bInRace = (*pInRaceFlag == 1);
+
+				if (bInRace == 1)
+				{
+					fNewCameraVFOV = Maths::CalculateNewVFOV_DegBased(fCurrentCameraVFOV, fFOVFactor);
+				}
+				else
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV;
+				}
+
+				FPU::FLD(fNewCameraVFOV);
+			});
 		}
 		else
 		{
