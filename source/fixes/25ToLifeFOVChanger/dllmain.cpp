@@ -57,6 +57,12 @@ enum class Game
 	Unknown
 };
 
+enum CameraFOVInstructionScansIndices
+{
+	HipfireFOVScan,
+	ZoomFOVScan
+};
+
 struct GameInfo
 {
 	std::string GameTitle;
@@ -144,8 +150,10 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(fFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "CameraFOVFactor", fCameraFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "ZoomFOVFactor", fZoomFOVFactor);
+	spdlog_confparse(fCameraFOVFactor);
+	spdlog_confparse(fZoomFOVFactor);
 
 	spdlog::info("----------");
 }
@@ -201,7 +209,7 @@ void FOVFix()
 
 				fNewZoomFOV = fCurrentZoomFOV / fZoomFOVFactor;
 
-				FLD::FMUL(fNewZoomFOV);
+				FPU::FMUL(fNewZoomFOV);
 			});
 		}
 	}
