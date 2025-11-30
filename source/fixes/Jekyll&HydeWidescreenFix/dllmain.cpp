@@ -280,9 +280,14 @@ void WidescreenFix()
 				{
 					float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0xCC);
 
-					spdlog::info("[Hook] Raw incoming FOV 1: {:.12f}", fCurrentCameraFOV1);
-
-					fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
+					if (fCurrentCameraFOV1 != 1.134464025497f)
+					{
+						fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
+					}
 
 					ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
 				});
@@ -293,9 +298,14 @@ void WidescreenFix()
 				{
 					float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.edi + 0xCC);
 
-					spdlog::info("[Hook] Raw incoming FOV 2: {:.12f}", fCurrentCameraFOV2);
-
-					fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
+					if (fCurrentCameraFOV2 != 1.134464025497f)
+					{
+						fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
+					}
 
 					FPU::FLD(fNewCameraFOV2);
 				});
