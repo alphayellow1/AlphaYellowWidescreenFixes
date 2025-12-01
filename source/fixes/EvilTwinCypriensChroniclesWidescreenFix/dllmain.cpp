@@ -64,8 +64,8 @@ enum class Game
 
 enum ResolutionInstructionsIndices
 {
-	ResolutionWidthScan,
-	ResolutionHeightScan
+	ResolutionListUnlock1Scan,
+	ResolutionListUnlock2Scan
 };
 
 enum AspectRatioInstructionsIndices
@@ -232,17 +232,16 @@ void WidescreenFix()
 	{
 		if (eGameType == Game::ETCC_VIDEOCONFIG)
 		{
-			std::uint8_t* ResolutionListUnlockScanResult = Memory::PatternScan(exeModule, "3D ?? ?? ?? ?? 7F");
-			if (ResolutionListUnlockScanResult)
+			std::vector<std::uint8_t*> ResolutionListUnlockScansResult = Memory::PatternScan(exeModule, "3D ?? ?? ?? ?? 7F", "81 39");
+			if (Memory::AreAllSignaturesValid(ResolutionListUnlockScansResult) == true)
 			{
-				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution List Unlock Scan 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScansResult[ResolutionListUnlock1Scan] - (std::uint8_t*)exeModule);
 
-				Memory::Write(ResolutionListUnlockScanResult + 1, iNewResX);
-			}
-			else
-			{
-				spdlog::error("Failed to locate resolution list unlock scan memory address.");
-				return;
+				spdlog::info("Resolution List Unlock Scan 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScansResult[ResolutionListUnlock2Scan] - (std::uint8_t*)exeModule);
+
+				Memory::Write(ResolutionListUnlockScansResult[ResolutionListUnlock1Scan] + 1, iNewResX);
+
+				Memory::Write(ResolutionListUnlockScansResult[ResolutionListUnlock2Scan] + 2, iNewResX);
 			}
 		}
 
