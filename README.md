@@ -4,7 +4,8 @@
 This repository is dedicated to enhancing the experience of classic PC games. It's focused on providing fixes and improvements such as field of view (FOV) adjustments, HUD corrections, and support for widescreen, ultrawide, and multi-monitor setups, and hopefully in the future, fix long-standing bugs in games as well.
 
 ## Languages Used
-I use x86 assembly to patch the game executables, DLLs or other related files, and C++ for the DLL injection logic.
+- C++: for DLL injection and logic
+- x86 Assembly: for the x86 FPU operations wrapper
 
 ## Softwares Used
 - Cheat Engine (for memory scanning/hacking and testing ASM scripts)
