@@ -225,7 +225,7 @@ static SafetyHookMid Camera7FOVInstructionHook{};
 static SafetyHookMid CutscenesCameraFOVInstruction1Hook{};
 static SafetyHookMid CutscenesCameraFOVInstruction2Hook{};
 
-void CameraFOVInstructionMidHook(uintptr_t CameraFOVAddress)
+void CameraFOVInstructionMidHook(uintptr_t CameraFOVAddress, float fovFactor = 1.0f)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
 
@@ -257,23 +257,38 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[Camera1To4FOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			Camera1To4FOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Camera1To4FOVScan], [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(ctx.esi + 0xAC); });
+			Camera1To4FOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Camera1To4FOVScan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionMidHook(ctx.esi + 0xAC, fFOVFactor);
+			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[Camera5and6FOVScan], "\x90\x90\x90\x90\x90\x90\x90", 7);
 
-			Camera5and6FOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Camera5and6FOVScan], [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(ctx.esi + ctx.ecx * 0x4 + 0xC0); });
+			Camera5and6FOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Camera5and6FOVScan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionMidHook(ctx.esi + ctx.ecx * 0x4 + 0xC0, fFOVFactor);
+			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[Camera7FOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			Camera7FOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Camera7FOVScan], [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(ctx.esi + 0xAC); });
+			Camera7FOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Camera7FOVScan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionMidHook(ctx.esi + 0xAC, fFOVFactor);
+			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CutscenesCameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CutscenesCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesCameraFOV1Scan], [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(ctx.esi + 0x9C); });
+			CutscenesCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesCameraFOV1Scan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionMidHook(ctx.esi + 0x9C);
+			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CutscenesCameraFOV2Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
 
-			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesCameraFOV2Scan], [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(ctx.esi + ctx.eax * 0x4 + 0xC0); });
+			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesCameraFOV2Scan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionMidHook(ctx.esi + ctx.eax * 0x4 + 0xC0);
+			});
 		}
 
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D8 70 1C 8B 86 B0 00 00 00 D9 C1 D9 E0 D9 5C 24 04 D9 C1 D9 5C 24 08", "D8 70 1C D9 C1 D9 E0 D9 5C 24 04 D9 C1 D9 5C 24 08 DE C9 D9 54 24 0C D9 E0", "D8 71 1C 8B 8E 88 00 00 00 D9 C1 D9 E0 D9 5C 24 0C D9 C1 D9 5C 24 10 DE C9 D9 54 24 14 D9 E0 D9 5C 24 18 8B 50 5C 89 54 24 1C", "D8 B6 94 00 00 00 D9 C1 D9 E0 D9 5C 24 0C D9 C1 D9 5C 24 10 DE C9 D9 54 24 14 D9 E0");
