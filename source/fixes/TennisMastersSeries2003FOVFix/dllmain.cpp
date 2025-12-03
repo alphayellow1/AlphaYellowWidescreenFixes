@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TennisMastersSeries2003FOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -49,14 +49,8 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 float fNewAspectRatio;
-float fNewCameraFOV;
 float fAspectRatioScale;
-float fNewCamera1To4FOV;
-float fNewCamera5And6FOV;
-float fNewCamera7FOV;
-float fNewCutscenesFOV1;
-float fNewCutscenesFOV2;
-float fNewCutscenesFOV3;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
