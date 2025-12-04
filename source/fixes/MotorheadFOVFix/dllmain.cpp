@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -23,10 +22,9 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "4x4HummerFOVFix";
+std::string sFixName = "MotorheadFOVFix";
 std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
@@ -42,6 +40,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalCameraFOV = 1.0f;
 
 // Ini variables
 bool bFixActive;
@@ -52,14 +51,13 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewAspectRatio2;
 float fNewCameraFOV;
-uint32_t* pInRaceFlag;
-static bool bInRace;
 
 // Game detection
 enum class Game
 {
-	HUMMER4X4,
+	MOTORHEAD,
 	Unknown
 };
 
@@ -70,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::HUMMER4X4, {"4x4 Hummer", "Hummer.exe"}},
+	{Game::MOTORHEAD, {"Motorhead", "motor.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -174,8 +172,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -184,71 +180,53 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	dllModule2 = Memory::GetHandle("ChromeEngine2.dll");
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
+static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
-	if (eGameType == Game::HUMMER4X4 && bFixActive == true)
+	if (eGameType == Game::MOTORHEAD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* InARaceTriggerInstructionScanResult = Memory::PatternScan(dllModule2, "39 1D ?? ?? ?? ?? 75 66 8B 0D ?? ?? ?? ?? 53");
-		if (InARaceTriggerInstructionScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 E0 D9 1D");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("In A Race Trigger Instruction: Address is ChromeEngine2.dll+{:x}", InARaceTriggerInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			uint8_t* TriggerValueAddress = Memory::GetPointerFromAddress<uint32_t>(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			fNewAspectRatio2 = 0.75f * fAspectRatioScale;
 
-			pInRaceFlag = reinterpret_cast<uint32_t*>(TriggerValueAddress);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(fNewAspectRatio2);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate in a race trigger instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 08 D8 0D ?? ?? ?? ?? D9 F2 DD D8 D9 44 24 0C D8 C9");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? B8 ?? ?? ?? ?? FF 35");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
+			fNewCameraFOV = (fOriginalCameraFOV / fAspectRatioScale) / fFOVFactor;
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
-
-				bInRace = (*pInRaceFlag == 1);
-
-				if (bInRace == 1)
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
-
-				FPU::FLD(fNewCameraFOV);
-			});
+			Memory::Write(CameraFOVInstructionScanResult + 1, fNewCameraFOV);
 		}
 		else
 		{
