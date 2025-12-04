@@ -38,6 +38,7 @@
     <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <VCToolsVersion>14.50.35717</VCToolsVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -98,8 +99,8 @@
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <LanguageStandard>stdcpp23</LanguageStandard>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

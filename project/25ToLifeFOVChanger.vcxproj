@@ -97,7 +97,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
       <DebugInformationFormat>None</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
