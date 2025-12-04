@@ -42,30 +42,17 @@ std::filesystem::path sExePath;
 std::string sExeName;
 
 // Constants
-constexpr float fPi = 3.14159265358979323846f;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fNewMainMenuCameraFOV;
-
-// Function to convert degrees to radians
-float DegToRad(float degrees)
-{
-	return degrees * (fPi / 180.0f);
-}
-
-// Function to convert radians to degrees
-float RadToDeg(float radians)
-{
-	return radians * (180.0f / fPi);
-}
 
 // Game detection
 enum class Game
@@ -201,30 +188,11 @@ bool DetectGame()
 		}
 	}
 
-	while (!dllModule2)
-	{
-		dllModule2 = GetModuleHandleA("p3core.dll");
-		spdlog::info("Waiting for p3core.dll to load...");
-		Sleep(1000);
-	}
+	dllModule2 = Memory::GetHandle("p3core.dll");
 
-	spdlog::info("Successfully obtained handle for p3core.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	while (!dllModule3)
-	{
-		dllModule3 = GetModuleHandleA("game.dll");
-		spdlog::info("Waiting for game.dll to load...");
-		Sleep(1000);
-	}
-
-	spdlog::info("Successfully obtained handle for game.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+	dllModule3 = Memory::GetHandle("game.dll");
 
 	return true;
-}
-
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * RadToDeg(atanf(tanf(DegToRad(fCurrentFOV / 2.0f)) * (fNewAspectRatio / fOldAspectRatio)));
 }
 
 void FOVFix()

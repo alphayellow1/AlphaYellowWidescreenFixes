@@ -44,15 +44,15 @@ constexpr float fOriginalCameraHFOV = 0.75f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraFOV;
 float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
-float fNewCameraHFOV;
 float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraFOV;
 uint8_t* CameraFOVValueAddress;
 
 // Game detection
