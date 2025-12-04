@@ -15,6 +15,10 @@
 #include <bit>
 #include <chrono>
 #include <cctype>
+#include <future>
+#include <unordered_map>
+#include <mutex>
+#include <shared_mutex> // optional if you want shared locking, not required
 
 template<typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -143,158 +147,169 @@ namespace Memory
 
 	thread_local std::vector<std::string> g_last_scan_signatures;
 
-	std::uint8_t* PatternScan(void* module, const char* signature)
-	{
-		if (!module || !signature)
+	static std::unordered_map<std::string, std::vector<int>> s_pattern_cache;
+	static std::mutex s_pattern_cache_mutex;
+
+	static std::vector<int> get_pattern_bytes_cached(const char* pattern) {
+		if (!pattern) return {};
+		std::string key(pattern);
 		{
+			std::lock_guard<std::mutex> lk(s_pattern_cache_mutex);
+			auto it = s_pattern_cache.find(key);
+			if (it != s_pattern_cache.end()) return it->second;
+		}
+		// not cached -> parse with your existing function
+		std::vector<int> bytes = pattern_to_byte(pattern);
+		{
+			std::lock_guard<std::mutex> lk(s_pattern_cache_mutex);
+			// insert only if not present (another thread might have inserted)
+			s_pattern_cache.try_emplace(key, bytes);
+		}
+		return bytes;
+	}
+
+	std::uint8_t* PatternScan(void* module, const char* signature) {
+		if (!module || !signature) {
 			return nullptr;
 		}
+
+		// Use cached parsing
+		auto patternBytes = get_pattern_bytes_cached(signature);
+		const std::size_t s = patternBytes.size();
+		if (s == 0) return nullptr;
+
+		// Locate a non-wildcard anchor byte (prefer one to minimize false candidates)
+		std::size_t anchor_index = SIZE_MAX;
+		int anchor_value = -1;
+		for (std::size_t i = 0; i < s; ++i) {
+			if (patternBytes[i] != -1) { anchor_index = i; anchor_value = patternBytes[i]; break; }
+		}
+		// If all wildcards, first address of first committed region inside .text or first code section wins
+		bool all_wildcards = (anchor_index == SIZE_MAX);
 
 		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(module);
-		if (!dosHeader || dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
-		{
+		if (!dosHeader || dosHeader->e_magic != IMAGE_DOS_SIGNATURE) {
 			return nullptr;
 		}
-
 		auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<std::uint8_t*>(module) + dosHeader->e_lfanew);
-		if (!ntHeaders || ntHeaders->Signature != IMAGE_NT_SIGNATURE)
-		{
+		if (!ntHeaders || ntHeaders->Signature != IMAGE_NT_SIGNATURE) {
 			return nullptr;
 		}
-
 		PIMAGE_SECTION_HEADER firstSection = IMAGE_FIRST_SECTION(ntHeaders);
 		unsigned numSections = ntHeaders->FileHeader.NumberOfSections;
 
-		auto patternBytes = pattern_to_byte(signature);
-		const std::size_t s = patternBytes.size();
-
-		if (s == 0)
-		{
-			return nullptr;
-		}
-
+		// Build section ordering as before (text/code sections first)
 		std::vector<unsigned> order;
 		order.reserve(numSections);
-
-		for (unsigned i = 0; i < numSections; ++i)
-		{
+		for (unsigned i = 0; i < numSections; ++i) {
 			PIMAGE_SECTION_HEADER sh = &firstSection[i];
-			if (std::strncmp(reinterpret_cast<const char*>(sh->Name), ".text", 5) == 0 || (sh->Characteristics & IMAGE_SCN_CNT_CODE))
+			if (std::strncmp(reinterpret_cast<const char*>(sh->Name), ".text", 5) == 0 ||
+				(sh->Characteristics & IMAGE_SCN_CNT_CODE))
 				order.push_back(i);
 		}
-
-		for (unsigned i = 0; i < numSections; ++i)
-		{
-			if (std::find(order.begin(), order.end(), i) == order.end())
-				order.push_back(i);
+		for (unsigned i = 0; i < numSections; ++i) {
+			if (std::find(order.begin(), order.end(), i) == order.end()) order.push_back(i);
 		}
 
-		for (unsigned idx = 0; idx < order.size(); ++idx)
-		{
+		// For each section, enumerate committed memory regions with VirtualQuery once,
+		// then scan each committed region using memchr anchored search when possible.
+		for (unsigned idx = 0; idx < order.size(); ++idx) {
 			PIMAGE_SECTION_HEADER sh = &firstSection[order[idx]];
-
 			std::uint8_t* secBase = reinterpret_cast<std::uint8_t*>(module) + sh->VirtualAddress;
 			std::size_t secSize = static_cast<std::size_t>(sh->Misc.VirtualSize);
 			if (secSize == 0) secSize = static_cast<std::size_t>(sh->SizeOfRawData);
-			if (secSize == 0)
-			{
-				continue;
-			}
+			if (secSize == 0) continue;
+			if (secSize > 0x80000000u) continue;
+			if (s > secSize) continue;
 
-			if (secSize > 0x80000000u)
-			{
-				continue;
-			}
+			std::uintptr_t secStart = reinterpret_cast<std::uintptr_t>(secBase);
+			std::uintptr_t secEnd = secStart + secSize;
 
-			if (s > secSize)
-			{
-				continue;
-			}
+			std::uintptr_t queryPtr = secStart;
+			while (queryPtr < secEnd) {
+				MEMORY_BASIC_INFORMATION mbi{};
+				if (VirtualQuery(reinterpret_cast<LPCVOID>(queryPtr), &mbi, sizeof(mbi)) == 0) break;
 
-			for (std::size_t offset = 0; offset + s <= secSize; ++offset)
-			{
-				std::uint8_t* addr = secBase + offset;
+				std::uintptr_t regionBase = reinterpret_cast<std::uintptr_t>(mbi.BaseAddress);
+				std::uintptr_t regionTop = regionBase + mbi.RegionSize;
+				// clamp to section
+				std::uintptr_t scanStart = (std::max)(regionBase, secStart);
+				std::uintptr_t scanEnd = (std::min)(regionTop, secEnd);
 
-				MEMORY_BASIC_INFORMATION mbiStart{};
-				if (VirtualQuery(addr, &mbiStart, sizeof(mbiStart)) == 0 || !(mbiStart.State & MEM_COMMIT))
-				{
-					if (mbiStart.RegionSize > 0)
-					{
-						std::uintptr_t next = reinterpret_cast<std::uintptr_t>(mbiStart.BaseAddress) + mbiStart.RegionSize;
-						std::uintptr_t secEnd = reinterpret_cast<std::uintptr_t>(secBase) + secSize;
-						if (next <= secEnd)
-						{
-							offset = static_cast<std::size_t>(next - reinterpret_cast<std::uintptr_t>(secBase));
-							if (offset > 0) --offset;
-							continue;
-						}
-						else
-						{
-							break;
+				if ((mbi.State & MEM_COMMIT) && scanEnd > scanStart) {
+					std::uint8_t* rStart = reinterpret_cast<std::uint8_t*>(scanStart);
+					std::uint8_t* rEnd = reinterpret_cast<std::uint8_t*>(scanEnd); // one-past
+
+					// if pattern all wildcards -> immediate match at region start
+					if (all_wildcards) {
+						return rStart;
+					}
+
+					// last address where full pattern can start:
+					std::uint8_t* lastPossible = rEnd - s;
+					if (lastPossible < rStart) {
+						// region smaller than pattern
+					}
+					else {
+						// search for anchor byte occurrences with memchr, but memchr must be
+						// invoked from rStart + anchor_index to lastPossible + anchor_index
+						std::uint8_t* memchr_search_start = rStart + anchor_index;
+						std::uint8_t* memchr_search_end = lastPossible + anchor_index;
+
+						std::uint8_t* p = memchr_search_start;
+						while (p <= memchr_search_end) {
+							// find next occurrence
+							void* found = std::memchr(p, static_cast<int>(anchor_value),
+								static_cast<std::size_t>(memchr_search_end - p + 1));
+							if (!found) break;
+							std::uint8_t* foundByte = reinterpret_cast<std::uint8_t*>(found);
+							std::uint8_t* candidate = foundByte - anchor_index;
+
+							// verify full pattern at candidate
+							bool ok = true;
+							for (std::size_t j = 0; j < s; ++j) {
+								int pb = patternBytes[j];
+								if (pb != -1 && candidate[j] != static_cast<std::uint8_t>(pb)) {
+									ok = false;
+									break;
+								}
+							}
+							if (ok) return candidate;
+
+							// advance p to search after this foundByte
+							p = foundByte + 1;
 						}
 					}
-					continue;
 				}
 
-				std::uint8_t* addrEnd = addr + s - 1;
-				MEMORY_BASIC_INFORMATION mbiEnd{};
-				if (VirtualQuery(addrEnd, &mbiEnd, sizeof(mbiEnd)) == 0 || !(mbiEnd.State & MEM_COMMIT))
-				{
-					continue;
-				}
-
-				bool found = true;
-
-				for (std::size_t j = 0; j < s; ++j)
-				{
-					int pb = patternBytes[j];
-					if (pb != -1 && addr[j] != static_cast<std::uint8_t>(pb))
-					{
-						found = false;
-						break;
-					}
-				}
-
-				if (found)
-				{
-					return addr;
-				}
-			}
-		}
+				// move to next region
+				// Prevent infinite loop: if regionTop == queryPtr, break
+				if (regionTop <= queryPtr) break;
+				queryPtr = regionTop;
+			} // end region enumeration
+		} // end sections
 
 		return nullptr;
 	}
 
+	// overload: (module, const char*, const char*...)
 	template<typename... Sigs, typename = std::enable_if_t<(std::is_convertible_v<Sigs, const char*> && ...)>>
-	std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature, Sigs... otherSignatures)
-	{
-		g_last_scan_signatures.clear();
-		g_last_scan_signatures.reserve(1 + sizeof...(Sigs));
+std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature, Sigs... otherSignatures) {
+    g_last_scan_signatures.clear();
+    g_last_scan_signatures.reserve(1 + sizeof...(Sigs));
+    g_last_scan_signatures.emplace_back(firstSignature);
+    (g_last_scan_signatures.emplace_back(otherSignatures), ...);
 
-		// record signatures in the same order the results will be produced
-		g_last_scan_signatures.emplace_back(firstSignature);
-		(g_last_scan_signatures.emplace_back(otherSignatures), ...);
+    std::vector<std::uint8_t*> results;
+    results.reserve(g_last_scan_signatures.size());
+    for (auto const& s : g_last_scan_signatures) {
+        results.push_back(PatternScan(module, s.c_str()));
+    }
+    return results;
+}
 
-		std::vector<const char*> sigs;
-		sigs.reserve(g_last_scan_signatures.size());
-		for (auto const& s : g_last_scan_signatures) sigs.push_back(s.c_str());
 
-		std::vector<std::uint8_t*> results;
-		results.reserve(sigs.size());
-
-		// call the single-signature PatternScan for each signature, wrapped in SEH to avoid crashing
-		for (const char* sig : sigs)
-		{
-			std::uint8_t* addr = nullptr;
-
-			addr = PatternScan(module, sig); // calls the improved per-section scanner
-
-			results.push_back(addr);
-		}
-
-		return results;
-	}
-
+	// overload: (module1, sig1, module2, sig2, ... ) where arguments are mixed
 	template<typename... Args, typename = std::enable_if_t<!std::conjunction_v<std::is_convertible<std::decay_t<Args>, const char*>...>, int>>
 	std::vector<std::uint8_t*> PatternScan(void* firstModule, Args... rest)
 	{
@@ -325,11 +340,12 @@ namespace Memory
 		items.emplace_back(reinterpret_cast<void*>(firstModule));
 		(items.emplace_back(make_variant(rest)), ...);
 
-		std::vector<std::uint8_t*> results;
-		results.reserve(items.size());
+		// Build a list of actual tasks (module, signature) preserving ordering
+		struct Task { void* module; const char* sig; };
+		std::vector<Task> tasks;
+		tasks.reserve(items.size());
 
 		void* currentModule = nullptr;
-
 		for (size_t i = 0; i < items.size(); ++i)
 		{
 			if (std::holds_alternative<void*>(items[i]))
@@ -339,22 +355,68 @@ namespace Memory
 			else
 			{
 				const char* sig = std::get<const char*>(items[i]);
-
 				g_last_scan_signatures.emplace_back(sig ? sig : "");
 
 				if (!currentModule)
 				{
-					spdlog::error("PatternScan: Signature provided without a preceding valid module pointer (sig index {})", g_last_scan_signatures.size() - 1);
-					results.push_back(nullptr);
+					// keep a placeholder so indices match
+					tasks.push_back({ nullptr, sig });
 					continue;
 				}
 
-				std::uint8_t* addr = nullptr;
-
-				addr = PatternScan(currentModule, sig); // safe per-section scan
-
-				results.push_back(addr);
+				tasks.push_back({ currentModule, sig });
 			}
+		}
+
+		// If only 0 or 1 scanning tasks, do synchronous to avoid thread overhead
+		if (tasks.size() <= 1)
+		{
+			std::vector<std::uint8_t*> results;
+			results.reserve(tasks.size());
+			for (const auto& t : tasks)
+			{
+				if (!t.module)
+				{
+					spdlog::error("PatternScan: Signature provided without a preceding valid module pointer (sig index {})", results.size());
+					results.push_back(nullptr);
+					continue;
+				}
+				results.push_back(PatternScan(t.module, t.sig));
+			}
+			return results;
+		}
+
+		// Launch async tasks in parallel
+		std::vector<std::future<std::uint8_t*>> futures;
+		futures.reserve(tasks.size());
+
+		for (const auto& t : tasks)
+		{
+			if (!t.module)
+			{
+				// still push a dummy future that returns nullptr to preserve alignment
+				futures.emplace_back(std::async(std::launch::deferred, []() -> std::uint8_t* { return nullptr; }));
+				continue;
+			}
+
+			futures.emplace_back(std::async(std::launch::async, [m = t.module, s = t.sig]() -> std::uint8_t*
+				{
+					return PatternScan(m, s);
+				}));
+		}
+
+		std::vector<std::uint8_t*> results;
+		results.reserve(futures.size());
+		for (size_t i = 0; i < futures.size(); ++i)
+		{
+			// if module was null we need to return nullptr and already logged earlier
+			if (!tasks[i].module)
+			{
+				results.push_back(nullptr);
+				continue;
+			}
+
+			results.push_back(futures[i].get());
 		}
 
 		return results;
