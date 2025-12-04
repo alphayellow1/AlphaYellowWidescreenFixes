@@ -52,6 +52,7 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewAspectRatio2;
+double dNewAspectRatio3;
 float fNewCameraFOV;
 
 // Game detection
@@ -59,6 +60,12 @@ enum class Game
 {
 	MOTORHEAD,
 	Unknown
+};
+
+enum AspectRatioInstructionsIndices
+{
+	AspectRatio1Scan,
+	AspectRatio2Scan
 };
 
 struct GameInfo
@@ -188,7 +195,8 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
+static SafetyHookMid AspectRatioInstruction1Hook{};
+static SafetyHookMid AspectRatioInstruction2Hook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
@@ -199,24 +207,30 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 E0 D9 1D");
-		if (AspectRatioInstructionScanResult)
+		std::vector<std::uint8_t*> AspectRatioInstructionScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 E0 D9 1D", "DC 3D ?? ?? ?? ?? 31 DB");
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScansResult[AspectRatio1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScansResult[AspectRatio2Scan] - (std::uint8_t*)exeModule);
 
 			fNewAspectRatio2 = 0.75f * fAspectRatioScale;
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioInstructionScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewAspectRatio2);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
-			return;
+
+			Memory::PatchBytes(AspectRatioInstructionScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+
+			dNewAspectRatio3 = (double)fNewAspectRatio;
+
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
+			{
+				FPU::FDIVR(dNewAspectRatio3);
+			});
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? B8 ?? ?? ?? ?? FF 35");

@@ -14,6 +14,7 @@
 #include <variant>
 #include <bit>
 #include <chrono>
+#include <cctype>
 
 template<typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -87,33 +88,56 @@ namespace Memory
 		return true;
 	}
 
+	static inline int hexval(char c) noexcept
+	{
+		if (c >= '0' && c <= '9') return c - '0';
+		if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+		if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+		return -1;
+	}
+
 	std::vector<int> pattern_to_byte(const char* pattern)
 	{
-		auto bytes = std::vector<int>{};
+		std::vector<int> bytes;
+		if (!pattern) return bytes;
 
-		auto start = const_cast<char*>(pattern);
-
-		auto end = const_cast<char*>(pattern) + strlen(pattern);
-
-		for (auto current = start; current < end; ++current)
+		const char* p = pattern;
+		while (*p)
 		{
-			if (*current == '?')
+			while (*p && (std::isspace(static_cast<unsigned char>(*p)) || *p == '-')) ++p;
+			if (!*p) break;
+
+			if (*p == '?')
 			{
-				++current;
-
-				if (*current == '?')
-				{
-					++current;
-				}
-
+				++p;
+				if (*p == '?') ++p;
 				bytes.push_back(-1);
+				continue;
 			}
-			else
+
+			int hi = hexval(*p);
+			if (hi < 0)
 			{
-				bytes.push_back(strtoul(current, &current, 16));
+				++p;
+				continue;
 			}
+			++p;
+
+			int lo = -1;
+			if (*p && std::isxdigit(static_cast<unsigned char>(*p)))
+			{
+				lo = hexval(*p);
+				++p;
+			}
+
+			int val = (lo >= 0) ? ((hi << 4) | lo) : hi;
+			bytes.push_back(val & 0xFF);
 		}
 
+		if (bytes.size() > 1000000)
+		{
+			return {};
+		}
 		return bytes;
 	}
 
@@ -121,36 +145,120 @@ namespace Memory
 
 	std::uint8_t* PatternScan(void* module, const char* signature)
 	{
-		auto dosHeader = (PIMAGE_DOS_HEADER)module;
+		if (!module || !signature)
+		{
+			return nullptr;
+		}
 
-		auto ntHeaders = (PIMAGE_NT_HEADERS)((std::uint8_t*)module + dosHeader->e_lfanew);
+		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(module);
+		if (!dosHeader || dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
+		{
+			return nullptr;
+		}
 
-		auto sizeOfImage = ntHeaders->OptionalHeader.SizeOfImage;
+		auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<std::uint8_t*>(module) + dosHeader->e_lfanew);
+		if (!ntHeaders || ntHeaders->Signature != IMAGE_NT_SIGNATURE)
+		{
+			return nullptr;
+		}
+
+		PIMAGE_SECTION_HEADER firstSection = IMAGE_FIRST_SECTION(ntHeaders);
+		unsigned numSections = ntHeaders->FileHeader.NumberOfSections;
 
 		auto patternBytes = pattern_to_byte(signature);
+		const std::size_t s = patternBytes.size();
 
-		auto scanBytes = reinterpret_cast<std::uint8_t*>(module);
-
-		auto s = patternBytes.size();
-
-		auto d = patternBytes.data();
-
-		for (auto i = 0ul; i < sizeOfImage - s; ++i)
+		if (s == 0)
 		{
-			bool found = true;
+			return nullptr;
+		}
 
-			for (auto j = 0ul; j < s; ++j)
+		std::vector<unsigned> order;
+		order.reserve(numSections);
+
+		for (unsigned i = 0; i < numSections; ++i)
+		{
+			PIMAGE_SECTION_HEADER sh = &firstSection[i];
+			if (std::strncmp(reinterpret_cast<const char*>(sh->Name), ".text", 5) == 0 || (sh->Characteristics & IMAGE_SCN_CNT_CODE))
+				order.push_back(i);
+		}
+
+		for (unsigned i = 0; i < numSections; ++i)
+		{
+			if (std::find(order.begin(), order.end(), i) == order.end())
+				order.push_back(i);
+		}
+
+		for (unsigned idx = 0; idx < order.size(); ++idx)
+		{
+			PIMAGE_SECTION_HEADER sh = &firstSection[order[idx]];
+
+			std::uint8_t* secBase = reinterpret_cast<std::uint8_t*>(module) + sh->VirtualAddress;
+			std::size_t secSize = static_cast<std::size_t>(sh->Misc.VirtualSize);
+			if (secSize == 0) secSize = static_cast<std::size_t>(sh->SizeOfRawData);
+			if (secSize == 0)
 			{
-				if (scanBytes[i + j] != d[j] && d[j] != -1)
-				{
-					found = false;
-
-					break;
-				}
+				continue;
 			}
-			if (found == true)
+
+			if (secSize > 0x80000000u)
 			{
-				return &scanBytes[i];
+				continue;
+			}
+
+			if (s > secSize)
+			{
+				continue;
+			}
+
+			for (std::size_t offset = 0; offset + s <= secSize; ++offset)
+			{
+				std::uint8_t* addr = secBase + offset;
+
+				MEMORY_BASIC_INFORMATION mbiStart{};
+				if (VirtualQuery(addr, &mbiStart, sizeof(mbiStart)) == 0 || !(mbiStart.State & MEM_COMMIT))
+				{
+					if (mbiStart.RegionSize > 0)
+					{
+						std::uintptr_t next = reinterpret_cast<std::uintptr_t>(mbiStart.BaseAddress) + mbiStart.RegionSize;
+						std::uintptr_t secEnd = reinterpret_cast<std::uintptr_t>(secBase) + secSize;
+						if (next <= secEnd)
+						{
+							offset = static_cast<std::size_t>(next - reinterpret_cast<std::uintptr_t>(secBase));
+							if (offset > 0) --offset;
+							continue;
+						}
+						else
+						{
+							break;
+						}
+					}
+					continue;
+				}
+
+				std::uint8_t* addrEnd = addr + s - 1;
+				MEMORY_BASIC_INFORMATION mbiEnd{};
+				if (VirtualQuery(addrEnd, &mbiEnd, sizeof(mbiEnd)) == 0 || !(mbiEnd.State & MEM_COMMIT))
+				{
+					continue;
+				}
+
+				bool found = true;
+
+				for (std::size_t j = 0; j < s; ++j)
+				{
+					int pb = patternBytes[j];
+					if (pb != -1 && addr[j] != static_cast<std::uint8_t>(pb))
+					{
+						found = false;
+						break;
+					}
+				}
+
+				if (found)
+				{
+					return addr;
+				}
 			}
 		}
 
@@ -161,20 +269,27 @@ namespace Memory
 	std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature, Sigs... otherSignatures)
 	{
 		g_last_scan_signatures.clear();
-
 		g_last_scan_signatures.reserve(1 + sizeof...(Sigs));
 
+		// record signatures in the same order the results will be produced
 		g_last_scan_signatures.emplace_back(firstSignature);
-
 		(g_last_scan_signatures.emplace_back(otherSignatures), ...);
 
+		std::vector<const char*> sigs;
+		sigs.reserve(g_last_scan_signatures.size());
+		for (auto const& s : g_last_scan_signatures) sigs.push_back(s.c_str());
+
 		std::vector<std::uint8_t*> results;
+		results.reserve(sigs.size());
 
-		results.reserve(g_last_scan_signatures.size());
-
-		for (auto const& s : g_last_scan_signatures)
+		// call the single-signature PatternScan for each signature, wrapped in SEH to avoid crashing
+		for (const char* sig : sigs)
 		{
-			results.push_back(PatternScan(module, s.c_str()));
+			std::uint8_t* addr = nullptr;
+
+			addr = PatternScan(module, sig); // calls the improved per-section scanner
+
+			results.push_back(addr);
 		}
 
 		return results;
@@ -190,25 +305,24 @@ namespace Memory
 		items.reserve(1 + sizeof...(rest));
 
 		auto make_variant = [](auto&& v) -> Item
-		{
-			using T = std::decay_t<decltype(v)>;
+			{
+				using T = std::decay_t<decltype(v)>;
 
-			if constexpr (std::is_convertible_v<T, void*>)
-			{
-				return reinterpret_cast<void*>(v);
-			}
-			else if constexpr (std::is_convertible_v<T, const char*>)
-			{
-				return static_cast<const char*>(v);
-			}
-			else
-			{
-				static_assert(std::is_convertible_v<T, void*> || std::is_convertible_v<T, const char*>, "PatternScan(...) supports only module pointers and const char* signatures");
-			}
-		};
+				if constexpr (std::is_convertible_v<T, void*>)
+				{
+					return reinterpret_cast<void*>(v);
+				}
+				else if constexpr (std::is_convertible_v<T, const char*>)
+				{
+					return static_cast<const char*>(v);
+				}
+				else
+				{
+					static_assert(std::is_convertible_v<T, void*> || std::is_convertible_v<T, const char*>, "PatternScan(...) supports only module pointers and const char* signatures");
+				}
+			};
 
 		items.emplace_back(reinterpret_cast<void*>(firstModule));
-
 		(items.emplace_back(make_variant(rest)), ...);
 
 		std::vector<std::uint8_t*> results;
@@ -226,16 +340,20 @@ namespace Memory
 			{
 				const char* sig = std::get<const char*>(items[i]);
 
-				g_last_scan_signatures.emplace_back(sig);
+				g_last_scan_signatures.emplace_back(sig ? sig : "");
 
 				if (!currentModule)
 				{
-					spdlog::error("PatternScan: Signature provided without a preceding module pointer (sig index {})", g_last_scan_signatures.size() - 1);
+					spdlog::error("PatternScan: Signature provided without a preceding valid module pointer (sig index {})", g_last_scan_signatures.size() - 1);
 					results.push_back(nullptr);
 					continue;
 				}
 
-				results.push_back(PatternScan(currentModule, sig));
+				std::uint8_t* addr = nullptr;
+
+				addr = PatternScan(currentModule, sig); // safe per-section scan
+
+				results.push_back(addr);
 			}
 		}
 
