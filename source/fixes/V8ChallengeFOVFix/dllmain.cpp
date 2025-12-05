@@ -190,16 +190,6 @@ bool DetectGame()
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / (double)fFOVFactor;
-
-	_asm
-	{
-		fdivr qword ptr ds:[dNewCameraFOV]
-	}
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::V8C && bFixActive == true)
@@ -215,7 +205,12 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / (double)fFOVFactor;
+
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FDIVR(dNewCameraFOV);
+			});
 		}
 		else
 		{
