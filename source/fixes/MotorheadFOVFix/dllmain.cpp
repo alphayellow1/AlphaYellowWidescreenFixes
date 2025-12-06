@@ -215,27 +215,27 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> AspectRatioInstructionScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 E0 D9 1D", "DC 3D ?? ?? ?? ?? 31 DB");
-		if (Memory::AreAllSignaturesValid(AspectRatioInstructionScansResult) == true)
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 E0 D9 1D", "DC 3D ?? ?? ?? ?? 31 DB");
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScansResult[AspectRatio1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScansResult[AspectRatio2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)exeModule);
 
 			fNewAspectRatio2 = 0.75f * fAspectRatioScale;
 
-			Memory::PatchBytes(AspectRatioInstructionScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewAspectRatio2);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
 			dNewAspectRatio3 = (double)fNewAspectRatio;
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FDIVR(dNewAspectRatio3);
 			});
@@ -250,7 +250,7 @@ void FOVFix()
 
 			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV4Scan] - (std::uint8_t*)exeModule);
 
 			fNewCameraFOV = (fOriginalCameraFOV / fAspectRatioScale) / fFOVFactor;
 
