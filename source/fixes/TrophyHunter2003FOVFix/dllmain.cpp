@@ -52,9 +52,11 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
 float fNewAspectRatio2;
+float fNewCameraFOV;
 float fNewHipfireFOV;
+float fNewUnarmedHipfireFOV;
+uint8_t* HipfireFOVAddress;
 
 // Game detection
 enum class Game
@@ -75,7 +77,10 @@ enum CameraFOVInstructionsIndices
 	CameraFOV1Scan,
 	CameraFOV2Scan,
 	CameraFOV3Scan,
-	HipfireFOVScan
+	SniperHipfireFOVScan,
+	BinocularsHipfireFOVScan,
+	UnarmedHipfireFOVScan,
+	RifleHipfireFOVScan
 };
 
 struct GameInfo
@@ -219,6 +224,10 @@ static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
 static SafetyHookMid CameraFOVInstruction3Hook{};
+static SafetyHookMid SniperHipfireFOVInstructionHook{};
+static SafetyHookMid BinocularsHipfireFOVInstructionHook{};
+static SafetyHookMid UnarmedHipfireFOVInstructionHook{};
+static SafetyHookMid RifleHipfireFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
@@ -229,6 +238,15 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	FPU::FLD(fNewCameraFOV);
 }
 
+void HipfireFOVInstructionMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentHipfireFOV = *reinterpret_cast<float*>(HipfireFOVAddress);
+
+	fNewHipfireFOV = fCurrentHipfireFOV * fFOVFactor;
+
+	FPU::FMUL(fNewHipfireFOV);
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::TH2003 && bFixActive == true)
@@ -237,7 +255,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "d9 40 ? c9 c3 55 8b ec 83 ec ? 89 4d ? 8b 45 ? 83 78");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D9 40 ?? C9 C3 55 8B EC 83 EC ?? 89 4D ?? 8B 45 ?? 83 78");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is Aspen.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
@@ -266,7 +284,7 @@ void FOVFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "d9 40 ? dc 1d ? ? ? ? df e0 f6 c4 ? 7b ? 8b 45 ? d9 40 ? dc 1d ? ? ? ? df e0 f6 c4 ? 7a", "d9 40 ? d8 0d ? ? ? ? d9 55", "d9 40 ? c9 c3 55 8b ec 51 89 4d ? 8b 45 ? 8b 4d");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 40 ?? DC 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 7B ?? 8B 45 ?? D9 40 ?? DC 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 7A", "D9 40 ?? D8 0D ?? ?? ?? ?? D9 55", "D9 40 ?? C9 C3 55 8B EC 51 89 4D ?? 8B 45 ?? 8B 4D", exeModule, "D8 0D ?? ?? ?? ?? D9 45 ?? D8 4D", "D8 0D ?? ?? ?? ?? 8B 45 ?? D9 45", "D9 05 ?? ?? ?? ?? D9 98 ?? ?? ?? ?? EB ?? 8B 4D", "D8 0D ?? ?? ?? ?? 8B 45 ?? 8B 40 ?? D9 45");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is Aspen.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)dllModule2);
@@ -275,17 +293,51 @@ void FOVFix()
 
 			spdlog::info("Camera FOV Instruction 3: Address is Aspen.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90", 3); // NOP out the original instruction			
+			spdlog::info("Sniper Hipfire FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[SniperHipfireFOVScan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Binoculars Hipfire FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[BinocularsHipfireFOVScan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Unarmed Hipfire FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[UnarmedHipfireFOVScan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Rifle Hipfire FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[RifleHipfireFOVScan] - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90", 3); // NOP out the original instruction
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], CameraFOVInstructionMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90", 3); // NOP out the original instruction			
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90", 3); // NOP out the original instruction
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], CameraFOVInstructionMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90", 3); // NOP out the original instruction			
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90", 3); // NOP out the original instruction
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], CameraFOVInstructionMidHook);
+
+			// Hipfire FOVs
+			HipfireFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[SniperHipfireFOVScan] + 2, Memory::PointerMode::Absolute);
+
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[SniperHipfireFOVScan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+
+			SniperHipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[SniperHipfireFOVScan], HipfireFOVInstructionMidHook);
+
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[BinocularsHipfireFOVScan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+
+			BinocularsHipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[BinocularsHipfireFOVScan], HipfireFOVInstructionMidHook);
+
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[UnarmedHipfireFOVScan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+
+			UnarmedHipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[UnarmedHipfireFOVScan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentUnarmedHipfireFOV = *reinterpret_cast<float*>(HipfireFOVAddress);
+
+				fNewUnarmedHipfireFOV = fCurrentUnarmedHipfireFOV * fFOVFactor;
+
+				FPU::FLD(fNewUnarmedHipfireFOV);
+			});
+
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[RifleHipfireFOVScan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+
+			RifleHipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[RifleHipfireFOVScan], HipfireFOVInstructionMidHook);
 		}
 	}
 }
