@@ -12,6 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -22,9 +23,10 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
+HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "TrivialPursuitUnhingedWidescreenFix";
+std::string sFixName = "DeerHunter2004FOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -45,27 +47,27 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraFOV;
+float fCurrentCameraFOV;
 
 // Game detection
 enum class Game
 {
-	TPUENGLISHUS,
-	TPUFRENCH,
-	TPUGERMAN,
-	TPUITALIAN,
-	TPUSPANISH,
-	TPUENGLISHUK,
+	DH2004,
 	Unknown
 };
 
-enum ResolutionInstructionsScansIndices
+enum CameraFOVInstructionsIndices
 {
-	Resolution1Scan,
-	Resolution2Scan,
-	Resolution3Scan,
+	CameraFOV1Scan,
+	CameraFOV2Scan,
+	CameraFOV3Scan,
+	CameraFOV4Scan
 };
 
 struct GameInfo
@@ -75,12 +77,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::TPUENGLISHUS, {"Trivial Pursuit: Unhinged", "TrivialPursuitPC.exe"}},
-	{Game::TPUFRENCH, {"Trivial Pursuit: Unhinged (French version)", "TPPCFrench.exe"}},
-	{Game::TPUGERMAN, {"Trivial Pursuit: Unhinged (German version)", "TPPCGerman.exe"}},
-	{Game::TPUITALIAN, {"Trivial Pursuit: Unhinged (Italian version)", "TTPCItalian.exe"}},
-	{Game::TPUSPANISH, {"Trivial Pursuit: Unhinged (Spanish version)", "TPPCSpanish.exe"}},
-	{Game::TPUENGLISHUK, {"Trivial Pursuit: Unhinged (UK version)", "TPPCUK.exe"}},
+	{Game::DH2004, {"Deer Hunter 2004", "DH2004.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -156,14 +153,16 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -182,6 +181,8 @@ void Configuration()
 
 bool DetectGame()
 {
+	bool bGameFound = false;
+
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -190,53 +191,76 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			return true;
+			bGameFound = true;
+			break;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
+	if (bGameFound == false)
+	{
+		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+		return false;
+	}
+
+	dllModule2 = Memory::GetHandle("Aspen.dll");
+
+	return true;
 }
 
-void WidescreenFix()
+static SafetyHookMid CameraFOVInstruction1Hook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid CameraFOVInstruction3Hook{};
+static SafetyHookMid CurrentCameraFOVInstructionHook{};
+
+void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	if ((eGameType == Game::TPUENGLISHUS || eGameType == Game::TPUFRENCH || eGameType == Game::TPUGERMAN || eGameType == Game::TPUITALIAN || eGameType == Game::TPUSPANISH || eGameType == Game::TPUENGLISHUK) && bFixActive == true)
+	if (fCurrentCameraFOV == 60.0f)
+	{
+		fNewCameraFOV = (1.0f / fAspectRatioScale) / fFOVFactor;
+	}
+	else
+	{
+		fNewCameraFOV = 1.0f / fAspectRatioScale;
+	}
+
+	FPU::FDIVR(fNewCameraFOV);
+}
+
+void FOVFix()
+{
+	if (eGameType == Game::DH2004 && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "24 38 58 02 00 00 89 5C 24 30 C7 44 24 34 20 03 00 00 89 5C", "6A 18 68 58 02 00 00 68 20 03 00 00 52 E8 85", "6A 18 68 58 02 00 00 68 20 03 00 00 89 44 24");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D8 3D ?? ?? ?? ?? D9 1A", "D8 3D ?? ?? ?? ?? D9 5A", "D8 3D ?? ?? ?? ?? D9 C0 D8 48", "d9 40 ? d8 0d ? ? ? ? d8 0d ? ? ? ? d9 f2");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Projection Instruction 1: Address is Aspen.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Projection Instruction 2: Address is Aspen.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Projection Instruction 3: Address is Aspen.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 14, iCurrentResX);
+			spdlog::info("Current Camera FOV Instruction: Address is Aspen.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV4Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 2, iCurrentResY);
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 8, iCurrentResX);
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], CameraFOVInstructionMidHook);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 3, iCurrentResY);
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 8, iCurrentResX);
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], CameraFOVInstructionMidHook);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 3, iCurrentResY);
-		}
+			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "CE C7 06 AB AA AA 3F C7 46 04");
-		if (AspectRatioScanResult)
-		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], CameraFOVInstructionMidHook);
 
-			Memory::Write(AspectRatioScanResult + 3, fNewAspectRatio);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
-			return;
+			CurrentCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV4Scan], [](SafetyHookContext& ctx)
+			{
+				fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x7C);
+			});
 		}
 	}
 }
@@ -247,7 +271,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
