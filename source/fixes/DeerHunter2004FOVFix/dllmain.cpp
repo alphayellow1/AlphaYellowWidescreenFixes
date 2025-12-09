@@ -234,7 +234,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D8 3D ?? ?? ?? ?? D9 1A", "D8 3D ?? ?? ?? ?? D9 5A", "D8 3D ?? ?? ?? ?? D9 C0 D8 48", "d9 40 ? d8 0d ? ? ? ? d8 0d ? ? ? ? d9 f2");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D8 3D ?? ?? ?? ?? D9 1A", "D8 3D ?? ?? ?? ?? D9 5A", "D8 3D ?? ?? ?? ?? D9 C0 D8 48", "D9 40 ?? D8 0D ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 F2");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Projection Instruction 1: Address is Aspen.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)dllModule2);
