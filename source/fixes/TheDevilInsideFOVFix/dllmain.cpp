@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TheDevilInsideFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.0.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -209,7 +209,7 @@ void FOVFix()
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0xC0);
 
-				if (fCurrentCameraFOV == 1.326450348f)
+				if (fCurrentCameraFOV == 1.326450348f || fCurrentCameraFOV == 1.169370651f)
 				{
 					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 				}
