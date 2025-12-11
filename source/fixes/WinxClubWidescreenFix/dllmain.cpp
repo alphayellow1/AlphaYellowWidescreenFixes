@@ -279,6 +279,21 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV2);
 			});
 		}
+
+		std::uint8_t* WindowNameInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 56 FF 15 ?? ?? ?? ?? 83 C4 ?? 8B C6");
+		if (WindowNameInstructionScanResult)
+		{
+			spdlog::info("Window Name Instruction: Address is {:s}+{:x}", sExeName.c_str(), WindowNameInstructionScanResult - (std::uint8_t*)exeModule);
+
+			const char* NewWindowNameAddress = "Winx Club";
+
+			Memory::Write(WindowNameInstructionScanResult + 1, NewWindowNameAddress);
+		}
+		else
+		{
+			spdlog::error("Failed to locate window name instruction memory address.");
+			return;
+		}
 	}	
 }
 
