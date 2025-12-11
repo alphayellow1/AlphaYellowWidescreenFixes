@@ -210,17 +210,17 @@ bool DetectGame()
 		return false;
 	}
 
-	EngineDLLHandle = Memory::GetHandle("Engine.dll", 200, 15);
+	EngineDLLHandle = Memory::GetHandle("Engine.dll", 100, 5);
 
 	RenderDLLHandle = Memory::GetHandle("Render.dll", 200, 15);
 
-	D3D6DLLHandle = Memory::GetHandle("D3DDrv.dll", 200, 15);
+	D3D6DLLHandle = Memory::GetHandle("D3DDrv.dll", 100, 5);
 
-	D3D8DLLHandle = Memory::GetHandle("D3D8Drv.dll", 200, 15);
+	D3D8DLLHandle = Memory::GetHandle("D3D8Drv.dll", 100, 5);
 
-	D3D9DLLHandle = Memory::GetHandle("D3D9Drv.dll", 200, 15);
+	D3D9DLLHandle = Memory::GetHandle("D3D9Drv.dll", 100, 5);
 
-	OpenGLDLLHandle = Memory::GetHandle("OpenGLDrv.dll", 200, 15);
+	OpenGLDLLHandle = Memory::GetHandle("OpenGLDrv.dll", 100, 5);
 
 	return true;
 }
