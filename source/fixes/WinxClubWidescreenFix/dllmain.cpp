@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "WinxClubWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.0.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -271,7 +271,10 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x188);
 
-				fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
+				if (fCurrentCameraFOV2 != fNewCameraFOV2)
+				{
+					fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
+				}				
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV2);
 			});
