@@ -76,8 +76,12 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 int iNewResX2;
-int iNewHUDValue1;
+int iNewCocheTorrenteHUDValue6;
 float fNewCocheTorrenteHUDFOV;
+int iNewComercialHUDValue2;
+int iNewCocheTorrenteHUDValue5;
+int iNewMadrid_F03HUDValue3;
+int iNewMadrid_F03HUDValue5;
 
 // Game detection
 enum class Game
@@ -102,6 +106,26 @@ enum CocheTorrenteHUDInstructionsIndices
 	CocheTorrenteHUD6Scan,
 	CocheTorrenteHUD7Scan,
 	CocheTorrenteHUD8Scan,
+};
+
+enum ComercialHUDInstructionsIndices
+{
+	ComercialHUD1Scan,
+	ComercialHUD2Scan,
+	ComercialHUD3Scan,
+	ComercialHUD4Scan,
+	ComercialHUD5Scan,
+	ComercialHUD6Scan
+};
+
+enum Madrid_F03HUDInstructionsIndices
+{
+	Madrid_F03HUD1Scan,
+	Madrid_F03HUD2Scan,
+	Madrid_F03HUD3Scan,
+	Madrid_F03HUD4Scan,
+	Madrid_F03HUD5Scan,
+	Madrid_F03HUD6Scan,
 };
 
 struct GameInfo
@@ -389,7 +413,7 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 				}
 			}
 
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "d9 82 ? ? ? ? 57");
+			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 ?? ?? ?? ?? 57");
 			if (CameraFOVInstructionScanResult)
 			{
 				spdlog::info("Camera FOV Instruction: Address is vtKernel.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
@@ -462,14 +486,14 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD5Scan] + 6, iNewResX2);
 
 					// HUD Instructions 6
-					iNewHUDValue1 = (int)(std::round(598.5f * fNewAspectRatio - 248.0f));
+					iNewCocheTorrenteHUDValue6 = (int)(std::round(598.5f * fNewAspectRatio - 248.0f));
 					
-					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD6Scan] + 2, iNewHUDValue1);				
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD6Scan] + 2, iNewCocheTorrenteHUDValue6);
 
 					// HUD Instructions 7
 					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD7Scan] + 6, iNewResX2);
 
-					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD7Scan] + 40, iNewHUDValue1);
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD7Scan] + 40, iNewResX2);
 
 					// HUD Instructions 8
 					fNewCocheTorrenteHUDFOV = Maths::CalculateNewFOV_RadBased(1.27999997138977f, fAspectRatioScale);
@@ -484,7 +508,44 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> ComercialHUDInstructionsScansResult = Memory::PatternScan(dllModule5, "68 58 02 00 00 68 20 03 00 00 8D 54 24 14 52 8D 44 24 1C 50 68 3D 02 00 00", "68 02 03 00 00 FF D6 B9 00 A2 00 10 83 C4 18 85 C9 75 0A 89 6C 24 2C 89 6C 24 28 EB 3F 83 C9 FF", "68 58 02 00 00 68 20 03 00 00 8D 4C 24 14 51 8D 54 24 1C 52 6A 12 6A 12 FF D6 8B 44 24 24 8B 4C 24 28", "68 58 02 00 00 68 20 03 00 00 8D 54 24 50 52 8D 44 24 58 50 68 2F 02 00 00 68 E2 02 00 00",
+				"68 E2 02 00 00 FF D6 83 C4 54 68 D8 A1 00 10 8D 4C 24 2C FF 15 ?? ?? ?? ??", "68 58 02 00 00 68 20 03 00 00 8D 84 24 88 00 00 00 50 8D 8C 24 88 00 00 00 51 6A 20 C7 86 48 03 00 00 01 00 00 00 6A 20 C6 86 CC 00 00 00 01 FF 15 ?? ?? ?? ??");
+				if (Memory::AreAllSignaturesValid(ComercialHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is Comercial.dll+{:x}", ComercialHUDInstructionsScansResult[ComercialHUD1Scan] - (std::uint8_t*)dllModule5);
 
+					spdlog::info("HUD Instruction 2: Address is Comercial.dll+{:x}", ComercialHUDInstructionsScansResult[ComercialHUD2Scan] - (std::uint8_t*)dllModule5);
+
+					spdlog::info("HUD Instruction 3: Address is Comercial.dll+{:x}", ComercialHUDInstructionsScansResult[ComercialHUD3Scan] - (std::uint8_t*)dllModule5);
+
+					spdlog::info("HUD Instruction 4: Address is Comercial.dll+{:x}", ComercialHUDInstructionsScansResult[ComercialHUD4Scan] - (std::uint8_t*)dllModule5);
+
+					spdlog::info("HUD Instruction 5: Address is Comercial.dll+{:x}", ComercialHUDInstructionsScansResult[ComercialHUD5Scan] - (std::uint8_t*)dllModule5);
+
+					spdlog::info("HUD Instruction 6: Address is Comercial.dll+{:x}", ComercialHUDInstructionsScansResult[ComercialHUD6Scan] - (std::uint8_t*)dllModule5);
+
+					// HUD Instructions 1
+					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					iNewComercialHUDValue2 = (int)(std::round(600.0f * fNewAspectRatio - 30.0f));
+
+					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD1Scan] + 1, iNewComercialHUDValue2);
+
+					// HUD Instructions 3
+					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD4Scan] + 6, iNewResX2);
+
+					// HUD Instructions 5
+					iNewCocheTorrenteHUDValue5 = (int)(std::round(600.0f * fNewAspectRatio - 62.0f));
+
+					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD5Scan] + 1, iNewCocheTorrenteHUDValue5);
+
+					// HUD Instructions 6
+					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD6Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"contadordetonador.dll")
@@ -556,7 +617,44 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> Madrid_F03HUDInstructionsScansResult = Memory::PatternScan(dllModule13, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 8C 24 ?? ?? ?? ?? 51 8D 94 24 ?? ?? ?? ?? 52 6A ?? 6A", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 8C 24 ?? ?? ?? ?? 51 8D 94 24 ?? ?? ?? ?? 52 6A ?? 68",
+				"68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 83 C4 ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 8C 24 ?? ?? ?? ?? 8B 94 24 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 8C 24 ?? ?? ?? ?? 51 8D 94 24 ?? ?? ?? ?? 52 68", "68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 83 C4 ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 8C 24 ?? ?? ?? ?? 8B 94 24 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 44 24");
+				if (Memory::AreAllSignaturesValid(Madrid_F03HUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is Madrid_F03.dll+{:x}", Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD1Scan] - (std::uint8_t*)dllModule13);
 
+					spdlog::info("HUD Instruction 2: Address is Madrid_F03.dll+{:x}", Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD2Scan] - (std::uint8_t*)dllModule13);
+
+					spdlog::info("HUD Instruction 3: Address is Madrid_F03.dll+{:x}", Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD3Scan] - (std::uint8_t*)dllModule13);
+
+					spdlog::info("HUD Instruction 4: Address is Madrid_F03.dll+{:x}", Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD4Scan] - (std::uint8_t*)dllModule13);
+
+					spdlog::info("HUD Instruction 5: Address is Madrid_F03.dll+{:x}", Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD5Scan] - (std::uint8_t*)dllModule13);
+
+					spdlog::info("HUD Instruction 6: Address is Madrid_F03.dll+{:x}", Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD6Scan] - (std::uint8_t*)dllModule13);
+
+					// HUD Instructions 1
+					Memory::Write(Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					Memory::Write(Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD2Scan] + 6, iNewResX2);
+
+					// HUD Instructions 3
+					iNewMadrid_F03HUDValue3 = (int)(std::round(210.0f * fNewAspectRatio - 31.0f));
+
+					Memory::Write(Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD3Scan] + 1, iNewMadrid_F03HUDValue3);
+
+					// HUD Instructions 4
+					Memory::Write(Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD4Scan] + 6, iNewResX2);
+
+					// HUD Instructions 5
+					iNewMadrid_F03HUDValue5 = (int)(std::round(210.0f * fNewAspectRatio - 35.0f));
+
+					Memory::Write(Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD5Scan] + 1, iNewMadrid_F03HUDValue5);
+
+					// HUD Instructions 6
+					Memory::Write(Madrid_F03HUDInstructionsScansResult[Madrid_F03HUD6Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"madrid_f04.dll")
@@ -628,7 +726,7 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
-
+				
 			}
 		}
 		else if (name == L"marbella_f04.dll")
@@ -676,7 +774,7 @@ void WidescreenFix()
 
 	fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-	iNewResX2 = iNewResX * fAspectRatioScale;
+	iNewResX2 = 800.0f * fAspectRatioScale;
 }
 
 static VOID NTAPI LdrNotificationCallback(ULONG NotificationReason, PLDR_DLL_NOTIFICATION_DATA_SIMPLE NotificationData, PVOID Context)
