@@ -75,6 +75,9 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
+int iNewResX2;
+int iNewHUDValue1;
+float fNewCocheTorrenteHUDFOV;
 
 // Game detection
 enum class Game
@@ -87,6 +90,18 @@ enum ResolutionInstructionsIndices
 {
 	ResolutionList1Scan,
 	ResolutionList2Scan
+};
+
+enum CocheTorrenteHUDInstructionsIndices
+{
+	CocheTorrenteHUD1Scan,
+	CocheTorrenteHUD2Scan,
+	CocheTorrenteHUD3Scan,
+	CocheTorrenteHUD4Scan,
+	CocheTorrenteHUD5Scan,
+	CocheTorrenteHUD6Scan,
+	CocheTorrenteHUD7Scan,
+	CocheTorrenteHUD8Scan,
 };
 
 struct GameInfo
@@ -221,6 +236,7 @@ bool DetectGame()
 		return false;
 	}
 
+	/*
 	dllModule2 = Memory::GetHandle("vtKernel.dll");
 
 	dllModule3 = Memory::GetHandle("Camera.dll");
@@ -268,6 +284,7 @@ bool DetectGame()
 	dllModule24 = Memory::GetHandle("Radar.dll");
 
 	dllModule25 = Memory::GetHandle("Script.dll");
+	*/
 	
 	return true;
 }
@@ -323,301 +340,343 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 	std::wstring name = ToLowerW(baseName);
 
-	if (name == L"vtkernel.dll")
+	if (bFixActive == true && eGameType == Game::TORRENTE)
 	{
-		dllModule2 = moduleHandle;
-
-		if (loaded)
+		if (name == L"vtkernel.dll")
 		{
-			std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(dllModule2, "C7 83 A0 01 00 00 80 02 00 00 C7 83 A4 01 00 00 E0 01 00 00 EB 2F 83 F8 01 75 16 C7 83 A0 01 00 00 20 03 00 00 C7 83 A4 01 00 00 58 02 00 00 EB 14 C7 83 A0 01 00 00 00 04 00 00 C7 83 A4 01 00 00 00 03 00 00", "C7 86 A0 01 00 00 80 02 00 00 C7 86 A4 01 00 00 E0 01 00 00 EB 2F 83 FB 01 75 16 C7 86 A0 01 00 00 20 03 00 00 C7 86 A4 01 00 00 58 02 00 00 EB 14 C7 86 A0 01 00 00 00 04 00 00 C7 86 A4 01 00 00 00 03 00 00");
-			if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
+			dllModule2 = moduleHandle;
+
+			if (loaded)
 			{
-				spdlog::info("Resolution List 1: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList1Scan] - (std::uint8_t*)dllModule2);
+				std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(dllModule2, "C7 83 A0 01 00 00 80 02 00 00 C7 83 A4 01 00 00 E0 01 00 00 EB 2F 83 F8 01 75 16 C7 83 A0 01 00 00 20 03 00 00 C7 83 A4 01 00 00 58 02 00 00 EB 14 C7 83 A0 01 00 00 00 04 00 00 C7 83 A4 01 00 00 00 03 00 00", "C7 86 A0 01 00 00 80 02 00 00 C7 86 A4 01 00 00 E0 01 00 00 EB 2F 83 FB 01 75 16 C7 86 A0 01 00 00 20 03 00 00 C7 86 A4 01 00 00 58 02 00 00 EB 14 C7 86 A0 01 00 00 00 04 00 00 C7 86 A4 01 00 00 00 03 00 00");
+				if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
+				{
+					spdlog::info("Resolution List 1: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList1Scan] - (std::uint8_t*)dllModule2);
 
-				spdlog::info("Resolution List 2: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList2Scan] - (std::uint8_t*)dllModule2);
+					spdlog::info("Resolution List 2: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList2Scan] - (std::uint8_t*)dllModule2);
 
-				// Resolution List 1
-				// 640x480
-				Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 6, iNewResX);
+					// Resolution List 1
+					// 640x480
+					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 6, iNewResX);
 
-				Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 16, iNewResY);
+					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 16, iNewResY);
 
-				// 800x600
-				Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 33, iNewResX);
+					// 800x600
+					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 33, iNewResX);
 
-				Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 43, iNewResY);
+					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 43, iNewResY);
 
-				// 1024x768
-				Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 55, iNewResX);
+					// 1024x768
+					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 55, iNewResX);
 
-				Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 65, iNewResY);
+					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 65, iNewResY);
 
-				// Resolution List 2
-				// 640x480
-				Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 6, iNewResX);
+					// Resolution List 2
+					// 640x480
+					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 6, iNewResX);
 
-				Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 16, iNewResY);
+					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 16, iNewResY);
 
-				// 800x600
-				Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 33, iNewResX);
+					// 800x600
+					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 33, iNewResX);
 
-				Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 43, iNewResY);
+					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 43, iNewResY);
 
-				// 1024x768
-				Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 55, iNewResX);
+					// 1024x768
+					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 55, iNewResX);
 
-				Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 65, iNewResY);
+					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 65, iNewResY);
+				}
+			}
+
+			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "d9 82 ? ? ? ? 57");
+			if (CameraFOVInstructionScanResult)
+			{
+				spdlog::info("Camera FOV Instruction: Address is vtKernel.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+
+				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				{
+					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0xE0);
+
+					if (fCurrentCameraFOV == 0.6899999976f)
+					{
+						fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+					}
+
+					FPU::FLD(fNewCameraFOV);
+				});
 			}
 		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "d9 82 ? ? ? ? 57");
-		if (CameraFOVInstructionScanResult)
+		else if (name == L"camera.dll")
 		{
-			spdlog::info("Camera FOV Instruction: Address is vtKernel.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
-
-			/*
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0xE0);
-
-				if (fCurrentCameraFOV == 0.6899999976f)
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
-
-				FPU::FLD(fNewCameraFOV);
-			});
-			*/
-		}
-	}
-	else if (name == L"camera.dll")
-	{
-		dllModule3 = moduleHandle;
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"cochetorrente.dll")
-	{
-		dllModule4 = moduleHandle;
-		if (loaded)
-		{
-			/*
-			std::vector<std::uint8_t*> HUDInstructionsScans1Result = Memory::PatternScan(dllModule4, "68 58 02 00 00 68 20 03 00 00 8D 8C 24 84 00 00 00 51 8D 54 24", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 88 00 00 00 51 8D 94", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 9C 00 00 00 51 8D 94 24 A8 00 00 00 52",
-				"68 58 02 00 00 68 20 03 00 00 8D 94 24 88 00 00 00 52 8D 84 24 94 00 00 00 50 68 12", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 9C 00 00 00 51 8D 94 24 A8", "8B C7 BD 26 02 00 00 8D B8", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 88 00 00 00 51 8D 94 24 94 00 00 00 52 68 12 02 00 00 55 FF D6 68 58 02 00 00 68 20 03 00 00", "68 0A D7 A3 3F 50 FF 15 40 B1 01 10 83 C4");
-			if (Memory::AreAllSignaturesValid(HUDInstructionsScans1Result) == true)
+			dllModule3 = moduleHandle;
+			if (loaded)
 			{
 
 			}
-			*/
 		}
-	}
-	else if (name == L"comercial.dll")
-	{
-		dllModule5 = moduleHandle;
-
-		if (loaded)
+		else if (name == L"cochetorrente.dll")
 		{
+			dllModule4 = moduleHandle;
+			if (loaded)
+			{
+				std::vector<std::uint8_t*> CocheTorrenteHUDInstructionsScansResult = Memory::PatternScan(dllModule4, "68 58 02 00 00 68 20 03 00 00 8D 8C 24 84 00 00 00 51 8D 54 24", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 88 00 00 00 51 8D 94", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 9C 00 00 00 51 8D 94 24 A8 00 00 00 52",
+					"68 58 02 00 00 68 20 03 00 00 8D 94 24 88 00 00 00 52 8D 84 24 94 00 00 00 50 68 12", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 9C 00 00 00 51 8D 94 24 A8", "8B C7 BD 26 02 00 00 8D B8", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 88 00 00 00 51 8D 94 24 94 00 00 00 52 68 12 02 00 00 55 FF D6 68 58 02 00 00 68 20 03 00 00", "68 0A D7 A3 3F 50 FF 15 40 B1 01 10 83 C4");
+				if (Memory::AreAllSignaturesValid(CocheTorrenteHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is CocheTorrente.dll+{:x}", CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD1Scan] - (std::uint8_t*)dllModule4);
 
+					spdlog::info("HUD Instruction 2: Address is CocheTorrente.dll+{:x}", CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD2Scan] - (std::uint8_t*)dllModule4);
+
+					spdlog::info("HUD Instruction 3: Address is CocheTorrente.dll+{:x}", CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD3Scan] - (std::uint8_t*)dllModule4);
+
+					spdlog::info("HUD Instruction 4: Address is CocheTorrente.dll+{:x}", CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD4Scan] - (std::uint8_t*)dllModule4);
+
+					spdlog::info("HUD Instruction 5: Address is CocheTorrente.dll+{:x}", CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD5Scan] - (std::uint8_t*)dllModule4);
+
+					spdlog::info("HUD Instruction 6: Address is CocheTorrente.dll+{:x}", CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD6Scan] - (std::uint8_t*)dllModule4);
+
+					spdlog::info("HUD Instruction 7: Address is CocheTorrente.dll+{:x}", CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD7Scan] - (std::uint8_t*)dllModule4);
+
+					spdlog::info("HUD Instruction 8: Address is CocheTorrente.dll+{:x}", CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD8Scan] - (std::uint8_t*)dllModule4);
+
+					// HUD Instructions 1
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD2Scan] + 6, iNewResX2);
+
+					// HUD Instructions 3
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD4Scan] + 6, iNewResX2);
+
+					// HUD Instructions 5
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD5Scan] + 6, iNewResX2);
+
+					// HUD Instructions 6
+					iNewHUDValue1 = (int)(std::round(598.5f * fNewAspectRatio - 248.0f));
+					
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD6Scan] + 2, iNewHUDValue1);				
+
+					// HUD Instructions 7
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD7Scan] + 6, iNewResX2);
+
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD7Scan] + 40, iNewHUDValue1);
+
+					// HUD Instructions 8
+					fNewCocheTorrenteHUDFOV = Maths::CalculateNewFOV_RadBased(1.27999997138977f, fAspectRatioScale);
+					
+					Memory::Write(CocheTorrenteHUDInstructionsScansResult[CocheTorrenteHUD8Scan] + 1, fNewCocheTorrenteHUDFOV);
+				}
+			}
 		}
-	}
-	else if (name == L"contadordetonador.dll")
-	{
-		dllModule6 = moduleHandle;
-
-		if (loaded)
+		else if (name == L"comercial.dll")
 		{
+			dllModule5 = moduleHandle;
 
+			if (loaded)
+			{
+
+			}
 		}
-	}
-	else if (name == L"contadordinero.dll")
-	{
-		dllModule7 = moduleHandle;
-
-		if (loaded)
+		else if (name == L"contadordetonador.dll")
 		{
+			dllModule6 = moduleHandle;
 
+			if (loaded)
+			{
+
+			}
 		}
-	}
-	else if (name == L"contadormunicion.dll")
-	{
-		dllModule8 = moduleHandle;
-
-		if (loaded)
+		else if (name == L"contadordinero.dll")
 		{
+			dllModule7 = moduleHandle;
 
+			if (loaded)
+			{
+
+			}
 		}
-	}
-	else if (name == L"contadorsalud.dll")
-	{
-		dllModule9 = moduleHandle;
-
-		if (loaded)
+		else if (name == L"contadormunicion.dll")
 		{
+			dllModule8 = moduleHandle;
 
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"contadorsalud.dll")
+		{
+			dllModule9 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"contadortiempo.dll")
+		{
+			dllModule10 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"fase_cuco.dll")
+		{
+			dllModule11 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"fase_spinelli.dll")
+		{
+			dllModule12 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"madrid_f03.dll")
+		{
+			dllModule13 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"madrid_f04.dll")
+		{
+			dllModule14 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"madrid_franco.dll")
+		{
+			dllModule15 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"madrid_kio.dll")
+		{
+			dllModule16 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"main.dll")
+		{
+			dllModule17 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"marbella_chalets.dll")
+		{
+			dllModule18 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"marbella_f01.dll")
+		{
+			dllModule19 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"marbella_f02.dll")
+		{
+			dllModule20 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"marbella_f03.dll")
+		{
+			dllModule21 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"marbella_f04.dll")
+		{
+			dllModule22 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"marbella_malibu.dll")
+		{
+			dllModule23 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"radar.dll")
+		{
+			dllModule24 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
+		}
+		else if (name == L"script.dll")
+		{
+			dllModule25 = moduleHandle;
+
+			if (loaded)
+			{
+
+			}
 		}
 	}	
-	else if (name == L"contadortiempo.dll")
-	{
-		dllModule10 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"fase_cuco.dll")
-	{
-		dllModule11 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"fase_spinelli.dll")
-	{
-		dllModule12 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"madrid_f03.dll")
-	{
-		dllModule13 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"madrid_f04.dll")
-	{
-		dllModule14 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"madrid_franco.dll")
-	{
-		dllModule15 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"madrid_kio.dll")
-	{
-		dllModule16 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"main.dll")
-	{
-		dllModule17 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"marbella_chalets.dll")
-	{
-		dllModule18 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"marbella_f01.dll")
-	{
-		dllModule19 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"marbella_f02.dll")
-	{
-		dllModule20 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"marbella_f03.dll")
-	{
-		dllModule21 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"marbella_f04.dll")
-	{
-		dllModule22 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"marbella_malibu.dll")
-		{
-		dllModule23 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"radar.dll")
-	{
-		dllModule24 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
-	else if (name == L"script.dll")
-	{
-		dllModule25 = moduleHandle;
-
-		if (loaded)
-		{
-
-		}
-	}
 }
 
 void WidescreenFix()
 {
-	if (bFixActive == true && eGameType == Game::TORRENTE)
-	{
-		fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
+	fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-	}
+	fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+	iNewResX2 = iNewResX * fAspectRatioScale;
 }
 
 static VOID NTAPI LdrNotificationCallback(ULONG NotificationReason, PLDR_DLL_NOTIFICATION_DATA_SIMPLE NotificationData, PVOID Context)
@@ -705,6 +764,14 @@ DWORD __stdcall Main(void*)
 	{
 		WidescreenFix();
 	}
+
+	g_hWatcherThread = CreateThread(NULL, 0, DllWatcherThread, NULL, 0, NULL);
+	if (g_hWatcherThread)
+	{
+		SetThreadPriority(g_hWatcherThread, THREAD_PRIORITY_NORMAL);
+		CloseHandle(g_hWatcherThread);
+	}
+
 	return TRUE;
 }
 
@@ -722,12 +789,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 			CloseHandle(mainHandle);
 		}
 
-		g_hWatcherThread = CreateThread(NULL, 0, DllWatcherThread, NULL, 0, NULL);
-		if (g_hWatcherThread)
-		{
-			SetThreadPriority(g_hWatcherThread, THREAD_PRIORITY_NORMAL);
-			CloseHandle(g_hWatcherThread); // keep thread running, don't leak handle
-		}
 		break;
 	}
 	case DLL_THREAD_ATTACH:
