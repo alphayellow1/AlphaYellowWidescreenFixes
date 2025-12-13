@@ -1320,7 +1320,18 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
-				
+				std::uint8_t* Marbella_F03HUDInstructionScanResult = Memory::PatternScan(dllModule21, "68 58 02 00 00 68 20 03 00 00 8D 54 24 3C 52 8D 44 24 48 50 6A 20");
+				if (Marbella_F03HUDInstructionScanResult)
+				{
+					spdlog::info("HUD Instruction: Address is Marbella_f03.dll+{:x}", Marbella_F03HUDInstructionScanResult - (std::uint8_t*)dllModule21);
+
+					Memory::Write(Marbella_F03HUDInstructionScanResult + 6, iNewResX2);
+				}
+				else
+				{
+					spdlog::info("Cannot locate the HUD instruction memory address (Marbella_f03.dll).");
+					return;
+				}
 			}
 		}
 		else if (name == L"marbella_f04.dll")
@@ -1329,7 +1340,18 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::uint8_t* Marbella_F04HUDInstructionScanResult = Memory::PatternScan(dllModule22, "68 58 02 00 00 68 20 03 00 00 8D 94 24 98 00 00 00 52 8D 84 24 98");
+				if (Marbella_F04HUDInstructionScanResult)
+				{
+					spdlog::info("HUD Instruction: Address is Marbella_f04.dll+{:x}", Marbella_F04HUDInstructionScanResult - (std::uint8_t*)dllModule22);
 
+					Memory::Write(Marbella_F04HUDInstructionScanResult + 6, iNewResX2);
+				}
+				else
+				{
+					spdlog::info("Cannot locate the HUD instruction memory address (Marbella_f04.dll).");
+					return;
+				}
 			}
 		}
 		else if (name == L"marbella_malibu.dll")
@@ -1338,7 +1360,18 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::uint8_t* Marbella_MalibuHUDInstructionScanResult = Memory::PatternScan(dllModule23, "68 58 02 00 00 68 20 03 00 00 8D 8C 24 88 00 00 00 51 8D 94 24 88 00 00 00 52 6A 20");
+				if (Marbella_MalibuHUDInstructionScanResult)
+				{
+					spdlog::info("HUD Instruction: Address is marbella_malibu.dll+{:x}", Marbella_MalibuHUDInstructionScanResult - (std::uint8_t*)dllModule23);
 
+					Memory::Write(Marbella_MalibuHUDInstructionScanResult + 6, iNewResX2);
+				}
+				else
+				{
+					spdlog::info("Cannot locate the HUD instruction memory address (marbella_malibu.dll).");
+					return;
+				}
 			}
 		}
 		else if (name == L"radar.dll")
