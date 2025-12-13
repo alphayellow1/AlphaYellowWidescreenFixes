@@ -524,7 +524,7 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 				}
 			}
 
-			// Located in vtKernel.dll.vtCamera::ComputeProjectionMatrix
+			// Located in vtCamera::ComputeProjectionMatrix
 			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 ?? ?? ?? ?? 57");
 			if (CameraFOVInstructionScanResult)
 			{
