@@ -76,10 +76,20 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 int iNewResX2;
+int iNewCocheTorrenteHUDValue5;
 int iNewCocheTorrenteHUDValue6;
 float fNewCocheTorrenteHUDFOV;
 int iNewComercialHUDValue2;
-int iNewCocheTorrenteHUDValue5;
+int iNewContadorDetonadorHUDValue2;
+int iNewContadorDetonadorHUDValue4;
+int iNewContadorDineroHUDValue2;
+int iNewContadorDineroHUDValue5;
+int iNewContadorTiempoHUDValue2;
+int iNewContadorTiempoHUDValue4;
+int iNewFaseCucoHUDValue3;
+int iNewFaseCucoHUDValue6;
+int iNewFaseCucoHUDValue9;
+int iNewFaseCucoHUDValue12;
 int iNewMadrid_F03HUDValue3;
 int iNewMadrid_F03HUDValue5;
 
@@ -105,7 +115,7 @@ enum CocheTorrenteHUDInstructionsIndices
 	CocheTorrenteHUD5Scan,
 	CocheTorrenteHUD6Scan,
 	CocheTorrenteHUD7Scan,
-	CocheTorrenteHUD8Scan,
+	CocheTorrenteHUD8Scan
 };
 
 enum ComercialHUDInstructionsIndices
@@ -118,6 +128,75 @@ enum ComercialHUDInstructionsIndices
 	ComercialHUD6Scan
 };
 
+enum ContadorDetonadorHUDInstructionsIndices
+{
+	ContadorDetonadorHUD1Scan,
+	ContadorDetonadorHUD2Scan,
+	ContadorDetonadorHUD3Scan,
+	ContadorDetonadorHUD4Scan,
+	ContadorDetonadorHUD5Scan,
+	ContadorDetonadorHUD6Scan
+};
+
+enum ContadorDineroHUDInstructionsIndices
+{
+	ContadorDineroHUD1Scan,
+	ContadorDineroHUD2Scan,
+	ContadorDineroHUD3Scan,
+	ContadorDineroHUD4Scan,
+	ContadorDineroHUD5Scan,
+	ContadorDineroHUD6Scan
+};
+
+enum ContadorMunicionInstructionsIndices
+{
+	ContadorMunicionHUD1Scan,
+	ContadorMunicionHUD2Scan,
+	ContadorMunicionHUD3Scan,
+	ContadorMunicionHUD4Scan
+};
+
+enum ContadorSaludHUDInstructionsIndices
+{
+	ContadorSaludHUD1Scan,
+	ContadorSaludHUD2Scan,
+	ContadorSaludHUD3Scan,
+	ContadorSaludHUD4Scan,
+	ContadorSaludHUD5Scan,
+	ContadorSaludHUD6Scan,
+	ContadorSaludHUD7Scan,
+	ContadorSaludHUD8Scan
+};
+
+enum ContadorTiempoHUDInstructionsIndices
+{
+	ContadorTiempoHUD1Scan,
+	ContadorTiempoHUD2Scan,
+	ContadorTiempoHUD3Scan,
+	ContadorTiempoHUD4Scan,
+	ContadorTiempoHUD5Scan,
+	ContadorTiempoHUD6Scan
+};
+
+enum FaseCucoHUDInstructionsIndices
+{
+	FaseCucoHUD1Scan,
+	FaseCucoHUD2Scan,
+	FaseCucoHUD3Scan,
+	FaseCucoHUD4Scan,
+	FaseCucoHUD5Scan,
+	FaseCucoHUD6Scan,
+	FaseCucoHUD7Scan,
+	FaseCucoHUD8Scan,
+	FaseCucoHUD9Scan,
+	FaseCucoHUD10Scan,
+	FaseCucoHUD11Scan,
+	FaseCucoHUD12Scan,
+	FaseCucoHUD13Scan,
+	FaseCucoHUD14Scan,
+	FaseCucoHUD15Scan
+};
+
 enum Madrid_F03HUDInstructionsIndices
 {
 	Madrid_F03HUD1Scan,
@@ -125,7 +204,27 @@ enum Madrid_F03HUDInstructionsIndices
 	Madrid_F03HUD3Scan,
 	Madrid_F03HUD4Scan,
 	Madrid_F03HUD5Scan,
-	Madrid_F03HUD6Scan,
+	Madrid_F03HUD6Scan
+};
+
+enum RadarHUDInstructionsIndices
+{
+	RadarHUD1Scan,
+	RadarHUD2Scan,
+	RadarHUD3Scan,
+	RadarHUD4Scan,
+	RadarHUD5Scan,
+	RadarHUD6Scan
+};
+
+enum ScriptHUDInstructionsIndices
+{
+	ScriptHUD1Scan,
+	ScriptHUD2Scan,
+	ScriptHUD3Scan,
+	ScriptHUD4Scan,
+	ScriptHUD5Scan,
+	ScriptHUD6Scan
 };
 
 struct GameInfo
@@ -259,56 +358,6 @@ bool DetectGame()
 		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
 		return false;
 	}
-
-	/*
-	dllModule2 = Memory::GetHandle("vtKernel.dll");
-
-	dllModule3 = Memory::GetHandle("Camera.dll");
-
-	dllModule4 = Memory::GetHandle("CocheTorrente.dll");
-
-	dllModule5 = Memory::GetHandle("Comercial.dll");
-
-	dllModule6 = Memory::GetHandle("ContadorDetonador.dll");
-
-	dllModule7 = Memory::GetHandle("ContadorDinero.dll");
-
-	dllModule8 = Memory::GetHandle("ContadorMunicion.dll");
-
-	dllModule9 = Memory::GetHandle("ContadorSalud.dll");
-
-	dllModule10 = Memory::GetHandle("ContadorTiempo.dll");
-
-	dllModule11 = Memory::GetHandle("fase_cuco.dll");
-
-	dllModule12 = Memory::GetHandle("FASE_SPINELLI.dll");
-
-	dllModule13 = Memory::GetHandle("Madrid_F03.dll");
-
-	dllModule14 = Memory::GetHandle("Madrid_F04.dll");
-
-	dllModule15 = Memory::GetHandle("madrid_franco.dll");
-
-	dllModule16 = Memory::GetHandle("madrid_kio.dll");
-
-	dllModule17 = Memory::GetHandle("Main.dll");
-
-	dllModule18 = Memory::GetHandle("marbella_chalets.dll");
-
-	dllModule19 = Memory::GetHandle("Marbella_f01.dll");
-
-	dllModule20 = Memory::GetHandle("Marbella_f02.dll");
-
-	dllModule21 = Memory::GetHandle("Marbella_f03.dll");
-
-	dllModule22 = Memory::GetHandle("Marbella_f04.dll");
-
-	dllModule23 = Memory::GetHandle("marbella_malibu.dll");
-
-	dllModule24 = Memory::GetHandle("Radar.dll");
-
-	dllModule25 = Memory::GetHandle("Script.dll");
-	*/
 	
 	return true;
 }
@@ -354,7 +403,6 @@ static std::wstring ToLowerW(const std::wstring& s)
 	return out;
 }
 
-// Single handler you asked for: receives module base and module name, checks each dll name you set and applies a patch (example).
 static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, bool loaded)
 {
 	if (!moduleHandle || baseName.empty())
@@ -372,6 +420,7 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				// Located in vtEngine::vtEngine and vtEngine::SetResolution
 				std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(dllModule2, "C7 83 A0 01 00 00 80 02 00 00 C7 83 A4 01 00 00 E0 01 00 00 EB 2F 83 F8 01 75 16 C7 83 A0 01 00 00 20 03 00 00 C7 83 A4 01 00 00 58 02 00 00 EB 14 C7 83 A0 01 00 00 00 04 00 00 C7 83 A4 01 00 00 00 03 00 00", "C7 86 A0 01 00 00 80 02 00 00 C7 86 A4 01 00 00 E0 01 00 00 EB 2F 83 FB 01 75 16 C7 86 A0 01 00 00 20 03 00 00 C7 86 A4 01 00 00 58 02 00 00 EB 14 C7 86 A0 01 00 00 00 04 00 00 C7 86 A4 01 00 00 00 03 00 00");
 				if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
 				{
@@ -413,6 +462,7 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 				}
 			}
 
+			// Located in vtKernel.dll.vtCamera::ComputeProjectionMatrix
 			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 ?? ?? ?? ?? 57");
 			if (CameraFOVInstructionScanResult)
 			{
@@ -435,14 +485,6 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 					FPU::FLD(fNewCameraFOV);
 				});
-			}
-		}
-		else if (name == L"camera.dll")
-		{
-			dllModule3 = moduleHandle;
-			if (loaded)
-			{
-
 			}
 		}
 		else if (name == L"cochetorrente.dll")
@@ -530,7 +572,7 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 					// HUD Instructions 2
 					iNewComercialHUDValue2 = (int)(std::round(600.0f * fNewAspectRatio - 30.0f));
 
-					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD1Scan] + 1, iNewComercialHUDValue2);
+					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD2Scan] + 1, iNewComercialHUDValue2);
 
 					// HUD Instructions 3
 					Memory::Write(ComercialHUDInstructionsScansResult[ComercialHUD3Scan] + 6, iNewResX2);
@@ -554,7 +596,43 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> ContadorDetonadorHUDInstructionsScansResult = Memory::PatternScan(dllModule6, "68 58 02 00 00 68 20 03 00 00 8D 44 24 44 50 8D 4C 24 44 51 68 2F 02 00 00 68 E3", "68 E3 02 00 00 89 5C 24 44 C7 06 80 20 00 10 FF 15 ?? ?? ?? ??", "68 58 02 00 00 68 20 03 00 00 8D 4C 24 44 51 8D 54 24 44 52 68 3E 02 00 00 68 00 03 00 00", "68 00 03 00 00 FF 15 ?? ?? ?? ?? B8 F0 30 00 10 83 C4 18 85 C0", "68 58 02 00 00 68 20 03 00 00 8D 44 24 54 50 8D 4C 24 54 51 6A 27 6A 34 FF D5 8B 54 24 64 8B", "68 58 02 00 00 68 20 03 00 00 8D 54 24 78 52 8D 44 24 78 50 6A 11 6A 11 FF D5 8B 8C 24 88");
+				if (Memory::AreAllSignaturesValid(ContadorDetonadorHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is ContadorDetonador.dll+{:x}", ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD1Scan] - (std::uint8_t*)dllModule6);
 
+					spdlog::info("HUD Instruction 2: Address is ContadorDetonador.dll+{:x}", ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD2Scan] - (std::uint8_t*)dllModule6);
+
+					spdlog::info("HUD Instruction 3: Address is ContadorDetonador.dll+{:x}", ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD3Scan] - (std::uint8_t*)dllModule6);
+
+					spdlog::info("HUD Instruction 4: Address is ContadorDetonador.dll+{:x}", ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD4Scan] - (std::uint8_t*)dllModule6);
+
+					spdlog::info("HUD Instruction 5: Address is ContadorDetonador.dll+{:x}", ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD5Scan] - (std::uint8_t*)dllModule6);
+
+					spdlog::info("HUD Instruction 6: Address is ContadorDetonador.dll+{:x}", ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD6Scan] - (std::uint8_t*)dllModule6);
+
+					// HUD Instructions 1
+					Memory::Write(ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					iNewContadorDetonadorHUDValue2 = (int)(std::round(600.0f * fNewAspectRatio - 61.0f));
+
+					Memory::Write(ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD2Scan] + 1, iNewContadorDetonadorHUDValue2);
+
+					// HUD Instructions 3
+					Memory::Write(ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					iNewContadorDetonadorHUDValue4 = (int)(std::round(600.0f * fNewAspectRatio - 32.0f));
+
+					Memory::Write(ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD4Scan] + 1, iNewContadorDetonadorHUDValue4);
+
+					// HUD Instructions 5
+					Memory::Write(ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD5Scan] + 6, iNewResX2);
+
+					// HUD Instructions 6
+					Memory::Write(ContadorDetonadorHUDInstructionsScansResult[ContadorDetonadorHUD6Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"contadordinero.dll")
@@ -563,7 +641,43 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> ContadorDineroHUDInstructionsScansResult = Memory::PatternScan(dllModule7, "68 58 02 00 00 68 20 03 00 00 8D 44 24 44 50 8D 4C 24 44 51 68 2E 02 00 00 68 7A 02 00", "68 7A 02 00 00 89 5C 24 44 C7 06 78 20 00 10 FF D5 BA EC 30 00 10 83 C4 18 85 D2 75 0A", "68 58 02 00 00 68 20 03 00 00 8D 4C 24 44 51 8D 54 24 44 52 6A 26 68 9C 00 00 00 FF", "68 58 02 00 00 68 20 03 00 00 8D 54 24 20 52 8D 44 24 28 50 68 3E 02 00 00 68 9E 02 00 00 FF D5 B9 EC", "68 9E 02 00 00 FF D5 B9 EC 30 00 10 83 C4 20 85 C9 75 0A 89 5C 24 24 89 5C 24 20 EB 3F 83 C9 FF 33", "68 58 02 00 00 68 20 03 00 00 8D 4C 24 18 51 8D 54 24 20 52 6A 11 6A 11 89 5C 24 3C FF D5 8B 44 24 28 8B 4C 24 2C");
+				if (Memory::AreAllSignaturesValid(ContadorDineroHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is ContadorDinero.dll+{:x}", ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD1Scan] - (std::uint8_t*)dllModule7);
 
+					spdlog::info("HUD Instruction 2: Address is ContadorDinero.dll+{:x}", ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD2Scan] - (std::uint8_t*)dllModule7);
+
+					spdlog::info("HUD Instruction 3: Address is ContadorDinero.dll+{:x}", ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD3Scan] - (std::uint8_t*)dllModule7);
+
+					spdlog::info("HUD Instruction 4: Address is ContadorDinero.dll+{:x}", ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD4Scan] - (std::uint8_t*)dllModule7);
+
+					spdlog::info("HUD Instruction 5: Address is ContadorDinero.dll+{:x}", ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD5Scan] - (std::uint8_t*)dllModule7);
+
+					spdlog::info("HUD Instruction 6: Address is ContadorDinero.dll+{:x}", ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD6Scan] - (std::uint8_t*)dllModule7);
+
+					// HUD Instructions 1
+					Memory::Write(ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					iNewContadorDineroHUDValue2 = (int)(std::round(600.0f * fNewAspectRatio - 166.0f));
+
+					Memory::Write(ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD2Scan] + 1, iNewContadorDineroHUDValue2);
+
+					// HUD Instructions 3
+					Memory::Write(ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					Memory::Write(ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD4Scan] + 6, iNewResX2);
+
+					// HUD Instructions 5
+					iNewContadorDineroHUDValue5 = (int)(std::round(600.0f * fNewAspectRatio - 130.0f));
+
+					Memory::Write(ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD5Scan] + 1, iNewContadorDineroHUDValue5);
+
+					// HUD Instructions 6
+					Memory::Write(ContadorDineroHUDInstructionsScansResult[ContadorDineroHUD6Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"contadormunicion.dll")
@@ -572,7 +686,29 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> ContadorMunicionHUDInstructionsScansResult = Memory::PatternScan(dllModule8, "68 58 02 00 00 68 20 03 00 00 8D 44 24 40 50 8D 4C 24 40 51 68 29 02 00 00 6A 5F 89 5C 24", "68 58 02 00 00 68 20 03 00 00 8D 4C 24 44 51 8D 54 24 44 52 68 3E 02 00 00 68 87 00 00 00 FF 15 ?? ?? ?? ??", "68 58 02 00 00 68 20 03 00 00 8D 54 24 40 52 8D 44 24 40 50 6A 29 68 80 00 00 00 FF D3 8B 4C 24 50 8B 54 24 4C 8B", "68 58 02 00 00 68 20 03 00 00 8D 4C 24 64 51 8D 54 24 64 52 6A 11 6A 11 FF D3 8B 44 24 74 8B 4C 24 70 8B 56 28 50");
+				if (Memory::AreAllSignaturesValid(ContadorMunicionHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is ContadorMunicion.dll+{:x}", ContadorMunicionHUDInstructionsScansResult[ContadorMunicionHUD1Scan] - (std::uint8_t*)dllModule8);
 
+					spdlog::info("HUD Instruction 2: Address is ContadorMunicion.dll+{:x}", ContadorMunicionHUDInstructionsScansResult[ContadorMunicionHUD2Scan] - (std::uint8_t*)dllModule8);
+
+					spdlog::info("HUD Instruction 3: Address is ContadorMunicion.dll+{:x}", ContadorMunicionHUDInstructionsScansResult[ContadorMunicionHUD3Scan] - (std::uint8_t*)dllModule8);
+
+					spdlog::info("HUD Instruction 4: Address is ContadorMunicion.dll+{:x}", ContadorMunicionHUDInstructionsScansResult[ContadorMunicionHUD4Scan] - (std::uint8_t*)dllModule8);
+
+					// HUD Instructions 1
+					Memory::Write(ContadorMunicionHUDInstructionsScansResult[ContadorMunicionHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					Memory::Write(ContadorMunicionHUDInstructionsScansResult[ContadorMunicionHUD2Scan] + 6, iNewResX2);
+
+					// HUD Instructions 3
+					Memory::Write(ContadorMunicionHUDInstructionsScansResult[ContadorMunicionHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					Memory::Write(ContadorMunicionHUDInstructionsScansResult[ContadorMunicionHUD4Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"contadorsalud.dll")
@@ -581,7 +717,49 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> ContadorSaludHUDInstructionsScansResult = Memory::PatternScan(dllModule9, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 44 24 ?? 50 8D 4C 24 ?? 51 68", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 52 68", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 6A", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 6A", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 68", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 52 6A", "68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 2B C6", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 52 56");
+				if (Memory::AreAllSignaturesValid(ContadorSaludHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is ContadorSalud.dll+{:x}", ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD1Scan] - (std::uint8_t*)dllModule9);
 
+					spdlog::info("HUD Instruction 2: Address is ContadorSalud.dll+{:x}", ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD2Scan] - (std::uint8_t*)dllModule9);
+
+					spdlog::info("HUD Instruction 3: Address is ContadorSalud.dll+{:x}", ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD3Scan] - (std::uint8_t*)dllModule9);
+
+					spdlog::info("HUD Instruction 4: Address is ContadorSalud.dll+{:x}", ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD4Scan] - (std::uint8_t*)dllModule9);
+
+					spdlog::info("HUD Instruction 5: Address is ContadorSalud.dll+{:x}", ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD5Scan] - (std::uint8_t*)dllModule9);
+
+					spdlog::info("HUD Instruction 6: Address is ContadorSalud.dll+{:x}", ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD6Scan] - (std::uint8_t*)dllModule9);
+
+					spdlog::info("HUD Instruction 7: Address is ContadorSalud.dll+{:x}", ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD7Scan] - (std::uint8_t*)dllModule9);
+
+					spdlog::info("HUD Instruction 8: Address is ContadorSalud.dll+{:x}", ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD8Scan] - (std::uint8_t*)dllModule9);
+
+					// HUD Instructions 1
+					Memory::Write(ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					Memory::Write(ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD2Scan] + 6, iNewResX2);
+
+					// HUD Instructions 3
+					Memory::Write(ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					Memory::Write(ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD4Scan] + 6, iNewResX2);
+
+					// HUD Instructions 5
+					Memory::Write(ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD5Scan] + 6, iNewResX2);
+
+					// HUD Instructions 6
+					Memory::Write(ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD6Scan] + 6, iNewResX2);
+
+					// HUD Instructions 7
+					Memory::Write(ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD7Scan] + 1, iNewResX2);
+
+					// HUD Instructions 8
+					Memory::Write(ContadorSaludHUDInstructionsScansResult[ContadorSaludHUD8Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"contadortiempo.dll")
@@ -590,7 +768,43 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> ContadorTiempoHUDInstructionsScansResult = Memory::PatternScan(dllModule10, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 6A ?? 68 ?? ?? ?? ?? FF D5 B9", "68 ?? ?? ?? ?? FF D5 B9", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24", "68 ?? ?? ?? ?? FF D5 68", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 44 24 ?? 50 8D 4C 24 ?? 51 6A ?? 68", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 44 24 ?? 50 8D 4C 24 ?? 51 6A ?? 6A");
+				if (Memory::AreAllSignaturesValid(ContadorTiempoHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is ContadorTiempo.dll+{:x}", ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD1Scan] - (std::uint8_t*)dllModule10);
 
+					spdlog::info("HUD Instruction 2: Address is ContadorTiempo.dll+{:x}", ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD2Scan] - (std::uint8_t*)dllModule10);
+
+					spdlog::info("HUD Instruction 3: Address is ContadorTiempo.dll+{:x}", ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD3Scan] - (std::uint8_t*)dllModule10);
+
+					spdlog::info("HUD Instruction 4: Address is ContadorTiempo.dll+{:x}", ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD4Scan] - (std::uint8_t*)dllModule10);
+
+					spdlog::info("HUD Instruction 5: Address is ContadorTiempo.dll+{:x}", ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD5Scan] - (std::uint8_t*)dllModule10);
+
+					spdlog::info("HUD Instruction 6: Address is ContadorTiempo.dll+{:x}", ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD6Scan] - (std::uint8_t*)dllModule10);
+
+					// HUD Instructions 1
+					Memory::Write(ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					iNewContadorTiempoHUDValue2 = (int)(std::round(600.0f * fNewAspectRatio - 175.0f));
+
+					Memory::Write(ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD2Scan] + 1, iNewContadorTiempoHUDValue2);
+
+					// HUD Instructions 3
+					Memory::Write(ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					iNewContadorTiempoHUDValue4 = (int)(std::round(600.0f * fNewAspectRatio - 178.0f));
+
+					Memory::Write(ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD4Scan] + 1, iNewContadorTiempoHUDValue4);
+
+					// HUD Instructions 5
+					Memory::Write(ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD5Scan] + 6, iNewResX2);
+
+					// HUD Instructions 6
+					Memory::Write(ContadorTiempoHUDInstructionsScansResult[ContadorTiempoHUD6Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"fase_cuco.dll")
@@ -599,7 +813,94 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> FaseCucoHUDInstructionsScansResult = Memory::PatternScan(dllModule11, "68 58 02 00 00 68 20 03 00 00 8D 94 24 90 00 00 00 52 8D 84 24 90 00 00 00 50 6A 20 6A 20 FF 15 20 91 00 10", "68 58 02 00 00 68 20 03 00 00 8D 84 24 90 00 00 00 50 8D 8C 24 90 00 00 00 51 68 3F 02 00 00 68 BF 02", "68 BF 02 00 00 FF D7 68 58 02 00 00 68 20 03 00 00 8D 94 24 B0 00 00 00 52 8D 84 24 B0", "68 BF 02 00 00 FF D7 68 58 02 00 00 68 20 03 00 00 8D 94 24 B0 00 00 00 52 8D 84 24 B0", "68 58 02 00 00 68 20 03 00 00 8D 84 24 88 00 00 00 50 8D 8C 24 88 00 00 00 51 68 30 02 00 00 68 A1 02", "68 A1 02 00 00 FF D7 68 58 02 00 00 68 20 03 00 00 8D 94 24 A8 00 00 00 52 8D 84 24 A8 00 00 00 50 6A 22 6A", 
+					"68 58 02 00 00 68 20 03 00 00 8D 94 24 A8 00 00 00 52 8D 84 24 A8 00 00 00 50 6A 22 6A 76", "68 58 02 00 00 68 20 03 00 00 8D 84 24 88 00 00 00 50 8D 8C 24 88 00 00 00 51 68 30 02 00 00 68 AD 02 00 00 FF D7 68 58 02 00 00 68", "68 AD 02 00 00 FF D7 68 58 02 00 00 68 20 03 00 00 8D 94 24 A8 00 00 00 52 8D 84 24", "68 58 02 00 00 68 20 03 00 00 8D 94 24 A8 00 00 00 52 8D 84 24 A8 00 00 00 50 6A 22 6A 6B FF D7 83 C4 30 68 84", "68 58 02 00 00 68 20 03 00 00 8D 84 24 88 00 00 00 50 8D 8C 24 88 00 00 00 51 68 3F 02 00 00 68 E4 02", 
+					"68 E4 02 00 00 FF D7 68 58 02 00 00 68 20 03 00 00 8D 94 24 A8 00 00 00 52 8D 84 24 A8 00 00 00 50 6A", "68 58 02 00 00 68 20 03 00 00 8D 94 24 A8 00 00 00 52 8D 84 24 A8 00 00 00 50 6A 10 6A 10 FF", "68 58 02 00 00 68 20 03 00 00 8D 54 24 20 52 8D 44 24 28 50 6A 0B 6A 56 89 4C 24 28 FF 15 20 91 00 10", "68 58 02 00 00 68 20 03 00 00 8D 4C 24 24 51 8D 54 24 2C 52 6A 0B 6A 56 89 44 24 28 FF 15 20 91 00 10 D9 44 24");
+				if (Memory::AreAllSignaturesValid(FaseCucoHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD1Scan] - (std::uint8_t*)dllModule11);
 
+					spdlog::info("HUD Instruction 2: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD2Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 3: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD3Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 4: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD4Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 5: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD5Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 6: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD6Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 7: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD7Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 8: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD8Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 9: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD9Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 10: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD10Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 11: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD11Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 12: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD12Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 13: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD13Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 14: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD14Scan] - (std::uint8_t*)dllModule11);
+
+					spdlog::info("HUD Instruction 15: Address is fase_cuco.dll+{:x}", FaseCucoHUDInstructionsScansResult[FaseCucoHUD15Scan] - (std::uint8_t*)dllModule11);
+
+					// HUD Instructions 1
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD2Scan] + 6, iNewResX2);
+
+					// HUD Instructions 3
+					iNewFaseCucoHUDValue3 = (int)(std::round(600.0f * fNewAspectRatio - 97.0f));
+
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD3Scan] + 1, iNewFaseCucoHUDValue3);
+
+					// HUD Instructions 4
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD4Scan] + 6, iNewResX2);
+
+					// HUD Instructions 5
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD5Scan] + 6, iNewResX2);
+
+					// HUD Instructions 6
+					iNewFaseCucoHUDValue6 = (int)(std::round(600.0f * fNewAspectRatio - 127.0f));
+
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD6Scan] + 1, iNewFaseCucoHUDValue6);
+
+					// HUD Instructions 7
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD7Scan] + 6, iNewResX2);
+
+					// HUD Instructions 8
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD8Scan] + 6, iNewResX2);
+
+					// HUD Instructions 9
+					iNewFaseCucoHUDValue9 = (int)(std::round(600.0f * fNewAspectRatio - 115.0f));
+
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD9Scan] + 1, iNewFaseCucoHUDValue9);
+
+					// HUD Instructions 10
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD10Scan] + 6, iNewResX2);
+
+					// HUD Instructions 11
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD11Scan] + 6, iNewResX2);
+
+					// HUD Instructions 12
+					iNewFaseCucoHUDValue12 = (int)(std::round(600.0f * fNewAspectRatio - 60.0f));
+
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD12Scan] + 1, iNewFaseCucoHUDValue12);
+
+					// HUD Instructions 13
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD13Scan] + 6, iNewResX2);
+
+					// HUD Instructions 14
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD14Scan] + 6, iNewResX2);
+
+					// HUD Instructions 15
+					Memory::Write(FaseCucoHUDInstructionsScansResult[FaseCucoHUD15Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"fase_spinelli.dll")
@@ -608,7 +909,18 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::uint8_t* FaseSpinelliHUDInstructionScanResult = Memory::PatternScan(dllModule12, "68 58 02 00 00 68 20 03 00 00 8D 8C 24 88 00 00 00 51 8D 94 24 88 00 00 00 52 6A 20 6A 20 C6 86 CC 00 00 00 01 FF 15 ?? ?? ?? ??");
+				if (FaseSpinelliHUDInstructionScanResult)
+				{
+					spdlog::info("HUD Instruction : Address is fase_spinelli.dll+{:x}", FaseSpinelliHUDInstructionScanResult - (std::uint8_t*)dllModule12);
 
+					Memory::Write(FaseSpinelliHUDInstructionScanResult + 6, iNewResX2);
+				}
+				else
+				{
+					spdlog::info("Cannot locate the HUD instruction memory address.");
+					return;
+				}
 			}
 		}
 		else if (name == L"madrid_f03.dll")
@@ -690,7 +1002,29 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> MainHUDInstructionsScansResult = Memory::PatternScan(dllModule17, "06 88 9E 08 01 00 00 0F 85 27 01 00 00 68 58 02 00 00 68 20 03 00 00", "06 88 9E 08 01 00 00 0F 85 27 01 00 00 68 58 02 00 00 68 20 03 00 00 8D 44 24 30 50 8D 4C 24 38 51 68 58 02 00 00 68 20 03 00 00", "00 88 9E 08 01 00 00 0F 85 27 01 00 00 68 58 02 00 00 68 20 03 00 00", "00 88 9E 08 01 00 00 0F 85 27 01 00 00 68 58 02 00 00 68 20 03 00 00 8D 44 24 30 50 8D 4C 24 38 51 68 58 02 00 00 68 20 03 00 00");
+				if (Memory::AreAllSignaturesValid(MainHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is Main.dll+{:x}", MainHUDInstructionsScansResult[MainHUD1Scan] + 18 - (std::uint8_t*)dllModule17);
 
+					spdlog::info("HUD Instruction 2: Address is Main.dll+{:x}", MainHUDInstructionsScansResult[MainHUD2Scan] + 38 - (std::uint8_t*)dllModule17);
+
+					spdlog::info("HUD Instruction 3: Address is Main.dll+{:x}", MainHUDInstructionsScansResult[MainHUD3Scan] + 18 - (std::uint8_t*)dllModule17);
+
+					spdlog::info("HUD Instruction 4: Address is Main.dll+{:x}", MainHUDInstructionsScansResult[MainHUD4Scan] + 38 - (std::uint8_t*)dllModule17);
+
+					// HUD Instructions 1
+					Memory::Write(MainHUDInstructionsScansResult[MainHUD1Scan] + 19, iNewResX2);
+
+					// HUD Instructions 2
+					Memory::Write(MainHUDInstructionsScansResult[MainHUD2Scan] + 39, iNewResX2);
+
+					// HUD Instructions 3
+					Memory::Write(MainHUDInstructionsScansResult[MainHUD3Scan] + 19, iNewResX2);
+
+					// HUD Instructions 4
+					Memory::Write(MainHUDInstructionsScansResult[MainHUD4Scan] + 39, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"marbella_chalets.dll")
@@ -753,7 +1087,39 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> RadarHUDInstructionsScansResult = Memory::PatternScan(dllModule24, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 52 6A ?? 6A ?? FF D6 68", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 44 24", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 6A ?? 6A ?? FF D6", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 52 6A ?? 6A ?? FF D6 B8", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 6A ?? 6A ?? FF 15", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 84 24");
+				if (Memory::AreAllSignaturesValid(RadarHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is Radar.dll+{:x}", RadarHUDInstructionsScansResult[RadarHUD1Scan] - (std::uint8_t*)dllModule24);
 
+					spdlog::info("HUD Instruction 2: Address is Radar.dll+{:x}", RadarHUDInstructionsScansResult[RadarHUD2Scan] - (std::uint8_t*)dllModule24);
+
+					spdlog::info("HUD Instruction 3: Address is Radar.dll+{:x}", RadarHUDInstructionsScansResult[RadarHUD3Scan] - (std::uint8_t*)dllModule24);
+
+					spdlog::info("HUD Instruction 4: Address is Radar.dll+{:x}", RadarHUDInstructionsScansResult[RadarHUD4Scan] - (std::uint8_t*)dllModule24);
+
+					spdlog::info("HUD Instruction 5: Address is Radar.dll+{:x}", RadarHUDInstructionsScansResult[RadarHUD5Scan] - (std::uint8_t*)dllModule24);
+
+					spdlog::info("HUD Instruction 6: Address is Radar.dll+{:x}", RadarHUDInstructionsScansResult[RadarHUD6Scan] - (std::uint8_t*)dllModule24);
+
+					// HUD Instructions 1
+					Memory::Write(RadarHUDInstructionsScansResult[RadarHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					Memory::Write(RadarHUDInstructionsScansResult[RadarHUD2Scan] + 6, iNewResX2);
+
+					// HUD Instructions 3
+					Memory::Write(RadarHUDInstructionsScansResult[RadarHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					Memory::Write(RadarHUDInstructionsScansResult[RadarHUD4Scan] + 6, iNewResX2);
+
+					// HUD Instructions 5
+					Memory::Write(RadarHUDInstructionsScansResult[RadarHUD5Scan] + 6, iNewResX2);
+
+					// HUD Instructions 6
+					Memory::Write(RadarHUDInstructionsScansResult[RadarHUD6Scan] + 6, iNewResX2);
+				}
 			}
 		}
 		else if (name == L"script.dll")
@@ -762,7 +1128,34 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
+				std::vector<std::uint8_t*> ScriptHUDInstructionsScansResult = Memory::PatternScan(dllModule25, "68 58 02 00 00 68 20 03 00 00 8B F9 8D 44 24 24 50 8D 4C 24", "68 58 02 00 00 68 20 03 00 00 8B D9 8D 44 24 20 50 8D 4C 24 28 51 68 00 01", "68 58 02 00 00 68 20 03 00 00 8D 44 24 18 50 8D 4C 24 20 51 6A 0A 6A 64 FF D3 8B 54", "68 58 02 00 00 68 20 03 00 00 8D 54 24 20 52 8D 44 24 28 50 68 00 01 00 00 68 00 01 00 00 FF D3", "68 58 02 00 00 68 20 03 00 00 8D 4C 24 2C 51 8D 54 24 2C 52 6A 27 6A 23 FF D3 8B 5C 24 2C 8B");
+				if (Memory::AreAllSignaturesValid(ScriptHUDInstructionsScansResult) == true)
+				{
+					spdlog::info("HUD Instruction 1: Address is Script.dll+{:x}", ScriptHUDInstructionsScansResult[ScriptHUD1Scan] - (std::uint8_t*)dllModule25);
 
+					spdlog::info("HUD Instruction 2: Address is Script.dll+{:x}", ScriptHUDInstructionsScansResult[ScriptHUD2Scan] - (std::uint8_t*)dllModule25);
+
+					spdlog::info("HUD Instruction 3: Address is Script.dll+{:x}", ScriptHUDInstructionsScansResult[ScriptHUD3Scan] - (std::uint8_t*)dllModule25);
+
+					spdlog::info("HUD Instruction 4: Address is Script.dll+{:x}", ScriptHUDInstructionsScansResult[ScriptHUD4Scan] - (std::uint8_t*)dllModule25);
+
+					spdlog::info("HUD Instruction 5: Address is Script.dll+{:x}", ScriptHUDInstructionsScansResult[ScriptHUD5Scan] - (std::uint8_t*)dllModule25);
+
+					// HUD Instructions 1
+					Memory::Write(ScriptHUDInstructionsScansResult[ScriptHUD1Scan] + 6, iNewResX2);
+
+					// HUD Instructions 2
+					Memory::Write(ScriptHUDInstructionsScansResult[ScriptHUD2Scan] + 6, iNewResX2);
+
+					// HUD Instructions 3
+					Memory::Write(ScriptHUDInstructionsScansResult[ScriptHUD3Scan] + 6, iNewResX2);
+
+					// HUD Instructions 4
+					Memory::Write(ScriptHUDInstructionsScansResult[ScriptHUD4Scan] + 6, iNewResX2);
+
+					// HUD Instructions 5
+					Memory::Write(ScriptHUDInstructionsScansResult[ScriptHUD5Scan] + 6, iNewResX2);
+				}
 			}
 		}
 	}	
@@ -774,7 +1167,7 @@ void WidescreenFix()
 
 	fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-	iNewResX2 = 800.0f * fAspectRatioScale;
+	iNewResX2 = (int)(800.0f * fAspectRatioScale);
 }
 
 static VOID NTAPI LdrNotificationCallback(ULONG NotificationReason, PLDR_DLL_NOTIFICATION_DATA_SIMPLE NotificationData, PVOID Context)
