@@ -482,71 +482,34 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 
 			if (loaded)
 			{
-				// Located in vtEngine::vtEngine and vtEngine::SetResolution
-				std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(dllModule2, "C7 83 A0 01 00 00 80 02 00 00 C7 83 A4 01 00 00 E0 01 00 00 EB 2F 83 F8 01 75 16 C7 83 A0 01 00 00 20 03 00 00 C7 83 A4 01 00 00 58 02 00 00 EB 14 C7 83 A0 01 00 00 00 04 00 00 C7 83 A4 01 00 00 00 03 00 00", "C7 86 A0 01 00 00 80 02 00 00 C7 86 A4 01 00 00 E0 01 00 00 EB 2F 83 FB 01 75 16 C7 86 A0 01 00 00 20 03 00 00 C7 86 A4 01 00 00 58 02 00 00 EB 14 C7 86 A0 01 00 00 00 04 00 00 C7 86 A4 01 00 00 00 03 00 00");
-				if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
+				// Located in vtCamera::ComputeProjectionMatrix
+				std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 ?? ?? ?? ?? 57");
+				if (CameraFOVInstructionScanResult)
 				{
-					spdlog::info("Resolution List 1: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList1Scan] - (std::uint8_t*)dllModule2);
+					spdlog::info("Camera FOV Instruction: Address is vtKernel.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-					spdlog::info("Resolution List 2: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList2Scan] - (std::uint8_t*)dllModule2);
+					Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-					// Resolution List 1
-					// 640x480
-					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 6, iNewResX);
+					CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+						{
+							float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0xE0);
 
-					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 16, iNewResY);
+							if (fCurrentCameraFOV == 0.6899999976f)
+							{
+								fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+							}
+							else
+							{
+								fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+							}
 
-					// 800x600
-					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 33, iNewResX);
-
-					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 43, iNewResY);
-
-					// 1024x768
-					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 55, iNewResX);
-
-					Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 65, iNewResY);
-
-					// Resolution List 2
-					// 640x480
-					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 6, iNewResX);
-
-					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 16, iNewResY);
-
-					// 800x600
-					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 33, iNewResX);
-
-					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 43, iNewResY);
-
-					// 1024x768
-					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 55, iNewResX);
-
-					Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 65, iNewResY);
+							FPU::FLD(fNewCameraFOV);
+						});
 				}
-			}
-
-			// Located in vtCamera::ComputeProjectionMatrix
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 ?? ?? ?? ?? 57");
-			if (CameraFOVInstructionScanResult)
-			{
-				spdlog::info("Camera FOV Instruction: Address is vtKernel.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
-
-				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				else
 				{
-					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0xE0);
 
-					if (fCurrentCameraFOV == 0.6899999976f)
-					{
-						fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-					}
-					else
-					{
-						fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-					}
-
-					FPU::FLD(fNewCameraFOV);
-				});
+				}
 			}
 		}
 		else if (name == L"cochetorrente.dll")
@@ -1540,10 +1503,113 @@ static DWORD WINAPI DllWatcherThread(LPVOID lpParameter)
 	return 0;
 }
 
+static void PatchResolutionFromIniInDllMain(HMODULE thisModule)
+{
+	auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
+	int defaultWidth = desktopDimensions.first;
+	int defaultHeight = desktopDimensions.second;
+
+	WCHAR modulePath[MAX_PATH + 1] = { 0 };
+	if (!GetModuleFileNameW(thisModule, modulePath, MAX_PATH)) {
+		OutputDebugStringW(L"[WIDESCREEN] GetModuleFileNameW failed in DllMain\n");
+		return;
+	}
+
+	WCHAR* lastSlash = nullptr;
+	for (WCHAR* p = modulePath; *p; ++p) if (*p == L'\\' || *p == L'/') lastSlash = p;
+	size_t dirLen = lastSlash ? static_cast<size_t>(lastSlash - modulePath + 1) : wcslen(modulePath);
+
+	WCHAR iniPath[MAX_PATH + 1];
+	const wchar_t iniName[] = L"TorrenteWidescreenFix.ini";
+	if (dirLen + wcslen(iniName) >= MAX_PATH) {
+		OutputDebugStringW(L"[WIDESCREEN] INI path would overflow buffer\n");
+		return;
+	}
+	wmemcpy(iniPath, modulePath, dirLen);
+	iniPath[dirLen] = L'\0';
+	wcscat_s(iniPath, MAX_PATH + 1, iniName);
+
+	{
+		wchar_t dbg[512];
+		swprintf_s(dbg, L"[WIDESCREEN] INI path: %s\n", iniPath);
+		OutputDebugStringW(dbg);
+	}
+
+	WCHAR enabledBuf[32] = { 0 };
+	GetPrivateProfileStringW(L"WidescreenFix", L"Enabled", L"true", enabledBuf, (int)_countof(enabledBuf), iniPath);
+
+	// normalize to lowercase and trim leading spaces
+	for (WCHAR* p = enabledBuf; *p; ++p) {
+		if (*p >= L'A' && *p <= L'Z') *p = static_cast<WCHAR>(*p + (L'a' - L'A'));
+	}
+
+	bool fixEnabled = false;
+	if (enabledBuf[0] == L'1' || enabledBuf[0] == L't' || enabledBuf[0] == L'y' || enabledBuf[0] == L'o')
+	{
+		// starts with 1/true/yes/on
+		fixEnabled = true;
+	}
+	else
+	{
+		// also accept explicit "0" or "false" as disabled; keep default false
+		fixEnabled = false;
+	}
+
+	if (!fixEnabled)
+	{
+		OutputDebugStringW(L"[WIDESCREEN] Fix not enabled in INI; skipping early patch.\n");
+		return;
+	}
+
+	int iNewWidth = static_cast<int>(GetPrivateProfileIntW(L"Settings", L"Width", defaultWidth, iniPath));
+	int iNewHeight = static_cast<int>(GetPrivateProfileIntW(L"Settings", L"Height", defaultHeight, iniPath));
+
+	dllModule2 = Memory::GetHandle("vtKernel.dll");
+
+	// Located in vtEngine::vtEngine and vtEngine::SetResolution
+	std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(dllModule2, "C7 83 A0 01 00 00 80 02 00 00 C7 83 A4 01 00 00 E0 01 00 00 EB 2F 83 F8 01 75 16 C7 83 A0 01 00 00 20 03 00 00 C7 83 A4 01 00 00 58 02 00 00 EB 14 C7 83 A0 01 00 00 00 04 00 00 C7 83 A4 01 00 00 00 03 00 00", "C7 86 A0 01 00 00 80 02 00 00 C7 86 A4 01 00 00 E0 01 00 00 EB 2F 83 FB 01 75 16 C7 86 A0 01 00 00 20 03 00 00 C7 86 A4 01 00 00 58 02 00 00 EB 14 C7 86 A0 01 00 00 00 04 00 00 C7 86 A4 01 00 00 00 03 00 00");
+	if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
+	{
+		spdlog::info("Resolution List 1: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList1Scan] - (std::uint8_t*)dllModule2);
+
+		spdlog::info("Resolution List 2: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList2Scan] - (std::uint8_t*)dllModule2);
+
+		// Resolution List 1
+		// 640x480
+		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 6, iNewWidth);
+
+		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 16, iNewHeight);
+
+		// 800x600
+		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 33, iNewWidth);
+
+		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 43, iNewHeight);
+
+		// 1024x768
+		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 55, iNewWidth);
+
+		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 65, iNewHeight);
+
+		// Resolution List 2
+		// 640x480
+		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 6, iNewWidth);
+
+		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 16, iNewHeight);
+
+		// 800x600
+		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 33, iNewWidth);
+
+		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 43, iNewHeight);
+
+		// 1024x768
+		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 55, iNewWidth);
+
+		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 65, iNewHeight);
+	}
+}
+
 DWORD __stdcall Main(void*)
 {
-	Logging();
-	Configuration();
 	if (DetectGame())
 	{
 		SetValues();
@@ -1566,6 +1632,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
+
+		Logging();
+		Configuration();
+
+		PatchResolutionFromIniInDllMain(thisModule);
+
 		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
 		if (mainHandle)
 		{
