@@ -562,30 +562,36 @@ std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature,
 		return absoluteAddress;
 	}
 
-	static HMODULE GetHandle(const std::string& moduleName, unsigned int retryDelayMs = 200, int maxAttempts = 0)
+	static HMODULE GetHandle(const std::string& moduleName, unsigned int retryDelayMs = 200, int maxAttempts = 0, bool loggingEnabled = true)
 	{
-		// attempt counter
 		int attempts = 0;
 
 		while (true)
 		{
 			HMODULE h = GetModuleHandleA(moduleName.c_str());
+
 			if (h != nullptr)
 			{
-				spdlog::info("Obtained handle for {}: 0x{:x}", moduleName, reinterpret_cast<uintptr_t>(h));
+				if (loggingEnabled)
+				{
+					spdlog::info("Obtained handle for {}: 0x{:x}", moduleName, reinterpret_cast<uintptr_t>(h));
+				}
+					
 				return h;
 			}
 
 			++attempts;
 
-			// If maxAttempts > 0 and we've exhausted them, log and return nullptr
 			if (maxAttempts > 0 && attempts >= maxAttempts)
 			{
-				spdlog::error("Failed to get handle of {}.", moduleName);
+				if (loggingEnabled)
+				{
+					spdlog::error("Failed to get handle of {}.", moduleName);
+				}
+
 				return nullptr;
 			}
 
-			// Sleep before trying again
 			std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
 		}
 	}
