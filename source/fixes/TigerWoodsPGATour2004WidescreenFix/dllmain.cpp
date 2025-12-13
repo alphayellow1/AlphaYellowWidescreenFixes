@@ -349,7 +349,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
-		}		
+		}
 	}
 }
 
