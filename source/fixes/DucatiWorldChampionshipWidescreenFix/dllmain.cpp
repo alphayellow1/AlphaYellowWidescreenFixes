@@ -249,7 +249,7 @@ void WidescreenFix()
 		std::uint8_t* BikeSelectionAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 56");
 		if (BikeSelectionAspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), BikeSelectionAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Bike Selection Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), BikeSelectionAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
 			fNewBikeSelectionAspectRatio = 1.0f * fAspectRatioScale;
 
@@ -289,11 +289,6 @@ void WidescreenFix()
 
 				FPU::FLD(fNewCameraFOV2);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
 		}
 	}
 }
