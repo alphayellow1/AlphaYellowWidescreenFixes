@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "ClimberGirlFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.0.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -59,7 +59,8 @@ uint8_t* CameraVFOV2Address;
 // Game detection
 enum class Game
 {
-	CG,
+	CG_V1,
+	CG_V2,
 	Unknown
 };
 
@@ -82,7 +83,8 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::CG, {"Climber Girl", "ClimberGirl.exe"}},
+	{Game::CG_V1, {"Climber Girl", "ClimberGirl.exe"}},
+	{Game::CG_V2, {"Vera Jones", "Source.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -218,7 +220,7 @@ void CameraFOVInstructionsMidHook(SafetyHookContext& ctx, uint8_t* CameraFOVAddr
 
 void FOVFix()
 {
-	if (eGameType == Game::CG && bFixActive == true)
+	if ((eGameType == Game::CG_V1 || eGameType == Game::CG_V2) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
