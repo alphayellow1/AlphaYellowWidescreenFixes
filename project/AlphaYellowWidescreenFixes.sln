@@ -951,6 +951,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DucatiWorldChampionshipWide
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ClimberGirlFOVFix", "ClimberGirlFOVFix.vcxproj", "{1AA91521-2A9E-4C90-9A88-A18FB66CA724}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SimonTheSorcerer3DWidescreenFix", "SimonTheSorcerer3DWidescreenFix.vcxproj", "{402E2754-240E-4284-9C20-695CFF06A201}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4735,6 +4737,14 @@ Global
 		{1AA91521-2A9E-4C90-9A88-A18FB66CA724}.Release|x64.Build.0 = Release|x64
 		{1AA91521-2A9E-4C90-9A88-A18FB66CA724}.Release|x86.ActiveCfg = Release|Win32
 		{1AA91521-2A9E-4C90-9A88-A18FB66CA724}.Release|x86.Build.0 = Release|Win32
+		{402E2754-240E-4284-9C20-695CFF06A201}.Debug|x64.ActiveCfg = Debug|x64
+		{402E2754-240E-4284-9C20-695CFF06A201}.Debug|x64.Build.0 = Debug|x64
+		{402E2754-240E-4284-9C20-695CFF06A201}.Debug|x86.ActiveCfg = Debug|Win32
+		{402E2754-240E-4284-9C20-695CFF06A201}.Debug|x86.Build.0 = Debug|Win32
+		{402E2754-240E-4284-9C20-695CFF06A201}.Release|x64.ActiveCfg = Release|x64
+		{402E2754-240E-4284-9C20-695CFF06A201}.Release|x64.Build.0 = Release|x64
+		{402E2754-240E-4284-9C20-695CFF06A201}.Release|x86.ActiveCfg = Release|Win32
+		{402E2754-240E-4284-9C20-695CFF06A201}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5212,6 +5222,7 @@ Global
 		{715B2DE1-0267-4A65-8534-31EF9096A25C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{C2FDDBC1-4721-4DEF-B3E8-906CB2B4A274} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{1AA91521-2A9E-4C90-9A88-A18FB66CA724} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{402E2754-240E-4284-9C20-695CFF06A201} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
