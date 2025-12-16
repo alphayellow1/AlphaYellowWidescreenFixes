@@ -18,7 +18,11 @@
 #include <future>
 #include <unordered_map>
 #include <mutex>
-#include <shared_mutex> // optional if you want shared locking, not required
+#include <shared_mutex>
+#include <initializer_list>
+#include <thread>
+#include <filesystem>
+#include <stdexcept>
 
 template<typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -309,7 +313,6 @@ std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature,
 }
 
 
-	// overload: (module1, sig1, module2, sig2, ... ) where arguments are mixed
 	template<typename... Args, typename = std::enable_if_t<!std::conjunction_v<std::is_convertible<std::decay_t<Args>, const char*>...>, int>>
 	std::vector<std::uint8_t*> PatternScan(void* firstModule, Args... rest)
 	{
@@ -561,38 +564,133 @@ std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature,
 
 		return absoluteAddress;
 	}
-
-	static HMODULE GetHandle(const std::string& moduleName, unsigned int retryDelayMs = 200, int maxAttempts = 0, bool loggingEnabled = true)
+	
+	static HMODULE GetHandle(const std::initializer_list<std::string>& moduleNames, unsigned int retryDelayMs = 200, int maxAttempts = 0, bool loggingEnabled = true)
 	{
 		int attempts = 0;
 
 		while (true)
 		{
-			HMODULE h = GetModuleHandleA(moduleName.c_str());
-
-			if (h != nullptr)
+			for (const auto &name : moduleNames)
 			{
-				if (loggingEnabled)
+				HMODULE h = GetModuleHandleA(name.c_str());
+				
+				if (h != nullptr)
 				{
-					spdlog::info("Obtained handle for {}: 0x{:x}", moduleName, reinterpret_cast<uintptr_t>(h));
-				}
+					if (loggingEnabled)
+					{
+						spdlog::info("Obtained handle for {}: 0x{:x}", name, reinterpret_cast<uintptr_t>(h));
+					}
 					
-				return h;
+					return h;
+				}
 			}
 
 			++attempts;
-
+			
 			if (maxAttempts > 0 && attempts >= maxAttempts)
 			{
 				if (loggingEnabled)
 				{
-					spdlog::error("Failed to get handle of {}.", moduleName);
+					// build a small comma-separated list for the error message
+					std::string joined;
+					for (auto it = moduleNames.begin(); it != moduleNames.end(); ++it)
+					{
+						if (it != moduleNames.begin()) joined += ", ";
+						joined += *it;
+					}
+					
+					spdlog::error("Failed to get handle of {}.", joined);
 				}
-
+				
 				return nullptr;
 			}
-
+			
 			std::this_thread::sleep_for(std::chrono::milliseconds(retryDelayMs));
+		}
+	}
+
+	static HMODULE GetHandle(const std::string& moduleName, unsigned int retryDelayMs = 200, int maxAttempts = 0, bool loggingEnabled = true)
+	{
+		return GetHandle(std::initializer_list<std::string>{moduleName}, retryDelayMs, maxAttempts, loggingEnabled);
+	}
+
+	static std::string GetModuleFilePathUtf8(HMODULE hModule)
+	{
+		if (hModule == nullptr)
+		{
+			return {};
+		}
+
+		std::wstring wbuf;
+
+		DWORD size = MAX_PATH;
+
+		for (;;)
+		{
+			wbuf.resize(size);
+
+			DWORD len = GetModuleFileNameW(hModule, &wbuf[0], static_cast<DWORD>(wbuf.size()));
+
+			if (len == 0)
+			{
+				return {};
+			}
+
+			if (len < wbuf.size())
+			{
+				wbuf.resize(len);
+
+				break;
+			}
+
+			size *= 2;
+
+			if (size > 1 << 20)
+			{
+				return {};
+			}
+		}
+
+		int needed = WideCharToMultiByte(CP_UTF8, 0, wbuf.c_str(), static_cast<int>(wbuf.size()), nullptr, 0, nullptr, nullptr);
+
+		if (needed <= 0)
+		{
+			return {};
+		}
+
+		std::string out;
+
+		out.resize(needed);
+
+		WideCharToMultiByte(CP_UTF8, 0, wbuf.c_str(), static_cast<int>(wbuf.size()), &out[0], needed, nullptr, nullptr);
+
+		return out;
+	}
+
+	static std::string GetModuleName(HMODULE hModule)
+	{
+		std::string full = GetModuleFilePathUtf8(hModule);
+		
+		if (full.empty())
+		{
+			return {};
+		}
+		
+		try
+		{
+			return std::filesystem::path(full).filename().string();
+		}
+		catch (...)
+		{
+			auto pos = full.find_last_of("\\/");
+			
+			if (pos == std::string::npos)
+			{
+				return full;
+			}
+			
+			return full.substr(pos + 1);
 		}
 	}
 
