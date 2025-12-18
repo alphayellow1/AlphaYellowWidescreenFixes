@@ -192,6 +192,8 @@ bool DetectGame()
 		return false;
 	}
 
+	dllModule2 = Memory::GetHandle("MGameD3D.dll");
+
 	return true;
 }
 
@@ -236,6 +238,8 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 	}
 }
 */
+
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -315,27 +319,19 @@ void WidescreenFix()
 			return;
 		}
 
-		while ((dllModule2 = GetModuleHandleA("MGameD3D.dll")) == nullptr)
-		{
-			spdlog::warn("MGameD3D.dll not loaded yet. Waiting...");
-			Sleep(5000);
-		}
-
-		spdlog::info("Successfully obtained handle for MGameD3D.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 56 04 89 7C 24 0C 89 54 24 08 DF 6C 24 08");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is MGameD3D.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			fNewCameraFOV = (fNewAspectRatio / fOldAspectRatio) * 0.75f;
+			fNewCameraFOV = (fNewAspectRatio / fOldAspectRatio) * 0.75f;			
 
-			static SafetyHookMid CameraFOVInstructionHook{};
-
+			/*
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentFOV = *reinterpret_cast<float*>(ctx.esi + 0x4);
 			});
+			*/
 		}
 		else
 		{
