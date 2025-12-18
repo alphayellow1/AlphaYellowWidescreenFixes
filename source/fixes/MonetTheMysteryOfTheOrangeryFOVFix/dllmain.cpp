@@ -232,11 +232,8 @@ static SafetyHookMid AspectRatioInstruction5Hook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	_asm
-	{
-		fmul dword ptr ds:[fNewResX]
-		fld dword ptr ds:[fNewResY]
-	}
+	FPU::FMUL(fNewResX);
+	FPU::FLD(fNewResY);
 }
 
 static SafetyHookMid CameraFOVInstruction1Hook{};
@@ -247,10 +244,7 @@ static SafetyHookMid CameraFOVInstruction5Hook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	_asm
-	{
-		fdivr qword ptr ds:[dNewCameraFOV]
-	}
+	FPU::FDIVR(dNewCameraFOV);
 }
 
 void FOVFix()

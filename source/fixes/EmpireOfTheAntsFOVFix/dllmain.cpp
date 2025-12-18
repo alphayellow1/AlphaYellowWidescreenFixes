@@ -236,11 +236,8 @@ static SafetyHookMid AspectRatioInstruction5Hook{};
 
 void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 {
-	_asm
-	{
-		fmul dword ptr ds:[fNewResX]
-		fld dword ptr ds:[fNewResY]
-	}
+	FPU::FMUL(fNewResX);
+	FPU::FLD(fNewResY);
 }
 
 static SafetyHookMid CameraFOVInstruction1Hook{};
@@ -253,30 +250,7 @@ static SafetyHookMid CameraFOVInstruction7Hook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	_asm
-	{
-		fdivr qword ptr ds:[dNewCameraFOV]
-	}
-}
-
-void CameraFOVInstruction6MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV6 = *reinterpret_cast<float*>(ctx.esi + 0x50);
-
-	fNewCameraFOV6 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV6, 1.0f / fAspectRatioScale) / (float)dFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV6]
-	}
-}
-
-void CameraFOVInstruction7MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV7]
-	}
+	FPU::FDIVR(dNewCameraFOV);
 }
 
 void FOVFix()
@@ -368,13 +342,23 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV6Scan], "\x90\x90\x90", 3);
 
-			CameraFOVInstruction6Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV6Scan], CameraFOVInstruction6MidHook);
+			CameraFOVInstruction6Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV6Scan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV6 = *reinterpret_cast<float*>(ctx.esi + 0x50);
+
+				fNewCameraFOV6 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV6, 1.0f / fAspectRatioScale) / (float)dFOVFactor;
+
+				FPU::FLD(fNewCameraFOV6);
+			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV7Scan], "\x90\x90\x90\x90", 4);
 
 			fNewCameraFOV7 = 5.0f;
 
-			CameraFOVInstruction7Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV7Scan], CameraFOVInstruction7MidHook);
+			CameraFOVInstruction7Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV7Scan], [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(fNewCameraFOV7);
+			});
 		}
 	}
 }
