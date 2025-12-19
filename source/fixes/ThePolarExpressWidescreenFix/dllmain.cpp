@@ -216,6 +216,7 @@ static SafetyHookMid CutscenesAspectRatioInstructionHook{};
 static SafetyHookMid GameplayAspectRatioInstructionHook{};
 static SafetyHookMid PauseMenuAspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid BinkVideoInstructionHook{};
 
 void WidescreenFix()
 {
