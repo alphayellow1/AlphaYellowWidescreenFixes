@@ -961,6 +961,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MotocrossManiaFOVFix", "Mot
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ThePolarExpressWidescreenFix", "ThePolarExpressWidescreenFix.vcxproj", "{7ECFF7A5-EC78-44E6-BFEE-52C10FBF8B18}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HighHeatMajorLeagueBaseball2003WidescreenFix", "HighHeatMajorLeagueBaseball2003WidescreenFix.vcxproj", "{25FBCD39-A547-441E-B98D-D357D19A9EA8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4785,6 +4787,14 @@ Global
 		{7ECFF7A5-EC78-44E6-BFEE-52C10FBF8B18}.Release|x64.Build.0 = Release|x64
 		{7ECFF7A5-EC78-44E6-BFEE-52C10FBF8B18}.Release|x86.ActiveCfg = Release|Win32
 		{7ECFF7A5-EC78-44E6-BFEE-52C10FBF8B18}.Release|x86.Build.0 = Release|Win32
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8}.Debug|x64.ActiveCfg = Debug|x64
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8}.Debug|x64.Build.0 = Debug|x64
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8}.Debug|x86.ActiveCfg = Debug|Win32
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8}.Debug|x86.Build.0 = Debug|Win32
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8}.Release|x64.ActiveCfg = Release|x64
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8}.Release|x64.Build.0 = Release|x64
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8}.Release|x86.ActiveCfg = Release|Win32
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5267,6 +5277,7 @@ Global
 		{2FB0C52E-ABF0-4694-AE23-970B013AB6F2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{7A163A75-719B-42D2-886D-FB385E40DC17} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{7ECFF7A5-EC78-44E6-BFEE-52C10FBF8B18} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{25FBCD39-A547-441E-B98D-D357D19A9EA8} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
