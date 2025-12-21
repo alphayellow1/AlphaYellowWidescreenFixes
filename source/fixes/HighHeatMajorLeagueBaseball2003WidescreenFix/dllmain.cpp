@@ -216,6 +216,12 @@ void WidescreenFix()
 
 			spdlog::info("Gameplay Resolution List: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[GameplayResolutionListScan] - (std::uint8_t*)exeModule);
 
+			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution4Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution5Scan] - (std::uint8_t*)exeModule);
+
 			// Main Menu Resolution (800x600)
 			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 6, iCurrentResX);
 
