@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "PrisonerOfWarWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -60,8 +60,10 @@ float fNewCameraHFOV;
 // Game detection
 enum class Game
 {
-	POWGAME,
-	POWCONFIG,
+	POWGAME_EN,
+	POWGAME_RU,
+	POWCONFIG_EN,
+	POWCONFIG_RU,
 	Unknown
 };
 
@@ -72,8 +74,10 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::POWGAME, {"Prisoner of War", "Colditz.EXE"}},
-	{Game::POWCONFIG, {"Prisoner of War - Launcher", "PrisonerLaunchEnglish.EXE"}},
+	{Game::POWGAME_EN, {"Prisoner of War (English)", "Colditz.EXE"}},
+	{Game::POWGAME_RU, {"Prisoner of War (Russian)", "RussianPOW.exe"}},
+	{Game::POWCONFIG_EN, {"Prisoner of War - Launcher (English)", "PrisonerLaunchEnglish.EXE"}},
+	{Game::POWCONFIG_RU, {"Prisoner of War - Launcher (Russian)", "PrisonerLaunchRussian.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -202,7 +206,7 @@ void FOVFix()
 {
 	if (bFixActive == true)
 	{
-		if (eGameType == Game::POWCONFIG)
+		if (eGameType == Game::POWCONFIG_EN || eGameType == Game::POWCONFIG_RU)
 		{
 			std::uint8_t* Resolution1024x768ScanResult = Memory::PatternScan(exeModule, "31 00 30 00 32 00 34 00 20 00 78 00 20 00 37 00 36 00 38");
 			if (Resolution1024x768ScanResult)
@@ -250,13 +254,13 @@ void FOVFix()
 			}
 		}
 
-		if (eGameType == Game::POWGAME)
+		if (eGameType == Game::POWGAME_EN || eGameType == Game::POWGAME_RU)
 		{
 			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-			std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "DB 05 ?? ?? ?? ?? 8B C1 33 C9 DA 35 ?? ?? ?? ?? C7 40 2C 00 00 80 3F 89 48 3C 89 48 34");
+			std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "DB 05 ?? ?? ?? ?? 8B C1");
 			if (AspectRatioInstruction1ScanResult)
 			{
 			    spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult - (std::uint8_t*)exeModule);;
@@ -354,12 +358,19 @@ void FOVFix()
 				return;
 			}
 
-			std::uint8_t* CodecaveScanResult = Memory::PatternScan(exeModule, "00 30 01 00 00 E0 23 00 00 00 00 00 00 00 00 00");
+			std::uint8_t* CodecaveScanResult = Memory::PatternScan(exeModule, "7A 2E 65 78 65");
 			if (CodecaveScanResult)
 			{
 				spdlog::info("Codecave Scan: Address is {:s}+{:x}", sExeName.c_str(), CodecaveScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(CodecaveScanResult + 224, "\xDB\x05\xC8\x70\x66\x00\x8B\xC1\x33\xC9\xDA\x35\xC4\x70\x66\x00\xC7\x40\x2C\x00\x00\x80\x3F\x89\x48\x3C\x89\x48\x34\x89\x48\x30\x89\x48\x24\x89\x48\x20\x89\x48\x1C\x89\x48\x18\x89\x48\x10\x89\x48\x0C\x89\x48\x08\x89\x48\x04\xD8\x4C\x24\x0C\xD8\x0D\xCC\xC2\x60\x00\xD9\xF2\xDD\xD8\xD8\x3D\x44\xC4\x60\x00\xD9\x44\x24\x08\xD8\x64\x24\x04\xD8\x7C\x24\x08\xD9\x44\x24\x0C\xD8\x0D\xCC\xC2\x60\x00\xD9\xF2\xDD\xD8\xD8\x3D\x44\xC4\x60\x00\xD9\x18\xD9\xC9\xD9\x58\x14\xD9\x50\x28\xD8\x4C\x24\x04\xD9\xE0\xD9\x58\x38\xC2\x0C\x00", 130);
+				if (eGameType == Game::POWGAME_EN)
+				{
+					Memory::PatchBytes(CodecaveScanResult + 6, "\xDB\x05\xC8\x70\x66\x00\x8B\xC1\x33\xC9\xDA\x35\xC4\x70\x66\x00\xC7\x40\x2C\x00\x00\x80\x3F\x89\x48\x3C\x89\x48\x34\x89\x48\x30\x89\x48\x24\x89\x48\x20\x89\x48\x1C\x89\x48\x18\x89\x48\x10\x89\x48\x0C\x89\x48\x08\x89\x48\x04\xD8\x4C\x24\x0C\xD8\x0D\xCC\xC2\x60\x00\xD9\xF2\xDD\xD8\xD8\x3D\x44\xC4\x60\x00\xD9\x44\x24\x08\xD8\x64\x24\x04\xD8\x7C\x24\x08\xD9\x44\x24\x0C\xD8\x0D\xCC\xC2\x60\x00\xD9\xF2\xDD\xD8\xD8\x3D\x44\xC4\x60\x00\xD9\x18\xD9\xC9\xD9\x58\x14\xD9\x50\x28\xD8\x4C\x24\x04\xD9\xE0\xD9\x58\x38\xC2\x0C\x00", 130);
+				}
+				else if (eGameType == Game::POWGAME_RU)
+				{
+					Memory::PatchBytes(CodecaveScanResult + 6, "\xDB\x05\x00\xDA\x66\x00\x8B\xC1\x33\xC9\xDA\x35\xFC\xD9\x66\x00\xC7\x40\x2C\x00\x00\x80\x3F\x89\x48\x3C\x89\x48\x34\x89\x48\x30\x89\x48\x24\x89\x48\x20\x89\x48\x1C\x89\x48\x18\x89\x48\x10\x89\x48\x0C\x89\x48\x08\x89\x48\x04\xD8\x4C\x24\x0C\xD8\x0D\xCC\xD2\x60\x00\xD9\xF2\xDD\xD8\xD8\x3D\x44\xD4\x60\x00\xD9\x44\x24\x08\xD8\x64\x24\x04\xD8\x7C\x24\x08\xD9\x44\x24\x0C\xD8\x0D\xCC\xD2\x60\x00\xD9\xF2\xDD\xD8\xD8\x3D\x44\xD4\x60\x00\xD9\x18\xD9\xC9\xD9\x58\x14\xD9\x50\x28\xD8\x4C\x24\x04\xD9\xE0\xD9\x58\x38\xC2\x0C\x00", 130);
+				}
 			}
 			else
 			{
@@ -367,24 +378,22 @@ void FOVFix()
 				return;
 			}
 
-			std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "E8 59 7B FC FF D9 05 94 B1 66 00 D8 4E 08 D9 05 98 B1 66 00 D8 4E 04 DE E9");
+			std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "E8 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 4E");
 			if (AspectRatioInstruction2ScanResult)
 			{
 				spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-				uint8_t* callSite = AspectRatioInstruction2ScanResult;
-
-				uint8_t* codecaveTarget = CodecaveScanResult + 224;
+				uint8_t* codecaveTarget = CodecaveScanResult + 6;
 
 				std::array<uint8_t, 5> saved{};
 
-				if (Memory::PatchCallRel32(callSite, codecaveTarget, &saved) == false)
+				if (Memory::PatchCallRel32(AspectRatioInstruction2ScanResult, codecaveTarget, &saved) == false)
 				{
 					spdlog::error("PatchCallRel32 failed (rel32 overflow or not a call).");
 				}
 				else
 				{
-					spdlog::info("Successfully patched the CALL instruction located at {:s}+{:x} to the patched codecave located at {:s}+{:x}", sExeName.c_str(), callSite - (uint8_t*)exeModule, sExeName.c_str(), (uintptr_t)codecaveTarget);
+					spdlog::info("Successfully patched the CALL instruction located at {:s}+{:x} to the patched codecave located at {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction2ScanResult - (uint8_t*)exeModule, sExeName.c_str(), (uintptr_t)codecaveTarget);
 				}
 			}
 		}
