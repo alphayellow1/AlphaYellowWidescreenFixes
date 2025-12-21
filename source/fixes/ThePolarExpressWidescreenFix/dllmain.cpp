@@ -296,6 +296,11 @@ void WidescreenFix()
 					FPU::FLD(fNewCameraFOV);
 				});
 			}
+			else
+			{
+				spdlog::error("Failed to locate camera FOV instruction scan memory address.");
+				return;
+			}
 		}
 	}	
 }
