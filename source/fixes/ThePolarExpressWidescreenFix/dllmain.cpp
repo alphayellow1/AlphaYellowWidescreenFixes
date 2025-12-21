@@ -75,13 +75,6 @@ enum AspectRatioInstructionsIndices
 	PauseMenuARScan
 };
 
-enum CameraFOVInstructionsIndices
-{
-	CameraFOV1Scan,
-	CameraFOV2Scan,
-	CameraFOV3Scan
-};
-
 struct GameInfo
 {
 	std::string GameTitle;
@@ -89,8 +82,8 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::TPE_GAME, {"The Polar Express", "PolarExpress.exe"}},
-	{Game::TPE_CONFIG, {"The Polar Express - Configuration", "Config.exe"}}
+	{Game::TPE_CONFIG, {"The Polar Express - Configuration", "Config.exe"}},
+	{Game::TPE_GAME, {"The Polar Express", "PolarExpress.exe"}}	
 };
 
 const GameInfo* game = nullptr;
@@ -223,7 +216,7 @@ void WidescreenFix()
 	{
 		if (eGameType == Game::TPE_CONFIG)
 		{
-			std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8b 10 8b 8e", "8b 40 ? 68 ? ? ? ? 51");
+			std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 10 8B 8E", "8B 40 ?? 68 ?? ?? ?? ?? 51");
 			if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 			{
 				spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionWidthScan] - (std::uint8_t*)exeModule);
@@ -287,14 +280,14 @@ void WidescreenFix()
 				});
 			}
 
-			std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D9 44 24 10 D8 0D ?? ?? ?? ?? 8B 8E 80 00 00 00 8D 44 24 04 50 D9 F2");
-			if (CameraFOVInstructionsScanResult)
+			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 10 D8 0D ?? ?? ?? ?? 8B 8E 80 00 00 00 8D 44 24 04 50 D9 F2");
+			if (CameraFOVInstructionScanResult)
 			{
-				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(CameraFOVInstructionsScanResult, "\x90\x90\x90\x90", 4);
+				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
 
