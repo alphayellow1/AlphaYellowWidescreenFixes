@@ -74,9 +74,9 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::POWGAME_EN, {"Prisoner of War (English)", "Colditz.EXE"}},
+	{Game::POWGAME_EN, {"Prisoner of War (English)", "Colditz.exe"}},
 	{Game::POWGAME_RU, {"Prisoner of War (Russian)", "RussianPOW.exe"}},
-	{Game::POWCONFIG_EN, {"Prisoner of War - Launcher (English)", "PrisonerLaunchEnglish.EXE"}},
+	{Game::POWCONFIG_EN, {"Prisoner of War - Launcher (English)", "PrisonerLaunchEnglish.exe"}},
 	{Game::POWCONFIG_RU, {"Prisoner of War - Launcher (Russian)", "PrisonerLaunchRussian.exe"}},
 };
 
@@ -263,7 +263,7 @@ void FOVFix()
 			std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "DB 05 ?? ?? ?? ?? 8B C1");
 			if (AspectRatioInstruction1ScanResult)
 			{
-			    spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult - (std::uint8_t*)exeModule);;
+			    spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult - (std::uint8_t*)exeModule);
 
 				Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -283,7 +283,7 @@ void FOVFix()
 			std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "8B 90 E0 00 00 00 89 88 DC 00 00 00 52 8B 54 24 08 8D 48 4C 8B 80 D8 00 00 00 52 50");
 			if (CameraFOVInstruction1ScanResult)
 			{
-				spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);;
+				spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
 
 				Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
