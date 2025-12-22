@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "FBIHostageRescueWidescreenFix";
+std::string sFixName = "DrakeOfThe99DragonsWidescreenFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -56,7 +56,7 @@ float fNewCameraFOV2;
 // Game detection
 enum class Game
 {
-	FBIHR,
+	DOT99D,
 	Unknown
 };
 
@@ -73,7 +73,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::FBIHR, {"FBI: Hostage Rescue", "Hostage Rescue.exe"}},
+	{Game::DOT99D, {"Drake of the 99 Dragons", "Drake.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -190,7 +190,7 @@ bool DetectGame()
 	}
 
 	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;	
+	return false;
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
@@ -199,7 +199,7 @@ static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void WidescreenFix()
 {
-	if (bFixActive == true && eGameType == Game::FBIHR)
+	if (bFixActive == true && eGameType == Game::DOT99D)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -246,7 +246,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 8E ?? ?? ?? ?? 51 E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 8D 94 24", "8B 86 ?? ?? ?? ?? 8D 4C 24 ?? 89 44 24");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 86 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 5F", "8B 86 ?? ?? ?? ?? 8D 4C 24 ?? 89 44 24");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
@@ -258,8 +258,8 @@ void WidescreenFix()
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x2F0);
-				
-				if (fCurrentCameraFOV1 == 1.22173059f || fCurrentCameraFOV1 == 1.220999956f)
+
+				if (fCurrentCameraFOV1 == 1.450000048f)
 				{
 					fNewCameraFOV1 = fCurrentCameraFOV1 * fFOVFactor;
 				}
@@ -268,7 +268,7 @@ void WidescreenFix()
 					fNewCameraFOV1 = fCurrentCameraFOV1;
 				}
 
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV1);
 			});
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
@@ -277,7 +277,7 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x374);
 
-				if (fCurrentCameraFOV2 == 0.9157499671f || fCurrentCameraFOV2 == 0.9162979126f)
+				if (fCurrentCameraFOV2 == 1.087500095f)
 				{
 					fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
 				}
@@ -285,16 +285,16 @@ void WidescreenFix()
 				{
 					fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
 				}
-					
+
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV2);
 			});
 		}
-	}	
+	}
 }
 
 DWORD __stdcall Main(void*)
 {
-	
+
 	return TRUE;
 }
 
@@ -307,7 +307,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		thisModule = hModule;
 
 		Logging();
-		Configuration();		
+		Configuration();
 
 		if (DetectGame())
 		{

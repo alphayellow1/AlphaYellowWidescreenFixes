@@ -965,6 +965,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HighHeatMajorLeagueBaseball
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FBIHostageRescueWidescreenFix", "FBIHostageRescueWidescreenFix.vcxproj", "{039AFB0C-4C13-4235-8D29-EE5BD4126DFD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DrakeOfThe99DragonsWidescreenFix", "DrakeOfThe99DragonsWidescreenFix.vcxproj", "{66714AE7-979D-4CD5-83B2-D57EBF501241}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4805,6 +4807,14 @@ Global
 		{039AFB0C-4C13-4235-8D29-EE5BD4126DFD}.Release|x64.Build.0 = Release|x64
 		{039AFB0C-4C13-4235-8D29-EE5BD4126DFD}.Release|x86.ActiveCfg = Release|Win32
 		{039AFB0C-4C13-4235-8D29-EE5BD4126DFD}.Release|x86.Build.0 = Release|Win32
+		{66714AE7-979D-4CD5-83B2-D57EBF501241}.Debug|x64.ActiveCfg = Debug|x64
+		{66714AE7-979D-4CD5-83B2-D57EBF501241}.Debug|x64.Build.0 = Debug|x64
+		{66714AE7-979D-4CD5-83B2-D57EBF501241}.Debug|x86.ActiveCfg = Debug|Win32
+		{66714AE7-979D-4CD5-83B2-D57EBF501241}.Debug|x86.Build.0 = Debug|Win32
+		{66714AE7-979D-4CD5-83B2-D57EBF501241}.Release|x64.ActiveCfg = Release|x64
+		{66714AE7-979D-4CD5-83B2-D57EBF501241}.Release|x64.Build.0 = Release|x64
+		{66714AE7-979D-4CD5-83B2-D57EBF501241}.Release|x86.ActiveCfg = Release|Win32
+		{66714AE7-979D-4CD5-83B2-D57EBF501241}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5289,6 +5299,7 @@ Global
 		{7ECFF7A5-EC78-44E6-BFEE-52C10FBF8B18} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{25FBCD39-A547-441E-B98D-D357D19A9EA8} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{039AFB0C-4C13-4235-8D29-EE5BD4126DFD} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{66714AE7-979D-4CD5-83B2-D57EBF501241} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
