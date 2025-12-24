@@ -12,6 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -21,11 +22,12 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "WorldWarIIPacificHeroesFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "RedBaronAceOfTheSkyFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -50,14 +52,16 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraHFOV;
+float fNewAspectRatio2;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
+float fNewCameraFOV3;
+float fNewCameraFOV4;
 
 // Game detection
 enum class Game
 {
-	WWIIPH,
+	RBAOS,
 	Unknown
 };
 
@@ -68,7 +72,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::WWIIPH, {"World War II: Pacific Heroes", "pacific.exe"}},
+	{Game::RBAOS, {"Red Baron: Ace of the Sky", "rb.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -188,93 +192,62 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid AspectRatioInstructionHook{};
 
 void FOVFix()
 {
-	if (eGameType == Game::WWIIPH && bFixActive == true)
+	if (eGameType == Game::RBAOS && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? 8B 10 D8 F2 89 54 24 10 D9 5C 24 0C");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 58 D8 48 60 D8 48 44 D9 40 5C D8 49 74 DE F9 D9 99 24 01 00 00 D9 05 28 A3 59 00");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
 
-			fNewCameraHFOV = 1.0f / fAspectRatioScale;
-
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				FPU::FLD(fNewCameraHFOV);
+				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.eax + 0x58);
+
+				fNewAspectRatio2 = fCurrentAspectRatio * fAspectRatioScale;
+
+				FPU::FLD(fNewAspectRatio2);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "D8 89 30 01 00 00 DE F9 D9 91 34 01 00 00 D9 05 ?? ?? ?? ?? D8 B1 30 01 00 00");
-		if (CameraFOVInstruction1ScanResult)
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "C7 40 ?? ?? ?? ?? ?? C6 41 ?? ?? C2 ?? ?? 8B 41 ?? C7 40 ?? ?? ?? ?? ?? C6 41");
+		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-			
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ecx + 0x130);
+			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-				if (fCurrentCameraFOV1 != 3.2f)
-				{
-					fNewCameraFOV1 = fCurrentCameraFOV1 / fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV1 = fCurrentCameraFOV1;
-				}
+			fNewCameraFOV1 = 1.5f / fFOVFactor;
 
-				FPU::FMUL(fNewCameraFOV1);
-			});
+			fNewCameraFOV2 = 3.2f / fFOVFactor;
+
+			fNewCameraFOV3 = 3.2f / fFOVFactor;
+
+			fNewCameraFOV4 = 3.2f / fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScanResult + 3, fNewCameraFOV1);
+
+			Memory::Write(CameraFOVInstructionsScanResult + 20, fNewCameraFOV2);
+
+			Memory::Write(CameraFOVInstructionsScanResult + 37, fNewCameraFOV3);
+
+			Memory::Write(CameraFOVInstructionsScanResult + 64, fNewCameraFOV4);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D8 B1 30 01 00 00 D9 91 38 01 00 00 D9 44 24 10 D8 1D ?? ?? ?? ?? DF E0");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-			
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x130);
-
-				if (fCurrentCameraFOV2 != 3.2f)
-				{
-					fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV2 = fCurrentCameraFOV2;
-				}
-
-				FPU::FDIV(fNewCameraFOV2);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
+			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 			return;
 		}
 	}
