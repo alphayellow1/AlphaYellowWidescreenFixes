@@ -977,6 +977,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WingsOfHonourFOVFix", "Wing
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CombatWingsFOVFix", "CombatWingsFOVFix.vcxproj", "{8E0C1EDE-CA04-4CE4-B147-E4B0C12EDEB1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BackyardSkateboardingWidescreenFix", "BackyardSkateboardingWidescreenFix.vcxproj", "{EF97F527-4E02-4F28-8611-9893A4F643B9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4865,6 +4867,14 @@ Global
 		{8E0C1EDE-CA04-4CE4-B147-E4B0C12EDEB1}.Release|x64.Build.0 = Release|x64
 		{8E0C1EDE-CA04-4CE4-B147-E4B0C12EDEB1}.Release|x86.ActiveCfg = Release|Win32
 		{8E0C1EDE-CA04-4CE4-B147-E4B0C12EDEB1}.Release|x86.Build.0 = Release|Win32
+		{EF97F527-4E02-4F28-8611-9893A4F643B9}.Debug|x64.ActiveCfg = Debug|x64
+		{EF97F527-4E02-4F28-8611-9893A4F643B9}.Debug|x64.Build.0 = Debug|x64
+		{EF97F527-4E02-4F28-8611-9893A4F643B9}.Debug|x86.ActiveCfg = Debug|Win32
+		{EF97F527-4E02-4F28-8611-9893A4F643B9}.Debug|x86.Build.0 = Debug|Win32
+		{EF97F527-4E02-4F28-8611-9893A4F643B9}.Release|x64.ActiveCfg = Release|x64
+		{EF97F527-4E02-4F28-8611-9893A4F643B9}.Release|x64.Build.0 = Release|x64
+		{EF97F527-4E02-4F28-8611-9893A4F643B9}.Release|x86.ActiveCfg = Release|Win32
+		{EF97F527-4E02-4F28-8611-9893A4F643B9}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5355,6 +5365,7 @@ Global
 		{D1187A4D-3E0A-43A3-B9F7-813F9DE2E3D9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{8AE5CC3F-D07E-4E16-9FAE-64CD15DDDE50} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{8E0C1EDE-CA04-4CE4-B147-E4B0C12EDEB1} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{EF97F527-4E02-4F28-8611-9893A4F643B9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
