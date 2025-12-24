@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BackyardSkateboardingWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -51,6 +51,7 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
+float fNewHUDHorizontalRes;
 
 // Game detection
 enum class Game
@@ -189,6 +190,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid HUDHorizontalResInstructionHook{};
 
 void WidescreenFix()
 {
@@ -232,6 +234,28 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* HUDHorizontalResInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 8B 4C 24 ?? 89 04 ?? 8B 44 24 ?? 8D 14");
+		if (HUDHorizontalResInstructionScanResult)
+		{
+			spdlog::info("HUD Horizontal Res Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDHorizontalResInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(HUDHorizontalResInstructionScanResult, "\x90\x90\x90\x90", 4);
+
+			HUDHorizontalResInstructionHook = safetyhook::create_mid(HUDHorizontalResInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentHUDVerticalRes = *reinterpret_cast<float*>(ctx.esp + 0x14);
+
+				fNewHUDHorizontalRes = fCurrentHUDVerticalRes * fNewAspectRatio;
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewHUDHorizontalRes);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate HUD horizontal resolution instruction memory address.");
 			return;
 		}
 	}
