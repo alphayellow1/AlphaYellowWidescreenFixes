@@ -981,6 +981,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BackyardSkateboardingWidesc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BackyardHockey2005WidescreenFix", "BackyardHockey2005WidescreenFix.vcxproj", "{5A900C63-0B6F-44E6-B5C4-7FF123197FC4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BackyardFootball2006WidescreenFix", "BackyardFootball2006WidescreenFix.vcxproj", "{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -4885,6 +4887,14 @@ Global
 		{5A900C63-0B6F-44E6-B5C4-7FF123197FC4}.Release|x64.Build.0 = Release|x64
 		{5A900C63-0B6F-44E6-B5C4-7FF123197FC4}.Release|x86.ActiveCfg = Release|Win32
 		{5A900C63-0B6F-44E6-B5C4-7FF123197FC4}.Release|x86.Build.0 = Release|Win32
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}.Debug|x64.ActiveCfg = Debug|x64
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}.Debug|x64.Build.0 = Debug|x64
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}.Debug|x86.ActiveCfg = Debug|Win32
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}.Debug|x86.Build.0 = Debug|Win32
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}.Release|x64.ActiveCfg = Release|x64
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}.Release|x64.Build.0 = Release|x64
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}.Release|x86.ActiveCfg = Release|Win32
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5377,6 +5387,7 @@ Global
 		{8E0C1EDE-CA04-4CE4-B147-E4B0C12EDEB1} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{EF97F527-4E02-4F28-8611-9893A4F643B9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{5A900C63-0B6F-44E6-B5C4-7FF123197FC4} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{5C4CFE87-6FA8-4CEE-9381-80224EEEFA82} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}

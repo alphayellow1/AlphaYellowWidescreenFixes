@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "BackyardHockey2005WidescreenFix";
+std::string sFixName = "BackyardFootball2006WidescreenFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -56,8 +56,8 @@ float fNewHUDHorizontalRes;
 // Game detection
 enum class Game
 {
-	BH2005_DX9,
-	BH2005_DX8,
+	BYFB2006_DX9,
+	BYFB2006_DX8,
 	Unknown
 };
 
@@ -68,8 +68,8 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::BH2005_DX9, {"Backyard Hockey 2005 (DX9)", "Hockey2005.exe"}},
-	{Game::BH2005_DX8, {"Backyard Hockey 2005 (DX8)", "Hockey2005DX8.exe"}},
+	{Game::BYFB2006_DX9, {"Backyard Football 2006 (DX9)", "BYFB2006.exe"}},
+	{Game::BYFB2006_DX8, {"Backyard Football 2006 (DX8)", "BYFB2006_DX8.1.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -189,56 +189,53 @@ bool DetectGame()
 	return false;	
 }
 
-static SafetyHookMid ResolutionWidth640Hook{};
-static SafetyHookMid ResolutionHeight480Hook{};
+static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 static SafetyHookMid HUDHorizontalResInstructionHook{};
 
 void WidescreenFix()
 {
-	if ((eGameType == Game::BH2005_DX9 || eGameType == Game::BH2005_DX8) && bFixActive == true)
+	if ((eGameType == Game::BYFB2006_DX9 || eGameType == Game::BYFB2006_DX8) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "89 44 24 ?? E8 ?? ?? ?? ?? 8B CB");
-		if (ResolutionListScanResult)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 00 80 02 00 00 C7 01 E0 01 00 00");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
 			// 640x480
-			Memory::PatchBytes(ResolutionListScanResult, "\x90\x90\x90\x90", 4);
+			Memory::Write(ResolutionInstructionsScanResult + 2, iCurrentResX);
 
-			ResolutionWidth640Hook = safetyhook::create_mid(ResolutionListScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.esp + 0x14) = iCurrentResX;
-			});
-
-			Memory::PatchBytes(ResolutionListScanResult + 11, "\x90\x90\x90\x90", 4);
-
-			ResolutionHeight480Hook = safetyhook::create_mid(ResolutionListScanResult + 11, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.esp + 0x18) = iCurrentResY;
-			});
-
-			// 1024x768
-			Memory::Write(ResolutionListScanResult + 41, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 49, iCurrentResY);
-
-			// 800x600
-			Memory::Write(ResolutionListScanResult + 59, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 67, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScanResult + 8, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution list scan memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 46 ?? 83 C4 ?? 68");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 8B 07");
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(fNewAspectRatio);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 41 ?? C3 CC CC CC CC CC CC CC CC CC CC CC CC C7 01");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -247,11 +244,11 @@ void WidescreenFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x2C);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x18);
 
-				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
+				FPU::FLD(fNewCameraFOV);
 			});
 		}
 		else
@@ -260,20 +257,27 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* HUDHorizontalResInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 8B 4C 24 ?? 89 04 ?? 8B 44 24 ?? 8D 14");
+		std::uint8_t* HUDHorizontalResInstructionScanResult = Memory::PatternScan(exeModule, "89 4E ?? D8 76");
 		if (HUDHorizontalResInstructionScanResult)
 		{
 			spdlog::info("HUD Horizontal Res Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDHorizontalResInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(HUDHorizontalResInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::PatchBytes(HUDHorizontalResInstructionScanResult, "\x90\x90\x90", 3);
 
 			HUDHorizontalResInstructionHook = safetyhook::create_mid(HUDHorizontalResInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHUDVerticalRes = *reinterpret_cast<float*>(ctx.esp + 0x14);
+				float fCurrentHUDHorizontalRes = std::bit_cast<float>(ctx.ecx);
 
-				fNewHUDHorizontalRes = fCurrentHUDVerticalRes * fNewAspectRatio;
+				if (fCurrentHUDHorizontalRes == 256.0f || fCurrentHUDHorizontalRes == 50.0f)
+				{
+					fNewHUDHorizontalRes = fCurrentHUDHorizontalRes * fAspectRatioScale;
+				}
+				else
+				{
+					fNewHUDHorizontalRes = fCurrentHUDHorizontalRes;
+				}				
 
-				ctx.eax = std::bit_cast<uintptr_t>(fNewHUDHorizontalRes);
+				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewHUDHorizontalRes;
 			});
 		}
 		else
