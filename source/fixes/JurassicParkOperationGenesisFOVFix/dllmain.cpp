@@ -45,12 +45,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 
@@ -193,16 +193,12 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("TRenderInterface.dll")) == nullptr)
-	{
-		spdlog::warn("TRenderInterface.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for TRenderInterface.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("TRenderInterface.dll");
 
 	return true;
 }
+
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -212,16 +208,15 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 91 90 00 00 00 83 C4 0C C2 04 00 90");
+		// Located in TRenderInterface.dll.Toshi::TCameraObject::SetFOV
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 91 ?? ?? ?? ?? 83 C4 ?? C2 ?? ?? 90 8D 74 26");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is TRenderInterface.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
 
