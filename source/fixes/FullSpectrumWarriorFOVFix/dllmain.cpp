@@ -346,15 +346,11 @@ DWORD WINAPI PatchWatchdogThread(LPVOID)
 
 		dllModule2 = Memory::GetHandle("FSW.dll", 200, 0, false);
 
-		AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC C7 01");
+		g_AspectRatioAddr = (std::uint8_t*)dllModule2 + 0x465990;
 
-		CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 83 ?? ?? ?? ?? 8B 03", "8B 88 ?? ?? ?? ?? 8B 93 ?? ?? ?? ?? 83 C2");
+		g_CameraFOV1Addr = (std::uint8_t*)dllModule2 + 0x40139C;
 
-		g_AspectRatioAddr = AspectRatioInstructionScanResult;
-
-		g_CameraFOV1Addr = CameraFOVInstructionsScansResult[CameraFOV1Scan];
-
-		g_CameraFOV2Addr = CameraFOVInstructionsScansResult[CameraFOV2Scan];
+		g_CameraFOV2Addr = (std::uint8_t*)dllModule2 + 0x167F57;
 
         if (g_AspectRatioAddr)
         {
