@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BarnyardWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -50,9 +50,11 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewAspectRatio2;
-float fNewCameraFOV;
+float fNewCameraFOV1;
+float fNewCameraFOV2;
+float fNewCameraFOV3;
 float fNewResX;
+uint8_t* CameraFOVAddress;
 
 // Game detection
 enum class Game
@@ -68,6 +70,13 @@ enum ResolutionListScans
 	ResolutionList3Scan,
 	ResolutionList4Scan,
 	ResolutionList5Scan
+};
+
+enum CameraFOVInstructionsIndices
+{
+	CameraFOV1Scan,
+	CameraFOV2Scan,
+	CameraFOV3Scan
 };
 
 struct GameInfo
@@ -198,7 +207,9 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstruction1Hook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void WidescreenFix()
 {
@@ -257,26 +268,42 @@ void WidescreenFix()
 				return;
 			}
 
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 41 ?? 59 C2 ?? ?? CC");
-			if (CameraFOVInstructionScanResult)
+			std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 53 ?? 52 8B CE E8 ?? ?? ?? ?? DD D8", "D9 05 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC 56 8B F1", "68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? DD D8 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? DD D8 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? DD D8 8B 44 24");
+			if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 			{
-				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+				spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
 
-				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)exeModule);
+
+				Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90", 3);
+
+				CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 				{
-					float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+					float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebx + 0x44);
 
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+					fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
 
-					*reinterpret_cast<float*>(ctx.ecx + 0x8) = fNewCameraFOV;
+					ctx.edx = std::bit_cast<uint32_t>(fNewCameraFOV1);
 				});
-			}
-			else
-			{
-				spdlog::error("Failed to locate camera FOV instruction scan memory address.");
-				return;
+
+				CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 2, Memory::PointerMode::Absolute);
+
+				Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+
+				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+				{
+					float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOVAddress);
+
+					fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
+
+					FPU::FLD(fNewCameraFOV2);
+				});
+
+				fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(1.04719758f, fAspectRatioScale);
+
+				Memory::Write(CameraFOVInstructionsScansResult[CameraFOV3Scan] + 1, fNewCameraFOV3);
 			}
 		}
 	}	
