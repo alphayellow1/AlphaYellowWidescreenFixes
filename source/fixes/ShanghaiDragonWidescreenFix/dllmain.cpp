@@ -63,7 +63,8 @@ enum class Game
 
 enum ResolutionInstructionsScansIndices
 {
-	MainMenuResolutionScan,
+	MainMenuResolution1Scan,
+	MainMenuResolution2Scan,
 	ResolutionListScan
 };
 
@@ -221,17 +222,23 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8B 11 68", "C7 47 04 20 03 00 00 C7 47 08 58 02 00 00 EB 1E C7 47 04 00 04 00 00 C7 47 08 00 03 00 00 EB 0E C7 47 04 80 02 00 00 C7 47 08 E0 01 00 00");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8B 11 68", "68 58 02 00 00 8B 4C 24 64 68 20 03 00 00", "C7 47 04 20 03 00 00 C7 47 08 58 02 00 00 EB 1E C7 47 04 00 04 00 00 C7 47 08 00 03 00 00 EB 0E C7 47 04 80 02 00 00 C7 47 08 E0 01 00 00");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Main Menu Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolutionScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Main Menu Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolution1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Main Menu Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolution2Scan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionListScan] - (std::uint8_t*)exeModule);
 
 			// Main Menu Resolution
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 8, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution1Scan] + 8, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 1, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution1Scan] + 1, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution2Scan] + 10, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolution2Scan] + 1, iCurrentResY);
 
 			// Resolution List
 			// 640x480
