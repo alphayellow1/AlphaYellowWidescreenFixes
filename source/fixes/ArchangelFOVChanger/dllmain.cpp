@@ -39,9 +39,6 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOriginalCameraFOV = 0.5f;
-
 // Ini variables
 bool bFixActive;
 
