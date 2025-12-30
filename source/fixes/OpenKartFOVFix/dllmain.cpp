@@ -238,9 +238,9 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraHFOVInstructionsScansResult = Memory::PatternScan(exeModule, "89 91 ? ? ? ? 8b 54 24 ? 89 81 ? ? ? ? 8b 84 24", "89 81 ? ? ? ? 8b 84 24");
+		std::vector<std::uint8_t*> CameraHFOVInstructionsScansResult = Memory::PatternScan(exeModule, "89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 8B 84 24", "89 81 ?? ?? ?? ?? 8B 84 24");
 
-		std::vector<std::uint8_t*> CameraVFOVInstructionsScansResult = Memory::PatternScan(exeModule, "89 91 ? ? ? ? 89 81 ? ? ? ? d8 35", "89 81 ? ? ? ? d8 35");
+		std::vector<std::uint8_t*> CameraVFOVInstructionsScansResult = Memory::PatternScan(exeModule, "89 91 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? D8 35", "89 81 ?? ?? ?? ?? D8 35");
 
 		if (Memory::AreAllSignaturesValid(CameraHFOVInstructionsScansResult) == true)
 		{
