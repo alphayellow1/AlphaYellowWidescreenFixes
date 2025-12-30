@@ -63,21 +63,13 @@ enum class Game
 enum CameraHFOVInstructionsIndex
 {
 	CameraHFOV1Scan,
-	CameraHFOV2Scan,
-	CameraHFOV3Scan,
-	CameraHFOV4Scan,
-	CameraHFOV5Scan,
-	CameraHFOV6Scan
+	CameraHFOV2Scan
 };
 
 enum CameraVFOVInstructionsIndex
 {
 	CameraVFOV1Scan,
-	CameraVFOV2Scan,
-	CameraVFOV3Scan,
-	CameraVFOV4Scan,
-	CameraVFOV5Scan,
-	CameraVFOV6Scan
+	CameraVFOV2Scan
 };
 
 struct GameInfo
@@ -210,16 +202,8 @@ bool DetectGame()
 
 static SafetyHookMid CameraHFOVInstruction1Hook{};
 static SafetyHookMid CameraHFOVInstruction2Hook{};
-static SafetyHookMid CameraHFOVInstruction3Hook{};
-static SafetyHookMid CameraHFOVInstruction4Hook{};
-static SafetyHookMid CameraHFOVInstruction5Hook{};
-static SafetyHookMid CameraHFOVInstruction6Hook{};
 static SafetyHookMid CameraVFOVInstruction1Hook{};
 static SafetyHookMid CameraVFOVInstruction2Hook{};
-static SafetyHookMid CameraVFOVInstruction3Hook{};
-static SafetyHookMid CameraVFOVInstruction4Hook{};
-static SafetyHookMid CameraVFOVInstruction5Hook{};
-static SafetyHookMid CameraVFOVInstruction6Hook{};
 
 void CameraFOVInstructionsMidHook(uintptr_t CameraFOVAddress, float fARScale, uintptr_t DestinationAddress)
 {
