@@ -64,7 +64,8 @@ enum class Game
 enum ResolutionInstructionsScansIndices
 {
 	MainMenuResolutionScan,
-	ResolutionListScan
+	ResolutionListScan,
+	ResolutionSwitchFixScan
 };
 
 enum AspectRatioInstructionsScansIndices
@@ -206,6 +207,7 @@ bool DetectGame()
 	return false;	
 }
 
+static SafetyHookMid ResolutionSwitchFixHook{};
 static SafetyHookMid AspectRatioInstruction1Hook{};
 static SafetyHookMid AspectRatioInstruction2Hook{};
 static SafetyHookMid CameraFOVInstruction1Hook{};
@@ -219,12 +221,14 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "C7 05 14 28 6B 00 20 03 00 00 C1 E9 02 C7 05 18 28 6B 00 58 02 00 00", "C7 86 7C 01 00 00 80 02 00 00 C7 86 80 01 00 00 E0 01 00 00 89 8E 84 01 00 00 C7 86 88 01 00 00 20 03 00 00 C7 86 8C 01 00 00 58 02 00 00 89 8E 90 01 00 00 C7 86 94 01 00 00 00 04 00 00 C7 86 98 01 00 00 00 03 00 00");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "C7 05 14 28 6B 00 20 03 00 00 C1 E9 02 C7 05 18 28 6B 00 58 02 00 00", "C7 86 7C 01 00 00 80 02 00 00 C7 86 80 01 00 00 E0 01 00 00 89 8E 84 01 00 00 C7 86 88 01 00 00 20 03 00 00 C7 86 8C 01 00 00 58 02 00 00 89 8E 90 01 00 00 C7 86 94 01 00 00 00 04 00 00 C7 86 98 01 00 00 00 03 00 00", "8B 7D ?? A1");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Main Menu Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolutionScan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionListScan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Switch Fix Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionSwitchFixScan] - (std::uint8_t*)exeModule);
 
 			// Main Menu Resolution
 			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 6, iCurrentResX);
@@ -246,9 +250,16 @@ void WidescreenFix()
 			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 58, iCurrentResX);
 
 			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 68, iCurrentResY);
+
+			ResolutionSwitchFixHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResolutionSwitchFixScan], [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ctx.ebp + 0x8) = iCurrentResX;
+
+				*reinterpret_cast<int*>(ctx.ebp + 0xC) = iCurrentResY;
+			});
 		}
 
-		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "8B 95 ?? ?? ?? ?? 50 8B 85 ?? ?? ?? ?? 51", "8B 95 ?? ?? ?? ?? 50 8B 85 ?? ?? ?? ?? 51");
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "8B 95 ?? ?? ?? ?? 50 8B 85 ?? ?? ?? ?? 51", "D8 89 ?? ?? ?? ?? D9 E8");		
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
 			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio1Scan] - (std::uint8_t*)exeModule);
@@ -270,7 +281,7 @@ void WidescreenFix()
 			});
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 95 ?? ?? ?? ?? 50 8B 85 ?? ?? ?? ?? 51", "D9 81 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? C7 44 24");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 85 ?? ?? ?? ?? 51 52", "D9 81 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? C7 44 24");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
