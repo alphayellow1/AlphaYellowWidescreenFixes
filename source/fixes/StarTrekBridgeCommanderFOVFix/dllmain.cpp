@@ -66,40 +66,24 @@ enum class Game
 	Unknown
 };
 
-enum CameraHFOVInstructionsIndex
+enum SpaceshipInteriorHFOVInstructionsIndex
 {
-	CameraHFOV1Scan,
-	CameraHFOV2Scan,
-	CameraHFOV3Scan,
-	CameraHFOV4Scan,
-	CameraHFOV5Scan,
-	CameraHFOV6Scan,
-	CameraHFOV7Scan,
-	CameraHFOV8Scan,
-	CameraHFOV9Scan,
-	CameraHFOV10Scan,
-	CameraHFOV11Scan,
-	CameraHFOV12Scan,
-	CameraHFOV13Scan,
-	CameraHFOV14Scan
+	InteriorHFOV1Scan,
+	InteriorHFOV2Scan,
+	InteriorHFOV3Scan,
+	InteriorHFOV4Scan,
+	InteriorHFOV5Scan,
+	InteriorHFOV6Scan
 };
 
-enum CameraVFOVInstructionsIndex
+enum SpaceshipInteriorVFOVInstructionsIndex
 {
-	CameraVFOV1Scan,
-	CameraVFOV2Scan,
-	CameraVFOV3Scan,
-	CameraVFOV4Scan,
-	CameraVFOV5Scan,
-	CameraVFOV6Scan,
-	CameraVFOV7Scan,
-	CameraVFOV8Scan,
-	CameraVFOV9Scan,
-	CameraVFOV10Scan,
-	CameraVFOV11Scan,
-	CameraVFOV12Scan,
-	CameraVFOV13Scan,
-	CameraVFOV14Scan
+	InteriorVFOV1Scan,
+	InteriorVFOV2Scan,
+	InteriorVFOV3Scan,
+	InteriorVFOV4Scan,
+	InteriorVFOV5Scan,
+	InteriorVFOV6Scan
 };
 
 enum ExteriorFOVInstructionsIndex
@@ -236,36 +220,18 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstruction1Hook{};
-static SafetyHookMid CameraHFOVInstruction2Hook{};
-static SafetyHookMid CameraHFOVInstruction3Hook{};
-static SafetyHookMid CameraHFOVInstruction4Hook{};
-static SafetyHookMid CameraHFOVInstruction5Hook{};
-static SafetyHookMid CameraHFOVInstruction6Hook{};
-static SafetyHookMid CameraHFOVInstruction7Hook{};
-static SafetyHookMid CameraHFOVInstruction8Hook{};
-static SafetyHookMid CameraHFOVInstruction9Hook{};
-static SafetyHookMid CameraHFOVInstruction10Hook{};
-static SafetyHookMid CameraHFOVInstruction11Hook{};
-static SafetyHookMid CameraHFOVInstruction12Hook{};
-static SafetyHookMid CameraHFOVInstruction13Hook{};
-static SafetyHookMid CameraHFOVInstruction14Hook{};
-
-static SafetyHookMid CameraVFOVInstruction1Hook{};
-static SafetyHookMid CameraVFOVInstruction2Hook{};
-static SafetyHookMid CameraVFOVInstruction3Hook{};
-static SafetyHookMid CameraVFOVInstruction4Hook{};
-static SafetyHookMid CameraVFOVInstruction5Hook{};
-static SafetyHookMid CameraVFOVInstruction6Hook{};
-static SafetyHookMid CameraVFOVInstruction7Hook{};
-static SafetyHookMid CameraVFOVInstruction8Hook{};
-static SafetyHookMid CameraVFOVInstruction9Hook{};
-static SafetyHookMid CameraVFOVInstruction10Hook{};
-static SafetyHookMid CameraVFOVInstruction11Hook{};
-static SafetyHookMid CameraVFOVInstruction12Hook{};
-static SafetyHookMid CameraVFOVInstruction13Hook{};
-static SafetyHookMid CameraVFOVInstruction14Hook{};
-
+static SafetyHookMid SpaceshipInteriorHFOVInstruction1Hook{};
+static SafetyHookMid SpaceshipInteriorHFOVInstruction2Hook{};
+static SafetyHookMid SpaceshipInteriorHFOVInstruction3Hook{};
+static SafetyHookMid SpaceshipInteriorHFOVInstruction4Hook{};
+static SafetyHookMid SpaceshipInteriorHFOVInstruction5Hook{};
+static SafetyHookMid SpaceshipInteriorHFOVInstruction6Hook{};
+static SafetyHookMid SpaceshipInteriorVFOVInstruction1Hook{};
+static SafetyHookMid SpaceshipInteriorVFOVInstruction2Hook{};
+static SafetyHookMid SpaceshipInteriorVFOVInstruction3Hook{};
+static SafetyHookMid SpaceshipInteriorVFOVInstruction4Hook{};
+static SafetyHookMid SpaceshipInteriorVFOVInstruction5Hook{};
+static SafetyHookMid SpaceshipInteriorVFOVInstruction6Hook{};
 static SafetyHookMid ExteriorHFOVInstruction1Hook{};
 static SafetyHookMid ExteriorHFOVInstruction2Hook{};
 static SafetyHookMid ExteriorVFOVInstructionHook{};
@@ -278,127 +244,127 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> SpaceshipCameraHFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 C0 D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 C0 D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? D9 86", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 C0 D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4", "D8 0D ?? ?? ?? ?? C7 84 24", "D8 0D ?? ?? ?? ?? 8B 8E", "D8 0D ?? ?? ?? ?? 8B 89");
+		std::vector<std::uint8_t*> SpaceshipInteriorHFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 C0 D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 C0 D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? D9 86", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 C0 D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4", "D8 0D ?? ?? ?? ?? C7 84 24", "D8 0D ?? ?? ?? ?? 8B 8E", "D8 0D ?? ?? ?? ?? 8B 89");
 		
-		std::vector<std::uint8_t*> SpaceshipCameraVFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 83 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? D9 86", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 4C 24", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? D9 86", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4");
+		std::vector<std::uint8_t*> SpaceshipInteriorVFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 83 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? D9 86", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 4C 24", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? D9 86", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ?? D9 5C 24 ?? D9 05 ?? ?? ?? ?? D8 5C 24 ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 44 24 ?? D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? DD D8 D9 05 ?? ?? ?? ?? 8B 44 24 ?? 8B 54 24 ?? D9 99 ?? ?? ?? ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4");
 		
-		if (Memory::AreAllSignaturesValid(SpaceshipCameraHFOVInstructionsScansResult) == true)
+		if (Memory::AreAllSignaturesValid(SpaceshipInteriorHFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Spaceship Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV2Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera HFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior HFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV3Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV4Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV4Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera HFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV5Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior HFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV5Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera HFOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV6Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior HFOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV6Scan] - (std::uint8_t*)exeModule);
 
 			fNewCameraHFOV = 0.5f * fAspectRatioScale * fFOVFactor;
 
 			fNewCameraHFOV2 = -0.5f * fAspectRatioScale * fFOVFactor;
 
-			Memory::PatchBytes(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction1Hook = safetyhook::create_mid(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV1Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorHFOVInstruction1Hook = safetyhook::create_mid(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV1Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction2Hook = safetyhook::create_mid(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV2Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorHFOVInstruction2Hook = safetyhook::create_mid(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV2Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction3Hook = safetyhook::create_mid(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV3Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorHFOVInstruction3Hook = safetyhook::create_mid(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV3Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction4Hook = safetyhook::create_mid(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV4Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorHFOVInstruction4Hook = safetyhook::create_mid(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV4Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraHFOV2);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV5Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV5Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction5Hook = safetyhook::create_mid(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV5Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorHFOVInstruction5Hook = safetyhook::create_mid(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV5Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraHFOV2);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV6Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV6Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraHFOVInstruction6Hook = safetyhook::create_mid(SpaceshipCameraHFOVInstructionsScansResult[CameraHFOV6Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorHFOVInstruction6Hook = safetyhook::create_mid(SpaceshipInteriorHFOVInstructionsScansResult[InteriorHFOV6Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraHFOV2);
 			});
 		}
 		
-		if (Memory::AreAllSignaturesValid(SpaceshipCameraVFOVInstructionsScansResult) == true)
+		if (Memory::AreAllSignaturesValid(SpaceshipInteriorVFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Spaceship Camera VFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior VFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera VFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior VFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV2Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera VFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior VFOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV3Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera VFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV4Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior VFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV4Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera VFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV5Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior VFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV5Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Spaceship Camera VFOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV6Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Spaceship Interior VFOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV6Scan] - (std::uint8_t*)exeModule);
 
 			fNewCameraVFOV = 0.375f * fFOVFactor;
 
 			fNewCameraVFOV2 = -0.375f * fFOVFactor;
 
-			Memory::PatchBytes(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstruction1Hook = safetyhook::create_mid(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV1Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorVFOVInstruction1Hook = safetyhook::create_mid(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV1Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraVFOV);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstruction2Hook = safetyhook::create_mid(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV2Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorVFOVInstruction2Hook = safetyhook::create_mid(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV2Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraVFOV);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstruction3Hook = safetyhook::create_mid(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV3Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorVFOVInstruction3Hook = safetyhook::create_mid(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV3Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraVFOV);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstruction4Hook = safetyhook::create_mid(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV4Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorVFOVInstruction4Hook = safetyhook::create_mid(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV4Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraVFOV2);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV5Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV5Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstruction5Hook = safetyhook::create_mid(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV5Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorVFOVInstruction5Hook = safetyhook::create_mid(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV5Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraVFOV2);
 			});
 
-			Memory::PatchBytes(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV6Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV6Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraVFOVInstruction6Hook = safetyhook::create_mid(SpaceshipCameraVFOVInstructionsScansResult[CameraVFOV6Scan], [](SafetyHookContext& ctx)
+			SpaceshipInteriorVFOVInstruction6Hook = safetyhook::create_mid(SpaceshipInteriorVFOVInstructionsScansResult[InteriorVFOV6Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewCameraVFOV2);
 			});
