@@ -56,8 +56,8 @@ float fNewCameraVFOV;
 float fNewCameraVFOV2;
 float fNewExteriorHFOV1;
 float fNewExteriorHFOV2;
-float fNewExteriorVFOV1;
-float fNewExteriorVFOV2;
+float fNewExteriorVFOV;
+uint8_t* ExteriorCameraFOVAddress;
 
 // Game detection
 enum class Game
@@ -106,8 +106,7 @@ enum ExteriorFOVInstructionsIndex
 {
 	ExteriorHFOV1Scan,
 	ExteriorHFOV2Scan,
-	ExteriorVFOV1Scan,
-	ExteriorVFOV2Scan
+	ExteriorVFOVScan,
 };
 
 struct GameInfo
@@ -269,8 +268,7 @@ static SafetyHookMid CameraVFOVInstruction14Hook{};
 
 static SafetyHookMid ExteriorHFOVInstruction1Hook{};
 static SafetyHookMid ExteriorHFOVInstruction2Hook{};
-static SafetyHookMid ExteriorVFOVInstruction1Hook{};
-static SafetyHookMid ExteriorVFOVInstruction2Hook{};
+static SafetyHookMid ExteriorVFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -406,81 +404,48 @@ void FOVFix()
 			});
 		}
 
-		std::vector<std::uint8_t*> ExteriorCameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "d9 43 ? d8 23", "d9 43 ? d8 03", "d9 43 ? d8 63 ? d9 5c 24", "d9 43 ? d8 43 ? 89 86");
+		std::vector<std::uint8_t*> ExteriorCameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "A1 ?? ?? ?? ?? 5E 89 44 24 ?? D8 7C 24", "D9 05 ?? ?? ?? ?? D9 E0 D9 5C 24 ?? D8 0D", "D8 0D ?? ?? ?? ?? D9 54 24 ?? D9 E0");
 		if (Memory::AreAllSignaturesValid(ExteriorCameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Exterior Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Exterior Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV2Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Exterior Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ExteriorCameraFOVInstructionsScansResult[ExteriorVFOVScan] - (std::uint8_t*)exeModule);
+
+			ExteriorCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV1Scan] + 1, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV1Scan], "\x90\x90\x90\x90\x90", 5);
 
 			ExteriorHFOVInstruction1Hook = safetyhook::create_mid(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentExteriorHFOV1 = *reinterpret_cast<float*>(ctx.ebx + 0x4) - *reinterpret_cast<float*>(ctx.ebx);
+				float& fCurrentExteriorHFOV1 = *reinterpret_cast<float*>(ExteriorCameraFOVAddress);
 
-				if (*reinterpret_cast<float*>(ctx.ebx + 0x4) == 0.25f)
-				{
-					fNewExteriorHFOV1 = fCurrentExteriorHFOV1 * fAspectRatioScale * fFOVFactor;
-				}
-				else
-				{
-					fNewExteriorHFOV1 = fCurrentExteriorHFOV1;
-				}
+				fNewExteriorHFOV1 = fCurrentExteriorHFOV1 * fAspectRatioScale * fFOVFactor;
 
-				FPU::FLD(fNewExteriorHFOV1);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewExteriorHFOV1);
 			});
 
-			Memory::PatchBytes(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV2Scan], "\x90\x90\x90\x90\x90", 5);
+			Memory::PatchBytes(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
 			ExteriorHFOVInstruction2Hook = safetyhook::create_mid(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentExteriorHFOV2 = *reinterpret_cast<float*>(ctx.ebx + 0x4) + *reinterpret_cast<float*>(ctx.ebx);
+				float& fCurrentExteriorHFOV2 = *reinterpret_cast<float*>(ExteriorCameraFOVAddress);
 
-				if (*reinterpret_cast<float*>(ctx.ebx + 0x4) == 0.25f)
-				{
-					fNewExteriorHFOV2 = fCurrentExteriorHFOV2 * fAspectRatioScale * fFOVFactor;
-				}
-				else
-				{
-					fNewExteriorHFOV2 = fCurrentExteriorHFOV2;
-				}
+				fNewExteriorHFOV2 = fCurrentExteriorHFOV2 * fAspectRatioScale * fFOVFactor;
 
 				FPU::FLD(fNewExteriorHFOV2);
 			});
 
-			Memory::PatchBytes(ExteriorCameraFOVInstructionsScansResult[ExteriorVFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(ExteriorCameraFOVInstructionsScansResult[ExteriorVFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			ExteriorVFOVInstruction1Hook = safetyhook::create_mid(ExteriorCameraFOVInstructionsScansResult[ExteriorVFOV1Scan], [](SafetyHookContext& ctx)
+			ExteriorVFOVInstructionHook = safetyhook::create_mid(ExteriorCameraFOVInstructionsScansResult[ExteriorVFOVScan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentExteriorVFOV1 = *reinterpret_cast<float*>(ctx.ebx + 0x8) - *reinterpret_cast<float*>(ctx.ebx + 0xC);
+				float& fCurrentExteriorVFOV = *reinterpret_cast<float*>(ExteriorCameraFOVAddress);
 
-				if (*reinterpret_cast<float*>(ctx.ebx + 0x8) == 0.25f / fNewAspectRatio)
-				{
-					fNewExteriorVFOV1 = fCurrentExteriorVFOV1 * fFOVFactor;
-				}
-				else
-				{
-					fNewExteriorVFOV1 = fCurrentExteriorVFOV1;
-				}
+				fNewExteriorVFOV = fCurrentExteriorVFOV * fAspectRatioScale * fFOVFactor;
 
-				FPU::FLD(fNewExteriorVFOV1);
-			});
-
-			Memory::PatchBytes(ExteriorCameraFOVInstructionsScansResult[ExteriorVFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			ExteriorVFOVInstruction2Hook = safetyhook::create_mid(ExteriorCameraFOVInstructionsScansResult[ExteriorVFOV2Scan], [](SafetyHookContext& ctx)
-			{
-				float fCurrentExteriorVFOV2 = *reinterpret_cast<float*>(ctx.ebx + 0xC) + *reinterpret_cast<float*>(ctx.ebx + 0x8);
-
-				if (*reinterpret_cast<float*>(ctx.ebx + 0x8) == 0.25f / fNewAspectRatio)
-				{
-					fNewExteriorVFOV2 = fCurrentExteriorVFOV2 * fFOVFactor;
-				}
-				else
-				{
-					fNewExteriorVFOV2 = fCurrentExteriorVFOV2;
-				}
-
-				FPU::FLD(fNewExteriorVFOV2);
+				FPU::FMUL(fNewExteriorVFOV);
 			});
 		}
 	}
