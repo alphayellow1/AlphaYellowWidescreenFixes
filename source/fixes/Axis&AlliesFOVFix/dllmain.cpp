@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "Axis&AliesFOVFix";
+std::string sFixName = "Axis&AlliesFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -73,7 +73,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::AA, {"Axis & Alies", "AA.exe"}},
+	{Game::AA, {"Axis & Allies", "AA.exe"}},
 };
 
 const GameInfo* game = nullptr;
