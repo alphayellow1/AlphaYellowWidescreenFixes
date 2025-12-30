@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{9977ef67-312f-4822-a834-b4322c2c59ad}</ProjectGuid>
-    <RootNamespace>AxisAliesFOVFix</RootNamespace>
+    <ProjectGuid>{7dcf8ecd-fa98-4d44-948c-d93100a96eec}</ProjectGuid>
+    <RootNamespace>AxisAlliesFOVFix</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -140,7 +140,7 @@
   <ItemGroup>
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp" />
     <ClCompile Include="..\external\safetyhook\Zydis.c" />
-    <ClCompile Include="..\source\fixes\Axis&amp;AliesFOVFix\dllmain.cpp" />
+    <ClCompile Include="..\source\fixes\Axis&amp;AlliesFOVFix\dllmain.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
