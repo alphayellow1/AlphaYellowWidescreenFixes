@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "StarTrekBridgeCommanderFOVFix";
-std::string sFixVersion = "1.0.1";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
