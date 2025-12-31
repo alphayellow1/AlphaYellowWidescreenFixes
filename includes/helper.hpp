@@ -541,13 +541,16 @@ namespace Memory
 		return results;
 	}
 
-	inline bool AreAllSignaturesValid(const std::vector<std::uint8_t*>& addrs) noexcept
+	inline bool AreAllSignaturesValid(const std::vector<std::uint8_t*>& addrs, bool bLoggingEnabled = true) noexcept
 	{
-		if (addrs.empty())
+		if (bLoggingEnabled == true)
 		{
-			spdlog::error("PatternScan: The address vector is empty.");
-			return false;
-		}
+			if (addrs.empty())
+			{
+				spdlog::error("PatternScan: The address vector is empty.");
+				return false;
+			}
+		}		
 
 		std::vector<std::size_t> missing;
 
@@ -566,24 +569,28 @@ namespace Memory
 			return true;
 		}
 
-		std::string msg = fmt::format("PatternScan: {} signature(s) not found. Missing indices: ", missing.size());
-
-		for (std::size_t k = 0; k < missing.size(); ++k)
+		if (bLoggingEnabled == true)
 		{
-			if (k > 0)
+			std::string msg = fmt::format("PatternScan: {} signature(s) not found. Missing indices: ", missing.size());
+
+			for (std::size_t k = 0; k < missing.size(); ++k)
 			{
-				msg += ", ";
+				if (k > 0)
+				{
+					msg += ", ";
+				}
+
+				msg += fmt::format("{}", missing[k]);
+
+				if (g_last_scan_signatures.size() == addrs.size())
+				{
+					msg += fmt::format(" (\"{}\")", g_last_scan_signatures[missing[k]]);
+				}
 			}
 
-			msg += fmt::format("{}", missing[k]);
-
-			if (g_last_scan_signatures.size() == addrs.size())
-			{
-				msg += fmt::format(" (\"{}\")", g_last_scan_signatures[missing[k]]);
-			}
+			spdlog::error("{}", msg);
 		}
-
-		spdlog::error("{}", msg);
+		
 		return false;
 	}
 
