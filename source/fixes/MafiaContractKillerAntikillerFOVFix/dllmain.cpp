@@ -12,6 +12,7 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
+#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -21,11 +22,12 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "MadeManConfessionsOfTheFamilyBloodWidescreenFix";
-std::string sFixVersion = "1.3";
+std::string sFixName = "MafiaContractKillerAntikillerFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -50,26 +52,13 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	MM,
+	MCKA,
 	Unknown
-};
-
-enum ResolutionInstructionsIndices
-{
-	Resolution1Scan,
-	Resolution2Scan
-};
-
-enum CameraFOVInstructionsIndices
-{
-	FOV1Scan,
-	FOV2Scan
 };
 
 struct GameInfo
@@ -79,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::MM, {"Made Man: Confessions of the Family Blood", "IMM.exe"}},
+	{Game::MCKA, {"Mafia Contract Killer: Antikiller", "antikiller.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -155,7 +144,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -199,117 +188,44 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid ResolutionWidthInstruction1Hook{};
-static SafetyHookMid ResolutionHeightInstruction1Hook{};
-static SafetyHookMid ResolutionWidthInstruction2Hook{};
-static SafetyHookMid ResolutionHeightInstruction2Hook{};
 static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
-void WidescreenFix()
+void FOVFix()
 {
-	if (eGameType == Game::MM && bFixActive == true)
+	if (eGameType == Game::MCKA && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;		
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 15 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 81 EC 00 02 00 00", "8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 50 51 52 8D 44 24 14");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
-		{
-			spdlog::info("Resolution Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
-			{
-				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan] + 6, "\x90\x90\x90\x90\x90\x90", 6);
-
-			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan] + 6, [](SafetyHookContext& ctx)
-			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution2Scan] + 6, "\x90\x90\x90\x90\x90\x90", 6);
-
-			ResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution2Scan] + 6, [](SafetyHookContext& ctx)
-			{
-				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution2Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			ResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution2Scan], [](SafetyHookContext& ctx)
-			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-		}
-
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 10 2D ?? ?? ?? ?? EB 0D 0F BF 50 10 0F BF 78 12");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 71 ?? 8B 49");		
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				ctx.xmm5.f32[0] = fNewAspectRatio;
+				FPU::FDIV(fNewAspectRatio);
 			});
 		}
-		else
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 41 ?? 8D 44 24");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
-			return;
-		}
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 3D ?? ?? ?? ?? D9 54 24 34 D8 4C 24 10 D9 5C 24 10 7E 45 0F 28 D0 F3 0F 5E 54 24 34", "D8 3D ?? ?? ?? ?? D9 54 24 34 D8 4C 24 10 D9 5C 24 10 7E 43 0F 28 D0 F3 0F 5E 54 24 34 0F 28 E2 F3 0F 5E E5");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
-		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[FOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x48);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax * 0x14);
 
-				if (fCurrentCameraFOV == 1.1344640254974365f)
-				{
-					fNewCameraFOV1 = (1.0f / fAspectRatioScale) / fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV1 = 1.0f / fAspectRatioScale;
-				}
+				fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
-				FPU::FDIVR(fNewCameraFOV1);
-			});
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[FOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x48);
-
-				if (fCurrentCameraFOV == 1.1344640254974365f)
-				{
-					fNewCameraFOV2 = (1.0f / fAspectRatioScale) / fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV2 = 1.0f / fAspectRatioScale;
-				}
-
-				FPU::FDIVR(fNewCameraFOV2);
+				FPU::FLD(fNewCameraFOV);
 			});
 		}
 	}
@@ -321,7 +237,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
