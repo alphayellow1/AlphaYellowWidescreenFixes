@@ -1021,6 +1021,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GTRacersFOVFix", "GTRacersF
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MafiaContractKillerAntikillerFOVFix", "MafiaContractKillerAntikillerFOVFix.vcxproj", "{1CE3C3B4-1BDC-4586-B017-03B658323FAF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BikiniBeachStuntRacerFOVFix", "BikiniBeachStuntRacerFOVFix.vcxproj", "{14D98D94-EB87-4A37-9A39-230DFE45761E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5085,6 +5087,14 @@ Global
 		{1CE3C3B4-1BDC-4586-B017-03B658323FAF}.Release|x64.Build.0 = Release|x64
 		{1CE3C3B4-1BDC-4586-B017-03B658323FAF}.Release|x86.ActiveCfg = Release|Win32
 		{1CE3C3B4-1BDC-4586-B017-03B658323FAF}.Release|x86.Build.0 = Release|Win32
+		{14D98D94-EB87-4A37-9A39-230DFE45761E}.Debug|x64.ActiveCfg = Debug|x64
+		{14D98D94-EB87-4A37-9A39-230DFE45761E}.Debug|x64.Build.0 = Debug|x64
+		{14D98D94-EB87-4A37-9A39-230DFE45761E}.Debug|x86.ActiveCfg = Debug|Win32
+		{14D98D94-EB87-4A37-9A39-230DFE45761E}.Debug|x86.Build.0 = Debug|Win32
+		{14D98D94-EB87-4A37-9A39-230DFE45761E}.Release|x64.ActiveCfg = Release|x64
+		{14D98D94-EB87-4A37-9A39-230DFE45761E}.Release|x64.Build.0 = Release|x64
+		{14D98D94-EB87-4A37-9A39-230DFE45761E}.Release|x86.ActiveCfg = Release|Win32
+		{14D98D94-EB87-4A37-9A39-230DFE45761E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5597,6 +5607,7 @@ Global
 		{7558473B-F347-4454-A4EF-293AAB4C45CA} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{76BDD761-2AF2-426C-BAF5-BA00C2FA2EB5} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{1CE3C3B4-1BDC-4586-B017-03B658323FAF} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{14D98D94-EB87-4A37-9A39-230DFE45761E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
