@@ -194,6 +194,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid AspectRatioInstruction2Hook{};
 
 void WidescreenFix()
 {
