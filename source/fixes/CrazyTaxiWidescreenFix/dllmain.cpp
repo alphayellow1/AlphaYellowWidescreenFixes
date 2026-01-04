@@ -302,7 +302,7 @@ void WidescreenFix()
 			{
 				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(CameraFOVAddress);
 
-				fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
+				fNewCameraFOV1 = fCurrentCameraFOV1 * fAspectRatioScale * fFOVFactor;
 
 				FPU::FLD(fNewCameraFOV1);
 			});
