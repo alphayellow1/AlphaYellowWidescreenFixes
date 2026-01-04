@@ -41,10 +41,10 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+float fFOVFactor;
 
 // Variables
 float fNewCameraFOV;
-float fFOVFactor;
 
 // Game detection
 enum class Game
