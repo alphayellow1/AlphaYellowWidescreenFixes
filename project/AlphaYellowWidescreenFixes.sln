@@ -1031,6 +1031,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CrazyTaxiWidescreenFix", "C
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SnowballRunFOVFix", "SnowballRunFOVFix.vcxproj", "{BAF556D0-39E3-4E21-AD8D-B3B4E8CA58B6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheHistoryChannelCivilWarTheBattleOfBullRunTakeCommand1861WidescreenFix", "TheHistoryChannelCivilWarTheBattleOfBullRunTakeCommand1861WidescreenFix.vcxproj", "{22EF885E-5C51-4288-A3AE-9E60A21892AF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5135,6 +5137,14 @@ Global
 		{BAF556D0-39E3-4E21-AD8D-B3B4E8CA58B6}.Release|x64.Build.0 = Release|x64
 		{BAF556D0-39E3-4E21-AD8D-B3B4E8CA58B6}.Release|x86.ActiveCfg = Release|Win32
 		{BAF556D0-39E3-4E21-AD8D-B3B4E8CA58B6}.Release|x86.Build.0 = Release|Win32
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF}.Debug|x64.ActiveCfg = Debug|x64
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF}.Debug|x64.Build.0 = Debug|x64
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF}.Debug|x86.ActiveCfg = Debug|Win32
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF}.Debug|x86.Build.0 = Debug|Win32
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF}.Release|x64.ActiveCfg = Release|x64
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF}.Release|x64.Build.0 = Release|x64
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF}.Release|x86.ActiveCfg = Release|Win32
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5652,6 +5662,7 @@ Global
 		{45A122E2-46EF-4089-83A0-0836C17021C5} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{BAF556D0-39E3-4E21-AD8D-B3B4E8CA58B6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{22EF885E-5C51-4288-A3AE-9E60A21892AF} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
