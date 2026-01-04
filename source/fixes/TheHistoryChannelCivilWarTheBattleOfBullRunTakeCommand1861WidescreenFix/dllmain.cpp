@@ -46,11 +46,13 @@ int iCurrentResY;
 float fFOVFactor;
 
 // Constants
-constexpr float fOldAspectRatio = 1.6f;
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewAspectRatio1;
+float fNewAspectRatio2;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
 
@@ -242,14 +244,7 @@ void WidescreenFix()
 
 			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
 
-			/*
-			spdlog::info("Resolution 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution4Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution5Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution 6 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution6Scan] - (std::uint8_t*)exeModule);
-			*/
-
+			// 800x600
 			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 1, iCurrentResX);
 
 			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 27, iCurrentResY);
@@ -306,17 +301,25 @@ void WidescreenFix()
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1Scan], [](SafetyHookContext& ctx)
 			{
-				FPU::FMUL(fNewAspectRatio);
+				float& fCurrentAspectRatio1 = *reinterpret_cast<float*>(ctx.ebx + 0x50);
+
+				fNewAspectRatio1 = fCurrentAspectRatio1 * fAspectRatioScale;
+
+				FPU::FMUL(fNewAspectRatio1);
 			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AR2Scan], "\x90\x90\x90", 3);
 
 			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2Scan], [](SafetyHookContext& ctx)
 			{
-				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
+				float& fCurrentAspectRatio2 = *reinterpret_cast<float*>(ctx.eax + 0x50);
+
+				fNewAspectRatio2 = fCurrentAspectRatio2 * fAspectRatioScale;
+
+				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio2);
 			});
-		}		
-	}	
+		}
+	}
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
