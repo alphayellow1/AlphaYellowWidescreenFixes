@@ -46,13 +46,11 @@ int iCurrentResY;
 float fFOVFactor;
 
 // Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOldAspectRatio = 16.0f / 10.0f;
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewAspectRatio1;
-float fNewAspectRatio2;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
 
@@ -244,24 +242,26 @@ void WidescreenFix()
 
 			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
 
-			// 800x600
+			// 800x600			
 			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 1, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 27, iCurrentResY);
-
+			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 27, iCurrentResY);			
+			
+			/*
 			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 8, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 15, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 15, iCurrentResY);			
+			*/
 
 			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 6, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 16, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 16, iCurrentResY);			
 		}
 
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 43 ?? D8 0D", "8B 40 ?? 51 52 50 68");
 
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(dllModule2, "D8 4B ?? D8 4C 24", "8B 50 ?? 8B 40 ?? 51 52 50 68");
-
+		
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is powerrender5.dll+{:x}", CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)dllModule2);
@@ -301,22 +301,14 @@ void WidescreenFix()
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio1 = *reinterpret_cast<float*>(ctx.ebx + 0x50);
-
-				fNewAspectRatio1 = fCurrentAspectRatio1 * fAspectRatioScale;
-
-				FPU::FMUL(fNewAspectRatio1);
+				FPU::FMUL(fNewAspectRatio);
 			});
 
 			Memory::PatchBytes(AspectRatioInstructionsScansResult[AR2Scan], "\x90\x90\x90", 3);
 
 			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio2 = *reinterpret_cast<float*>(ctx.eax + 0x50);
-
-				fNewAspectRatio2 = fCurrentAspectRatio2 * fAspectRatioScale;
-
-				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio2);
+				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
 		}
 	}
