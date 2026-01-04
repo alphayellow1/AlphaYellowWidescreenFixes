@@ -1027,6 +1027,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SidMeiersPiratesFOVFix", "S
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VirtuaTennisWidescreenFix", "VirtuaTennisWidescreenFix.vcxproj", "{45A122E2-46EF-4089-83A0-0836C17021C5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CrazyTaxiWidescreenFix", "CrazyTaxiWidescreenFix.vcxproj", "{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5115,6 +5117,14 @@ Global
 		{45A122E2-46EF-4089-83A0-0836C17021C5}.Release|x64.Build.0 = Release|x64
 		{45A122E2-46EF-4089-83A0-0836C17021C5}.Release|x86.ActiveCfg = Release|Win32
 		{45A122E2-46EF-4089-83A0-0836C17021C5}.Release|x86.Build.0 = Release|Win32
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}.Debug|x64.ActiveCfg = Debug|x64
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}.Debug|x64.Build.0 = Debug|x64
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}.Debug|x86.ActiveCfg = Debug|Win32
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}.Debug|x86.Build.0 = Debug|Win32
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}.Release|x64.ActiveCfg = Release|x64
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}.Release|x64.Build.0 = Release|x64
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}.Release|x86.ActiveCfg = Release|Win32
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5630,6 +5640,7 @@ Global
 		{14D98D94-EB87-4A37-9A39-230DFE45761E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{50CD76EB-B098-4362-8FDA-82902B971AD2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{45A122E2-46EF-4089-83A0-0836C17021C5} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{C15DBDB7-EDA9-4D68-B7DD-6F757AA2A1D6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
