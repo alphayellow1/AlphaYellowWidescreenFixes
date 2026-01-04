@@ -245,17 +245,15 @@ void WidescreenFix()
 			// 800x600			
 			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 1, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 27, iCurrentResY);			
+			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 27, iCurrentResY);
 			
-			/*
 			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 8, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 15, iCurrentResY);			
-			*/
+			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 15, iCurrentResY);
 
 			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 6, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 16, iCurrentResY);			
+			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 16, iCurrentResY);
 		}
 
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 43 ?? D8 0D", "8B 40 ?? 51 52 50 68");
