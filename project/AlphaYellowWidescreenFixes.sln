@@ -1035,6 +1035,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheHistoryChannelCivilWarTh
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TrackManiaNationsForeverFOVChanger", "TrackManiaNationsForeverFOVChanger.vcxproj", "{18035131-ED70-4B36-8CCF-49A116AA08D8}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VirtualSkipper532ndAmericasCupFOVChanger", "VirtualSkipper532ndAmericasCupFOVChanger.vcxproj", "{4E2ED945-11F0-4092-9708-75B5AD9F4F46}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5155,6 +5157,14 @@ Global
 		{18035131-ED70-4B36-8CCF-49A116AA08D8}.Release|x64.Build.0 = Release|x64
 		{18035131-ED70-4B36-8CCF-49A116AA08D8}.Release|x86.ActiveCfg = Release|Win32
 		{18035131-ED70-4B36-8CCF-49A116AA08D8}.Release|x86.Build.0 = Release|Win32
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46}.Debug|x64.ActiveCfg = Debug|x64
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46}.Debug|x64.Build.0 = Debug|x64
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46}.Debug|x86.ActiveCfg = Debug|Win32
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46}.Debug|x86.Build.0 = Debug|Win32
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46}.Release|x64.ActiveCfg = Release|x64
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46}.Release|x64.Build.0 = Release|x64
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46}.Release|x86.ActiveCfg = Release|Win32
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5674,6 +5684,7 @@ Global
 		{BAF556D0-39E3-4E21-AD8D-B3B4E8CA58B6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{22EF885E-5C51-4288-A3AE-9E60A21892AF} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{18035131-ED70-4B36-8CCF-49A116AA08D8} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{4E2ED945-11F0-4092-9708-75B5AD9F4F46} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
