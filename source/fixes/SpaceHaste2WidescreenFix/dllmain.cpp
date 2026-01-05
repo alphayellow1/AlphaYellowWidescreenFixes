@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "SpaceHaste2WidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -45,12 +45,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 
@@ -59,6 +59,19 @@ enum class Game
 {
 	SH2,
 	Unknown
+};
+
+enum ResolutionInstructionsIndices
+{
+	Resolution512x384Scan1,
+	Resolution512x384Scan2,
+	Resolution512x384Scan3,
+	Resolution512x384Scan4,
+	Resolution640x480Scan,
+	Resolution800x600Scan,
+	Resolution1024x768Scan,
+	Resolution1280x1024Scan,
+	Resolution1600x1200Scan
 };
 
 struct GameInfo
@@ -193,15 +206,13 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("trend.dll")) == nullptr)
-	{
-		spdlog::warn("trend.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for trend.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("trend.dll");
 
 	return true;
 }
+
+static SafetyHookMid AspectRatioInstructionHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -211,151 +222,74 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* Resolution512x384ScanResult = Memory::PatternScan(exeModule, "50 68 80 01 00 00 68 00 02 00 00 51 8B 0D ?? ?? ?? ??");
-		if (Resolution512x384ScanResult)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "50 68 80 01 00 00 68 00 02 00 00 51 8B 0D ?? ?? ?? ??", "CF 51 68 80 01 00 00 68 00 02 00 00 52 E9 9A", "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 50 68 80 01 00 00 68 00 02 00 00", "47 00 51 68 80 01 00 00 68 00 02 00 00 52 EB 76", 
+		"50 68 E0 01 00 00 68 80 02 00 00 51 8B 0D ?? ?? ?? ??", "50 68 58 02 00 00 68 20 03 00 00 51 8B 0D ?? ?? ?? ??", "50 68 00 03 00 00 68 00 04 00 00 51 8B 0D ?? ?? ?? ??", "50 68 00 04 00 00 68 00 05 00 00 51 8B 0D ?? ?? ?? ??", "50 68 B0 04 00 00 68 40 06 00 00 51 8B 0D ?? ?? ?? ??");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution 512x384: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 512x384 Scan 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution512x384Scan1] - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384ScanResult + 2, iCurrentResY);
+			spdlog::info("Resolution 512x384 Scan 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution512x384Scan2] - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384ScanResult + 7, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 512x384 scan memory address.");
-			return;
-		}
+			spdlog::info("Resolution 512x384 Scan 3: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution512x384Scan3] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* Resolution512x384Scan2Result = Memory::PatternScan(exeModule, "CF 51 68 80 01 00 00 68 00 02 00 00 52 E9 9A");
-		if (Resolution512x384Scan2Result)
-		{
-			spdlog::info("Resolution 512x384 Scan 2: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384Scan2Result - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 512x384 Scan 4: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution512x384Scan4] - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384Scan2Result + 3, iCurrentResY);
+			spdlog::info("Resolution 640x480 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution640x480Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384Scan2Result + 8, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 512x384 scan 2 memory address.");
-			return;
-		}
+			spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution800x600Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* Resolution512x384Scan3Result = Memory::PatternScan(exeModule, "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 50 68 80 01 00 00 68 00 02 00 00");
-		if (Resolution512x384Scan3Result)
-		{
-			spdlog::info("Resolution 512x384 Scan 3: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384Scan3Result - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 1024x768 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1024x768Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384Scan3Result + 13, iCurrentResY);
+			spdlog::info("Resolution 1280x1024 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1280x1024Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(Resolution512x384Scan3Result + 18, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 512x384 scan 3 memory address.");
-			return;
-		}
+			spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1600x1200Scan] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* Resolution512x384Scan4Result = Memory::PatternScan(exeModule, "47 00 51 68 80 01 00 00 68 00 02 00 00 52 EB 76");
-		if (Resolution512x384Scan4Result)
-		{
-			spdlog::info("Resolution 512x384 Scan 4: Address is {:s}+{:x}", sExeName.c_str(), Resolution512x384Scan4Result - (std::uint8_t*)exeModule);
+			Memory::Write(ResolutionInstructionsScansResult[Resolution512x384Scan1] + 2, iCurrentResY);
 
-			Memory::Write(Resolution512x384Scan4Result + 4, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[Resolution512x384Scan1] + 7, iCurrentResX);
 
-			Memory::Write(Resolution512x384Scan4Result + 9, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 512x384 scan 4 memory address.");
-			return;
-		}
+			Memory::Write(ResolutionInstructionsScansResult[Resolution512x384Scan2] + 3, iCurrentResY);
 
-		std::uint8_t* Resolution640x480ScanResult = Memory::PatternScan(exeModule, "50 68 E0 01 00 00 68 80 02 00 00 51 8B 0D ?? ?? ?? ??");
-		if (Resolution640x480ScanResult)
-		{
-			spdlog::info("Resolution 640x480: Address is {:s}+{:x}", sExeName.c_str(), Resolution640x480ScanResult - (std::uint8_t*)exeModule);
+			Memory::Write(ResolutionInstructionsScansResult[Resolution512x384Scan2] + 8, iCurrentResX);
 
-			Memory::Write(Resolution640x480ScanResult + 2, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[Resolution512x384Scan3] + 13, iCurrentResY);
 
-			Memory::Write(Resolution640x480ScanResult + 7, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 640x480 scan memory address.");
-			return;
+			Memory::Write(ResolutionInstructionsScansResult[Resolution512x384Scan3] + 18, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution512x384Scan4] + 4, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution512x384Scan4] + 9, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution640x480Scan] + 2, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution640x480Scan] + 7, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution800x600Scan] + 2, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution800x600Scan] + 7, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution1024x768Scan] + 2, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution1024x768Scan] + 7, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution1280x1024Scan] + 2, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution1280x1024Scan] + 7, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution1600x1200Scan] + 2, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Resolution1600x1200Scan] + 7, iCurrentResX);
 		}
 
-		std::uint8_t* Resolution800x600ScanResult = Memory::PatternScan(exeModule, "50 68 58 02 00 00 68 20 03 00 00 51 8B 0D ?? ?? ?? ??");
-		if (Resolution800x600ScanResult)
-		{
-			spdlog::info("Resolution 800x600: Address is {:s}+{:x}", sExeName.c_str(), Resolution800x600ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(Resolution800x600ScanResult + 2, iCurrentResY);
-
-			Memory::Write(Resolution800x600ScanResult + 7, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 800x600 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* Resolution1024x768ScanResult = Memory::PatternScan(exeModule, "50 68 00 03 00 00 68 00 04 00 00 51 8B 0D ?? ?? ?? ??");
-		if (Resolution1024x768ScanResult)
-		{
-			spdlog::info("Resolution 800x600: Address is {:s}+{:x}", sExeName.c_str(), Resolution1024x768ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(Resolution1024x768ScanResult + 2, iCurrentResY);
-
-			Memory::Write(Resolution1024x768ScanResult + 7, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 1024x768 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* Resolution1280x1024ScanResult = Memory::PatternScan(exeModule, "50 68 00 04 00 00 68 00 05 00 00 51 8B 0D ?? ?? ?? ??");
-		if (Resolution1280x1024ScanResult)
-		{
-			spdlog::info("Resolution 1280x1024: Address is {:s}+{:x}", sExeName.c_str(), Resolution1280x1024ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(Resolution1280x1024ScanResult + 2, iCurrentResY);
-
-			Memory::Write(Resolution1280x1024ScanResult + 7, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 1280x1024 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* Resolution1600x1200ScanResult = Memory::PatternScan(exeModule, "50 68 B0 04 00 00 68 40 06 00 00 51 8B 0D ?? ?? ?? ??");
-		if (Resolution1600x1200ScanResult)
-		{
-			spdlog::info("Resolution 1600x1200: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(Resolution1600x1200ScanResult + 2, iCurrentResY);
-
-			Memory::Write(Resolution1600x1200ScanResult + 7, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 1600x1200 scan memory address.");
-			return;
-		}
-
+		// Both aspect ratio and FOV instructions are located in twnd::SetAspect function
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "8B 50 04 D8 3D ?? ?? ?? ?? 89 15 ?? ?? ?? ??");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is trend.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid AspectRatioInstructionMidHook{};
-
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
@@ -371,11 +305,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is trend.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);			
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x8);
 
