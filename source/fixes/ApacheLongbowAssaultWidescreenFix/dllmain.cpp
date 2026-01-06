@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "ApacheLongbowAssaultWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -51,22 +51,14 @@ float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
-float fNewCameraFOV;
 float fAspectRatioScale;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
 	ALA,
 	Unknown
-};
-
-enum ResolutionInstructionsIndices
-{
-	MainMenuResolutionScan,
-	Resolution1600x1200Scan
 };
 
 struct GameInfo
@@ -206,18 +198,21 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "db 44 24 ? 7d ? d8 05 ? ? ? ? 85 c9", "68 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? A1 ?? ?? ?? ?? 83 C4 ?? 51");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		std::uint8_t* Resolution1600x1200ScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? A1 ?? ?? ?? ?? 83 C4 ?? 51");
+		if (Resolution1600x1200ScanResult)
 		{
-			spdlog::info("Main Menu Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolutionScan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1600x1200Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
 
 			static std::string sNewResString = std::to_string(iCurrentResX) + " x " + std::to_string(iCurrentResY) + " x 32";
 
 			const char* cNewResolutionString = sNewResString.c_str();
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1600x1200Scan] + 1, cNewResolutionString);
+			Memory::Write(Resolution1600x1200ScanResult + 1, cNewResolutionString);
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution 1600x1200 scan memory address.");
+			return;
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 01 A1");
