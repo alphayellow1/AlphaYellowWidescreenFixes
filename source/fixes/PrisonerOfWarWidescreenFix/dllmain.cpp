@@ -208,48 +208,26 @@ void FOVFix()
 	{
 		if (eGameType == Game::POWCONFIG_EN || eGameType == Game::POWCONFIG_RU)
 		{
-			std::uint8_t* Resolution1024x768ScanResult = Memory::PatternScan(exeModule, "31 00 30 00 32 00 34 00 20 00 78 00 20 00 37 00 36 00 38");
-			if (Resolution1024x768ScanResult)
+			std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "C7 44 24 ?? ?? ?? ?? ?? EB ?? C7 44 24 ?? ?? ?? ?? ?? EB ?? C7 44 24 ?? ?? ?? ?? ?? EB");
+			if (ResolutionListScanResult)
 			{
-				spdlog::info("Resolution 1024x768 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1024x768ScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
-				Memory::WriteNumberAsChar16Digits(Resolution1024x768ScanResult, iCurrentResX);
+				static std::string sNewResString = "-res:" + std::to_string(iCurrentResX) + "," + std::to_string(iCurrentResY);
 
-				Memory::WriteNumberAsChar16Digits(Resolution1024x768ScanResult + 14, iCurrentResY);
+				const char* cNewResolutionListString = sNewResString.c_str();
+
+				Memory::Write(ResolutionListScanResult + 4, cNewResolutionListString);
+
+				Memory::Write(ResolutionListScanResult + 14, cNewResolutionListString);
+
+				Memory::Write(ResolutionListScanResult + 24, cNewResolutionListString);
+
+				Memory::Write(ResolutionListScanResult + 34, cNewResolutionListString);
 			}
 			else
 			{
-				spdlog::error("Failed to locate resolution 1024x768 scan memory address.");
-				return;
-			}
-
-			std::uint8_t* Resolution1024x768Scan2Result = Memory::PatternScan(exeModule, "2D 72 65 73 3A 31 30 32 34 2C 37 36 38");
-			if (Resolution1024x768Scan2Result)
-			{
-				spdlog::info("Resolution 1024x768 Scan 2: Address is {:s}+{:x}", sExeName.c_str(), Resolution1024x768Scan2Result - (std::uint8_t*)exeModule);
-
-				if (Maths::digitCount(iCurrentResX) == 4 && (Maths::digitCount(iCurrentResY) == 4 || Maths::digitCount(iCurrentResY) == 3))
-				{
-					Memory::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 5, iCurrentResX);
-
-					Memory::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 10, iCurrentResY);
-				}
-
-				if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
-				{
-					Memory::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 5, iCurrentResX);
-
-					Memory::PatchBytes(Resolution1024x768Scan2Result + 8, "\x2C", 1);
-
-					Memory::WriteNumberAsChar8Digits(Resolution1024x768Scan2Result + 9, iCurrentResY);
-
-					Memory::PatchBytes(Resolution1024x768Scan2Result + 12, "\x00", 1);
-				}
-				
-			}
-			else
-			{
-				spdlog::error("Failed to locate resolution 1024x768 scan 2 memory address.");
+				spdlog::error("Failed to locate resolution list scan memory address.");
 				return;
 			}
 		}
