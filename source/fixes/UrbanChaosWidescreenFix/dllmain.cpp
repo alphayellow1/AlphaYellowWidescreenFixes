@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "UrbanChaosWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -63,6 +63,13 @@ enum class Game
 {
 	UC,
 	Unknown
+};
+
+enum ResolutionInstructionsIndices
+{
+	ResolutionInstructionsScan,
+	ResolutionString1Scan,
+	ResolutionString2Scan,
 };
 
 struct GameInfo
@@ -202,43 +209,28 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;	
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionStringScanResult = Memory::PatternScan(exeModule, "31 30 32 34 20 78 20 37 36 38 00");
-		if (ResolutionStringScanResult)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "BF 00 04 00 00 BE 00 03 00 00", "68 ?? ?? ?? ?? 6A ?? 68 ?? ?? ?? ?? 53 FF D6 A1", "68 ?? ?? ?? ?? 6A ?? 68 ?? ?? ?? ?? 55 FF D7 A1 ?? ?? ?? ?? 6A");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution String Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionStringScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionInstructionsScan] - (std::uint8_t*)exeModule);
 
-			if (Maths::digitCount(iCurrentResX) == 4 && (Maths::digitCount(iCurrentResY) == 4 || Maths::digitCount(iCurrentResY) == 3))
-			{
-				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult, iCurrentResX);
+			spdlog::info("Resolution String 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionString1Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution String 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionString2Scan] - (std::uint8_t*)exeModule);
 
-				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
-			}
+			Memory::Write(ResolutionInstructionsScansResult[ResolutionInstructionsScan] + 1, iCurrentResX);
 
-			if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
-			{
-				Memory::PatchBytes(ResolutionStringScanResult, "\x00", 1);
+			Memory::Write(ResolutionInstructionsScansResult[ResolutionInstructionsScan] + 6, iCurrentResY);
 
-				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 1, iCurrentResX);
+			static std::string sNewResString = std::to_string(iCurrentResX) + " x " + std::to_string(iCurrentResY);
 
-				Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
-			}
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution string scan memory address.");
-			return;
-		}
+			const char* cNewResolutionString = sNewResString.c_str();
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "BF 00 04 00 00 BE 00 03 00 00");
-		if (ResolutionInstructionsScanResult)
-		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			Memory::Write(ResolutionInstructionsScansResult[ResolutionString1Scan] + 1, cNewResolutionString);
 
-			Memory::Write(ResolutionInstructionsScanResult + 1, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScanResult + 6, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResolutionString2Scan] + 1, cNewResolutionString);
 		}
 		else
 		{
@@ -329,17 +321,6 @@ void WidescreenFix()
 	}
 }
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
@@ -347,12 +328,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		
+		Logging();
+		Configuration();
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			WidescreenFix();
 		}
+
 		break;
 	}
 	case DLL_THREAD_ATTACH:
