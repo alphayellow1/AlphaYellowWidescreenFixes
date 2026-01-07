@@ -216,7 +216,7 @@ bool DetectGame()
 static SafetyHookMid AspectRatioInstruction1Hook{};
 static SafetyHookMid AspectRatioInstruction2Hook{};
 static SafetyHookMid AspectRatioInstruction3Hook{};
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void CameraFOVInstructionMidHook(uintptr_t CameraFOVAddress)
@@ -280,7 +280,7 @@ void FOVFix()
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult[FOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionMidHook(ctx.edx + 0x108);
 			});
