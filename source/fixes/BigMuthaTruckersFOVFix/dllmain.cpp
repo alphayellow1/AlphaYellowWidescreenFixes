@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BigMuthaTruckersFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -215,7 +215,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8D B2 D4 00 00 00 33 C0 8B FE D9 42 1C D8 0D 00 5F 5B 00 D9 F2 DD D8 D8 3D ?? ?? ?? ??");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8D B2 D4 00 00 00 33 C0 8B FE D9 42 1C D8 0D ?? ?? ?? ?? D9 F2 DD D8 D8 3D ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 23 - (std::uint8_t*)exeModule);

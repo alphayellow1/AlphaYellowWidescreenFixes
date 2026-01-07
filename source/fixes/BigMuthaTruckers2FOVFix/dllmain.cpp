@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BigMuthaTruckers2FOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -197,7 +197,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 42 44 D9 C2 D8 62 3C F3 AB 5F D8 FB");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 42 ?? D9 C2");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
@@ -218,7 +218,7 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8D B2 EC 01 00 00 33 C0 8B FE D9 F2 B9 10 00 00 00 DD D8 D8 3D ?? ?? ?? ??");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);			
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 19 - (std::uint8_t*)exeModule);			
 
 			fNewCameraFOV = (1.0f / fAspectRatioScale) / fFOVFactor;
 
