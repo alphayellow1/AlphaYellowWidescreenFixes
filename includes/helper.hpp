@@ -23,6 +23,15 @@
 #include <thread>
 #include <filesystem>
 #include <stdexcept>
+#include <cassert>
+#include <limits>
+#include <algorithm>
+
+#if defined(_WIN64)
+using IMAGE_NT_HEADERS_X = IMAGE_NT_HEADERS64;
+#else
+using IMAGE_NT_HEADERS_X = IMAGE_NT_HEADERS32;
+#endif
 
 template<typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -35,17 +44,31 @@ namespace Memory
 	template<typename T>
 	void Write(std::uint8_t* writeAddress, T value)
 	{
-		DWORD oldProtect;
-		VirtualProtect((LPVOID)(writeAddress), sizeof(T), PAGE_EXECUTE_WRITECOPY, &oldProtect);
-		*(reinterpret_cast<T*>(writeAddress)) = value;
-		VirtualProtect((LPVOID)(writeAddress), sizeof(T), oldProtect, &oldProtect);
+		DWORD oldProtect = 0;
+
+		if (!VirtualProtect(writeAddress, sizeof(T), PAGE_EXECUTE_READWRITE, &oldProtect))
+		{
+			spdlog::error("VirtualProtect failed in Memory::Write");
+			return;
+		}
+
+		std::memcpy(writeAddress, &value, sizeof(T));
+
+		FlushInstructionCache(GetCurrentProcess(), writeAddress, sizeof(T));
+
+		DWORD dummy = 0;
+
+		VirtualProtect(writeAddress, sizeof(T), oldProtect, &dummy);
 	}
 
 	void PatchBytes(std::uint8_t* address, const char* pattern, unsigned int numBytes)
 	{
 		DWORD oldProtect;
+
 		VirtualProtect((LPVOID)address, numBytes, PAGE_EXECUTE_READWRITE, &oldProtect);
-		memcpy((LPVOID)address, pattern, numBytes);
+
+		std::memcpy((LPVOID)address, pattern, numBytes);
+
 		VirtualProtect((LPVOID)address, numBytes, oldProtect, &oldProtect);
 	}
 
@@ -175,9 +198,9 @@ namespace Memory
 
 	thread_local std::vector<std::string> g_last_scan_signatures;
 
-	static std::unordered_map<std::string, std::vector<int>> s_pattern_cache;
+	inline std::unordered_map<std::string, std::vector<int>> s_pattern_cache;
 
-	static std::mutex s_pattern_cache_mutex;
+	inline std::mutex s_pattern_cache_mutex;
 
 	static std::vector<int> get_pattern_bytes_cached(const char* pattern)
 	{
@@ -240,7 +263,7 @@ namespace Memory
 			return nullptr;
 		}
 
-		auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<std::uint8_t*>(module) + dosHeader->e_lfanew);
+		auto ntHeaders = reinterpret_cast<IMAGE_NT_HEADERS_X*>(reinterpret_cast<std::uint8_t*>(module) + dosHeader->e_lfanew);
 
 		if (!ntHeaders || ntHeaders->Signature != IMAGE_NT_SIGNATURE)
 		{
@@ -394,7 +417,8 @@ namespace Memory
 		return nullptr;
 	}
 
-	template<typename... Sigs, typename = std::enable_if_t<(std::is_convertible_v<Sigs, const char*> && ...)>>std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature, Sigs... otherSignatures)
+	template<typename... Sigs> requires ((std::convertible_to<Sigs, const char*> && ...))
+	std::vector<std::uint8_t*> PatternScan(void* module, const char* firstSignature, Sigs... otherSignatures)
 	{
 		g_last_scan_signatures.clear();
 
@@ -428,20 +452,20 @@ namespace Memory
 
 		auto make_variant = [](auto&& v) -> Item
 		{
-				using T = std::decay_t<decltype(v)>;
+			using T = std::decay_t<decltype(v)>;
 
-				if constexpr (std::is_convertible_v<T, void*>)
-				{
-					return reinterpret_cast<void*>(v);
-				}
-				else if constexpr (std::is_convertible_v<T, const char*>)
-				{
-					return static_cast<const char*>(v);
-				}
-				else
-				{
-					static_assert(std::is_convertible_v<T, void*> || std::is_convertible_v<T, const char*>, "PatternScan(...) supports only module pointers and const char* signatures");
-				}
+			if constexpr (std::is_convertible_v<T, void*>)
+			{
+				return reinterpret_cast<void*>(v);
+			}
+			else if constexpr (std::is_convertible_v<T, const char*>)
+			{
+				return static_cast<const char*>(v);
+			}
+			else
+			{
+				static_assert(std::is_convertible_v<T, void*> || std::is_convertible_v<T, const char*>, "PatternScan(...) supports only module pointers and const char* signatures");
+			}
 		};
 
 		items.emplace_back(reinterpret_cast<void*>(firstModule));
@@ -543,14 +567,15 @@ namespace Memory
 
 	inline bool AreAllSignaturesValid(const std::vector<std::uint8_t*>& addrs, bool bLoggingEnabled = true) noexcept
 	{
-		if (bLoggingEnabled == true)
+		if (addrs.empty())
 		{
-			if (addrs.empty())
+			if (bLoggingEnabled == true)
 			{
 				spdlog::error("PatternScan: The address vector is empty.");
-				return false;
 			}
-		}		
+				
+			return false;
+		}
 
 		std::vector<std::size_t> missing;
 
@@ -601,22 +626,35 @@ namespace Memory
 
 		const unsigned width = end_bit - start_bit + 1u;
 
+		assert(start_bit <= end_bit && end_bit < full_bits);
+
 		assert(width <= sizeof(PartT) * 8u);
 
-		FullT mask;
-
-		if (width >= full_bits) mask = ~FullT(0);
-
-		else mask = ((FullT(1) << (width - 1)) << 1) - FullT(1);
+		FullT mask = (width >= full_bits) ? ~FullT(0) : ((FullT(1) << width) - FullT(1));
 
 		FullT sliced = (full >> start_bit) & mask;
 
 		if constexpr (std::is_signed_v<PartT>)
 		{
 			using UnsignedPart = std::make_unsigned_t<PartT>;
+
 			UnsignedPart u = static_cast<UnsignedPart>(sliced);
+
+			if (width > 0)
+			{
+				UnsignedPart sign_bit = UnsignedPart(1) << (width - 1);
+
+				if (u & sign_bit)
+				{
+					UnsignedPart sign_mask = ~((UnsignedPart(1) << width) - UnsignedPart(1));
+					u |= sign_mask;
+				}
+			}
+
 			PartT out;
+
 			std::memcpy(&out, &u, sizeof(out));
+
 			return out;
 		}
 		else
@@ -626,82 +664,69 @@ namespace Memory
 	}
 
 	template<typename PartT, typename FullT = uintptr_t>
-	inline void WriteRegister(FullT& target, unsigned start_bit, unsigned end_bit, PartT value) noexcept
+	inline FullT WriteRegister(FullT full, PartT value, unsigned start_bit, unsigned end_bit) noexcept
 	{
-		static_assert(std::is_integral_v<PartT>, "PartT must be integral");
-
-		static_assert(std::is_unsigned_v<FullT>, "FullT must be unsigned");
-
-		const unsigned full_bits = sizeof(FullT) * 8;
-
-		assert(start_bit <= end_bit && end_bit < full_bits);
+		const unsigned full_bits = sizeof(FullT) * 8u;
 
 		const unsigned width = end_bit - start_bit + 1u;
 
+		assert(start_bit <= end_bit && end_bit < full_bits);
+
 		assert(width <= sizeof(PartT) * 8u);
 
-		FullT mask;
-		if (width >= full_bits)
-		{
-			mask = ~FullT(0);
-		}
-		else
-		{
-			mask = ((FullT(1) << (width - 1)) << 1) - FullT(1);
-		}
+		FullT field_mask = (width >= full_bits) ? ~FullT(0) : ((FullT(1) << width) - FullT(1));
 
-		FullT shifted_mask = (width >= full_bits) ? ~FullT(0) : (mask << start_bit);
+		field_mask <<= start_bit;
+
+		full &= ~field_mask;
 
 		using UnsignedPart = std::make_unsigned_t<PartT>;
 
 		UnsignedPart u;
 
-		if constexpr (std::is_signed_v<PartT>)
-		{
-			std::memcpy(&u, &value, sizeof(u));
-		}			
-		else
-		{
-			u = static_cast<UnsignedPart>(value);
-		}
+		std::memcpy(&u, &value, sizeof(u));
 
-		FullT value_masked = (static_cast<FullT>(u) & mask) << start_bit;
+		FullT shifted = (static_cast<FullT>(u) & ((FullT(1) << width) - 1u)) << start_bit;
 
-		target = (target & ~shifted_mask) | value_masked;
-	}
-
-	static HMODULE GetThisDllHandle()
-	{
-		MEMORY_BASIC_INFORMATION info;
-
-		size_t len = VirtualQueryEx(GetCurrentProcess(), (void*)GetThisDllHandle, &info, sizeof(info));
-
-		assert(len == sizeof(info));
-
-		return len ? (HMODULE)info.AllocationBase : NULL;
+		return full | shifted;
 	}
 
 	std::uint32_t ModuleTimestamp(void* module)
 	{
-		auto dosHeader = (PIMAGE_DOS_HEADER)module;
+		if (!module)
+		{
+			return 0;
+		}
 
-		auto ntHeaders = (PIMAGE_NT_HEADERS)((std::uint8_t*)module + dosHeader->e_lfanew);
+		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(module);
+
+		if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
+		{
+			return 0;
+		}
+
+		auto ntHeaders = reinterpret_cast<IMAGE_NT_HEADERS_X*>(reinterpret_cast<std::uint8_t*>(module) + dosHeader->e_lfanew);
+
+		if (ntHeaders->Signature != IMAGE_NT_SIGNATURE)
+		{
+			return 0;
+		}
 
 		return ntHeaders->FileHeader.TimeDateStamp;
 	}
 
 	std::uint8_t* GetAbsolute(std::uint8_t* address) noexcept
 	{
-		if (address == nullptr)
+		if (!address)
 		{
 			return nullptr;
 		}
+		
+		std::int32_t offset;
 
-		std::int32_t offset = *reinterpret_cast<std::int32_t*>(address);
+		std::memcpy(&offset, address, sizeof(offset));
 
-		std::uint8_t* absoluteAddress = address + 4 + offset;
-
-		return absoluteAddress;
+		return address + 4 + offset;
 	}
 	
 	static HMODULE GetHandle(const std::initializer_list<std::string>& moduleNames, unsigned int retryDelayMs = 200, int maxAttempts = 0, bool loggingEnabled = true)
@@ -790,7 +815,7 @@ namespace Memory
 			}
 		}
 
-		int needed = WideCharToMultiByte(CP_UTF8, 0, wbuf.c_str(), static_cast<int>(wbuf.size()), nullptr, 0, nullptr, nullptr);
+		int needed = WideCharToMultiByte(CP_UTF8, 0, wbuf.c_str(), -1, nullptr, 0, nullptr, nullptr);
 
 		if (needed <= 0)
 		{
@@ -799,9 +824,9 @@ namespace Memory
 
 		std::string out;
 
-		out.resize(needed);
+		out.resize(needed - 1);
 
-		WideCharToMultiByte(CP_UTF8, 0, wbuf.c_str(), static_cast<int>(wbuf.size()), &out[0], needed, nullptr, nullptr);
+		WideCharToMultiByte(CP_UTF8, 0, wbuf.c_str(), -1, out.data(), needed, nullptr, nullptr);
 
 		return out;
 	}
@@ -841,17 +866,28 @@ namespace Memory
 	template<typename T>
 	std::uint8_t* GetPointerFromAddress(std::uint8_t* address, PointerMode mode) noexcept
 	{
-		if (!address) return nullptr;
+		if (!address)
+		{
+			return nullptr;
+		}
+		
+		T raw;
+
+		std::memcpy(&raw, address, sizeof(raw));
 
 		if (mode == PointerMode::Absolute)
 		{
-			T raw = *reinterpret_cast<T*>(address);
-			return reinterpret_cast<std::uint8_t*>(raw);
-		}
-		else // Relative
+			return reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(raw));
+		}			
+		else
 		{
-			T disp = *reinterpret_cast<T*>(address);
-			return address + sizeof(T) + disp;
+			using signed_t = std::make_signed_t<T>;
+
+			signed_t disp;
+
+			std::memcpy(&disp, address, sizeof(disp));
+
+			return address + sizeof(T) + static_cast<std::intptr_t>(disp);
 		}
 	}
 
@@ -908,19 +944,37 @@ namespace Util
 {
 	std::pair<int, int> GetPhysicalDesktopDimensions()
 	{
-		if (DEVMODE devMode{ .dmSize = sizeof(DEVMODE) }; EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &devMode))
+		DEVMODE devMode{};
+
+		devMode.dmSize = sizeof(DEVMODE);
+
+		if (EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &devMode))
+		{
 			return { devMode.dmPelsWidth, devMode.dmPelsHeight };
+		}			
 
 		return {};
 	}
 
 	std::string wstring_to_string(const wchar_t* wstr)
 	{
-		size_t len = std::wcslen(wstr);
-		std::string str(len, '\0');
-		size_t converted = 0;
-		wcstombs_s(&converted, &str[0], str.size() + 1, wstr, str.size());
-		return str;
+		if (!wstr)
+		{
+			return {};
+		}
+
+		int needed = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, nullptr, 0, nullptr, nullptr);
+
+		if (needed <= 0)
+		{
+			return {};
+		}
+		
+		std::string out(needed - 1, '\0');
+
+		WideCharToMultiByte(CP_UTF8, 0, wstr, -1, out.data(), needed, nullptr, nullptr);
+
+		return out;
 	}
 
 	bool stringcmp_caseless(const std::string& str1, const std::string& str2)
@@ -937,83 +991,84 @@ namespace Util
 	}
 }
 
-extern "C" {
-	void FILD16_from_ptr(void* p);
-	void FILD32_from_ptr(void* p);
-	void FILD64_from_ptr(void* p);
+extern "C"
+{
+	void FILD16_from_ptr(const void* p);
+	void FILD32_from_ptr(const void* p);
+	void FILD64_from_ptr(const void* p);
 
-	void FIADD16_from_ptr(void* p);
-	void FIADD32_from_ptr(void* p);
-	void FIADD64_from_ptr(void* p);
+	void FIADD16_from_ptr(const void* p);
+	void FIADD32_from_ptr(const void* p);
+	void FIADD64_from_ptr(const void* p);
 
-	void FISUB16_from_ptr(void* p);
-	void FISUB32_from_ptr(void* p);
-	void FISUB64_from_ptr(void* p);
+	void FISUB16_from_ptr(const void* p);
+	void FISUB32_from_ptr(const void* p);
+	void FISUB64_from_ptr(const void* p);
 
-	void FISUBR16_from_ptr(void* p);
-	void FISUBR32_from_ptr(void* p);
-	void FISUBR64_from_ptr(void* p);
+	void FISUBR16_from_ptr(const void* p);
+	void FISUBR32_from_ptr(const void* p);
+	void FISUBR64_from_ptr(const void* p);
 
-	void FIMUL16_from_ptr(void* p);
-	void FIMUL32_from_ptr(void* p);
-	void FIMUL64_from_ptr(void* p);
+	void FIMUL16_from_ptr(const void* p);
+	void FIMUL32_from_ptr(const void* p);
+	void FIMUL64_from_ptr(const void* p);
 
-	void FIDIV16_from_ptr(void* p);
-	void FIDIV32_from_ptr(void* p);
-	void FIDIV64_from_ptr(void* p);
+	void FIDIV16_from_ptr(const void* p);
+	void FIDIV32_from_ptr(const void* p);
+	void FIDIV64_from_ptr(const void* p);
 
-	void FIDIVR16_from_ptr(void* p);
-	void FIDIVR32_from_ptr(void* p);
-	void FIDIVR64_from_ptr(void* p);
+	void FIDIVR16_from_ptr(const void* p);
+	void FIDIVR32_from_ptr(const void* p);
+	void FIDIVR64_from_ptr(const void* p);
 
-	void FICOMP16_from_ptr(void* p);
-	void FICOMP32_from_ptr(void* p);
-	void FICOMP64_from_ptr(void* p);
+	void FICOMP16_from_ptr(const void* p);
+	void FICOMP32_from_ptr(const void* p);
+	void FICOMP64_from_ptr(const void* p);
 
-	void FSIN_from_ptr(void* p);
-	void FCOS_from_ptr(void* p);
-	void FSINCOS_from_ptr(void* p);
+	void FSIN_from_ptr(const void* p);
+	void FCOS_from_ptr(const void* p);
+	void FSINCOS_from_ptr(const void* p);
 
-	void FPTAN_from_ptr(void* p);
-	void FPATAN_from_ptr(void* p);
+	void FPTAN_from_ptr(const void* p);
+	void FPATAN_from_ptr(const void* p);
 
-	void FPREM_from_ptr(void* p);
-	void FPREM1_from_ptr(void* p);
+	void FPREM_from_ptr(const void* p);
+	void FPREM1_from_ptr(const void* p);
 
-	void FYL2X_from_ptr(void* p);
-	void FYL2XP1_from_ptr(void* p);
+	void FYL2X_from_ptr(const void* p);
+	void FYL2XP1_from_ptr(const void* p);
 
-	void FSCALE_from_ptr(void* p);
-	void FSQRT_from_ptr(void* p);
+	void FSCALE_from_ptr(const void* p);
+	void FSQRT_from_ptr(const void* p);
 
-	void FLD_f32_from_ptr(void* p);
-	void FADD_f32_from_ptr(void* p);
-	void FSUB_f32_from_ptr(void* p);
-	void FSUBR_f32_from_ptr(void* p);
-	void FMUL_f32_from_ptr(void* p);
-	void FDIV_f32_from_ptr(void* p);
-	void FDIVR_f32_from_ptr(void* p);
-	void FCOMP_f32_from_ptr(void* p);
+	void FLD_f32_from_ptr(const void* p);
+	void FADD_f32_from_ptr(const void* p);
+	void FSUB_f32_from_ptr(const void* p);
+	void FSUBR_f32_from_ptr(const void* p);
+	void FMUL_f32_from_ptr(const void* p);
+	void FDIV_f32_from_ptr(const void* p);
+	void FDIVR_f32_from_ptr(const void* p);
+	void FCOMP_f32_from_ptr(const void* p);
 
-	void FLD_f64_from_ptr(void* p);
-	void FADD_f64_from_ptr(void* p);
-	void FSUB_f64_from_ptr(void* p);
-	void FSUBR_f64_from_ptr(void* p);
-	void FMUL_f64_from_ptr(void* p);
-	void FDIV_f64_from_ptr(void* p);
-	void FDIVR_f64_from_ptr(void* p);
-	void FCOMP_f64_from_ptr(void* p);
+	void FLD_f64_from_ptr(const void* p);
+	void FADD_f64_from_ptr(const void* p);
+	void FSUB_f64_from_ptr(const void* p);
+	void FSUBR_f64_from_ptr(const void* p);
+	void FMUL_f64_from_ptr(const void* p);
+	void FDIV_f64_from_ptr(const void* p);
+	void FDIVR_f64_from_ptr(const void* p);
+	void FCOMP_f64_from_ptr(const void* p);
 
-	void preserve_FIADD32_from_ptr(void* p);
-	void preserve_FISUB32_from_ptr(void* p);
-	void preserve_FIMUL32_from_ptr(void* p);
-	void preserve_FIDIV32_from_ptr(void* p);
-	void preserve_FIDIVR32_from_ptr(void* p);
+	void preserve_FIADD32_from_ptr(const void* p);
+	void preserve_FISUB32_from_ptr(const void* p);
+	void preserve_FIMUL32_from_ptr(const void* p);
+	void preserve_FIDIV32_from_ptr(const void* p);
+	void preserve_FIDIVR32_from_ptr(const void* p);
 
-	void preserve_FLD_f32_from_ptr(void* p);
-	void preserve_FADD_f32_from_ptr(void* p);
-	void preserve_FMUL_f32_from_ptr(void* p);
-	void preserve_FDIV_f32_from_ptr(void* p);
+	void preserve_FLD_f32_from_ptr(const void* p);
+	void preserve_FADD_f32_from_ptr(const void* p);
+	void preserve_FMUL_f32_from_ptr(const void* p);
+	void preserve_FDIV_f32_from_ptr(const void* p);
 }
 
 namespace FPU
@@ -1022,119 +1077,365 @@ namespace FPU
 	inline void FILD(const T& v)
 	{
 		static_assert(std::is_integral_v<T>, "FILD requires integer type");
-		if constexpr (sizeof(T) == 2) FILD16_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 4) FILD32_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 8) FILD64_from_ptr((void*)std::addressof(v));
+
+		if constexpr (sizeof(T) == 2)
+		{
+			FILD16_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 4)
+		{
+			FILD32_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}			
+		else if constexpr (sizeof(T) == 8)
+		{
+			FILD64_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else
+		{
+			static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported operand size");
+		}
 	}
 
 	template<typename T>
 	inline void FIADD(const T& v)
 	{
 		static_assert(std::is_integral_v<T>, "FIADD requires integer type");
-		if constexpr (sizeof(T) == 2) FIADD16_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 4) FIADD32_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 8) FIADD64_from_ptr((void*)std::addressof(v));
+
+		if constexpr (sizeof(T) == 2)
+		{
+			FIADD16_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 4)
+		{
+			FIADD32_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}			
+		else if constexpr (sizeof(T) == 8)
+		{
+			FIADD64_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else
+		{
+			static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported operand size");
+		}
 	}
 
 	template<typename T>
 	inline void FISUB(const T& v)
 	{
 		static_assert(std::is_integral_v<T>, "FISUB requires integer type");
-		if constexpr (sizeof(T) == 2) FISUB16_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 4) FISUB32_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 8) FISUB64_from_ptr((void*)std::addressof(v));
+
+		if constexpr (sizeof(T) == 2)
+		{
+			FISUB16_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 4)
+		{
+			FISUB32_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 8)
+		{
+			FISUB64_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else
+		{
+			static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported operand size");
+		}
 	}
 
 	template<typename T>
 	inline void FISUBR(const T& v)
 	{
 		static_assert(std::is_integral_v<T>, "FISUBR requires integer type");
-		if constexpr (sizeof(T) == 2) FISUBR16_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 4) FISUBR32_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 8) FISUBR64_from_ptr((void*)std::addressof(v));
+
+		if constexpr (sizeof(T) == 2)
+		{
+			FISUBR16_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 4)
+		{
+			FISUBR32_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 8)
+		{
+			FISUBR64_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else
+		{
+			static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported operand size");
+		}
 	}
 
 	template<typename T>
 	inline void FIMUL(const T& v)
 	{
 		static_assert(std::is_integral_v<T>, "FIMUL requires integer type");
-		if constexpr (sizeof(T) == 2) FIMUL16_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 4) FIMUL32_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 8) FIMUL64_from_ptr((void*)std::addressof(v));
+
+		if constexpr (sizeof(T) == 2)
+		{
+			FIMUL16_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}			
+		else if constexpr (sizeof(T) == 4)
+		{
+			FIMUL32_from_ptr(static_cast<const void*>(std::addressof(v)));
+		} 
+		else if constexpr (sizeof(T) == 8)
+		{
+			FIMUL64_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else
+		{
+			static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported operand size");
+		}
 	}
 
 	template<typename T>
 	inline void FIDIV(const T& v)
 	{
 		static_assert(std::is_integral_v<T>, "FIDIV requires integer type");
-		if constexpr (sizeof(T) == 2) FIDIV16_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 4) FIDIV32_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 8) FIDIV64_from_ptr((void*)std::addressof(v));
+
+		if constexpr (sizeof(T) == 2)
+		{
+			FIDIV16_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 4)
+		{
+			FIDIV32_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 8)
+		{
+			FIDIV64_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else
+		{
+			static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported operand size");
+		}
 	}
 
 	template<typename T>
 	inline void FIDIVR(const T& v)
 	{
 		static_assert(std::is_integral_v<T>, "FIDIVR requires integer type");
-		if constexpr (sizeof(T) == 2) FIDIVR16_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 4) FIDIVR32_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 8) FIDIVR64_from_ptr((void*)std::addressof(v));
+
+		if constexpr (sizeof(T) == 2)
+		{
+			FIDIVR16_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 4)
+		{
+			FIDIVR32_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 8)
+		{
+			FIDIVR64_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else
+		{
+			static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported operand size");
+		}
 	}
 
 	template<typename T>
 	inline void FICOMP(const T& v)
 	{
 		static_assert(std::is_integral_v<T>, "FICOMP requires integer type");
-		if constexpr (sizeof(T) == 2) FICOMP16_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 4) FICOMP32_from_ptr((void*)std::addressof(v));
-		else if constexpr (sizeof(T) == 8) FICOMP64_from_ptr((void*)std::addressof(v));
-		else static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported integer size for FICOMP");
+
+		if constexpr (sizeof(T) == 2)
+		{
+			FICOMP16_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 4)
+		{
+			FICOMP32_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else if constexpr (sizeof(T) == 8)
+		{
+			FICOMP64_from_ptr(static_cast<const void*>(std::addressof(v)));
+		}
+		else
+		{
+			static_assert(sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "Unsupported integer size for FICOMP");
+		}
 	}
 
-	inline void FLD(const float& v) { FLD_f32_from_ptr((void*)std::addressof(v)); }
-	inline void FADD(const float& v) { FADD_f32_from_ptr((void*)std::addressof(v)); }
-	inline void FSUB(const float& v) { FSUB_f32_from_ptr((void*)std::addressof(v)); }
-	inline void FSUBR(const float& v) { FSUBR_f32_from_ptr((void*)std::addressof(v)); }
-	inline void FMUL(const float& v) { FMUL_f32_from_ptr((void*)std::addressof(v)); }
-	inline void FDIV(const float& v) { FDIV_f32_from_ptr((void*)std::addressof(v)); }
-	inline void FDIVR(const float& v) { FDIVR_f32_from_ptr((void*)std::addressof(v)); }
-	inline void FCOMP(const float& v) { FCOMP_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FLD(const float& v)
+	{
+		FLD_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 
-	inline void FLD(const double& v) { FLD_f64_from_ptr((void*)std::addressof(v)); }
-	inline void FADD(const double& v) { FADD_f64_from_ptr((void*)std::addressof(v)); }
-	inline void FSUB(const double& v) { FSUB_f64_from_ptr((void*)std::addressof(v)); }
-	inline void FSUBR(const double& v) { FSUBR_f64_from_ptr((void*)std::addressof(v)); }
-	inline void FMUL(const double& v) { FMUL_f64_from_ptr((void*)std::addressof(v)); }
-	inline void FDIV(const double& v) { FDIV_f64_from_ptr((void*)std::addressof(v)); }
-	inline void FDIVR(const double& v) { FDIVR_f64_from_ptr((void*)std::addressof(v)); }
-	inline void FCOMP(const double& v) { FCOMP_f64_from_ptr((void*)std::addressof(v)); }
+	inline void FADD(const float& v)
+	{
+		FADD_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 
-	inline void FSIN() { FSIN_from_ptr((void*)nullptr); }
-	inline void FCOS() { FCOS_from_ptr((void*)nullptr); }
-	inline void FSINCOS() { FSINCOS_from_ptr((void*)nullptr); }
+	inline void FSUB(const float& v)
+	{
+		FSUB_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 
-	inline void FPTAN() { FPTAN_from_ptr((void*)nullptr); }
-	inline void FPATAN() { FPATAN_from_ptr((void*)nullptr); }
+	inline void FSUBR(const float& v)
+	{
+		FSUBR_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 
-	inline void FPREM() { FPREM_from_ptr((void*)nullptr); }
-	inline void FPREM1() { FPREM1_from_ptr((void*)nullptr); }
+	inline void FMUL(const float& v)
+	{
+		FMUL_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 
-	inline void FYL2X() { FYL2X_from_ptr((void*)nullptr); }
-	inline void FYL2XP1() { FYL2XP1_from_ptr((void*)nullptr); }
+	inline void FDIV(const float& v)
+	{
+		FDIV_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 
-	inline void FSCALE() { FSCALE_from_ptr((void*)nullptr); }
-	inline void FSQRT() { FSQRT_from_ptr((void*)nullptr); }
+	inline void FDIVR(const float& v)
+	{
+		FDIVR_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 
-	inline void P_FIADD32(const int32_t& v) { preserve_FIADD32_from_ptr((void*)std::addressof(v)); }
-	inline void P_FISUB32(const int32_t& v) { preserve_FISUB32_from_ptr((void*)std::addressof(v)); }
-	inline void P_FIMUL32(const int32_t& v) { preserve_FIMUL32_from_ptr((void*)std::addressof(v)); }
-	inline void P_FIDIV32(const int32_t& v) { preserve_FIDIV32_from_ptr((void*)std::addressof(v)); }
-	inline void P_FIDIVR32(const int32_t& v) { preserve_FIDIVR32_from_ptr((void*)std::addressof(v)); }
+	inline void FCOMP(const float& v)
+	{
+		FCOMP_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 
-	inline void P_FLD_f32(const float& v) { preserve_FLD_f32_from_ptr((void*)std::addressof(v)); }
-	inline void P_FADD_f32(const float& v) { preserve_FADD_f32_from_ptr((void*)std::addressof(v)); }
-	inline void P_FMUL_f32(const float& v) { preserve_FMUL_f32_from_ptr((void*)std::addressof(v)); }
-	inline void P_FDIV_f32(const float& v) { preserve_FDIV_f32_from_ptr((void*)std::addressof(v)); }
+	inline void FLD(const double& v)
+	{
+		FLD_f64_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void FADD(const double& v)
+	{
+		FADD_f64_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void FSUB(const double& v)
+	{
+		FSUB_f64_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void FSUBR(const double& v)
+	{
+		FSUBR_f64_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void FMUL(const double& v)
+	{
+		FMUL_f64_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void FDIV(const double& v)
+	{
+		FDIV_f64_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void FDIVR(const double& v)
+	{
+		FDIVR_f64_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void FCOMP(const double& v)
+	{
+		FCOMP_f64_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void FSIN() 
+	{
+		FSIN_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FCOS()
+	{
+		FCOS_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FSINCOS()
+	{
+		FSINCOS_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FPTAN()
+	{
+		FPTAN_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FPATAN()
+	{
+		FPATAN_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FPREM()
+	{
+		FPREM_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FPREM1()
+	{
+		FPREM1_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FYL2X()
+	{
+		FYL2X_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FYL2XP1()
+	{
+		FYL2XP1_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FSCALE()
+	{
+		FSCALE_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void FSQRT()
+	{ 
+		FSQRT_from_ptr(static_cast<const void*>(nullptr));
+	}
+
+	inline void P_FIADD32(const int32_t& v)
+	{
+		preserve_FIADD32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void P_FISUB32(const int32_t& v)
+	{
+		preserve_FISUB32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void P_FIMUL32(const int32_t& v)
+	{
+		preserve_FIMUL32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void P_FIDIV32(const int32_t& v)
+	{
+		preserve_FIDIV32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void P_FIDIVR32(const int32_t& v)
+	{
+		preserve_FIDIVR32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void P_FLD_f32(const float& v)
+	{
+		preserve_FLD_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void P_FADD_f32(const float& v)
+	{
+		preserve_FADD_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void P_FMUL_f32(const float& v)
+	{
+		preserve_FMUL_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
+
+	inline void P_FDIV_f32(const float& v)
+	{
+		preserve_FDIV_f32_from_ptr(static_cast<const void*>(std::addressof(v)));
+	}
 }
 
 namespace Maths
@@ -1168,12 +1469,15 @@ namespace Maths
 		if (rep == AngleMode::FullAngle)
 		{
 			T halfRad = std::tan(DegToRad(currentFOVDegrees * T(0.5))) * arScale;
+
 			return T(2) * RadToDeg(std::atan(halfRad));
 		}
 		else if (rep == AngleMode::HalfAngle)
 		{
 			T currentHalfRad = DegToRad(currentFOVDegrees);
+
 			T newHalfRad = std::atan(std::tan(currentHalfRad) * arScale);
+
 			return RadToDeg(newHalfRad);
 		}
 	}
@@ -1272,21 +1576,20 @@ namespace Maths
 	template<Integral Int>
 	inline int digitCount(Int number)
 	{
-		int count = 0;
+		using Unsigned = std::make_unsigned_t<Int>;
 
-		if (number == 0)
+		Unsigned u = static_cast<Unsigned>(number < 0 ? -static_cast<std::intmax_t>(number) : number);
+
+		if (u == 0)
 		{
 			return 1;
 		}
 
-		if constexpr (std::is_signed_v<Int>)
-		{
-			if (number < 0) number = -number;
-		}
+		int count = 0;
 
-		while (number != 0)
+		while (u != 0)
 		{
-			number /= 10;
+			u /= 10;
 			++count;
 		}
 
@@ -1302,26 +1605,29 @@ namespace Maths
 	};
 
 	template<Arithmetic T, Arithmetic U = T>
-	inline bool isClose(T originalValue,
-		T comparedValue,
-		U toleranceCheck = static_cast<U>(Maths::defaultTolerance),
-		ComparisonOperator op = ComparisonOperator::LessThan,
-		bool inclusive = false)
+	inline bool isClose(T originalValue, T comparedValue, U toleranceCheck = static_cast<U>(Maths::defaultTolerance), ComparisonOperator op = ComparisonOperator::LessThan, bool inclusive = false)
 	{
 		using Common = std::common_type_t<T, U>;
+
 		Common diff = std::abs(static_cast<Common>(originalValue) - static_cast<Common>(comparedValue));
+
 		Common tol = static_cast<Common>(toleranceCheck);
 
 		if (op == ComparisonOperator::LessThan)
+		{
 			return inclusive ? (diff <= tol) : (diff < tol);
+		}
 		else
+		{
 			return inclusive ? (diff >= tol) : (diff > tol);
+		}			
 	}
 
 	template<Arithmetic T>
 	inline bool isClose(T a, T b, ComparisonOperator op, bool inclusive = false)
 	{
 		using DefaultTolType = std::common_type_t<T, float>;
+
 		return isClose<T, DefaultTolType>(a, b, static_cast<DefaultTolType>(Maths::defaultTolerance), op, inclusive);
 	}
 }
