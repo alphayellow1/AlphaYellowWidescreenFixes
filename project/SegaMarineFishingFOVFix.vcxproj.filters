@@ -14,4 +14,20 @@
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x86.asm">
+      <Filter>Arquivos de Origem</Filter>
+    </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\source\fixes\SegaMarineFishingFOVFix\dllmain.cpp">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\safetyhook\Zydis.c">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+  </ItemGroup>
 </Project>
