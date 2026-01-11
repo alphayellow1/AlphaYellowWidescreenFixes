@@ -200,22 +200,12 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid ResolutionWidthInstruction1Hook{};
+static SafetyHookMid ResolutionHeightInstruction1Hook{};
+static SafetyHookMid ResolutionWidthInstruction8Hook{};
+static SafetyHookMid ResolutionHeightInstruction8Hook{};
 static SafetyHookMid AspectRatioInstructionHook{};
-
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fdiv dword ptr ds:[]
-	}
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	
-}
 
 void WidescreenFix()
 {
@@ -244,20 +234,16 @@ void WidescreenFix()
 
 			spdlog::info("Resolution Instruction 8: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution8Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution1Scan], 6);			
 
-			static SafetyHookMid ResolutionWidthInstruction1MidHook{};
-
-			ResolutionWidthInstruction1MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan] + 16, "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution1Scan] + 16, 5);			
 
-			static SafetyHookMid ResolutionHeightInstruction1MidHook{};
-
-			ResolutionHeightInstruction1MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan] + 16, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan] + 16, [](SafetyHookContext& ctx)
 			{					
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
@@ -286,20 +272,16 @@ void WidescreenFix()
 
 			Memory::Write(ResolutionInstructionsScansResult[Resolution7Scan] + 13, iCurrentResY);
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution8Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution8Scan], 4);
 
-			static SafetyHookMid ResolutionWidthInstruction8MidHook{};
-
-			ResolutionWidthInstruction1MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution8Scan], [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction8Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution8Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.ebp = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution8Scan] + 12, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution8Scan] + 12, 4);			
 
-			static SafetyHookMid ResolutionHeightInstruction8MidHook{};
-
-			ResolutionHeightInstruction1MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution8Scan] + 12, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction8Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution8Scan] + 12, [](SafetyHookContext& ctx)
 			{
 				ctx.ebx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
@@ -310,7 +292,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 4);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -319,7 +301,7 @@ void WidescreenFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio instruction scan memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
@@ -328,7 +310,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -341,7 +323,7 @@ void WidescreenFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction scan memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}

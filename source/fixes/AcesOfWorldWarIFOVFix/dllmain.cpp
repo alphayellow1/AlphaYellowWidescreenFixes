@@ -40,7 +40,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraHFOV = 0.75f;
+constexpr float fOriginalAspectRatio = 0.75f;
 
 // Ini variables
 bool bFixActive;
@@ -51,9 +51,9 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraHFOV;
+float fNewAspectRatio2;
 float fNewCameraFOV;
-uint8_t* CameraFOVValueAddress;
+uint8_t* CameraFOVAddress;
 
 // Game detection
 enum class Game
@@ -199,18 +199,18 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 47 2C 00 00 40 3F C7 47 38 00 00 C0 40 8B 8E D4 08 00 00 81 C1 84 AC 02 00");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "C7 47 2C 00 00 40 3F C7 47 38 00 00 C0 40 8B 8E D4 08 00 00 81 C1 84 AC 02 00");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			fNewCameraHFOV = fOriginalCameraHFOV / fAspectRatioScale;
+			fNewAspectRatio2 = fOriginalAspectRatio / fAspectRatioScale;
 
-			Memory::Write(CameraHFOVInstructionScanResult + 3, fNewCameraHFOV);
+			Memory::Write(AspectRatioInstructionScanResult + 3, fNewAspectRatio2);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV scan memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
@@ -219,9 +219,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			CameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 			
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

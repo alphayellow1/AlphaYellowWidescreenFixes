@@ -190,7 +190,7 @@ void FOVFix()
 
 			spdlog::info("Zoom Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[ZoomFOVScan] - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[HipfireFOVScan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HipfireFOVScan], 3);
 
 			HipfireCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireFOVScan], [](SafetyHookContext& ctx)
 			{
@@ -201,7 +201,7 @@ void FOVFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[ZoomFOVScan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[ZoomFOVScan], 3);
 
 			ZoomCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ZoomFOVScan], [](SafetyHookContext& ctx)
 			{

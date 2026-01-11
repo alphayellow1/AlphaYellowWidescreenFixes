@@ -46,7 +46,7 @@ namespace Memory
 	{
 		DWORD oldProtect = 0;
 
-		if (!VirtualProtect(writeAddress, sizeof(T), PAGE_EXECUTE_READWRITE, &oldProtect))
+		if (VirtualProtect(writeAddress, sizeof(T), PAGE_EXECUTE_READWRITE, &oldProtect) == false)
 		{
 			spdlog::error("VirtualProtect failed in Memory::Write");
 			return;
@@ -65,11 +65,42 @@ namespace Memory
 	{
 		DWORD oldProtect;
 
-		VirtualProtect((LPVOID)address, numBytes, PAGE_EXECUTE_READWRITE, &oldProtect);
+		if (VirtualProtect(address, numBytes, PAGE_EXECUTE_READWRITE, &oldProtect) == false)
+		{
+			spdlog::error("VirtualProtect failed in Memory::PatchBytes");
+			return;
+		}
 
-		std::memcpy((LPVOID)address, pattern, numBytes);
+		std::memcpy(address, pattern, numBytes);
 
-		VirtualProtect((LPVOID)address, numBytes, oldProtect, &oldProtect);
+		FlushInstructionCache(GetCurrentProcess(), address, numBytes);
+
+		VirtualProtect(address, numBytes, oldProtect, &oldProtect);
+	}
+
+	inline void WriteNOPs(std::uint8_t* address, std::size_t numBytes)
+	{
+		if (!address || numBytes == 0)
+		{
+			return;
+		}
+		
+		constexpr std::size_t MaxStackNops = 16;
+
+		if (numBytes <= MaxStackNops)
+		{
+			std::uint8_t buf[MaxStackNops];
+
+			std::memset(buf, 0x90, numBytes);
+
+			PatchBytes(address, reinterpret_cast<const char*>(buf), static_cast<unsigned int>(numBytes));
+		}
+		else
+		{
+			std::vector<std::uint8_t> nops(numBytes, 0x90);
+
+			PatchBytes(address, reinterpret_cast<const char*>(nops.data()), static_cast<unsigned int>(numBytes));
+		}
 	}
 
 	bool PatchCallRel32(uint8_t* callSite, uint8_t* target, std::array<uint8_t, 5>* out_orig)
@@ -660,6 +691,23 @@ namespace Memory
 		else
 		{
 			return static_cast<PartT>(sliced);
+		}
+	}
+
+	template<typename PartT, typename FullT = uintptr_t>
+	inline PartT ReadRegister(FullT full) noexcept
+	{
+		constexpr unsigned full_bits = sizeof(FullT) * 8u;
+
+		static_assert(sizeof(PartT) * 8u >= full_bits, "PartT too small to hold full register");
+
+		if constexpr (std::is_signed_v<PartT>)
+		{
+			return static_cast<PartT>(full);
+		}
+		else
+		{
+			return static_cast<PartT>(full);
 		}
 	}
 

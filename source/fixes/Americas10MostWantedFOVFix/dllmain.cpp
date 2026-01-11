@@ -205,7 +205,7 @@ void FOVFix()
 
 			CameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP the original instruction so we write our own
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -227,7 +227,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 8 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult + 8, "\x90\x90\x90", 3); // NOP the original instruction so we write our own
+			Memory::WriteNOPs(AspectRatioInstructionScanResult + 8, 3);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 8, [](SafetyHookContext& ctx)
 			{

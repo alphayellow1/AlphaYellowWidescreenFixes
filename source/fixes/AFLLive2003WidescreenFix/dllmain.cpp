@@ -196,6 +196,12 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid RendererResolutionInstructionsHook{};
+static SafetyHookMid ViewportResolutionWidthInstructionHook{};
+static SafetyHookMid ViewportResolutionHeightInstructionHook{};
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
+
 void WidescreenFix()
 {
 	if (eGameType == Game::AFLL2003 && bFixActive == true)
@@ -215,29 +221,23 @@ void WidescreenFix()
 
 			ResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[RendererResolution] + 8, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolution], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResolution], 12);			
 
-			static SafetyHookMid RendererResolutionInstructionsMidHook{};
-
-			RendererResolutionInstructionsMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolution], [](SafetyHookContext& ctx)
+			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolution], [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ResolutionWidthAddress) = iCurrentResX;
 
 				*reinterpret_cast<int*>(ResolutionHeightAddress) = iCurrentResY;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution], "\x90\x90\x90", 3);
-
-			static SafetyHookMid ViewportResolutionWidthInstructionMidHook{};
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution], 3);			
 
 			ViewportResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution], [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.edx + 0xC) = iCurrentResX;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution] + 18, "\x90\x90\x90", 3);
-
-			static SafetyHookMid ViewportResolutionHeightInstructionMidHook{};
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution] + 18, 3);			
 
 			ViewportResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution] + 18, [](SafetyHookContext& ctx)
 			{
@@ -245,16 +245,14 @@ void WidescreenFix()
 			});
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
+		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 3);			
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
 
@@ -263,11 +261,9 @@ void WidescreenFix()
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 9, 3);			
 
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 9, [](SafetyHookContext& ctx)
 			{
 				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
 
@@ -276,7 +272,7 @@ void WidescreenFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 			return;
 		}
 	}
