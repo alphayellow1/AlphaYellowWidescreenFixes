@@ -244,7 +244,7 @@ void WidescreenFix()
 
 			spdlog::info("Viewport Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution3Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolutionScan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResolutionScan], 12);
 
 			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolutionScan], [](SafetyHookContext& ctx)
 			{
@@ -253,35 +253,35 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution1Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution1Scan], 3);
 
 			ViewportResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution1Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution1Scan] + 7, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution1Scan] + 7, 3);
 
 			ViewportResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution1Scan] + 7, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution2Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution2Scan], 3);
 
 			ViewportResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 12, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 12, 3);
 
 			ViewportResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 12, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution3Scan], 6);
 
 			ViewportResolutionInstructions3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution3Scan], [](SafetyHookContext& ctx)
 			{
@@ -296,7 +296,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio & HUD Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndHUDInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioAndHUDInstructionScanResult, "\x90\x90", 2);
+			Memory::WriteNOPs(AspectRatioAndHUDInstructionScanResult, 2);
 
 			AspectRatioAndHUDInstructionHook = safetyhook::create_mid(AspectRatioAndHUDInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -327,11 +327,11 @@ void WidescreenFix()
 
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult[CameraVFOVScan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult[CameraHFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult[CameraHFOVScan], 6);
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CameraHFOVScan], CameraFOVInstructionMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult[CameraVFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult[CameraVFOVScan], 6);
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CameraVFOVScan], CameraFOVInstructionMidHook);
 		}

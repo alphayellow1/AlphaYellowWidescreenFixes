@@ -233,14 +233,14 @@ void WidescreenFix()
 
 			spdlog::info("Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution5Scan] - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution1Scan], 4);
 
 			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan] + 15, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution1Scan] + 15, 4);
 
 			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan] + 15, [](SafetyHookContext& ctx)
 			{
@@ -254,7 +254,7 @@ void WidescreenFix()
 				ctx.edi = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution3Scan], 8);
 
 			ResolutionInstructions3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan], [](SafetyHookContext& ctx)
 			{
@@ -263,14 +263,14 @@ void WidescreenFix()
 				ctx.edi = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution4Scan], 4);
 
 			ResolutionWidthInstruction4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution4Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan] + 16, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution4Scan] + 16, 4);
 
 			ResolutionHeightInstruction4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution4Scan] + 16, [](SafetyHookContext& ctx)
 			{
@@ -281,14 +281,14 @@ void WidescreenFix()
 
 			ResolutionHeight5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution5Scan] + 13, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution5Scan], "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution5Scan], 5);
 
 			ResolutionWidthInstruction5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution5Scan], [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ResolutionWidth5Address) = iCurrentResX;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution5Scan] + 12, "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution5Scan] + 12, 5);
 
 			ResolutionHeightInstruction5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution5Scan] + 12, [](SafetyHookContext& ctx)
 			{
@@ -301,7 +301,7 @@ void WidescreenFix()
 		{			
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 			dNewHorizontalRes = 240 * (double)fNewAspectRatio;
 
@@ -323,7 +323,7 @@ void WidescreenFix()
 
 			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

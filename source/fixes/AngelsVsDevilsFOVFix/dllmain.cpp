@@ -211,6 +211,11 @@ static SafetyHookMid CameraHFOVInstruction2Hook{};
 static SafetyHookMid CameraHFOVInstruction3Hook{};
 static SafetyHookMid CameraHFOVInstruction4Hook{};
 static SafetyHookMid CameraHFOVInstruction5Hook{};
+static SafetyHookMid CameraVFOVInstruction1Hook{};
+static SafetyHookMid CameraVFOVInstruction2Hook{};
+static SafetyHookMid CameraVFOVInstruction3Hook{};
+static SafetyHookMid CameraVFOVInstruction4Hook{};
+static SafetyHookMid CameraVFOVInstruction5Hook{};
 
 void CameraHFOVInstructionMidHook(uintptr_t CameraHFOVAddress)
 {
@@ -227,12 +232,6 @@ void CameraHFOVInstructionMidHook(uintptr_t CameraHFOVAddress)
 
 	FPU::FLD(fNewCameraHFOV);
 }
-
-static SafetyHookMid CameraVFOVInstruction1Hook{};
-static SafetyHookMid CameraVFOVInstruction2Hook{};
-static SafetyHookMid CameraVFOVInstruction3Hook{};
-static SafetyHookMid CameraVFOVInstruction4Hook{};
-static SafetyHookMid CameraVFOVInstruction5Hook{};
 
 void CameraVFOVInstructionMidHook(uintptr_t CameraVFOVAddress)
 {
@@ -271,25 +270,40 @@ void FOVFix()
 
 			spdlog::info("Camera HFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionsScansResult[CameraHFOV5Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], 3);
 
-			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.ebx + 0x1C); });
+			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], [](SafetyHookContext& ctx)
+			{
+				CameraHFOVInstructionMidHook(ctx.ebx + 0x1C);
+			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], 3);
 
-			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.esi + 0x1C); });
+			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], [](SafetyHookContext& ctx)
+			{
+				CameraHFOVInstructionMidHook(ctx.esi + 0x1C);
+			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV3Scan], "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[CameraHFOV3Scan], 3);
 
-			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV3Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.esi + 0x1C); });
+			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV3Scan], [](SafetyHookContext& ctx)
+			{
+				CameraHFOVInstructionMidHook(ctx.esi + 0x1C);
+			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV4Scan], "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[CameraHFOV4Scan], 3);
 
-			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV4Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.esi + 0x1C); });
+			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV4Scan], [](SafetyHookContext& ctx)
+			{
+				CameraHFOVInstructionMidHook(ctx.esi + 0x1C);
+			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV5Scan], "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[CameraHFOV5Scan], 3);
 
-			CameraHFOVInstruction5Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV5Scan], [](SafetyHookContext& ctx) { CameraHFOVInstructionMidHook(ctx.esi + 0x1C); });
+			CameraHFOVInstruction5Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV5Scan], [](SafetyHookContext& ctx)
+			{
+				CameraHFOVInstructionMidHook(ctx.esi + 0x1C);
+			});
 		}
 
 		std::vector<std::uint8_t*> CameraVFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 5D 00 D9 43 20 D8 0D ?? ?? ?? ?? D9 F2 DD D8", "D9 9E C8 00 00 00 D9 46 20 D8 0D ?? ?? ?? ?? 51 D9 1C 24 E8 ?? ?? ?? ?? 83 EC 08", "D9 9E 98 00 00 00 D9 46 20 D8 0D ?? ?? ?? ?? C7 44 24 54 00 00 00 00 8B 4C 24 54 51", "D9 9E 98 00 00 00 D9 46 20 D8 0D ?? ?? ?? ?? 51 D9 1C 24 E8 ?? ?? ?? ?? 83 EC 08 8B C4", "D9 9E A8 00 00 00 D9 46 20 D8 0D ?? ?? ?? ?? C7 44 24 54 00 00 00 00 8B 4C 24 54 51 C7 44 24 54 00 00 00 00 8B 44 24 54");
@@ -305,25 +319,40 @@ void FOVFix()
 
 			spdlog::info("Camera VFOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionsScansResult[CameraVFOV5Scan] + 6 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV1Scan] + 3, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[CameraVFOV1Scan] + 3, 3);
 
-			CameraVFOVInstruction1Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV1Scan] + 3, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.ebx + 0x20); });
+			CameraVFOVInstruction1Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV1Scan] + 3, [](SafetyHookContext& ctx)
+			{
+				CameraVFOVInstructionMidHook(ctx.ebx + 0x20);
+			});
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV2Scan] + 6, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[CameraVFOV2Scan] + 6, 3);
 
-			CameraVFOVInstruction2Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV2Scan] + 6, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.esi + 0x20); });
+			CameraVFOVInstruction2Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV2Scan] + 6, [](SafetyHookContext& ctx)
+			{
+				CameraVFOVInstructionMidHook(ctx.esi + 0x20);
+			});
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV3Scan] + 6, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[CameraVFOV3Scan] + 6, 3);
 
-			CameraVFOVInstruction3Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV3Scan] + 6, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.esi + 0x20); });
+			CameraVFOVInstruction3Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV3Scan] + 6, [](SafetyHookContext& ctx)
+			{
+				CameraVFOVInstructionMidHook(ctx.esi + 0x20);
+			});
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV4Scan] + 6, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[CameraVFOV4Scan] + 6, 3);
 
-			CameraVFOVInstruction4Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV4Scan] + 6, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.esi + 0x20); });
+			CameraVFOVInstruction4Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV4Scan] + 6, [](SafetyHookContext& ctx)
+			{
+				CameraVFOVInstructionMidHook(ctx.esi + 0x20);
+			});
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV5Scan] + 6, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[CameraVFOV5Scan] + 6, 3);
 
-			CameraVFOVInstruction5Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV5Scan] + 6, [](SafetyHookContext& ctx) { CameraVFOVInstructionMidHook(ctx.esi + 0x20); });
+			CameraVFOVInstruction5Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV5Scan] + 6, [](SafetyHookContext& ctx)
+			{
+				CameraVFOVInstructionMidHook(ctx.esi + 0x20);
+			});
 		}
 	}
 }

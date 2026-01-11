@@ -221,7 +221,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV and VFOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVAndVFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVAndVFOVInstructionsScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraHFOVAndVFOVInstructionsScanResult, 3);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
@@ -241,7 +241,7 @@ void FOVFix()
 				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
 
-			Memory::PatchBytes(CameraHFOVAndVFOVInstructionsScanResult + 9, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraHFOVAndVFOVInstructionsScanResult + 9, 3);
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 
