@@ -207,7 +207,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "C7 45 ?? ?? ?? ?? ?? EB ?? D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 5D ?? 8B 55", "D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 5D ?? 8B 55", "68 ?? ?? ?? ?? 8B 4D ?? D9 41", "D8 48 ?? 51 D9 1C ?? 8B 4D ?? D9 41", "74 ? 8b 45 ? 8b 48 ? 51 8b 55 ? 8b 42 ? 50 68");
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "C7 45 ?? ?? ?? ?? ?? EB ?? D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 5D ?? 8B 55", "D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 5D ?? 8B 55", "68 ?? ?? ?? ?? 8B 4D ?? D9 41", "D8 48 ?? 51 D9 1C ?? 8B 4D ?? D9 41");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CameraAR1Scan] - (std::uint8_t*)exeModule);
@@ -217,8 +217,6 @@ void FOVFix()
 			spdlog::info("HUD Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUDAR1Scan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("HUD Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUDAR2Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Widescreen HUD Check Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[WidescreenHUDCheckScan] - (std::uint8_t*)exeModule);
 
 			Memory::Write(AspectRatioInstructionsScansResult[CameraAR1Scan] + 3, fNewAspectRatio);
 
@@ -237,8 +235,6 @@ void FOVFix()
 			{
 				FPU::FMUL(fNewAspectRatio);
 			});
-
-			// Memory::PatchBytes(AspectRatioInstructionsScansResult[WidescreenHUDCheckScan], "\xEB", 1);
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 88 ?? ?? ?? ?? 8B E5 5D C2 ?? ?? CC CC CC CC CC CC CC 55 8B EC 83 EC ?? 56");
