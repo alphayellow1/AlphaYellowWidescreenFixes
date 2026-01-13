@@ -213,7 +213,7 @@ void FOVFix()
 
 			fNewCullingValue = 16.0f;
 
-			Memory::PatchBytes(CameraCullingInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::PatchBytes(CameraCullingInstructionScanResult, 6);
 
 			CameraCullingInstructionHook = safetyhook::create_mid(CameraCullingInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -245,7 +245,7 @@ void FOVFix()
 
 			Memory::Write(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV2Scan] + 10, fNewCameraFOV);
 
-			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan], 4);
 
 			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan], [](SafetyHookContext& ctx)
 			{

@@ -194,16 +194,13 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("CShell.dll")) == nullptr)
-	{
-		spdlog::warn("CShell.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for CShell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("CShell.dll");
 
 	return true;
 }
+
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -218,9 +215,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV Instruction: Address is CShell.dll+{:x}", CameraHFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
+			Memory::WriteNOPs(CameraHFOVInstructionScanResult, 6);
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -242,11 +237,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera VFOV Instruction: Address is CShell.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::PatchBytes(CameraVFOVInstructionScanResult, 6);
 
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentCameraVFOV = std::bit_cast<float>(ctx.esi);
 
