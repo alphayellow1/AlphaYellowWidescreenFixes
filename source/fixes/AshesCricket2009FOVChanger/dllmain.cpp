@@ -185,18 +185,18 @@ void FOVChanger()
 
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90", 5);			
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 5);			
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV1 = ctx.xmm0.f32[0];
+				float& fCurrentCameraFOV1 = ctx.xmm0.f32[0];
 
 				fNewCameraFOV1 = fCurrentCameraFOV1 * fFOVFactor;
 
 				*reinterpret_cast<float*>(ctx.ecx + 0x50) = fNewCameraFOV1;
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90", 2);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 2);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{

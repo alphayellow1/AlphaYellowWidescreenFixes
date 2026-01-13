@@ -241,28 +241,28 @@ void WidescreenFix()
 
 			Memory::Write(MainMenuResolutionInstructionsScansResult[MainMenuResolution3Scan] + 8, iCurrentResY);
 
-			Memory::PatchBytes(MainMenuResolutionInstructionsScansResult[CursorWindowResolutionScan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(MainMenuResolutionInstructionsScansResult[CursorWindowResolutionScan], 3);
 
 			CursorWindowWidthResolutionHook = safetyhook::create_mid(MainMenuResolutionInstructionsScansResult[CursorWindowResolutionScan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(MainMenuResolutionInstructionsScansResult[CursorWindowResolutionScan] + 26, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(MainMenuResolutionInstructionsScansResult[CursorWindowResolutionScan] + 26, 3);
 
 			CursorWindowHeightResolutionHook = safetyhook::create_mid(MainMenuResolutionInstructionsScansResult[CursorWindowResolutionScan] + 26, [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(MainMenuResolutionInstructionsScansResult[MenuViewportResolution1Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(MainMenuResolutionInstructionsScansResult[MenuViewportResolution1Scan], 3);
 
 			MenuViewportWidthResolution1Hook = safetyhook::create_mid(MainMenuResolutionInstructionsScansResult[MenuViewportResolution1Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(MainMenuResolutionInstructionsScansResult[MenuViewportResolution1Scan] + 21, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(MainMenuResolutionInstructionsScansResult[MenuViewportResolution1Scan] + 21, 3);
 
 			MenuViewportHeightResolution1Hook = safetyhook::create_mid(MainMenuResolutionInstructionsScansResult[MenuViewportResolution1Scan] + 21, [](SafetyHookContext& ctx)
 			{
@@ -275,7 +275,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
