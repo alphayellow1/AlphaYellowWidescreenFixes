@@ -216,9 +216,9 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraHFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8b 02 89 81 ? ? ? ? 8b 42 ? 89 81", "8b 42 ? 89 81 ? ? ? ? 8b 42 ? 89 81");
+		std::vector<std::uint8_t*> CameraHFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 02 89 81 ?? ?? ?? ?? 8B 42 ?? 89 81", "8B 42 ?? 89 81 ?? ?? ?? ?? 8B 42 ?? 89 81");
 
-		std::vector<std::uint8_t*> CameraVFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8b 42 ? 89 81 ? ? ? ? 8b 42 ? d9 99", "8b 42 ? d9 99");
+		std::vector<std::uint8_t*> CameraVFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 42 ?? 89 81 ?? ?? ?? ?? 8B 42 ?? D9 99", "8B 42 ?? D9 99");
 
 		if (Memory::AreAllSignaturesValid(CameraHFOVInstructionsScansResult) == true)
 		{
@@ -244,11 +244,11 @@ void FOVFix()
 
 			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.edx + 0x4);
+				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.edx + 0x4);
 
-				if (fCurrentCameraHFOV != fNewCameraHFOV2)
+				if (fCurrentCameraHFOV2 != fNewCameraHFOV2)
 				{
-					fNewCameraHFOV2 = fCurrentCameraHFOV * fAspectRatioScale;
+					fNewCameraHFOV2 = fCurrentCameraHFOV2 * fAspectRatioScale;
 				}				
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV2);
