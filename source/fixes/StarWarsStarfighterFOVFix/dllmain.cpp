@@ -25,8 +25,10 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 HMODULE dllModule3 = nullptr;
+HMODULE dllModule4 = nullptr;
 std::string sDllName1;
 std::string sDllName2;
+std::string sDllName3;
 
 // Fix details
 std::string sFixName = "StarWarsStarfighterFOVFix";
@@ -50,6 +52,7 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
+float fNewLocalToScreenFOV;
 float fUnzoomedFOVFactor;
 float fZoomedFOVFactor;
 
@@ -58,7 +61,8 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 int iNewResX;
-float fNewOverallCameraFOV;
+float fNewFrustumFOV;
+float fNewRendererViewFOV;
 float fNewUnzoomedFOV;
 float fNewZoomedFOV;
 
@@ -71,9 +75,11 @@ enum class Game
 
 enum CameraFOVInstructionsIndices
 {
-	OverallFOVsScan,
+	FrustumFOVScan,
+	LocalToScreenFOVScan,
 	UnzoomedFOVScan,
-	ZoomedFOVScan
+	ZoomedFOVScan,
+	RendererViewFOVScan
 };
 
 struct GameInfo
@@ -214,17 +220,23 @@ bool DetectGame()
 
 	dllModule3 = Memory::GetHandle("LECGame.dll");
 
+	dllModule4 = Memory::GetHandle("LECDirect3D.dll");
+
 	sDllName1 = Memory::GetModuleName(dllModule2);
 
 	sDllName2 = Memory::GetModuleName(dllModule3);
+
+	sDllName3 = Memory::GetModuleName(dllModule4);
 
 	return true;
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid OverallCameraFOVsHook{};
+static SafetyHookMid FrustumFOVHook{};
+static SafetyHookMid LocalToScreenFOVHook{};
 static SafetyHookMid UnzoomedFOVHook{};
 static SafetyHookMid ZoomedFOVHook{};
+static SafetyHookMid RendererViewFOVHook{};
 
 void FOVFix()
 {
@@ -257,28 +269,44 @@ void FOVFix()
 			return;
 		}
 
-		// Instructions are located in LEC3DEngine.CCameraNode::GetFOV, LECGame.CViewManager::SetUnzoomedFOV and LECGame.CViewManager::SetZoomedFOV
+		// Instructions are located in LEC3DEngine.CFrustum::SetupPerspective, LEC3DEngine.CView::LocalToScreen, LECGame.CViewManager::SetUnzoomedFOV, LECGame.CViewManager::SetZoomedFOV and LECDirect3D.CD3DRenderer::SetView
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(
-		dllModule2, "D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 8B 44 24 ?? 89 81 ?? ?? ?? ?? C2 ?? ?? 90 90 90 D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 8B 44 24 ?? 89 81 ?? ?? ?? ?? C2 ?? ?? 90 90 90 D9 81",
-		dllModule3, "8B 44 24 ?? A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? C2 ?? ?? D9 05 ?? ?? ?? ?? C3 8B 44 24", "8B 44 24 ?? A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? C2 ?? ?? D9 05 ?? ?? ?? ?? C3 53"
+		dllModule2, "D9 46 ?? D8 0D", "D9 41 ?? D8 0D",
+		dllModule3, "8B 44 24 ?? A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? C2 ?? ?? D9 05 ?? ?? ?? ?? C3 8B 44 24", "8B 44 24 ?? A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? C2 ?? ?? D9 05 ?? ?? ?? ?? C3 53",
+		dllModule4, "D9 46 ?? D8 0D"
 		);
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Overall Camera FOVs Instruction: Address is {}+{:x}", sDllName1, CameraFOVInstructionsScansResult[OverallFOVsScan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Frustum FOV Instruction: Address is {}+{:x}", sDllName1, CameraFOVInstructionsScansResult[FrustumFOVScan] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Unzoomed Camera FOV Instruction: Address is {}+{:x}", sDllName2, CameraFOVInstructionsScansResult[UnzoomedFOVScan] - (std::uint8_t*)dllModule3);
+			spdlog::info("Local to Screen FOV Instruction: Address is {}+{:x}", sDllName1, CameraFOVInstructionsScansResult[LocalToScreenFOVScan] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Zoomed Camera FOV Instruction: Address is {}+{:x}", sDllName2, CameraFOVInstructionsScansResult[ZoomedFOVScan] - (std::uint8_t*)dllModule3);
+			spdlog::info("Unzoomed FOV Instruction: Address is {}+{:x}", sDllName2, CameraFOVInstructionsScansResult[UnzoomedFOVScan] - (std::uint8_t*)dllModule3);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[OverallFOVsScan], 6);
+			spdlog::info("Zoomed FOV Instruction: Address is {}+{:x}", sDllName2, CameraFOVInstructionsScansResult[ZoomedFOVScan] - (std::uint8_t*)dllModule3);
 
-			OverallCameraFOVsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[OverallFOVsScan], [](SafetyHookContext& ctx)
+			spdlog::info("Renderer View FOV Instruction: Address is {}+{:x}", sDllName3, CameraFOVInstructionsScansResult[RendererViewFOVScan] - (std::uint8_t*)dllModule4);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FrustumFOVScan], 3);
+
+			FrustumFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FrustumFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverallCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0xB0);
+				float& fCurrentFrustumFOV = *reinterpret_cast<float*>(ctx.esi + 0x78);
 
-				fNewOverallCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentOverallCameraFOV, fAspectRatioScale);
+				fNewFrustumFOV = Maths::CalculateNewFOV_RadBased(fCurrentFrustumFOV, fAspectRatioScale);
 
-				FPU::FLD(fNewOverallCameraFOV);
+				FPU::FLD(fNewFrustumFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[LocalToScreenFOVScan], 3);
+
+			LocalToScreenFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[LocalToScreenFOVScan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentLocalToScreenFOV = *reinterpret_cast<float*>(ctx.ecx + 0x78);
+
+				fNewLocalToScreenFOV = Maths::CalculateNewFOV_RadBased(fCurrentLocalToScreenFOV, fAspectRatioScale);
+
+				FPU::FLD(fNewLocalToScreenFOV);
 			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[UnzoomedFOVScan], 4);
@@ -301,6 +329,17 @@ void FOVFix()
 				fNewZoomedFOV = fCurrentZoomedFOV / fZoomedFOVFactor;
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewZoomedFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[RendererViewFOVScan], 3);
+
+			RendererViewFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[RendererViewFOVScan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentRendererViewFOV = *reinterpret_cast<float*>(ctx.esi + 0x78);
+
+				fNewRendererViewFOV = Maths::CalculateNewFOV_RadBased(fCurrentRendererViewFOV, fAspectRatioScale);
+
+				FPU::FLD(fNewRendererViewFOV);
 			});
 		}
 	}
