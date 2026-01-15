@@ -230,6 +230,19 @@ void ResolutionHeightInstruction6MidHook(SafetyHookContext& ctx)
 	}
 }
 
+static SafetyHookMid ResolutionWidthInstruction1Hook{};
+static SafetyHookMid ResolutionInstructions2Hook{};
+static SafetyHookMid ResolutionWidthInstruction3Hook{};
+static SafetyHookMid ResolutionHeightInstruction3Hook{};
+static SafetyHookMid ResolutionWidthInstruction4Hook{};
+static SafetyHookMid ResolutionHeightInstruction4Hook{};
+static SafetyHookMid ResolutionWidthInstruction5Hook{};
+static SafetyHookMid ResolutionHeightInstruction5Hook{};
+static SafetyHookMid ResolutionWidthInstruction7Hook{};
+static SafetyHookMid ResolutionHeightInstruction7Hook{};
+static SafetyHookMid ResolutionWidthInstruction8Hook{};
+static SafetyHookMid ResolutionWidthInstruction9Hook{};
+
 void WidescreenFix()
 {
 	if (eGameType == Game::SWON && bFixActive == true)
@@ -261,7 +274,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionWidthInstruction1MidHook{};
+			
 
 			ResolutionWidthInstruction1MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
 			{
@@ -270,7 +283,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution2Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
 
-			static SafetyHookMid ResolutionInstructions2MidHook{};
+			
 
 			ResolutionInstructions2MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution2Scan], [](SafetyHookContext& ctx)
 			{
@@ -281,7 +294,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan], "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionWidthInstruction3MidHook{};
+			
 
 			ResolutionWidthInstruction3MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan], [](SafetyHookContext& ctx)
 			{
@@ -290,7 +303,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 8, "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionHeightInstruction3MidHook{};
+			
 
 			ResolutionHeightInstruction3MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan] + 8, [](SafetyHookContext& ctx)
 			{
@@ -299,7 +312,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan], "\x90\x90", 2);
 
-			static SafetyHookMid ResolutionWidthInstruction4MidHook{};
+			
 
 			ResolutionWidthInstruction4MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution4Scan], [](SafetyHookContext& ctx)
 			{
@@ -308,7 +321,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan] + 8, "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionHeightInstruction4MidHook{};
+			
 
 			ResolutionHeightInstruction4MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution4Scan] + 8, [](SafetyHookContext& ctx)
 			{
@@ -317,7 +330,8 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution5Scan], "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionWidthInstruction5MidHook{};
+
+		
 
 			ResolutionWidthInstruction5MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution5Scan], [](SafetyHookContext& ctx)
 			{
@@ -326,7 +340,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution5Scan] + 7, "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionHeightInstruction5MidHook{};
+			
 
 			ResolutionHeightInstruction5MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution5Scan] + 7, [](SafetyHookContext& ctx)
 			{
@@ -343,7 +357,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution7Scan], "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionWidthInstruction7MidHook{};
+			
 
 			ResolutionWidthInstruction7MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution7Scan], [](SafetyHookContext& ctx)
 			{
@@ -352,7 +366,6 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution7Scan] + 12, "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionHeightInstruction7MidHook{};
 
 			ResolutionHeightInstruction7MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution7Scan] + 12, [](SafetyHookContext& ctx)
 			{
@@ -361,7 +374,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution8Scan], "\x90\x90\x90", 3);
 
-			static SafetyHookMid ResolutionWidthInstruction8MidHook{};
+			
 
 			ResolutionWidthInstruction8MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution8Scan], [](SafetyHookContext& ctx)
 			{
@@ -370,7 +383,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution9Scan], "\x90\x90\x90\x90", 4);
 
-			static SafetyHookMid ResolutionWidthInstruction9MidHook{};
+			
 
 			ResolutionWidthInstruction9MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution9Scan], [](SafetyHookContext& ctx)
 			{
