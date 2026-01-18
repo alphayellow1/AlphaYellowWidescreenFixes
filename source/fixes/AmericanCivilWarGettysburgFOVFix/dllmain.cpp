@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "AmericanCivilWarGettysburgFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -49,14 +49,21 @@ float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
-float fNewCameraFOV;
 float fAspectRatioScale;
+float fNewCameraFOV1;
+float fNewCameraFOV2;
 
 // Game detection
 enum class Game
 {
 	ACWG,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	FOV1Scan,
+	FOV2Scan
 };
 
 struct GameInfo
@@ -187,7 +194,8 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstruction1Hook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void FOVFix()
 {
@@ -197,14 +205,17 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 4A 3C D9 5E 14 D9 56 28 D8 4A 30 C7 46 2C 00 00 80 3F D9 E0 D9 5E 38");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 4A ?? D9 5E");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::WriteNOPs(AspectRatioInstructionScanResult, 3);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx) { FPU::FMUL(fNewAspectRatio); });
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(fNewAspectRatio);
+			});
 		}
 		else
 		{
@@ -212,26 +223,34 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 04 8B 44 24 04 D8 0D BC A7 7D 00 89 41 38 D9 C0 D9 F2 DD D8 D9 59 58 D9 C0 D9 FE D9 59 5C D9 FF");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 44 24 ?? 8B 44 24 ?? D8 0D ?? ?? ?? ?? 89 41", "8B 48 ?? 51 8B 8E");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 4);
+
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
 
-				FPU::FLD(fNewCameraFOV);
+				FPU::FLD(fNewCameraFOV1);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 3);
+
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x4);
+
+				fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV2);
+			});
 		}
 	}
 }
