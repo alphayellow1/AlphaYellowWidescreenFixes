@@ -24,7 +24,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "KickOff2002FOVFix";
+std::string sFixName = "SvenGoranErikssonsWorldChallengeFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -56,7 +56,7 @@ double dNewAspectRatio;
 // Game detection
 enum class Game
 {
-	KO2002,
+	SGEWC,
 	Unknown
 };
 
@@ -67,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::KO2002, {"Kick Off 2002", "ko2002.exe"}},
+	{Game::SGEWC, {"Sven Göran Eriksson's World Challenge", "sge.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -192,7 +192,7 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
-	if (eGameType == Game::KO2002 && bFixActive == true)
+	if (eGameType == Game::SGEWC && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
