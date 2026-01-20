@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "FootballGenerationWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,23 +53,20 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewAspectRatio2;
-float fNewCameraHFOV;
-float fNewGameplayCameraFOV;
-
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	FGSETUP,
-	FGGAME,
+	FG_SETUP,
+	FG_GAME,
 	Unknown
 };
 
 enum ResolutionInstructionsIndex
 {
-	Resolution1280x1024Scan,
-	Resolution1024x768Scan,
-	Resolution800x600Scan
+	Resolution1Scan,
+	Resolution2Scan
 };
 
 struct GameInfo
@@ -79,8 +76,8 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::FGSETUP, {"Football Generation - Setup", "SGame.exe"}},
-	{Game::FGGAME, {"Football Generation", "Game.exe"}},
+	{Game::FG_SETUP, {"Football Generation - Setup", "SGame.exe"}},
+	{Game::FG_GAME, {"Football Generation", "Game.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -200,140 +197,92 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
-static SafetyHookMid GameplayAspectRatioInstructionHook{};
-static SafetyHookMid GameplayCameraFOVInstructionHook{};
+static SafetyHookMid AspectRatioInstructionHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
 	if (bFixActive == true)
 	{
-		if (eGameType == Game::FGSETUP)
+		if (eGameType == Game::FG_SETUP)
 		{
-			std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "31 32 38 30 78 31 30 32 34 20 33 32 20 62 69 74 73 00 00 00 31 32 38 30 78 31 30 32 34", "31 30 32 34 78 37 36 38 20 33 32 20 62 69 74 73 00 00 00 00 31 30 32 34 78 37 36 38", "38 30 30 78 36 30 30 20 33 32 20 62 69 74 73 00 38 30 30 78 36 30 30");
+			std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 46", "68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 46");
 			if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
-			{
-				// If both width and height values have 4 digits, then write the resolution values in place of the 1280x1024 one
-				if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 4)
-				{
-					spdlog::info("Resolution 1280x1024 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1280x1024Scan] - (std::uint8_t*)exeModule);
+			{				
+				spdlog::info("Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
 
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1280x1024Scan], iCurrentResX);
+				spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
 
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1280x1024Scan] + 5, iCurrentResY);
+				static std::string sNewResString1 = std::to_string(iCurrentResX) + "x" + std::to_string(iCurrentResY) + " 16 bits";
 
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1280x1024Scan] + 20, iCurrentResX);
+				static std::string sNewResString2 = std::to_string(iCurrentResX) + "x" + std::to_string(iCurrentResY) + " 32 bits";
 
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1280x1024Scan] + 25, iCurrentResY);
-				}
+				const char* cNewResolutionString1 = sNewResString1.c_str();
 
-				// If width has 4 digits and height has 3 digits, then write the resolution values in place of the 1024x768 one
-				if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 3)
-				{
-					spdlog::info("Resolution 1024x768 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1024x768Scan] - (std::uint8_t*)exeModule);
+				const char* cNewResolutionString2 = sNewResString2.c_str();
 
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1024x768Scan], iCurrentResX);
+				Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 1, cNewResolutionString1);
 
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1024x768Scan] + 5, iCurrentResY);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1024x768Scan] + 20, iCurrentResX);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution1024x768Scan] + 25, iCurrentResY);
-				}
-
-				// If both width and height values have 3 digits, then write the resolution values in place of the 800x600 one
-				if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
-				{
-					spdlog::info("Resolution 800x600 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution800x600Scan] - (std::uint8_t*)exeModule);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution800x600Scan], iCurrentResX);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution800x600Scan] + 4, iCurrentResY);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution800x600Scan] + 16, iCurrentResX);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionInstructionsScansResult[Resolution800x600Scan] + 20, iCurrentResY);
-				}
+				Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 1, cNewResolutionString2);
 			}			
 		}
 
-		if (eGameType == Game::FGGAME)
+		if (eGameType == Game::FG_GAME)
 		{
 			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-			std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
-			if (CameraHFOVInstructionScanResult)
+			std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 5C 24 ?? EB ?? 8B 46");
+
+			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 0D ?? ?? ?? ?? D9 F2 DD D8 D9 54 24 ?? D8 0D");
+
+			if (AspectRatioInstructionScanResult)
 			{
-				spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-				Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90", 3);				
-
-				CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					// Convert the ECX register value to float
-					float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
-
-					if (fCurrentCameraHFOV == 0.1763269752f) // Menu HFOV
-					{
-						fCurrentCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
-					}
-					else
-					{
-						fNewCameraHFOV = fCurrentCameraHFOV;
-					}
-
-					*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
-				});
-			}
-			else
-			{
-				spdlog::info("Cannot locate the camera HFOV instruction memory address.");
-				return;
-			}
-
-			std::uint8_t* GameplayAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 5C 24 10 EB 58 8B 46 24");
-			if (GameplayAspectRatioInstructionScanResult)
-			{
-				spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
 				fNewAspectRatio2 = 0.75f / fAspectRatioScale;
 
-				Memory::PatchBytes(GameplayAspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
-				GameplayAspectRatioInstructionHook = safetyhook::create_mid(GameplayAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+				AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 				{
 					FPU::FMUL(fNewAspectRatio2);
 				});
 			}
 			else
 			{
-				spdlog::info("Cannot locate the gameplay aspect ratio instruction memory address.");
+				spdlog::info("Cannot locate the aspect ratio instruction memory address.");
 				return;
 			}
-
-			std::uint8_t* GameplayCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 18 D8 0D ?? ?? ?? ?? D9 F2 DD D8 D9 54 24 0C");
-			if (GameplayCameraFOVInstructionScanResult)
+			
+			if (CameraFOVInstructionScanResult)
 			{
-				spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(GameplayCameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
 
-				GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
-					// Reference the dereferenced [ESP+18] address that holds the current gameplay camera FOV
-					float& fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x18);
+					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x18);
 
-					// Compute the new FOV value
-					fNewGameplayCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentGameplayCameraFOV, fAspectRatioScale) * fFOVFactor;
+					spdlog::info("[Hook] Raw incoming FOV: {:.12f}", fCurrentCameraFOV);
 
-					FPU::FLD(fNewGameplayCameraFOV);
+					if (fCurrentCameraFOV != 20.0f)
+					{
+						fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
+					}
+
+					FPU::FLD(fNewCameraFOV);
 				});
 			}
 			else
 			{
-				spdlog::info("Cannot locate the gameplay camera FOV instruction memory address.");
+				spdlog::info("Cannot locate the camera FOV instruction memory address.");
 				return;
 			}
 		}
