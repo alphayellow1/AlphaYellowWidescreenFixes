@@ -208,13 +208,13 @@ bool DetectGame()
 		return false;
 	}
 
-	EngineDLLHandle = Memory::GetHandle("Engine.dll", 200, 15);
+	EngineDLLHandle = Memory::GetHandle("Engine.dll", 100, 5);
 
-	D3D7DLLHandle = Memory::GetHandle("D3DDrv.dll", 200, 15);
+	D3D7DLLHandle = Memory::GetHandle("D3DDrv.dll", 100, 5);
 
-	D3D9DLLHandle = Memory::GetHandle("D3D9Drv.dll", 200, 15);
+	D3D9DLLHandle = Memory::GetHandle("D3D9Drv.dll", 100, 5);
 
-	OpenGLDLLHandle = Memory::GetHandle("OpenGLDrv.dll", 200, 15);
+	OpenGLDLLHandle = Memory::GetHandle("OpenGLDrv.dll", 100, 5);
 
 	return true;
 }
@@ -266,7 +266,7 @@ void FOVFix()
 				spdlog::info("Camera FOV Instruction 2: Address is OpenGLDrv.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)OpenGLDLLHandle);
 			}
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 6);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
@@ -282,7 +282,7 @@ void FOVFix()
 
 			if (D3D9DLLHandle || OpenGLDLLHandle)
 			{
-				Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
 
 				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 				{
