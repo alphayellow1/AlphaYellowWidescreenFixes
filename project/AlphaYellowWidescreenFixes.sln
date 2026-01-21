@@ -1063,6 +1063,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RedJetsFOVFix", "RedJetsFOV
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GICombatEpisode1BattleOfNormandyWidescreenFix", "GICombatEpisode1BattleOfNormandyWidescreenFix.vcxproj", "{BFE8BDF7-0EBF-43A7-B94E-62B625A6728E}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TonkaMonsterTrucksWidescreenFix", "TonkaMonsterTrucksWidescreenFix.vcxproj", "{90384103-8740-4A78-B176-7963B3B62992}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5295,6 +5297,14 @@ Global
 		{BFE8BDF7-0EBF-43A7-B94E-62B625A6728E}.Release|x64.Build.0 = Release|x64
 		{BFE8BDF7-0EBF-43A7-B94E-62B625A6728E}.Release|x86.ActiveCfg = Release|Win32
 		{BFE8BDF7-0EBF-43A7-B94E-62B625A6728E}.Release|x86.Build.0 = Release|Win32
+		{90384103-8740-4A78-B176-7963B3B62992}.Debug|x64.ActiveCfg = Debug|x64
+		{90384103-8740-4A78-B176-7963B3B62992}.Debug|x64.Build.0 = Debug|x64
+		{90384103-8740-4A78-B176-7963B3B62992}.Debug|x86.ActiveCfg = Debug|Win32
+		{90384103-8740-4A78-B176-7963B3B62992}.Debug|x86.Build.0 = Debug|Win32
+		{90384103-8740-4A78-B176-7963B3B62992}.Release|x64.ActiveCfg = Release|x64
+		{90384103-8740-4A78-B176-7963B3B62992}.Release|x64.Build.0 = Release|x64
+		{90384103-8740-4A78-B176-7963B3B62992}.Release|x86.ActiveCfg = Release|Win32
+		{90384103-8740-4A78-B176-7963B3B62992}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5828,6 +5838,7 @@ Global
 		{759066E8-4E0B-4F4A-922A-D179C096C286} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{DCEFFB5B-4B14-40DE-B42B-889AFF7D9EFC} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{BFE8BDF7-0EBF-43A7-B94E-62B625A6728E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{90384103-8740-4A78-B176-7963B3B62992} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
