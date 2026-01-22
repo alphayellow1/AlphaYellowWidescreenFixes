@@ -212,7 +212,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "d9 44 24 ? 8b 15 ? ? ? ? dc c9", "D9 44 24 ?? 51 D9 96");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? 8B 15 ?? ?? ?? ?? DC C9", "D9 44 24 ?? 51 D9 96");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)dllModule2);
@@ -235,7 +235,7 @@ void FOVFix()
 					if (fCurrentCameraFOV != fNewCameraFOV)
 					{
 						fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-					}					
+					}
 				}
 				else if (fCurrentCameraHFOV == 5.0f)
 				{
@@ -249,8 +249,8 @@ void FOVFix()
 						{
 							fNewCameraFOV = fCurrentCameraFOV;
 						}
-					}					
-				}				
+					}
+				}
 
 				FPU::FLD(fNewCameraFOV);
 			});
