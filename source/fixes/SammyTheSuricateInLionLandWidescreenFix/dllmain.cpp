@@ -1,4 +1,4 @@
-// Include necessary headers
+﻿// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -47,15 +47,24 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+/*
 int iHorizontalHUDMargin;
 int iVerticalHUDMargin;
+*/
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
-double dNewHorizontalRes;
 uint8_t* CameraFOVAddress;
+float fNewCameraFOV;
+int iNewWidth3;
+
+/*
+int iNewHorizontalHUDMargin;
+int iNewVerticalHUDMargin;
+uint8_t* HorizontalHUDMarginAddress;
+uint8_t* VerticalHUDMarginAddress;
+*/
 
 // Game detection
 enum class Game
@@ -68,7 +77,8 @@ enum ResolutionInstructionsIndices
 {
 	Res1Scan,
 	Res2Scan,
-	Res3Scan
+	Res3Scan,
+	Res4Scan
 };
 
 enum HUDInstructionsIndices
@@ -167,11 +177,13 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "HorizontalHUDMargin", iHorizontalHUDMargin);
-	inipp::get_value(ini.sections["Settings"], "VerticalHUDMargin", iVerticalHUDMargin);
+	// inipp::get_value(ini.sections["Settings"], "HorizontalHUDMargin", iHorizontalHUDMargin);
+	// inipp::get_value(ini.sections["Settings"], "VerticalHUDMargin", iVerticalHUDMargin);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
+	// spdlog_confparse(iHorizontalHUDMargin);
+	// spdlog_confparse(iVerticalHUDMargin);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -208,12 +220,12 @@ bool DetectGame()
 
 static SafetyHookMid ResolutionInstructions1Hook{};
 static SafetyHookMid ResolutionInstructions2Hook{};
-static SafetyHookMid ResolutionWidthInstruction3Hook{};
-static SafetyHookMid ResolutionHeightInstruction3Hook{};
-static SafetyHookMid HUDInstruction1Hook{};
-static SafetyHookMid HUDInstruction2Hook{};
+static SafetyHookMid ResolutionWidthInstruction4Hook{};
+static SafetyHookMid ResolutionHeightInstruction4Hook{};
 static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid HUDInstruction1Hook{};
+static SafetyHookMid HUDInstruction2Hook{};
 
 void WidescreenFix()
 {
@@ -223,12 +235,19 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "a1 ? ? ? ? 8b 15 ? ? ? ? 3d", "8b 54 24 ? 8b 4c 24 ? a8", "a3 ? ? ? ? 83 fd");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "A1 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 3D", "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? A3 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 0F 84", "8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 2B CA 89 4C 24", "A3 ?? ?? ?? ?? 83 FD");
+		
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 E1");
+
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1Scan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4Scan] - (std::uint8_t*)exeModule);
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1Scan], 11);
 
@@ -239,8 +258,6 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res2Scan], 8);
-
 			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
@@ -248,29 +265,32 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			ResolutionWidthInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3Scan], [](SafetyHookContext& ctx)
+			iNewWidth3 = 1024;
+
+			static int* iNewWidth3Ptr = &iNewWidth3;
+
+			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 2, iNewWidth3Ptr);
+
+			ResolutionWidthInstruction4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4Scan], [](SafetyHookContext& ctx)
 			{
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);					
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			ResolutionHeightInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3Scan] + 12, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4Scan] + 12, [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 		}
-
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "DC 0D ?? ?? ?? ?? DB 05");
+		
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
 			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
-			dNewHorizontalRes = 240 * (double)fNewAspectRatio;
-
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				FPU::FMUL(dNewHorizontalRes);
+				FPU::FMUL(1.0f);
 			});
 		}
 		else
@@ -279,7 +299,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "d9 05 ? ? ? ? d9 e1 d9 15");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D9 E1 D9 15");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -295,70 +315,85 @@ void WidescreenFix()
 				if (fCurrentCameraFOV != fNewCameraFOV)
 				{
 					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-				}				
+				}
 
 				FPU::FLD(fNewCameraFOV);
 			});
 		}
+		else
+		{
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			return;
+		}
 
-		std::vector<std::uint8_t*> HUDInstructionsScansResult = Memory::PatternScan(exeModule, "89 0d ? ? ? ? 8b 50 ? c1 fa", "89 15 ? ? ? ? c3 90 90 90 90 90 90 90 90 90 90");
+		/* Couldn't get this to work
+		std::vector<std::uint8_t*> HUDInstructionsScansResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 8B 50 ?? C1 FA", "89 15 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 90");
 		if (Memory::AreAllSignaturesValid(HUDInstructionsScansResult) == true)
 		{
+			spdlog::info("HUD Horizontal Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("HUD Vertical Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD2Scan] - (std::uint8_t*)exeModule);
+
+			HorizontalHUDMarginAddress = Memory::GetPointerFromAddress<uint32_t>(HUDInstructionsScansResult[HUD1Scan] + 2, Memory::PointerMode::Absolute);
+
+			VerticalHUDMarginAddress = Memory::GetPointerFromAddress<uint32_t>(HUDInstructionsScansResult[HUD2Scan] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(HUDInstructionsScansResult[HUD1Scan], 6);
+
 			HUDInstruction1Hook = safetyhook::create_mid(HUDInstructionsScansResult[HUD1Scan], [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<int*>(0x004EB420) != iCurrentResX)
+				const int& iCurrentHorizontalHUDMargin = std::bit_cast<int>(ctx.ecx);
+
+				if (iCurrentHorizontalHUDMargin != iNewHorizontalHUDMargin)
 				{
-					return;
+					if (iCurrentHorizontalHUDMargin == 303)
+					{
+						iNewHorizontalHUDMargin = iCurrentHorizontalHUDMargin;
+					}
+					else if (iCurrentHorizontalHUDMargin < 79)
+					{
+						iNewHorizontalHUDMargin = iCurrentHorizontalHUDMargin + iHorizontalHUDMargin;
+					}
+					else if (iCurrentHorizontalHUDMargin > 600)
+					{
+						iNewHorizontalHUDMargin = iCurrentHorizontalHUDMargin + ((iCurrentResX - 800) - iHorizontalHUDMargin);
+					}
+					else
+					{
+						iNewHorizontalHUDMargin = iCurrentHorizontalHUDMargin + ((iCurrentResX - 800) / 2);
+					}
 				}
 
-				if (ctx.ecx == 303)
-				{
-					return;
-				}
-
-				if (ctx.ecx < 79)
-				{
-					ctx.ecx = ctx.ecx + iHorizontalHUDMargin;
-					return;
-				}
-
-				if (ctx.ecx > 600)
-				{
-					ctx.ecx = ctx.ecx + ((iCurrentResX - 800) - iHorizontalHUDMargin);
-					return;
-				}
-
-				ctx.ecx = ctx.ecx + ((iCurrentResX - 800) / 2);
+				*reinterpret_cast<int*>(HorizontalHUDMarginAddress) = iNewHorizontalHUDMargin;
 			});
+
+			Memory::WriteNOPs(HUDInstructionsScansResult[HUD2Scan], 6);
 
 			HUDInstruction2Hook = safetyhook::create_mid(HUDInstructionsScansResult[HUD2Scan], [](SafetyHookContext& ctx)
 			{
-				if (*reinterpret_cast<int*>(0x004EB424) != iCurrentResY)
+				const int& iCurrentVerticalHUDMargin = std::bit_cast<int>(ctx.edx);
+
+				if (iCurrentVerticalHUDMargin == 195)
 				{
-					return;
+					iNewVerticalHUDMargin = iCurrentVerticalHUDMargin;
+				}
+				else if (iCurrentVerticalHUDMargin < 59)
+				{
+					iNewVerticalHUDMargin = iCurrentVerticalHUDMargin + iVerticalHUDMargin;
+				}
+				else if (iCurrentVerticalHUDMargin > 400)
+				{
+					iNewVerticalHUDMargin = iCurrentVerticalHUDMargin + ((iCurrentResY - 600) - iVerticalHUDMargin);
+				}
+				else
+				{
+					iNewVerticalHUDMargin = iCurrentVerticalHUDMargin + ((iCurrentResY - 600) / 2);
 				}
 
-				if (ctx.edx == 195)
-				{
-					return;
-				}
-
-				if (ctx.edx < 59)
-				{
-					ctx.edx = ctx.edx + iVerticalHUDMargin;
-					return;
-				}
-
-				if (ctx.edx > 400)
-				{
-					ctx.edx = ctx.edx + ((iCurrentResY - 600) - iVerticalHUDMargin);
-					return;
-				}
-
-				ctx.edx = ctx.edx + ((iCurrentResY - 600) / 2);
+				*reinterpret_cast<int*>(VerticalHUDMarginAddress) = iNewVerticalHUDMargin;
 			});
-
 		}
+		*/
 	}
 }
 
