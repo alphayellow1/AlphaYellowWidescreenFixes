@@ -279,7 +279,7 @@ void FOVFix()
 			});
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D9 84 30 ?? ?? ?? ?? D8 0D", "D9 44 24 ?? 8B 44 24 ?? D8 0D ?? ?? ?? ?? 56", "8b 15 ? ? ? ? d8 44 24", "d8 0d ? ? ? ? d9 46 ? d8 4e");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D9 84 30 ?? ?? ?? ?? D8 0D", "D9 44 24 ?? 8B 44 24 ?? D8 0D ?? ?? ?? ?? 56", "8B 15 ?? ?? ?? ?? D8 44 24", "D8 0D ?? ?? ?? ?? D9 46 ?? D8 4E");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult[FOV1Scan] - (std::uint8_t*)exeModule);
