@@ -44,10 +44,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
 float fNewValue1;
 float fNewValue2;
 float fNewValue3;
@@ -57,7 +59,6 @@ float fNewValue6;
 float fNewValue7;
 float fNewValue8;
 float fNewValue9;
-float fNewAspectRatio;
 
 // Game detection
 enum class Game
@@ -197,35 +198,37 @@ void WidescreenFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fNewValue1 = 0.75f * (fOldAspectRatio / fNewAspectRatio);
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		fNewValue2 = 0.65f * (fOldAspectRatio / fNewAspectRatio);
+		fNewValue1 = 0.75f / fAspectRatioScale;
 
-		fNewValue3 = 0.71f * (fOldAspectRatio / fNewAspectRatio);
+		fNewValue2 = 0.65f / fAspectRatioScale;
 
-		fNewValue4 = 0.72f * (fOldAspectRatio / fNewAspectRatio);
+		fNewValue3 = 0.71f / fAspectRatioScale;
 
-		fNewValue5 = 0.68f * (fOldAspectRatio / fNewAspectRatio);
+		fNewValue4 = 0.72f / fAspectRatioScale;
 
-		fNewValue6 = 0.725f * (fOldAspectRatio / fNewAspectRatio);
+		fNewValue5 = 0.68f / fAspectRatioScale;
 
-		fNewValue7 = 0.685f * (fOldAspectRatio / fNewAspectRatio);
+		fNewValue6 = 0.725f / fAspectRatioScale;
 
-		fNewValue8 = 0.69f * (fOldAspectRatio / fNewAspectRatio);
+		fNewValue7 = 0.685f / fAspectRatioScale;
 
-		std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "3B 05 ?? ?? ?? ?? 74 4E 83 4D 10 FF");
+		fNewValue8 = 0.69f / fAspectRatioScale;
+
+		std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "74 ?? 83 4D ?? ?? 68");
 		if (Pattern1ScanResult)
 		{
 			spdlog::info("Pattern 1 detected.");
 
-			Memory::PatchBytes(Pattern1ScanResult + 6, "\x90\x90", 2);
+			Memory::WriteNOPs(Pattern1ScanResult, 2);
 		}
 		else
 		{
 			spdlog::error("Failed to locate pattern 1 memory address.");
 		}
 
-		std::uint8_t* Pattern2ScanResult = Memory::PatternScan(exeModule, "8D 75 C4 F3 A5 8D 73 2C 8B CE E8 67 5C 00 00");
+		std::uint8_t* Pattern2ScanResult = Memory::PatternScan(exeModule, "8D 75 ?? F3 ?? 8D 73");
 		if (Pattern2ScanResult)
 		{
 			spdlog::info("Pattern 2 detected.");
@@ -237,7 +240,7 @@ void WidescreenFix()
 			spdlog::error("Failed to locate pattern 2 memory address.");
 		}
 
-		std::uint8_t* Pattern3ScanResult = Memory::PatternScan(exeModule, "8B B0 A0 5C 5A 00 89 71 08 8B B0 A4 5C 5A 00 89 71 0C 8B 80 A8 5C 5A 00 89 41 10 89 51 14 5E");
+		std::uint8_t* Pattern3ScanResult = Memory::PatternScan(exeModule, "8B B0 ?? ?? ?? ?? 89 71 ?? 8B B0");
 		if (Pattern3ScanResult)
 		{
 			spdlog::info("Pattern 3 detected.");
@@ -249,7 +252,7 @@ void WidescreenFix()
 			spdlog::error("Failed to locate pattern 3 memory address.");
 		}
 
-		std::uint8_t* Pattern4ScanResult = Memory::PatternScan(exeModule, "33 C9 8B 30 89 14 24 89 74 24 04 8B 70 04 89 74 24 08 8B 40 08 89 4C 24 14 89 4C 24 10");
+		std::uint8_t* Pattern4ScanResult = Memory::PatternScan(exeModule, "33 C9 8B 30");
 		if (Pattern4ScanResult)
 		{
 			spdlog::info("Pattern 4 detected.");
@@ -265,12 +268,12 @@ void WidescreenFix()
 			spdlog::error("Failed to locate pattern 4 memory address.");
 		}
 
-		std::uint8_t* Pattern5ScanResult = Memory::PatternScan(exeModule, "F9 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
+		std::uint8_t* Pattern5ScanResult = Memory::PatternScan(exeModule, "E9 ?? ?? ?? ?? 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
 		if (Pattern5ScanResult)
 		{
 			spdlog::info("Pattern 5 detected.");
 
-			Memory::PatchBytes(Pattern5ScanResult, "\xF9\xFF\x00\x8D\x73\x2C\x8B\xCE\xC7\x44\x24\x08\x80\x07\x00\x00\xC7\x44\x24\x0C\x38\x04\x00\x00\xE9\xD8\xD3\xE6\xFF\x00\x00\x00\xC7\x41\x08\x80\x07\x00\x00\xC7\x41\x0C\x38\x04\x00\x00\xC7\x41\x10\x20\x00\x00\x00\xC7\x41\x14\x00\x00\x00\x00\x5E\xC2\x04", 63);
+			Memory::PatchBytes(Pattern5ScanResult + 5, "\x00\x8D\x73\x2C\x8B\xCE\xC7\x44\x24\x08\x80\x07\x00\x00\xC7\x44\x24\x0C\x38\x04\x00\x00\xE9\xD8\xD3\xE6\xFF\x00\x00\x00\xC7\x41\x08\x80\x07\x00\x00\xC7\x41\x0C\x38\x04\x00\x00\xC7\x41\x10\x20\x00\x00\x00\xC7\x41\x14\x00\x00\x00\x00\x5E\xC2\x04", 61);
 		}
 		else
 		{
