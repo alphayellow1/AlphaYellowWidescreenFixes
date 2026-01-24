@@ -220,8 +220,6 @@ void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor, bool is
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
 
-	spdlog::info("Current Camera FOV: {:.12f}", fCurrentCameraFOV);
-
 	if (isFOVCalculated == true)
 	{
 		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
