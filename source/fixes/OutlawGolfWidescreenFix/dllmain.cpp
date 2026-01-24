@@ -56,7 +56,6 @@ float fAspectRatioScale;
 float fNewHUDAspectRatio;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
-float fNewCameraFOV3;
 
 // Game detection
 enum class Game
