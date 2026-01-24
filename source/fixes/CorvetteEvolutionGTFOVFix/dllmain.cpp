@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CorvetteEvolutionGTFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
