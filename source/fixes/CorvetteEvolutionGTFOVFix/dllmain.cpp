@@ -50,6 +50,7 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewCameraAspectRatio;
 float fNewHUDAspectRatio;
 float fNewCameraFOV;
 uintptr_t CameraFOV3Address;
@@ -264,7 +265,11 @@ void FOVFix()
 			
 			CameraAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScanResult[CameraARScan], [](SafetyHookContext& ctx)
 			{
-				FPU::FDIV(fNewAspectRatio);
+				float& fCurrentCameraAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x20);
+
+				fNewCameraAspectRatio = fCurrentCameraAspectRatio * fAspectRatioScale;
+
+				FPU::FDIV(fNewCameraAspectRatio);
 			});
 
 			Memory::WriteNOPs(AspectRatioInstructionsScanResult[HUDARScan], 4);
