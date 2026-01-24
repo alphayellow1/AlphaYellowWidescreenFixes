@@ -224,9 +224,6 @@ static SafetyHookMid ViewportResolutionIntructionsHook{};
 static SafetyHookMid CameraAspectRatioInstruction1Hook{};
 static SafetyHookMid CameraAspectRatioInstruction2Hook{};
 static SafetyHookMid HUDAspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void FOVFix()
 {
