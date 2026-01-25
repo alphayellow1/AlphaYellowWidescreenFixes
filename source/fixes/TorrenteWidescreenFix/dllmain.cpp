@@ -49,7 +49,7 @@ HMODULE dllModule25;
 
 // Fix details
 std::string sFixName = "TorrenteWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -420,6 +420,8 @@ bool DetectGame()
 		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
 		return false;
 	}
+
+	dllModule2 = Memory::GetHandle("vtKernel.dll");
 	
 	return true;
 }
@@ -427,25 +429,28 @@ bool DetectGame()
 static SafetyHookMid CameraFOVInstructionHook{};
 
 using PLDR_DLL_NOTIFICATION_COOKIE = PVOID;
+
 typedef VOID(NTAPI* PLDR_DLL_NOTIFICATION_FUNCTION)(
 	ULONG NotificationReason,
 	PVOID NotificationData,
-	PVOID Context);
+	PVOID Context
+);
 
-enum LDR_DLL_NOTIFICATION_REASON {
+enum LDR_DLL_NOTIFICATION_REASON
+{
 	LDR_DLL_NOTIFICATION_REASON_LOADED = 1,
 	LDR_DLL_NOTIFICATION_REASON_UNLOADED = 2
 };
 
-// Minimal UNICODE_STRING structure
-typedef struct _UNICODE_STRING_SIMPLE {
+typedef struct _UNICODE_STRING_SIMPLE
+{
 	USHORT Length;
 	USHORT MaximumLength;
 	PWSTR  Buffer;
 } UNICODE_STRING_SIMPLE, * PUNICODE_STRING_SIMPLE;
 
-// Notification data layout used by LdrRegisterDllNotification callbacks
-typedef struct _LDR_DLL_NOTIFICATION_DATA_SIMPLE {
+typedef struct _LDR_DLL_NOTIFICATION_DATA_SIMPLE
+{
 	ULONG Flags;
 	PUNICODE_STRING_SIMPLE FullDllName;
 	PUNICODE_STRING_SIMPLE BaseDllName;
@@ -453,68 +458,25 @@ typedef struct _LDR_DLL_NOTIFICATION_DATA_SIMPLE {
 	ULONG SizeOfImage;
 } LDR_DLL_NOTIFICATION_DATA_SIMPLE, * PLDR_DLL_NOTIFICATION_DATA_SIMPLE;
 
-// cookie for unregistering
 static PLDR_DLL_NOTIFICATION_COOKIE g_ldrNotificationCookie = nullptr;
+
 static HANDLE g_hWatcherThread = NULL;
 
-// Helper: lowercase wstring
-static std::wstring ToLowerW(const std::wstring& s)
-{
-	std::wstring out(s);
-	for (auto& c : out) c = towlower(c);
-	return out;
-}
-
-static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, bool loaded)
+static void PatchHUD(HMODULE moduleHandle, const std::wstring& baseName, bool loaded)
 {
 	if (!moduleHandle || baseName.empty())
 	{
 		return;
 	}		
 
-	std::wstring name = ToLowerW(baseName);
+	std::wstring name = Util::WStringLowercase(baseName);
 
 	if (bFixActive == true && eGameType == Game::TORRENTE)
 	{
-		if (name == L"vtkernel.dll")
-		{
-			dllModule2 = moduleHandle;
-
-			if (loaded)
-			{
-				// Located in vtCamera::ComputeProjectionMatrix
-				std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 ?? ?? ?? ?? 57");
-				if (CameraFOVInstructionScanResult)
-				{
-					spdlog::info("Camera FOV Instruction: Address is vtKernel.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
-
-					Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-					CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-						{
-							float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0xE0);
-
-							if (fCurrentCameraFOV == 0.6899999976f)
-							{
-								fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-							}
-							else
-							{
-								fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-							}
-
-							FPU::FLD(fNewCameraFOV);
-						});
-				}
-				else
-				{
-
-				}
-			}
-		}
-		else if (name == L"cochetorrente.dll")
+		if (name == L"cochetorrente.dll")
 		{
 			dllModule4 = moduleHandle;
+
 			if (loaded)
 			{
 				std::vector<std::uint8_t*> CocheTorrenteHUDInstructionsScansResult = Memory::PatternScan(dllModule4, "68 58 02 00 00 68 20 03 00 00 8D 8C 24 84 00 00 00 51 8D 54 24", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 88 00 00 00 51 8D 94", "68 58 02 00 00 68 20 03 00 00 8D 8C 24 9C 00 00 00 51 8D 94 24 A8 00 00 00 52",
@@ -1417,35 +1379,63 @@ static void HandleModule(HMODULE moduleHandle, const std::wstring& baseName, boo
 	}	
 }
 
-void SetValues()
+static const std::unordered_set<std::string> g_allowedDlls = []
 {
-	fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
-
-	fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-	iNewResX2 = (int)(800.0f * fAspectRatioScale);
-}
+	return std::unordered_set<std::string>
+	{
+		"cochetorrente.dll",
+		"comercial.dll",
+		"contadordetonador.dll",
+		"contadordinero.dll",
+		"contadormunicion.dll",
+		"contadorsalud.dll",
+		"contadortiempo.dll",
+		"fase_cuco.dll",
+		"fase_spinelli.dll",
+		"madrid_f03.dll",
+		"madrid_f04.dll",
+		"madrid_franco.dll",
+		"madrid_kio.dll",
+		"main.dll",
+		"marbella_chalets.dll",
+		"marbella_f01.dll",
+		"marbella_f02.dll",
+		"marbella_f03.dll",
+		"marbella_f04.dll",
+		"marbella_malibu.dll",
+		"radar.dll",
+		"script.dll"
+	};
+}();
 
 static VOID NTAPI LdrNotificationCallback(ULONG NotificationReason, PLDR_DLL_NOTIFICATION_DATA_SIMPLE NotificationData, PVOID Context)
 {
-	if (!NotificationData)
-		return;
-
-	if (NotificationData->BaseDllName && NotificationData->BaseDllName->Buffer)
+	if (!NotificationData || !NotificationData->BaseDllName || !NotificationData->BaseDllName->Buffer)
 	{
-		std::wstring baseName(NotificationData->BaseDllName->Buffer, NotificationData->BaseDllName->Length / sizeof(wchar_t));
-		HMODULE moduleBase = reinterpret_cast<HMODULE>(NotificationData->DllBase);
+		return;
+	}
 
-		if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_LOADED)
-		{
-			spdlog::info("DLL loaded: {}", std::string(baseName.begin(), baseName.end()));
-			HandleModule(moduleBase, baseName, true);
-		}
-		else if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_UNLOADED)
-		{
-			spdlog::info("DLL unloaded: {}", std::string(baseName.begin(), baseName.end()));
-			HandleModule(moduleBase, baseName, false);
-		}
+	std::wstring baseNameW(NotificationData->BaseDllName->Buffer, NotificationData->BaseDllName->Length / sizeof(wchar_t));
+
+	std::string baseName = Util::wstring_to_string(baseNameW);
+
+	std::string baseNameLower = Util::ToLowerAscii(baseName);
+
+	if (g_allowedDlls.find(baseNameLower) == g_allowedDlls.end())
+	{
+		return;
+	}		
+
+	HMODULE moduleBase = reinterpret_cast<HMODULE>(NotificationData->DllBase);
+	if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_LOADED)
+	{
+		spdlog::info("DLL loaded: {}", baseName);
+		PatchHUD(moduleBase, baseNameW, true);
+	}
+	else if (NotificationReason == LDR_DLL_NOTIFICATION_REASON_UNLOADED)
+	{
+		spdlog::info("DLL unloaded: {}", baseName);
+		PatchHUD(moduleBase, baseNameW, false);
 	}
 }
 
@@ -1478,8 +1468,6 @@ static DWORD WINAPI DllWatcherThread(LPVOID lpParameter)
 		return 1;
 	}
 
-	spdlog::info("DllWatcherThread: registered dll notification.");
-
 	HMODULE hMods[1024];
 	DWORD cbNeeded = 0;
 	if (EnumProcessModules(GetCurrentProcess(), hMods, sizeof(hMods), &cbNeeded))
@@ -1491,7 +1479,7 @@ static DWORD WINAPI DllWatcherThread(LPVOID lpParameter)
 			if (GetModuleBaseNameW(GetCurrentProcess(), hMods[i], name, MAX_PATH))
 			{
 				std::wstring baseName(name);
-				HandleModule(hMods[i], baseName, true);
+				PatchHUD(hMods[i], baseName, true);
 			}
 		}
 	}
@@ -1503,126 +1491,87 @@ static DWORD WINAPI DllWatcherThread(LPVOID lpParameter)
 	return 0;
 }
 
-static void PatchResolutionFromIniInDllMain(HMODULE thisModule)
+void ApplyResolutionAndFOV()
 {
-	auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-	int defaultWidth = desktopDimensions.first;
-	int defaultHeight = desktopDimensions.second;
-
-	WCHAR modulePath[MAX_PATH + 1] = { 0 };
-	if (!GetModuleFileNameW(thisModule, modulePath, MAX_PATH)) {
-		OutputDebugStringW(L"[WIDESCREEN] GetModuleFileNameW failed in DllMain\n");
-		return;
-	}
-
-	WCHAR* lastSlash = nullptr;
-	for (WCHAR* p = modulePath; *p; ++p) if (*p == L'\\' || *p == L'/') lastSlash = p;
-	size_t dirLen = lastSlash ? static_cast<size_t>(lastSlash - modulePath + 1) : wcslen(modulePath);
-
-	WCHAR iniPath[MAX_PATH + 1];
-	const wchar_t iniName[] = L"TorrenteWidescreenFix.ini";
-	if (dirLen + wcslen(iniName) >= MAX_PATH) {
-		OutputDebugStringW(L"[WIDESCREEN] INI path would overflow buffer\n");
-		return;
-	}
-	wmemcpy(iniPath, modulePath, dirLen);
-	iniPath[dirLen] = L'\0';
-	wcscat_s(iniPath, MAX_PATH + 1, iniName);
-
+	if (bFixActive == true && eGameType == Game::TORRENTE)
 	{
-		wchar_t dbg[512];
-		swprintf_s(dbg, L"[WIDESCREEN] INI path: %s\n", iniPath);
-		OutputDebugStringW(dbg);
-	}
+		fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
 
-	WCHAR enabledBuf[32] = { 0 };
-	GetPrivateProfileStringW(L"WidescreenFix", L"Enabled", L"true", enabledBuf, (int)_countof(enabledBuf), iniPath);
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-	// normalize to lowercase and trim leading spaces
-	for (WCHAR* p = enabledBuf; *p; ++p) {
-		if (*p >= L'A' && *p <= L'Z') *p = static_cast<WCHAR>(*p + (L'a' - L'A'));
-	}
+		iNewResX2 = (int)(800.0f * fAspectRatioScale);
 
-	bool fixEnabled = false;
-	if (enabledBuf[0] == L'1' || enabledBuf[0] == L't' || enabledBuf[0] == L'y' || enabledBuf[0] == L'o')
-	{
-		// starts with 1/true/yes/on
-		fixEnabled = true;
-	}
-	else
-	{
-		// also accept explicit "0" or "false" as disabled; keep default false
-		fixEnabled = false;
-	}
+		// Located in vtEngine::vtEngine and vtEngine::SetResolution
+		std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(dllModule2, "C7 83 A0 01 00 00 80 02 00 00 C7 83 A4 01 00 00 E0 01 00 00 EB 2F 83 F8 01 75 16 C7 83 A0 01 00 00 20 03 00 00 C7 83 A4 01 00 00 58 02 00 00 EB 14 C7 83 A0 01 00 00 00 04 00 00 C7 83 A4 01 00 00 00 03 00 00", "C7 86 A0 01 00 00 80 02 00 00 C7 86 A4 01 00 00 E0 01 00 00 EB 2F 83 FB 01 75 16 C7 86 A0 01 00 00 20 03 00 00 C7 86 A4 01 00 00 58 02 00 00 EB 14 C7 86 A0 01 00 00 00 04 00 00 C7 86 A4 01 00 00 00 03 00 00");
+		if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
+		{
+			spdlog::info("Resolution List 1: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList1Scan] - (std::uint8_t*)dllModule2);
 
-	if (!fixEnabled)
-	{
-		OutputDebugStringW(L"[WIDESCREEN] Fix not enabled in INI; skipping early patch.\n");
-		return;
-	}
+			spdlog::info("Resolution List 2: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList2Scan] - (std::uint8_t*)dllModule2);
 
-	int iNewWidth = static_cast<int>(GetPrivateProfileIntW(L"Settings", L"Width", defaultWidth, iniPath));
-	int iNewHeight = static_cast<int>(GetPrivateProfileIntW(L"Settings", L"Height", defaultHeight, iniPath));
+			// Resolution List 1
+			// 640x480
+			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 6, iNewResX);
 
-	dllModule2 = Memory::GetHandle("vtKernel.dll");
+			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 16, iNewResY);
 
-	// Located in vtEngine::vtEngine and vtEngine::SetResolution
-	std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(dllModule2, "C7 83 A0 01 00 00 80 02 00 00 C7 83 A4 01 00 00 E0 01 00 00 EB 2F 83 F8 01 75 16 C7 83 A0 01 00 00 20 03 00 00 C7 83 A4 01 00 00 58 02 00 00 EB 14 C7 83 A0 01 00 00 00 04 00 00 C7 83 A4 01 00 00 00 03 00 00", "C7 86 A0 01 00 00 80 02 00 00 C7 86 A4 01 00 00 E0 01 00 00 EB 2F 83 FB 01 75 16 C7 86 A0 01 00 00 20 03 00 00 C7 86 A4 01 00 00 58 02 00 00 EB 14 C7 86 A0 01 00 00 00 04 00 00 C7 86 A4 01 00 00 00 03 00 00");
-	if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
-	{
-		spdlog::info("Resolution List 1: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList1Scan] - (std::uint8_t*)dllModule2);
+			// 800x600
+			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 33, iNewResX);
 
-		spdlog::info("Resolution List 2: Address is vtKernel.dll+{:x}", ResolutionListsScansResult[ResolutionList2Scan] - (std::uint8_t*)dllModule2);
+			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 43, iNewResY);
 
-		// Resolution List 1
-		// 640x480
-		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 6, iNewWidth);
+			// 1024x768
+			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 55, iNewResX);
 
-		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 16, iNewHeight);
+			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 65, iNewResY);
 
-		// 800x600
-		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 33, iNewWidth);
+			// Resolution List 2
+			// 640x480
+			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 6, iNewResX);
 
-		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 43, iNewHeight);
+			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 16, iNewResY);
 
-		// 1024x768
-		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 55, iNewWidth);
+			// 800x600
+			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 33, iNewResX);
 
-		Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 65, iNewHeight);
+			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 43, iNewResY);
 
-		// Resolution List 2
-		// 640x480
-		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 6, iNewWidth);
+			// 1024x768
+			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 55, iNewResX);
 
-		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 16, iNewHeight);
+			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 65, iNewResY);
+		}
 
-		// 800x600
-		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 33, iNewWidth);
+		// Located in vtCamera::ComputeProjectionMatrix
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 ?? ?? ?? ?? 57");
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is vtKernel.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 43, iNewHeight);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-		// 1024x768
-		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 55, iNewWidth);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0xE0);
 
-		Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 65, iNewHeight);
-	}
-}
+				if (fCurrentCameraFOV == 0.6899999976f)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
 
-DWORD __stdcall Main(void*)
-{
-	if (DetectGame())
-	{
-		SetValues();
-	}
-
-	g_hWatcherThread = CreateThread(NULL, 0, DllWatcherThread, NULL, 0, NULL);
-	if (g_hWatcherThread)
-	{
-		SetThreadPriority(g_hWatcherThread, THREAD_PRIORITY_NORMAL);
-		CloseHandle(g_hWatcherThread);
-	}
-
-	return TRUE;
+				FPU::FLD(fNewCameraFOV);
+			});
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			return;
+		}
+	}	
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -1630,27 +1579,31 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-	{
 		thisModule = hModule;
 
 		Logging();
 		Configuration();
-
-		PatchResolutionFromIniInDllMain(thisModule);
-
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			ApplyResolutionAndFOV();
+		}
+
+		g_hWatcherThread = CreateThread(NULL, 0, DllWatcherThread, NULL, 0, NULL);
+		if (g_hWatcherThread)
+		{
+			SetThreadPriority(g_hWatcherThread, THREAD_PRIORITY_NORMAL);
+			CloseHandle(g_hWatcherThread);
 		}
 
 		break;
-	}
+
 	case DLL_THREAD_ATTACH:
+
 	case DLL_THREAD_DETACH:
+
 	case DLL_PROCESS_DETACH:
 		break;
 	}
+
 	return TRUE;
 }

@@ -43,7 +43,7 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
-float fNewFramerate;
+float fFramerate;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
@@ -158,11 +158,11 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "Framerate", fNewFramerate);
+	inipp::get_value(ini.sections["Settings"], "Framerate", fFramerate);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-	spdlog_confparse(fNewFramerate);
+	spdlog_confparse(fFramerate);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -263,28 +263,28 @@ void WidescreenFix()
 
 			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio4Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio1Scan], 7);
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio2Scan], 7);
 
 			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio3Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio3Scan], 7);
 
 			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio4Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio4Scan], 4);
 
 			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], [](SafetyHookContext& ctx)
 			{
@@ -297,7 +297,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -312,88 +312,21 @@ void WidescreenFix()
 		{
 			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
-		}		
+		}
+
+		std::uint8_t* FramerateInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? B9");
+		if (FramerateInstructionScanResult)
+		{
+			spdlog::info("Framerate Instruction: Address is{:s} + {:x}", sExeName.c_str(), FramerateInstructionScanResult - (std::uint8_t*)exeModule);
+
+			Memory::Write(FramerateInstructionScanResult + 1, fFramerate);
+		}
+		else
+		{
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			return;
+		}
 	}
-}
-
-static void PatchFramerateFromIniInDllMain(HMODULE thisModule)
-{
-	constexpr float DEFAULT_FPS = 60.0f;
-
-	WCHAR modulePath[MAX_PATH + 1] = { 0 };
-	if (!GetModuleFileNameW(thisModule, modulePath, MAX_PATH)) {
-		OutputDebugStringW(L"[WIDESCREEN] GetModuleFileNameW failed in DllMain\n");
-		return;
-	}
-
-	WCHAR* lastSlash = nullptr;
-	for (WCHAR* p = modulePath; *p; ++p) if (*p == L'\\' || *p == L'/') lastSlash = p;
-	size_t dirLen = lastSlash ? static_cast<size_t>(lastSlash - modulePath + 1) : wcslen(modulePath);
-
-	WCHAR iniPath[MAX_PATH + 1];
-	const wchar_t iniName[] = L"MXvsATVUnleashedWidescreenFix.ini";
-	if (dirLen + wcslen(iniName) >= MAX_PATH) {
-		OutputDebugStringW(L"[WIDESCREEN] INI path would overflow buffer\n");
-		return;
-	}
-	wmemcpy(iniPath, modulePath, dirLen);
-	iniPath[dirLen] = L'\0';
-	wcscat_s(iniPath, MAX_PATH + 1, iniName);
-
-	{
-		wchar_t dbg[512];
-		swprintf_s(dbg, L"[WIDESCREEN] INI path: %s\n", iniPath);
-		OutputDebugStringW(dbg);
-	}
-
-	WCHAR enabledBuf[32] = { 0 };
-	GetPrivateProfileStringW(L"WidescreenFix", L"Enabled", L"true", enabledBuf, (int)_countof(enabledBuf), iniPath);
-
-	// normalize to lowercase and trim leading spaces
-	for (WCHAR* p = enabledBuf; *p; ++p) {
-		if (*p >= L'A' && *p <= L'Z') *p = static_cast<WCHAR>(*p + (L'a' - L'A'));
-	}
-
-	bool fixEnabled = false;
-	if (enabledBuf[0] == L'1' || enabledBuf[0] == L't' || enabledBuf[0] == L'y' || enabledBuf[0] == L'o')
-	{
-		// starts with 1/true/yes/on
-		fixEnabled = true;
-	}
-	else
-	{
-		// also accept explicit "0" or "false" as disabled; keep default false
-		fixEnabled = false;
-	}
-
-	if (!fixEnabled)
-	{
-		OutputDebugStringW(L"[WIDESCREEN] Fix not enabled in INI; skipping early patch.\n");
-		return;
-	}
-
-	float framerate = static_cast<float>(GetPrivateProfileIntW(L"Settings", L"Framerate", DEFAULT_FPS, iniPath));
-
-	std::uint8_t* FramerateInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? B9");
-	if (FramerateInstructionScanResult)
-	{
-		Memory::Write(FramerateInstructionScanResult + 1, framerate);
-	}
-	else
-	{
-		return;
-	}
-}
-
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
-	}
-	return TRUE;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -404,15 +337,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 		thisModule = hModule;
 
-		PatchFramerateFromIniInDllMain(thisModule);
+		Logging();
 
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
+		Configuration();
 
-		if (mainHandle)
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			WidescreenFix();
 		}
+
 		break;
 	}
 	case DLL_THREAD_ATTACH:

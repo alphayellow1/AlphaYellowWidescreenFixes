@@ -213,9 +213,9 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "d8 b4 81", "51 56 e8 ? ? ? ? 8d 54 24 ? 52 56 e8 ? ? ? ? 8b 44 24");
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D8 B4 81", "51 56 E8 ?? ?? ?? ?? 8D 54 24 ?? 52 56 E8 ?? ?? ?? ?? 8B 44 24");
 		
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "d8 8c 81 ? ? ? ? 52", "d8 8c 81 ? ? ? ? d8 b4 81");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 8C 81 ?? ?? ?? ?? 52", "D8 8C 81 ?? ?? ?? ?? D8 B4 81");
 		
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
@@ -223,7 +223,7 @@ void FOVFix()
 
 			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AR1Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR1Scan], 7);
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1Scan], [](SafetyHookContext& ctx)
 			{
@@ -242,7 +242,7 @@ void FOVFix()
 
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[FOV1Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 7);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
@@ -253,7 +253,7 @@ void FOVFix()
 				FPU::FMUL(fNewCameraFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[FOV2Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 7);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
 			{
