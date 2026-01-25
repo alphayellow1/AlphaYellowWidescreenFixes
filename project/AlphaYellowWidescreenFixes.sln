@@ -1077,6 +1077,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JetFighterVHomelandProtecto
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KidzSportsInternationalSoccerFOVFix", "KidzSportsInternationalSoccerFOVFix.vcxproj", "{DD3E4978-9285-4516-A504-143FC8BE7F46}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AmericanChopperFOVFix", "AmericanChopperFOVFix.vcxproj", "{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5365,6 +5367,14 @@ Global
 		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Release|x64.Build.0 = Release|x64
 		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Release|x86.ActiveCfg = Release|Win32
 		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Release|x86.Build.0 = Release|Win32
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}.Debug|x64.ActiveCfg = Debug|x64
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}.Debug|x64.Build.0 = Debug|x64
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}.Debug|x86.ActiveCfg = Debug|Win32
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}.Debug|x86.Build.0 = Debug|Win32
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}.Release|x64.ActiveCfg = Release|x64
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}.Release|x64.Build.0 = Release|x64
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}.Release|x86.ActiveCfg = Release|Win32
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5905,6 +5915,7 @@ Global
 		{14D9E83E-F8C0-4510-A46A-ACB20F13E20D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{4960BE1D-8E08-4B98-92BB-556F290C09AA} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{DD3E4978-9285-4516-A504-143FC8BE7F46} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{63DA1BBC-9FFC-4EC5-A18C-C65D39CD3094} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
