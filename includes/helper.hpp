@@ -1004,6 +1004,28 @@ namespace Util
 		return {};
 	}
 
+	std::string ToLowerAscii(std::string s)
+	{
+		std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) 
+		{
+			return std::tolower(c);
+		});
+
+		return s;
+	}
+
+	std::wstring WStringLowercase(const std::wstring& s)
+	{
+		std::wstring out(s);
+
+		for (auto& c : out)
+		{
+			c = towlower(c);
+		}
+
+		return out;
+	}
+
 	std::string wstring_to_string(const wchar_t* wstr)
 	{
 		if (!wstr)
@@ -1023,6 +1045,14 @@ namespace Util
 		WideCharToMultiByte(CP_UTF8, 0, wstr, -1, out.data(), needed, nullptr, nullptr);
 
 		return out;
+	}
+
+	inline std::string wstring_to_string(const std::wstring& wstr)
+	{
+		if (wstr.empty())
+			return {};
+
+		return wstring_to_string(wstr.c_str());
 	}
 
 	bool stringcmp_caseless(const std::string& str1, const std::string& str2)

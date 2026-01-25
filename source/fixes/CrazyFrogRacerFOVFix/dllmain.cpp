@@ -64,8 +64,8 @@ enum class Game
 
 enum CameraFOVInstructionsIndex
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1Scan,
+	FOV2Scan
 };
 
 enum HUDFOVInstructionsIndex
@@ -234,22 +234,22 @@ void FOVFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? 8B 44 24 ?? D8 0D", "8B 44 24 ?? 50 51");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 6);
 
 			fNewCameraFOV1 = 179.5f;
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FLD(fNewCameraFOV1);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 4);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esp + 0x10);
 
@@ -259,7 +259,7 @@ void FOVFix()
 			});
 		}
 
-		std::vector<std::uint8_t*> HUDFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8D 84 24", "D9 05 ?? ?? ?? ?? 8D 0C CD", "D8 70 ?? E8 ?? ?? ?? ??", "D8 49 ?? 8B 4C 24 ?? 85 C9", "D8 49 ?? 8B 54 24", "D8 48 ? A1 ?? ?? ?? ??");
+		std::vector<std::uint8_t*> HUDFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8D 84 24", "D9 05 ?? ?? ?? ?? 8D 0C CD", "D8 70 ?? E8 ?? ?? ?? ??", "D8 49 ?? 8B 4C 24 ?? 85 C9", "D8 49 ?? 8B 54 24", "D8 48 ?? A1 ?? ?? ?? ??");
 		if (Memory::AreAllSignaturesValid(HUDFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("HUD HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDFOVInstructionsScansResult[HUDHFOVScan] - (std::uint8_t*)exeModule);
@@ -280,26 +280,26 @@ void FOVFix()
 
 			fNewRaceMapHUDVFOV = fOldAspectRatio / fAspectRatioScale;
 
-			Memory::PatchBytes(HUDFOVInstructionsScansResult[HUDVFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(HUDFOVInstructionsScansResult[HUDVFOV1Scan], 6);
 
 			MapRadarVFOVInstruction1Hook = safetyhook::create_mid(HUDFOVInstructionsScansResult[HUDVFOV1Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FLD(fNewRaceMapHUDVFOV);
 			});
 
-			Memory::PatchBytes(HUDFOVInstructionsScansResult[HUDVFOV2Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(HUDFOVInstructionsScansResult[HUDVFOV2Scan], 3);
 
 			MapRadarVFOVInstruction2Hook = safetyhook::create_mid(HUDFOVInstructionsScansResult[HUDVFOV2Scan], HUDVFOVInstruction2MidHook);
 
-			Memory::PatchBytes(HUDFOVInstructionsScansResult[HUDVFOV3Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(HUDFOVInstructionsScansResult[HUDVFOV3Scan], 3);
 
 			MapRadarVFOVInstruction3Hook = safetyhook::create_mid(HUDFOVInstructionsScansResult[HUDVFOV3Scan], HUDVFOVInstruction1MidHook);
 			
-			Memory::PatchBytes(HUDFOVInstructionsScansResult[HUDVFOV4Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(HUDFOVInstructionsScansResult[HUDVFOV4Scan], 3);
 
 			MapRadarVFOVInstruction4Hook = safetyhook::create_mid(HUDFOVInstructionsScansResult[HUDVFOV4Scan], HUDVFOVInstruction1MidHook);
 
-			Memory::PatchBytes(HUDFOVInstructionsScansResult[HUDVFOV5Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(HUDFOVInstructionsScansResult[HUDVFOV5Scan], 3);
 
 			MapRadarVFOVInstruction5Hook = safetyhook::create_mid(HUDFOVInstructionsScansResult[HUDVFOV5Scan], HUDVFOVInstruction1MidHook);
 		}

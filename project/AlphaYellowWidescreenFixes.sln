@@ -1075,6 +1075,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PacFishWidescreenFix", "Pac
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JetFighterVHomelandProtectorFOVFix", "JetFighterVHomelandProtectorFOVFix.vcxproj", "{4960BE1D-8E08-4B98-92BB-556F290C09AA}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KidzSportsInternationalSoccerFOVFix", "KidzSportsInternationalSoccerFOVFix.vcxproj", "{DD3E4978-9285-4516-A504-143FC8BE7F46}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5355,6 +5357,14 @@ Global
 		{4960BE1D-8E08-4B98-92BB-556F290C09AA}.Release|x64.Build.0 = Release|x64
 		{4960BE1D-8E08-4B98-92BB-556F290C09AA}.Release|x86.ActiveCfg = Release|Win32
 		{4960BE1D-8E08-4B98-92BB-556F290C09AA}.Release|x86.Build.0 = Release|Win32
+		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Debug|x64.ActiveCfg = Debug|x64
+		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Debug|x64.Build.0 = Debug|x64
+		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Debug|x86.ActiveCfg = Debug|Win32
+		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Debug|x86.Build.0 = Debug|Win32
+		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Release|x64.ActiveCfg = Release|x64
+		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Release|x64.Build.0 = Release|x64
+		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Release|x86.ActiveCfg = Release|Win32
+		{DD3E4978-9285-4516-A504-143FC8BE7F46}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5894,6 +5904,7 @@ Global
 		{3BDBE309-E194-442D-895A-3928DDE9FA15} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{14D9E83E-F8C0-4510-A46A-ACB20F13E20D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{4960BE1D-8E08-4B98-92BB-556F290C09AA} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{DD3E4978-9285-4516-A504-143FC8BE7F46} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}

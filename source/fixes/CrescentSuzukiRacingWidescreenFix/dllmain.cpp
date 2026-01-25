@@ -239,14 +239,14 @@ void WidescreenFix()
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution3Scan], 6);
 
 			ResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 13, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution3Scan] + 13, 6);
 
 			ResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan] + 13, [](SafetyHookContext& ctx)
 			{
@@ -269,7 +269,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -282,14 +282,14 @@ void WidescreenFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8b 56 ? 50 68 ? ? ? ? 51 8b 0e 52 e8 ? ? ? ? d9 46 ? d8 0d ? ? ? ? d9 f2 dd d8 dd 05 ? ? ? ? d9 f2 dd d8 d9 c9 d9 c9 de f9 d8 15 ? ? ? ? df e0 f6 c4 ? 7a ? d8 0d ? ? ? ? d9 05 ? ? ? ? d8 25 ? ? ? ? de c1 8b 06 d9 98 ? ? ? ? 8b 0e e8 ? ? ? ? 8b 36 56 b9 ? ? ? ? e8 ? ? ? ? 89 35 ? ? ? ? 5e c2 ? ? cc", "C7 43 ?? ?? ?? ?? ?? 89 43");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 56 ?? 50 68 ?? ?? ?? ?? 51 8B 0E 52 E8 ?? ?? ?? ?? D9 46 ?? D8 0D ?? ?? ?? ?? D9 F2 DD D8 DD 05 ?? ?? ?? ?? D9 F2 DD D8 D9 C9 D9 C9 DE F9 D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 7A ?? D8 0D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 25 ?? ?? ?? ?? DE C1 8B 06 D9 98 ?? ?? ?? ?? 8B 0E E8 ?? ?? ?? ?? 8B 36 56 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 5E C2 ?? ?? CC", "C7 43 ?? ?? ?? ?? ?? 89 43");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 3); // NOP out the original instruction
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{

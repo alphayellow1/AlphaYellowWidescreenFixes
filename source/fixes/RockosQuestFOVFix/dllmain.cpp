@@ -290,10 +290,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		if (!bInitializationFailed)
 		{
 			spdlog::info("DLL has been successfully unloaded.");
+
 			spdlog::shutdown();
-			// Hooks go out of scope and clean up automatically
 		}
 		break;
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
 		break;

@@ -274,7 +274,7 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 0C 85 ?? ?? ?? ?? 8B 14 85 ?? ?? ?? ?? 89 0D", "8b 14 8d ? ? ? ? 8b 0c 8d", "8b 34 85", "8b 14 85 ? ? ? ? 8b 04 85", "8b 0c 85 ? ? ? ? 8b 14 85", "8b 04 95 ? ? ? ? 50", "8b 04 95 ? ? ? ? 8b 56", "8b 0c 85 ? ? ? ? 89 4c 24", "8b 04 bd ? ? ? ? 8b 1e 89 44 24 ? df 6c 24 ? dc 0d ? ? ? ? e8 ? ? ? ? 8b 0c bd ? ? ? ? c7 44 24 ? ? ? ? ? 89 4c 24 ? 50 df 6c 24 ? dc 0d ? ? ? ? e8 ? ? ? ? 8b 54 24", "8b 04 bd ? ? ? ? 8b 1e 89 44 24 ? df 6c 24 ? dc 0d ? ? ? ? e8 ? ? ? ? 8b 0c bd ? ? ? ? c7 44 24 ? ? ? ? ? 89 4c 24 ? 50 df 6c 24 ? dc 0d ? ? ? ? e8 ? ? ? ? 8b d3", "8b 0c bd ? ? ? ? 8b 1e 89 4c 24 ? df 6c 24 ? dc 0d ? ? ? ? e8 ? ? ? ? 8b 14 bd ? ? ? ? c7 44 24 ? ? ? ? ? 89 54 24 ? 50 df 6c 24 ? dc 0d ? ? ? ? e8 ? ? ? ? 50", "8b 0c bd ? ? ? ? 8b 1e 89 4c 24 ? df 6c 24 ? dc 0d ? ? ? ? e8 ? ? ? ? 8b 14 bd ? ? ? ? c7 44 24 ? ? ? ? ? 89 54 24 ? 50 df 6c 24 ? dc 0d ? ? ? ? e8 ? ? ? ? 89 5c 24", "8b 1c 85", "8b 0c 85 ? ? ? ? 52 8b 14 85", "8b 04 95 ? ? ? ? 89 7c 24 ? 89 44 24 ? d8 05", "8b 04 95 ? ? ? ? 89 7c 24 ? 89 44 24 ? 8b 14 95", "8b 04 95 ? ? ? ? 89 7c 24 ? 89 44 24 ? 8b 0c 95");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 0C 85 ?? ?? ?? ?? 8B 14 85 ?? ?? ?? ?? 89 0D", "8B 14 8D ?? ?? ?? ?? 8B 0C 8D", "8B 34 85", "8B 14 85 ?? ?? ?? ?? 8B 04 85", "8B 0C 85 ?? ?? ?? ?? 8B 14 85", "8B 04 95 ?? ?? ?? ?? 50", "8B 04 95 ?? ?? ?? ?? 8B 56", "8B 0C 85 ?? ?? ?? ?? 89 4C 24", "8B 04 BD ?? ?? ?? ?? 8B 1E 89 44 24 ?? DF 6C 24 ?? DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 0C BD ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 89 4C 24 ?? 50 DF 6C 24 ?? DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 54 24", "8B 04 BD ?? ?? ?? ?? 8B 1E 89 44 24 ?? DF 6C 24 ?? DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 0C BD ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 89 4C 24 ?? 50 DF 6C 24 ?? DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B D3", "8B 0C BD ?? ?? ?? ?? 8B 1E 89 4C 24 ?? DF 6C 24 ?? DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 14 BD ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 89 54 24 ?? 50 DF 6C 24 ?? DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 50", "8B 0C BD ?? ?? ?? ?? 8B 1E 89 4C 24 ?? DF 6C 24 ?? DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 14 BD ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 89 54 24 ?? 50 DF 6C 24 ?? DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 89 5C 24", "8B 1C 85", "8B 0C 85 ?? ?? ?? ?? 52 8B 14 85", "8B 04 95 ?? ?? ?? ?? 89 7C 24 ?? 89 44 24 ?? D8 05", "8B 04 95 ?? ?? ?? ?? 89 7C 24 ?? 89 44 24 ?? 8B 14 95", "8B 04 95 ?? ?? ?? ?? 89 7C 24 ?? 89 44 24 ?? 8B 0C 95");
 
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D8 86 ?? ?? ?? ?? D8 4C 24 ?? D9 18", "D9 86 ?? ?? ?? ?? D9 C0 D8 4D ?? 51 D9 1C ?? 51 D9 C0 D8 4D ?? D9 1C ?? 51 8D 4C 24 ?? D8 4D ?? D9 1C ?? E8 ?? ?? ?? ?? 50 8D 4C 24 ?? E8 ?? ?? ?? ?? D9 44 24", "D8 86 ?? ?? ?? ?? D8 4C 24 ?? D9 58 ?? D9 44 24 ?? D8 86 ?? ?? ?? ?? D8 4C 24 ?? D9 58 ?? D9 44 24", "D9 86 ?? ?? ?? ?? D9 C0 D8 4D ?? 51 D9 1C ?? 51 D9 C0 D8 4D ?? D9 1C ?? 51 8D 4C 24 ?? D8 4D ?? D9 1C ?? E8 ?? ?? ?? ?? 50 8D 4C 24 ?? E8 ?? ?? ?? ?? 8D 54 24");
 		
@@ -316,7 +316,7 @@ void WidescreenFix()
 
 			spdlog::info("Viewport Resolution Instructions 16 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution16Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[RendererResolutionScan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResolutionScan], 14);
 
 			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolutionScan], [](SafetyHookContext& ctx)
 			{
@@ -325,7 +325,7 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution1Scan], 14);
 
 			ViewportResolutionInstructions1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution1Scan], [](SafetyHookContext& ctx)
 			{
@@ -334,7 +334,7 @@ void WidescreenFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution2Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution2Scan], 14);
 
 			ViewportResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan], [](SafetyHookContext& ctx)
 			{
@@ -343,7 +343,7 @@ void WidescreenFix()
 				ctx.ebp = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution3Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution3Scan], 14);
 
 			ViewportResolutionInstructions3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution3Scan], [](SafetyHookContext& ctx)
 			{
@@ -352,7 +352,7 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution4Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution4Scan], 14);
 
 			ViewportResolutionInstructions4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution4Scan], [](SafetyHookContext& ctx)
 			{
@@ -361,21 +361,21 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolutionWidth5Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolutionWidth5Scan], 7);
 
 			ViewportResolutionWidthInstruction5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolutionWidth5Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolutionWidth6Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolutionWidth6Scan], 7);
 
 			ViewportResolutionWidthInstruction6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolutionWidth6Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolutionHeight7Scan], "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolutionHeight7Scan], 7);
 
 			ViewportResolutionHeightInstruction7Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolutionHeight7Scan], [](SafetyHookContext& ctx)
 			{
@@ -456,7 +456,7 @@ void WidescreenFix()
 
 			spdlog::info("Camera HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CameraHFOV4Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[CameraHFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[CameraHFOV1Scan], 6);
 
 			CameraHFOVInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CameraHFOV1Scan], [](SafetyHookContext& ctx)
 			{
@@ -467,7 +467,7 @@ void WidescreenFix()
 				FPU::FADD(fNewCameraHFOV1);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[CameraHFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[CameraHFOV2Scan], 6);
 
 			CameraHFOVInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CameraHFOV2Scan], [](SafetyHookContext& ctx)
 			{
@@ -478,7 +478,7 @@ void WidescreenFix()
 				FPU::FLD(fNewCameraHFOV2);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[CameraHFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[CameraHFOV3Scan], 6);
 
 			CameraHFOVInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CameraHFOV3Scan], [](SafetyHookContext& ctx)
 			{
@@ -489,7 +489,7 @@ void WidescreenFix()
 				FPU::FADD(fNewCameraHFOV3);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[CameraHFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[CameraHFOV4Scan], 6);
 
 			CameraHFOVInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CameraHFOV4Scan], [](SafetyHookContext& ctx)
 			{
@@ -515,27 +515,27 @@ void WidescreenFix()
 
 			spdlog::info("Camera FOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV6Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 6);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], CameraFOVInstructionsMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], CameraFOVInstructionsMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV3Scan], 6);
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], CameraFOVInstructionsMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV4Scan], 6);
 
 			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV4Scan], CameraFOVInstructionsMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV5Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV5Scan], 6);
 
 			CameraFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV5Scan], CameraFOVInstructionsMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV6Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV6Scan], 6);
 
 			CameraFOVInstruction6Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV6Scan], CameraFOVInstructionsMidHook);
 		}
