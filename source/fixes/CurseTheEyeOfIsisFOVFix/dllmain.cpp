@@ -28,7 +28,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CurseTheEyeOfIsisFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,20 +43,17 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.0001f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
 float fNewAspectRatio;
-float fNewCameraFOV;
-float fFOVFactor;
 float fAspectRatioScale;
-float fCurrentCameraHFOV;
-float fCurrentCameraVFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -64,6 +61,12 @@ enum class Game
 	CTEOI,
 	CTEOI_RUNCURSE,
 	Unknown
+};
+
+enum CameraFOVInstructionScans
+{
+	FOV1Scan,
+	FOV2Scan
 };
 
 struct GameInfo
@@ -194,6 +197,18 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstruction1Hook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
+
+void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor, uintptr_t& destinationRegister, SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
+
+	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
+
+	destinationRegister = std::bit_cast<uintptr_t>(fNewCameraFOV);	
+}
+
 void FOVFix()
 {
 	if ((eGameType == Game::CTEOI || eGameType == Game::CTEOI_RUNCURSE) && bFixActive == true)
@@ -202,88 +217,39 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C 8B 46 04 85 C0");
-		if (CameraHFOVInstructionScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B 11");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			static std::vector<float> vComputedHFOVs;
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Convert the ECX register value to float
-				fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
-
-				// Skip processing if a similar HFOV (within tolerance) has already been computed
-				bool bHFOVAlreadyComputed = std::any_of(vComputedHFOVs.begin(), vComputedHFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraHFOV) < fTolerance;
-				});
-
-				if (bHFOVAlreadyComputed)
-				{
-					return;
-				}
-
-				// Compute the new HFOV value
-				fCurrentCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
-
-				// Record the computed HFOV for future calls
-				vComputedHFOVs.push_back(fCurrentCameraHFOV);
-
-				// Update the ECX register with the new HFOV value
-				ctx.ecx = std::bit_cast<uintptr_t>(fCurrentCameraHFOV);
-			});
+			Memory::Write(AspectRatioInstructionScanResult + 1, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera HFOV instruction memory address.");
+			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 56 6C 8B 46 04 85 C0 D9 5E 70");
-		if (CameraVFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 8B 4E ?? D9 5E", "8B 88 ?? ?? ?? ?? 51 8B 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 7C 24");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
 
-			static std::vector<float> vComputedVFOVs;
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 4);
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
-				// Convert the ECX register value to float
-				fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
-
-				// Skip processing if a similar VFOV (within tolerance) has already been computed
-				bool bVFOVAlreadyComputed = std::any_of(vComputedVFOVs.begin(), vComputedVFOVs.end(),
-				[&](float computedValue)
-				{
-					return std::fabs(computedValue - fCurrentCameraVFOV) < fTolerance;
-				});
-
-				if (bVFOVAlreadyComputed)
-				{
-					return;
-				}
-
-				// Compute the new VFOV value
-				fCurrentCameraVFOV = fCurrentCameraHFOV / fNewAspectRatio;
-
-				// Record the computed VFOV for future calls
-				vComputedVFOVs.push_back(fCurrentCameraVFOV);
-
-				// Update the ECX register with the new VFOV value
-				ctx.edx = std::bit_cast<uintptr_t>(fCurrentCameraVFOV);
+				CameraFOVInstructionsMidHook(ctx.esp + 0xC, fFOVFactor, ctx.eax, ctx);
 			});
-		}
-		else
-		{
-			spdlog::info("Cannot locate the camera VFOV instruction memory address.");
-			return;
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 6);
+
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.eax + 0x260, 1.0f, ctx.ecx, ctx);
+			});
 		}
 	}
 }
