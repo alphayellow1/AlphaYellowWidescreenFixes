@@ -12,7 +12,7 @@ This repository is dedicated to enhancing the experience of classic PC games. It
 - x32dbg (for debugging/comparing assembly code)
 - Ghidra (for analyzing the decompiled code)
 - HxD (for hex editing files)
-- Visual Studio 2022 Community Edition (for building the C++ DLLs and writing custom logic for the hooks)
+- Visual Studio 2026 Community Edition (for building the C++ DLLs and writing custom logic for the hooks)
 
 ## Features
 - **FOV Fixes:** Fix the field of view to prevent cropping or stretching, and improve immersion.
