@@ -63,10 +63,16 @@ enum class Game
 	Unknown
 };
 
-enum ResolutionInstructionsIndex
+enum ResolutionInstructionsIndices
 {
-	RendererResolution,
-	ViewportResolution,
+	RendererResScan,
+	ViewportResScan
+};
+
+enum CameraFOVInstructionsIndices
+{
+	HFOVScan,
+	VFOVScan
 };
 
 struct GameInfo
@@ -214,68 +220,67 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 0F 89 0D ?? ?? ?? ?? 8B 57 04", "89 4D 0C 74 05 8B 48 10 EB 03 8B 4A 08 85 FF 89 4D 08");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Renderer Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResolution] - (std::uint8_t*)exeModule);
+			spdlog::info("Renderer Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResScan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolution] - (std::uint8_t*)exeModule);
+			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResScan] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResolution], 2);			
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResScan], 2);			
 
-			RendererResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolution], [](SafetyHookContext& ctx)
+			RendererResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResScan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResolution] + 8, 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResScan] + 8, 3);
 			
-			RendererResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolution] + 8, [](SafetyHookContext& ctx)
+			RendererResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResScan] + 8, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution], 3);			
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResScan], 3);
 
-			ViewportResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution], [](SafetyHookContext& ctx)
+			ViewportResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResScan], [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.ebp + 0xC) = iCurrentResX;
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution] + 15, 3);			
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResScan] + 15, 3);
 
-			ViewportResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution] + 15, [](SafetyHookContext& ctx)
+			ViewportResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResScan] + 15, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.ebp + 0x8) = iCurrentResY;
 			});
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 89 4C 24 ?? D8 B6", "d8 b6 ? ? ? ? d8 4c 24 ? d9 5c 24");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HFOVScan] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);			
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[VFOVScan] - (std::uint8_t*)exeModule);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HFOVScan], 4);
+
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HFOVScan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x1C);
 
-				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
+				fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult + 9, 3);			
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[VFOVScan], 6);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[VFOVScan], [](SafetyHookContext& ctx)
 			{
-				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x2E0);
 
-				*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
+				fNewCameraVFOV = fCurrentCameraVFOV / fAspectRatioScale / fFOVFactor;
+
+				FPU::FDIV(fNewCameraVFOV);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
-			return;
 		}
 	}
 }
