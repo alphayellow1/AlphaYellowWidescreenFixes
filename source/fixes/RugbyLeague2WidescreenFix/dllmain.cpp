@@ -72,7 +72,12 @@ enum ResolutionInstructionsIndices
 	Res2Scan,
 	Res3Scan,
 	Res4Scan,
-	Res5Scan
+	Res5Scan,
+	Res6Scan,
+	Res7Scan,
+	Res8Scan,
+	Res9Scan,
+	Res10Scan
 };
 
 enum CameraFOVInstructionsIndices
@@ -222,14 +227,20 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid ResolutionWidthInstructionHook{};
-static SafetyHookMid ResolutionHeightInstructionHook{};
-static SafetyHookMid Resolution5WidthInstructionHook{};
-static SafetyHookMid Resolution5HeightInstructionHook{};
+static SafetyHookMid ResolutionInstructions1Hook{};
+static SafetyHookMid ResolutionInstructions2Hook{};
+static SafetyHookMid ResolutionInstructions4Hook{};
+static SafetyHookMid ResolutionWidthInstruction6Hook{};
+static SafetyHookMid ResolutionHeightInstruction6Hook{};
 static SafetyHookMid HUDAspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructions15Hook{};
 static SafetyHookMid CameraHFOVInstruction16Hook{};
 static SafetyHookMid CameraVFOVInstruction16Hook{};
+static SafetyHookMid ViewportResolutionInstructions1Hook{};
+static SafetyHookMid ViewportResolutionWidthInstruction2Hook{};
+static SafetyHookMid ViewportResolutionHeightInstruction2Hook{};
+static SafetyHookMid ViewportResolutionWidthInstruction3Hook{};
+static SafetyHookMid ViewportResolutionHeightInstruction3Hook{};
 
 void WidescreenFix()
 {
@@ -239,62 +250,85 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "C2 00 C7 02 80 02 00 00 A1 94 10 C2 00 C7 40 04 E0 01 00 00", "C6 44 24 1C 05 C7 06 80 02 00 00 C7 46 04 E0 01 00 00", "68 E0 01 00 00 68 80 02 00 00 E8 C0 29 22 00 83 C4 0C C7 44 24 0C 38 E8 AE 00 89 5C 24 10 C7 44 24 14 E0 01 00 00 89 5C 24 18 C7 44 24 1C 80 02 00 00 8B 15 E0 AB BC 00 8B 42 24 8B 48 04 8B 01 8D 54 24 0C 52 89 5C 24 48 FF 50 50 A1 24 97 BC 00 8B 70 64 3B F3 74 3A 57 8B CE E8 8F 21 21 00 8B 78 60 8B CE E8 85 21 21 00 3B FB 8B 40 64 74 0E C7 47 0C 80 02 00 00 C7 47 10 E0 01 00 00 3B C3 5F 74 0E C7 40 0C 80 02 00 00 C7 40 10 E0 01 00", "8B 0F 89 0D 60 9B C2 00 8B 57 04 89 15 64 9B C2 00", "8B 81 4C 01 00 00 C3 90 90 90 90 CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC A1 24 97 BC 00 8A 50 70 84 D2 74 06 B8 E0 01 00 00 C3 8B 49 10 8B 81 50 01 00 00 C3 90 90 90 90");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8b 0f 89 0d", "89 28 8b 0d", "c7 47 ? ? ? ? ? c7 47 ? ? ? ? ? 3b c3", "89 73 ? 89 7b ? 89 70", "c7 40 ? ? ? ? ? c7 40 ? ? ? ? ? c7 44 24", "8b 54 24 ? 89 81 ? ? ? ? 89 91 ? ? ? ? c2 ? ? 90 90 90 90 90 90 90 90 90 8b 44 24", "c7 06 ? ? ? ? c7 46 ? ? ? ? ? c7 46 ? ? ? ? ? 8d 48", "c7 02 ? ? ? ? a1 ? ? ? ? c7 40", "68 ? ? ? ? 68 ? ? ? ? e8 ? ? ? ? 83 c4 ? c7 44 24", "c7 44 24 ? ? ? ? ? 89 5c 24 ? c7 44 24 ? ? ? ? ? 8b 15");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res5Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution Instructions 6 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res6Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution Instructions 7 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res7Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution Instructions 8 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res8Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution Instructions 9 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res9Scan] - (std::uint8_t*)exeModule);
+			
+			spdlog::info("Resolution Instructions 10 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res10Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res5Scan] - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res1Scan] + 4, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res1Scan] + 16, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res2Scan] + 7, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res2Scan] + 14, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 1, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 6, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 34, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 46, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 116, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 123, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 135, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 142, iCurrentResY);			
-
-			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4Scan], [](SafetyHookContext& ctx)
+			ResolutionInstructions1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1Scan], [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.edi) = iCurrentResX;
-			});			
 
-			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4Scan] + 8, [](SafetyHookContext& ctx)
-			{
 				*reinterpret_cast<int*>(ctx.edi + 0x4) = iCurrentResY;
-			});			
-
-			Resolution5WidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5Scan], [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.ecx + 0x14C) = iCurrentResX;
-			});			
-
-			Resolution5HeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5Scan] + 48, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.ecx + 0x150) = iCurrentResY;
 			});
+
+			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2Scan], [](SafetyHookContext& ctx)
+			{
+				ctx.ebp = std::bit_cast<uintptr_t>(iCurrentResX);
+
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+
+			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 3, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res3Scan] + 10, iCurrentResY);
+
+			ResolutionInstructions4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4Scan], [](SafetyHookContext& ctx)
+			{
+				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResX);
+
+				ctx.edi = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+
+			Memory::Write(ResolutionInstructionsScansResult[Res5Scan] + 3, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res5Scan] + 10, iCurrentResY);
+
+			ResolutionWidthInstruction6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res6Scan], [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ctx.esp + 0x8) = iCurrentResX;
+			});
+
+			ResolutionHeightInstruction6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res6Scan] + 32, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ctx.esp + 0x8) = iCurrentResY;
+			});
+
+			Memory::Write(ResolutionInstructionsScansResult[Res7Scan] + 2, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res7Scan] + 9, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res7Scan] + 16, 32);
+			
+			Memory::Write(ResolutionInstructionsScansResult[Res8Scan] + 2, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res8Scan] + 14, iCurrentResY);
+			
+			Memory::Write(ResolutionInstructionsScansResult[Res9Scan] + 6, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res9Scan] + 1, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res10Scan] + 16, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res10Scan] + 4, iCurrentResY);			
 		}
 
 		std::uint8_t* HUDAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 4F ?? 50 51 8B CE");
@@ -308,9 +342,13 @@ void WidescreenFix()
 			{
 				float& fCurrentHUDAspectRatio = *reinterpret_cast<float*>(ctx.edi + 0x34);
 
-				if (fCurrentHUDAspectRatio != fNewHUDAspectRatio)
+				if (fCurrentHUDAspectRatio == 315.9798584f)
 				{
 					fNewHUDAspectRatio = fCurrentHUDAspectRatio * fAspectRatioScale;
+				}
+				else
+				{
+					fNewHUDAspectRatio = fCurrentHUDAspectRatio;
 				}
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewHUDAspectRatio);
@@ -326,7 +364,7 @@ void WidescreenFix()
 			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 89 5C 24", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 83 C4 ?? C2 ?? ?? 8B FF", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 83 C4 ?? C2 ?? ?? CC", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 81 C4", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4C 24 ?? 5F",
 			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 83 C4 ?? C2 ?? ?? 90 90 90 90 90 CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC 8B C1",
 			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 83 C4 ?? C2 ?? ?? 90 90 90 90 90 CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC CC 6A",
-			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 83 C4 ?? C2 ?? ?? 90 90 CC", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? C2 ?? ?? 90 90 90 90 90 90 CC", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 83 C4 ?? C2 ?? ?? 90 90 90 90 90 90", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? C2 ?? ?? 90 90 90 90 90 90 90", "8B 46 ?? 8B 4E ?? 50 51 8B 0D", "D9 46 ?? 83 EC ?? D8 66");
+			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 83 C4 ?? C2 ?? ?? 90 90 CC", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? C2 ?? ?? 90 90 90 90 90 90 CC", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E 83 C4 ?? C2 ?? ?? 90 90 90 90 90 90", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? C2 ?? ?? 90 90 90 90 90 90 90", "8B 46 ?? 8B 4E ?? 50 51 8B 0D", "d8 46 ? d9 5c 24 ? d9 46 ? d8 66");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionScanResult) == true)
 		{
 			spdlog::info("Camera FOV Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult[FOV1Scan] - (std::uint8_t*)exeModule);
@@ -444,46 +482,35 @@ void WidescreenFix()
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV15);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult[FOV16Scan] + 21, 3);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult[FOV16Scan] + 16, 3);
 
-			CameraHFOVInstruction16Hook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV16Scan] + 21, [](SafetyHookContext& ctx)
+			CameraHFOVInstruction16Hook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV16Scan] + 16, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV16 = *reinterpret_cast<float*>(ctx.esi + 0x2C);
+				float& fCurrentCameraHFOV16 = *reinterpret_cast<float*>(ctx.esi + 0x38);
 
 				if (fCurrentCameraHFOV16 != fNewCameraHFOV16)
 				{
 					fNewCameraHFOV16 = fCurrentCameraHFOV16 * fAspectRatioScale * fFOVFactor;
 				}
 
-				FPU::FLD(fNewCameraHFOV16);
+				FPU::FADD(fNewCameraHFOV16);
 			});
 
 			Memory::WriteNOPs(CameraFOVInstructionScanResult[FOV16Scan], 3);
 
 			CameraVFOVInstruction16Hook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV16Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV16 = *reinterpret_cast<float*>(ctx.esi + 0x30);
+				float& fCurrentCameraVFOV16 = *reinterpret_cast<float*>(ctx.esi + 0x3C);
 
 				if (fCurrentCameraVFOV16 != fNewCameraVFOV16)
 				{
 					fNewCameraVFOV16 = fCurrentCameraVFOV16 * fFOVFactor;
 				}
 
-				FPU::FLD(fNewCameraVFOV16);
+				FPU::FADD(fNewCameraVFOV16);
 			});
 		}
 	}
-}
-
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
-	}
-	return TRUE;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -493,11 +520,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		Logging();
+		Configuration();
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			WidescreenFix();
 		}
 		break;
 	}
