@@ -1,10 +1,10 @@
-﻿#include "stdafx.h"
+﻿#pragma once
+#include "stdafx.h"
 #include <cmath>
 #include <string>
 #include <cstdint>
 #include <charconv>
 #include <type_traits>
-#include <windows.h>
 #include <cstring>
 #include <array>
 #include <climits>
@@ -1681,6 +1681,11 @@ namespace Maths
 		LessThan,
 		GreaterThan
 	};
+
+	inline bool isCloseRel(float a, float b, float rel = 0.002f)
+	{
+		return std::fabs(a - b) <= rel * std::max(std::fabs(a), std::fabs(b));
+	}
 
 	template<Arithmetic T, Arithmetic U = T>
 	inline bool isClose(T originalValue, T comparedValue, U toleranceCheck = static_cast<U>(Maths::defaultTolerance), ComparisonOperator op = ComparisonOperator::LessThan, bool inclusive = false)

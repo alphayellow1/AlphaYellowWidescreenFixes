@@ -3,6 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 
 #include <cassert>
+#define NOMINMAX
 #include <windows.h>
 #include <fstream>
 #include <iostream>
