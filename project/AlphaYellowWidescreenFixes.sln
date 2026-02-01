@@ -1083,6 +1083,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TomAndJerryInFistsOfFurryFO
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PerfectAce2TheChampionshipsWidescreenFix", "PerfectAce2TheChampionshipsWidescreenFix.vcxproj", "{08EE0DF4-B7FE-47A2-846A-730A6227E8B6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DeadRisingFOVChanger", "DeadRisingFOVChanger.vcxproj", "{24355EFB-3D82-43FA-8E87-5F2464DC1252}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5395,6 +5397,14 @@ Global
 		{08EE0DF4-B7FE-47A2-846A-730A6227E8B6}.Release|x64.Build.0 = Release|x64
 		{08EE0DF4-B7FE-47A2-846A-730A6227E8B6}.Release|x86.ActiveCfg = Release|Win32
 		{08EE0DF4-B7FE-47A2-846A-730A6227E8B6}.Release|x86.Build.0 = Release|Win32
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252}.Debug|x64.ActiveCfg = Debug|x64
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252}.Debug|x64.Build.0 = Debug|x64
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252}.Debug|x86.ActiveCfg = Debug|Win32
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252}.Debug|x86.Build.0 = Debug|Win32
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252}.Release|x64.ActiveCfg = Release|x64
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252}.Release|x64.Build.0 = Release|x64
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252}.Release|x86.ActiveCfg = Release|Win32
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -5938,6 +5948,7 @@ Global
 		{4B1AA497-E655-43D1-8DAF-8297BDB4C6A0} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{1EACEF6E-FB2D-4A9B-81F7-C9DBB10C5823} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{08EE0DF4-B7FE-47A2-846A-730A6227E8B6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{24355EFB-3D82-43FA-8E87-5F2464DC1252} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
