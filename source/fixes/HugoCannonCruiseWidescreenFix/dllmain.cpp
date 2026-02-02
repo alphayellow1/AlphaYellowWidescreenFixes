@@ -28,7 +28,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "HugoCannonCruiseWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -46,14 +46,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraHFOV;
+uint8_t* CameraVFOVAddress;
 float fNewCameraVFOV;
 
 // Game detection
@@ -192,6 +193,10 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid ResolutionInstructionsHook{};
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
+
 void WidescreenFix()
 {
 	if (bFixActive == true)
@@ -203,11 +208,9 @@ void WidescreenFix()
 			{
 				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90", 5);
+				Memory::WriteNOPs(ResolutionInstructionsScanResult, 5);				
 
-				static SafetyHookMid ResolutionInstructionsMidHook{};
-
-				ResolutionInstructionsMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+				ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 				{
 					*reinterpret_cast<int*>(ctx.eax) = iCurrentResX;
 
@@ -227,58 +230,40 @@ void WidescreenFix()
 
 			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 4E 68 8B 50 04 D8 76 68 89 56 6C");
-			if (CameraFOVInstructionScanResult)
+			std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "d8 0d ? ? ? ? 8b 44 24 ? 8b 4c 24");
+			if (CameraFOVInstructionsScanResult)
 			{
-				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult + 10 - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+				spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-				static SafetyHookMid CameraHFOVInstructionMidHook{};
+				Memory::WriteNOPs(CameraFOVInstructionsScanResult + 10, 4);
 
-				CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 10, [](SafetyHookContext& ctx)
 				{
-					float fCurrentCameraHFOV = std::bit_cast<float>(ctx.ecx);
+					float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x2C);
 
-					if (fCurrentCameraHFOV == 1.000000119f)
-					{
-						fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
-					}
-					else if (fCurrentCameraHFOV != 0.577350259f && fCurrentCameraHFOV != 1.000000000f && fCurrentCameraHFOV != 1.732051373f)
-					{
-						fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
-					}
-					else
-					{
-						fNewCameraHFOV = fCurrentCameraHFOV;
-					}
+					fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale * fFOVFactor;
 
-					*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
+					ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 				});
 
-				Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3); // NOP out the original instruction
+				CameraVFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
-				static SafetyHookMid CameraVFOVInstructionMidHook{};
+				Memory::WriteNOPs(CameraFOVInstructionsScanResult, 6);
 
-				CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
+				CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 				{
-					float fCurrentCameraVFOV = std::bit_cast<float>(ctx.edx);
+					float& fCurrentCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
 
-					if (fCurrentCameraVFOV == 0.7500001192f)
-					{
-						fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor;
-					}
-					else
-					{
-						fNewCameraVFOV = fCurrentCameraVFOV;
-					}
+					fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor;
 
-					*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
+					FPU::FMUL(fNewCameraVFOV);
 				});
 			}
 			else
 			{
-				spdlog::error("Failed to locate camera FOV instruction memory address.");
+				spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 				return;
 			}
 		}
