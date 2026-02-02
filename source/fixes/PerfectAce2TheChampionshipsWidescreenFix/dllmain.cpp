@@ -311,8 +311,6 @@ void WidescreenFix()
 
 				const float& fCurrentAspect = static_cast<float>(iCurrentViewportResWidth3) / static_cast<float>(iCurrentViewportResHeight3);
 
-				spdlog::info("[Hook] Raw incoming aspect 1: {:.12f}", fCurrentAspect);
-
 				if (Maths::isCloseRel(fCurrentAspect, 0.805704116821f * fAspectRatioScale) || Maths::isCloseRel(fCurrentAspect, 0.764705896378f * fAspectRatioScale))
 				{
 					iNewViewportResWidth3 = iCurrentViewportResWidth3;
@@ -334,8 +332,6 @@ void WidescreenFix()
 				int& iCurrentViewportResHeight3 = *reinterpret_cast<int*>(ctx.eax + 0xC);
 
 				const float& fCurrentAspect = static_cast<float>(iCurrentViewportResWidth3) / static_cast<float>(iCurrentViewportResHeight3);
-
-				spdlog::info("[Hook] Raw incoming aspect 2: {:.12f}", fCurrentAspect);
 
 				if (Maths::isCloseRel(fCurrentAspect, 0.805704116821f * fAspectRatioScale) || Maths::isCloseRel(fCurrentAspect, 0.764705896378f * fAspectRatioScale))
 				{
