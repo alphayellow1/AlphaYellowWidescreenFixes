@@ -333,6 +333,12 @@ void WidescreenFix()
 
 			spdlog::info("Camera FOV Instruction 9: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV9Scan] - (std::uint8_t*)exeModule);
 
+			spdlog::info("Camera FOV Instruction 10: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV10Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Camera FOV Instruction 11: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV11Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Camera FOV Instruction 12: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV12Scan] - (std::uint8_t*)exeModule);
+
 			CameraFOV1Address = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV1Scan] + 4, Memory::PointerMode::Absolute);
 
 			CameraFOV2Address = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV3Scan] + 4, Memory::PointerMode::Absolute);
