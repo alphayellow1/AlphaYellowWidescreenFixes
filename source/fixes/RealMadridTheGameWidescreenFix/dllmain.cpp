@@ -201,7 +201,7 @@ void WidescreenFix()
 {
 	if (eGameType == Game::RMTG && bFixActive == true)
 	{
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 8B 4C 24 ?? 8A 54 24 ?? 56", "8B 88 ?? ?? ?? ?? 8B 90 ?? ?? ?? ?? 89 0D", "A1 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 15");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 8A 54 24 ?? 56", "8B 88 ?? ?? ?? ?? 8B 90 ?? ?? ?? ?? 89 0D", "A1 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 15");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1Scan] - (std::uint8_t*)exeModule);
@@ -217,9 +217,9 @@ void WidescreenFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1Scan] + 13, 4);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1Scan] + 9, 4);
 
-			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1Scan] + 13, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1Scan] + 9, [](SafetyHookContext& ctx)
 			{
 				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
