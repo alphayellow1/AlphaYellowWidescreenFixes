@@ -58,6 +58,7 @@ uintptr_t CameraFOV1Address;
 uintptr_t CameraFOV2Address;
 uintptr_t CameraFOV3Address;
 uintptr_t CameraFOV4Address;
+uintptr_t CameraFOV5Address;
 
 // Game detection
 enum class Game
@@ -86,6 +87,7 @@ enum CameraFOVInstructionsIndices
 	FOV10Scan,
 	FOV11Scan,
 	FOV12Scan,
+	FOV13Scan
 };
 
 struct GameInfo
@@ -227,6 +229,7 @@ static SafetyHookMid CameraFOVInstruction9Hook{};
 static SafetyHookMid CameraFOVInstruction10Hook{};
 static SafetyHookMid CameraFOVInstruction11Hook{};
 static SafetyHookMid CameraFOVInstruction12Hook{};
+static SafetyHookMid CameraFOVInstruction13Hook{};
 
 void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float& DestInstruction, SafetyHookContext& ctx)
 {
@@ -312,7 +315,8 @@ void WidescreenFix()
 		
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 10 05 ?? ?? ?? ?? 0F 2E 41 ?? 9F F6 C4 ?? 7B ?? F3 0F 11 41 ?? E8 ?? ?? ?? ?? 8B 56 ?? 8B 8A ?? ?? ?? ??", "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 8E ?? ?? ?? ?? 8B 49 ?? 0F 2E 41 ?? 9F F6 C4 ?? 7B ?? F3 0F 11 41 ?? E8 ?? ?? ?? ?? F3 0F 10 05 ?? ?? ?? ??",
 		"F3 0F 10 05 ?? ?? ?? ?? 0F 2E 41 ?? 9F F6 C4 ?? 7B ?? F3 0F 11 41 ?? E8 ?? ?? ?? ?? 8B 4E ??", "F3 0F 10 05 ?? ?? ?? ?? 0F 2E 41 ?? 9F F6 C4 ?? 7B ?? F3 0F 11 41 ?? E8 ?? ?? ?? ?? 8B 46 ?? 8B 48 ??", "F3 0F 10 05 ?? ?? ?? ?? 89 48 ?? 8B 7F ?? 0F 2E 47 ??", "F3 0F 10 44 24 ?? 83 C4 ?? 0F 2E 41 ?? 9F F6 C4 ??", "F3 0F 10 05 ?? ?? ?? ?? 89 48 ?? 8B 4F ?? EB ?? 84 C0 0F 85 ?? ?? ?? ??",
-		"F3 0F 10 05 ?? ?? ?? ?? 8B 56 ?? F3 0F 11 86 ?? ?? ?? ?? 89 4E ?? 8B 82 ?? ?? ?? ?? C1 E8 ?? A8 ??", "F3 0F 10 05 ?? ?? ?? ?? 8D 4C 24 ?? 51 6A ?? 8D 54 24 ?? 52 8D 44 24 ??", "F3 0F 10 05 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 89 46 ?? 89 46 ?? 89 46 ??", "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 86 ?? ?? ?? ?? F3 0F 11 86 ?? ?? ?? ?? 8B 76 ??", "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 42 ?? 8B 51 ?? 88 41 ??");
+		"F3 0F 10 05 ?? ?? ?? ?? 8B 56 ?? F3 0F 11 86 ?? ?? ?? ?? 89 4E ?? 8B 82 ?? ?? ?? ?? C1 E8 ?? A8 ??", "F3 0F 10 05 ?? ?? ?? ?? 8D 4C 24 ?? 51 6A ?? 8D 54 24 ?? 52 8D 44 24 ??", "F3 0F 10 05 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 89 46 ?? 89 46 ?? 89 46 ??", "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 86 ?? ?? ?? ?? F3 0F 11 86 ?? ?? ?? ?? 8B 76 ??", "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 42 ?? 8B 51 ?? 88 41 ??",
+		"F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 86 ?? ?? ?? ?? F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 46 ?? F3 0F 10 05 ?? ?? ?? ?? 5F");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
@@ -339,6 +343,8 @@ void WidescreenFix()
 
 			spdlog::info("Camera FOV Instruction 12: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV12Scan] - (std::uint8_t*)exeModule);
 
+			spdlog::info("Camera FOV Instruction 13: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV13Scan] - (std::uint8_t*)exeModule);
+
 			CameraFOV1Address = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV1Scan] + 4, Memory::PointerMode::Absolute);
 
 			CameraFOV2Address = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV3Scan] + 4, Memory::PointerMode::Absolute);
@@ -346,6 +352,8 @@ void WidescreenFix()
 			CameraFOV3Address = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV5Scan] + 4, Memory::PointerMode::Absolute);
 
 			CameraFOV4Address = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV7Scan] + 4, Memory::PointerMode::Absolute);
+
+			CameraFOV5Address = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV13Scan] + 4, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 8);
 
@@ -429,6 +437,13 @@ void WidescreenFix()
 			CameraFOVInstruction12Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV12Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(CameraFOV1Address, ctx.xmm0.f32[0], ctx);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV13Scan], 8);
+
+			CameraFOVInstruction13Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV13Scan], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(CameraFOV5Address, ctx.xmm0.f32[0], ctx);
 			});
 		}
 	}
