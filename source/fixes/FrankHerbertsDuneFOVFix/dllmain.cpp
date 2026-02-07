@@ -196,16 +196,16 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "C0 10 43 00 ?? ?? ?? ?? 30 C5 57 00");
-		if (AspectRatioScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "C0 10 43 00 ?? ?? ?? ?? 30 C5 57 00");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScanResult + 4, fNewAspectRatio);
+			Memory::Write(AspectRatioInstructionScanResult + 4, fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
@@ -214,7 +214,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90", 2); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 2); // NOP out the original instruction
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 
@@ -229,7 +229,7 @@ void FOVFix()
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 8, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult + 8, 3); // NOP out the original instruction
 
 			static SafetyHookMid CameraVFOVInstructionMidHook{};
 

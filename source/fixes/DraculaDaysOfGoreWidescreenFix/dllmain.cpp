@@ -42,23 +42,44 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
-float fNewCameraFOV;
 float fNewAspectRatio;
-float fFOVFactor;
 float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
 	DATFOD,
 	Unknown
+};
+
+enum ResolutionListsIndices
+{
+	ResList1Scan,
+	ResList2Scan,
+	ResList3Scan,
+	ResList4Scan,
+	ResList5Scan,
+	ResList6Scan,
+	ResList7Scan,
+	ResList8Scan,
+	ResList9Scan,
+	ResList10Scan,
+	ResList11Scan,
+	ResList12Scan,
+	ResList13Scan,
+	ResList14Scan,
+	ResList15Scan,
+	ResList16Scan,
+	ResList17Scan
 };
 
 struct GameInfo
@@ -193,22 +214,14 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((pluginModule = GetModuleHandleA("DraculaGamePlugin.vplugin")) == nullptr)
-	{
-		spdlog::warn("DraculaGamePlugin.vplugin not loaded yet. Waiting...");
-	}
+	pluginModule = Memory::GetHandle("DraculaGamePlugin.vplugin");
 
-	spdlog::info("Successfully obtained handle for DraculaGamePlugin.vplugin: 0x{:X}", reinterpret_cast<uintptr_t>(pluginModule));
-
-	while ((dllModule2 = GetModuleHandleA("vision71.dll")) == nullptr)
-	{
-		spdlog::warn("vision71.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for vision71.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("vision71.dll");
 
 	return true;
 }
+
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -218,395 +231,250 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionList1ScanResult = Memory::PatternScan(exeModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 00 00 48 42 54 69 6D");
-		if (ResolutionList1ScanResult)
+		std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(exeModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 00 00 48 42 54 69 6D", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 47 61 6D 65 44 61 74 61", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 10 32 40 00 68 A4",
+		pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 DB 0F 49 40 61 0B 36 3B 4B 69 6C 6C 4D 6F 6E 73 74 65 72 41 63 74", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 53 61 6D 70 6C 65 20 67 61 6D 65 20 70 6C 75 67 69 6E 3A 49 6E 69 74 45 6E 67 69 6E 65 50 6C", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 53 6F 75 6E 64 73 00 00 2E 2E 2E 66 61 69 6C 65 64 21 00 00 4C",
+		"20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 4D 6F 6E 73 74 65 72 45 6E 74 69 74 79 00 00 00 70 61 72 74 69 63", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 00 00 7A 43", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 70 61 72 74", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 40 67", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 48 6F",
+		"20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 DB 0F 49 40 61 0B 36 3B 41 74 74", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 31 00 00 00", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 44 45 41 54 48", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 DB 0F 49 40 61 0B 36 3B 70 61 72 74 69 63",
+		"20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 DB 0F 49 40 41 49 4E 6F 64 65", "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 50 6C 61 79");
+		if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
 		{
-			spdlog::info("Resolution List 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList1ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionList1ScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionList1ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList1ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList1ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList1ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList1ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 1 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList2ScanResult = Memory::PatternScan(exeModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 47 61 6D 65 44 61 74 61");
-		if (ResolutionList2ScanResult)
-		{
-			spdlog::info("Resolution List 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList2ScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::Write(ResolutionList2ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList2ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList2ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList2ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList2ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList2ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 2 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList3ScanResult = Memory::PatternScan(exeModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 10 32 40 00 68 A4");
-		if (ResolutionList3ScanResult)
-		{
-			spdlog::info("Resolution List 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList3ScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::Write(ResolutionList3ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList3ScanResult + 4, iCurrentResX);
-			
-			Memory::Write(ResolutionList3ScanResult + 8, iCurrentResX);
-			
-			Memory::Write(ResolutionList3ScanResult + 12, iCurrentResY);
-			
-			Memory::Write(ResolutionList3ScanResult + 16, iCurrentResY);
-			
-			Memory::Write(ResolutionList3ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 3 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList4ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 DB 0F 49 40 61 0B 36 3B 4B 69 6C 6C 4D 6F 6E 73 74 65 72 41 63 74");
-		if (ResolutionList4ScanResult)
-		{
-			spdlog::info("Resolution List 4 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList4ScanResult - (std::uint8_t*)pluginModule);
-
-			Memory::Write(ResolutionList4ScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionList4ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList4ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList4ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList4ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList4ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 4 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList5ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 53 61 6D 70 6C 65 20 67 61 6D 65 20 70 6C 75 67 69 6E 3A 49 6E 69 74 45 6E 67 69 6E 65 50 6C");
-		if (ResolutionList5ScanResult)
-		{
-			spdlog::info("Resolution List 5 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList5ScanResult - (std::uint8_t*)pluginModule);
-			
-			Memory::Write(ResolutionList5ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList5ScanResult + 4, iCurrentResX);
-			
-			Memory::Write(ResolutionList5ScanResult + 8, iCurrentResX);
-			
-			Memory::Write(ResolutionList5ScanResult + 12, iCurrentResY);
-			
-			Memory::Write(ResolutionList5ScanResult + 16, iCurrentResY);
-			
-			Memory::Write(ResolutionList5ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 5 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList6ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 53 6F 75 6E 64 73 00 00 2E 2E 2E 66 61 69 6C 65 64 21 00 00 4C");
-		if (ResolutionList6ScanResult)
-		{
-			spdlog::info("Resolution List 6 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList6ScanResult - (std::uint8_t*)pluginModule);
-
-			Memory::Write(ResolutionList6ScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionList6ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList6ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList6ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList6ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList6ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 6 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList7ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 4D 6F 6E 73 74 65 72 45 6E 74 69 74 79 00 00 00 70 61 72 74 69 63");
-		if (ResolutionList7ScanResult)
-		{
-			spdlog::info("Resolution List 7 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList7ScanResult - (std::uint8_t*)pluginModule);
-			
-			Memory::Write(ResolutionList7ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList7ScanResult + 4, iCurrentResX);
-			
-			Memory::Write(ResolutionList7ScanResult + 8, iCurrentResX);
-			
-			Memory::Write(ResolutionList7ScanResult + 12, iCurrentResY);
-			
-			Memory::Write(ResolutionList7ScanResult + 16, iCurrentResY);
-			
-			Memory::Write(ResolutionList7ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 7 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList8ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 00 00 7A 43");
-		if (ResolutionList8ScanResult)
-		{
-			spdlog::info("Resolution List 8 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList8ScanResult - (std::uint8_t*)pluginModule);
-
-			Memory::Write(ResolutionList8ScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionList8ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList8ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList8ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList8ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList8ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 8 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList9ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 70 61 72 74");
-		if (ResolutionList9ScanResult)
-		{
-			spdlog::info("Resolution List 9 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList9ScanResult - (std::uint8_t*)pluginModule);
-			
-			Memory::Write(ResolutionList9ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList9ScanResult + 4, iCurrentResX);
-			
-			Memory::Write(ResolutionList9ScanResult + 8, iCurrentResX);
-			
-			Memory::Write(ResolutionList9ScanResult + 12, iCurrentResY);
-			
-			Memory::Write(ResolutionList9ScanResult + 16, iCurrentResY);
-			
-			Memory::Write(ResolutionList9ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 9 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList10ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 40 67");
-		if (ResolutionList10ScanResult)
-		{
-			spdlog::info("Resolution List 10 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList10ScanResult - (std::uint8_t*)pluginModule);
-			
-			Memory::Write(ResolutionList10ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList10ScanResult + 4, iCurrentResX);
-			
-			Memory::Write(ResolutionList10ScanResult + 8, iCurrentResX);
-			
-			Memory::Write(ResolutionList10ScanResult + 12, iCurrentResY);
-			
-			Memory::Write(ResolutionList10ScanResult + 16, iCurrentResY);
-			
-			Memory::Write(ResolutionList10ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 10 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList11ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 48 6F");
-		if (ResolutionList11ScanResult)
-		{
-			spdlog::info("Resolution List 11 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList11ScanResult - (std::uint8_t*)pluginModule);
-
-			Memory::Write(ResolutionList11ScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionList11ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList11ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList11ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList11ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList11ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 11 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList12ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 DB 0F 49 40 61 0B 36 3B 41 74 74");
-		if (ResolutionList12ScanResult)
-		{
-			spdlog::info("Resolution List 12 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList12ScanResult - (std::uint8_t*)pluginModule);
-			
-			Memory::Write(ResolutionList12ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList12ScanResult + 4, iCurrentResX);
-			
-			Memory::Write(ResolutionList12ScanResult + 8, iCurrentResX);
-			
-			Memory::Write(ResolutionList12ScanResult + 12, iCurrentResY);
-			
-			Memory::Write(ResolutionList12ScanResult + 16, iCurrentResY);
-			
-			Memory::Write(ResolutionList12ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 12 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList13ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 31 00 00 00");
-		if (ResolutionList13ScanResult)
-		{
-			spdlog::info("Resolution List 13 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList13ScanResult - (std::uint8_t*)pluginModule);
-
-			Memory::Write(ResolutionList13ScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionList13ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList13ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList13ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList13ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList13ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 13 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList14ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 44 45 41 54 48");
-		if (ResolutionList14ScanResult)
-		{
-			spdlog::info("Resolution List 14 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList14ScanResult - (std::uint8_t*)pluginModule);
-			
-			Memory::Write(ResolutionList14ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList14ScanResult + 4, iCurrentResX);
-			
-			Memory::Write(ResolutionList14ScanResult + 8, iCurrentResX);
-			
-			Memory::Write(ResolutionList14ScanResult + 12, iCurrentResY);
-			
-			Memory::Write(ResolutionList14ScanResult + 16, iCurrentResY);
-			
-			Memory::Write(ResolutionList14ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 14 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList15ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 DB 0F 49 40 61 0B 36 3B 70 61 72 74 69 63");
-		if (ResolutionList15ScanResult)
-		{
-			spdlog::info("Resolution List 15 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList15ScanResult - (std::uint8_t*)pluginModule);
-
-			Memory::Write(ResolutionList15ScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionList15ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList15ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList15ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList15ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList15ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 15 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList16ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 DB 0F 49 40 41 49 4E 6F 64 65");
-		if (ResolutionList16ScanResult)
-		{
-			spdlog::info("Resolution List 16 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList16ScanResult - (std::uint8_t*)pluginModule);
-			
-			Memory::Write(ResolutionList16ScanResult, iCurrentResX);
-			
-			Memory::Write(ResolutionList16ScanResult + 4, iCurrentResX);
-			
-			Memory::Write(ResolutionList16ScanResult + 8, iCurrentResX);
-			
-			Memory::Write(ResolutionList16ScanResult + 12, iCurrentResY);
-			
-			Memory::Write(ResolutionList16ScanResult + 16, iCurrentResY);
-			
-			Memory::Write(ResolutionList16ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 16 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionList17ScanResult = Memory::PatternScan(pluginModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 50 6C 61 79");
-		if (ResolutionList17ScanResult)
-		{
-			spdlog::info("Resolution List 17 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionList17ScanResult - (std::uint8_t*)pluginModule);
-
-			Memory::Write(ResolutionList17ScanResult, iCurrentResX);
-
-			Memory::Write(ResolutionList17ScanResult + 4, iCurrentResX);
-
-			Memory::Write(ResolutionList17ScanResult + 8, iCurrentResX);
-
-			Memory::Write(ResolutionList17ScanResult + 12, iCurrentResY);
-
-			Memory::Write(ResolutionList17ScanResult + 16, iCurrentResY);
-
-			Memory::Write(ResolutionList17ScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution list 17 scan memory address.");
-			return;
+			spdlog::info("Resolution List 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListsScansResult[ResList1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution List 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListsScansResult[ResList2Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution List 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListsScansResult[ResList3Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution List 4 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList4Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 5 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList5Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 6 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList6Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 7 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList7Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 8 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList8Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 9 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList9Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 10 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList10Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 11 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList11Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 12 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList12Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 13 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList13Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 14 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList14Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 15 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList15Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 16 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList16Scan] - (std::uint8_t*)pluginModule);
+
+			spdlog::info("Resolution List 17 Scan: Address is DraculaGamePlugin.vplugin+{:x}", ResolutionListsScansResult[ResList17Scan] - (std::uint8_t*)pluginModule);
+
+			Memory::Write(ResolutionListsScansResult[ResList1Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList2Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList3Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList3Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList3Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList3Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList3Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList3Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList4Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList4Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList4Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList4Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList4Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList4Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList5Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList5Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList5Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList5Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList5Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList5Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList6Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList6Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList6Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList6Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList6Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList6Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList7Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList7Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList7Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList7Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList7Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList7Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList8Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList8Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList8Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList8Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList8Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList8Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList9Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList9Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList9Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList9Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList9Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList9Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList10Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList10Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList10Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList10Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList10Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList10Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList11Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList11Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList11Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList11Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList11Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList11Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList12Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList12Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList12Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList12Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList12Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList12Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList13Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList13Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList13Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList13Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList13Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList13Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList14Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList14Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList14Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList14Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList14Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList14Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList15Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList15Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList15Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList15Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList15Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList15Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList16Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList16Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList16Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList16Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList16Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList16Scan] + 20, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList17Scan], iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList17Scan] + 4, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList17Scan] + 8, iCurrentResX);
+
+			Memory::Write(ResolutionListsScansResult[ResList17Scan] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList17Scan] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionListsScansResult[ResList17Scan] + 20, iCurrentResY);
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 86 C4 00 00 00 52 50 B9 ?? ?? ?? ?? E8 ?? ?? ?? ??");
@@ -614,11 +482,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is vision71.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xC4);
 

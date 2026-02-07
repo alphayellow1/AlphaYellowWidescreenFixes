@@ -189,32 +189,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x58);
-
-	fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x5C);
-
-	fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -229,9 +204,16 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraHFOVInstructionScanResult, 3);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x58);
+				
+				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
+				
+				FPU::FLD(fNewCameraHFOV);
+			});
 		}
 		else
 		{
@@ -244,9 +226,16 @@ void FOVFix()
 		{
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraVFOVInstructionScanResult, 3);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x5C);
+				
+				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
+
+				FPU::FLD(fNewCameraVFOV);
+			});
 		}
 		else
 		{

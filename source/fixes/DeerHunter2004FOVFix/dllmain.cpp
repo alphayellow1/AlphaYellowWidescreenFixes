@@ -52,8 +52,8 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
 float fCurrentCameraFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -245,15 +245,15 @@ void FOVFix()
 
 			spdlog::info("Current Camera FOV Instruction: Address is Aspen.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV4Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 6); // NOP out the original instruction
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], CameraFOVInstructionMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6); // NOP out the original instruction
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], CameraFOVInstructionMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV3Scan], 6); // NOP out the original instruction
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], CameraFOVInstructionMidHook);
 

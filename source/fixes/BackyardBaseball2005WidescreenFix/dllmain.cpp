@@ -233,7 +233,7 @@ void WidescreenFix()
 				*reinterpret_cast<int*>(ctx.eax + 0x4) = iCurrentResY;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution1Scan], 6);
 
 			ViewportResolutionInstructions1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution1Scan], [](SafetyHookContext& ctx)
 			{
@@ -242,28 +242,28 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution2Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution2Scan], 3);
 
 			ViewportResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 15, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 15, 3);
 
 			ViewportResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution2Scan] + 15, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution3Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution3Scan], 3);
 
 			ViewportResolutionWidthInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution3Scan], [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.esi + 0xC) = iCurrentResX;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution3Scan] + 33, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResolution3Scan] + 33, 3);
 
 			ViewportResolutionHeightInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution3Scan] + 33, [](SafetyHookContext& ctx)
 			{
@@ -276,7 +276,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -296,7 +296,7 @@ void WidescreenFix()
 
 			dNewCameraFOV = 0.75 * (double)fFOVFactor;
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

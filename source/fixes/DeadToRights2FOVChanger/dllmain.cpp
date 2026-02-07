@@ -175,7 +175,7 @@ void FOVChanger()
 		{
 			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 5);
 
 			CameraFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{

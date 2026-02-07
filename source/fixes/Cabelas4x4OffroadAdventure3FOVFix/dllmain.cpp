@@ -257,7 +257,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is EngineDll.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -297,7 +297,7 @@ void FOVFix()
 		{
 			spdlog::info("Weapon Zoom FOV Instruction 1: Address is GameDll.dll+{:x}", WeaponZoomFOVInstruction1ScanResult - (std::uint8_t*)dllModule3);
 
-			Memory::PatchBytes(WeaponZoomFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(WeaponZoomFOVInstruction1ScanResult, 6);
 
 			WeaponZoomFOVInstruction1Hook = safetyhook::create_mid(WeaponZoomFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
 			{

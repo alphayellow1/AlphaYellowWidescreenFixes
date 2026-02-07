@@ -196,26 +196,6 @@ bool DetectGame()
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x24);
-
-	// Computes the new FOV value
-	if (fCurrentCameraFOV != 1.134464025f && fCurrentCameraFOV != Maths::CalculateNewFOV_RadBased(1.134464025f, fAspectRatioScale) * fFOVFactor)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-	else
-	{
-		fNewCameraFOV = fCurrentCameraFOV;
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::CWOMD && bFixActive == true)
@@ -242,9 +222,24 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x24);
+
+				// Computes the new FOV value
+				if (fCurrentCameraFOV != 1.134464025f && fCurrentCameraFOV != Maths::CalculateNewFOV_RadBased(1.134464025f, fAspectRatioScale) * fFOVFactor)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+				else
+				{
+					fNewCameraFOV = fCurrentCameraFOV;
+				}
+				
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
@@ -259,7 +254,7 @@ void FOVFix()
 
 			PistolHipfireCameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(PistolHipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 			
-			Memory::PatchBytes(PistolHipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(PistolHipfireCameraFOVInstructionScanResult, 6);
 			
 			static SafetyHookMid PistolHipfireCameraFOVInstructionMidHook{};
 			
@@ -285,7 +280,7 @@ void FOVFix()
 
 			M4HipfireCameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(M4HipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(M4HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(M4HipfireCameraFOVInstructionScanResult, 6);
 
 			static SafetyHookMid M4HipfireCameraFOVInstructionMidHook{};
 
@@ -311,7 +306,7 @@ void FOVFix()
 
 			SniperHipfireCameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(SniperHipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 			
-			Memory::PatchBytes(SniperHipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(SniperHipfireCameraFOVInstructionScanResult, 6);
 			
 			static SafetyHookMid SniperHipfireCameraFOVInstructionMidHook{};
 			

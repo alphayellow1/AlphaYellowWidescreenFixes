@@ -255,7 +255,7 @@ void FOVFix()
 
 			spdlog::info("Camera HFOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionsScansResult[HFOV4Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[HFOV1Scan], "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[HFOV1Scan], 5);
 
 			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV1Scan], [](SafetyHookContext& ctx)
 			{
@@ -264,7 +264,7 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.ebx, FSUB);
 			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[HFOV2Scan], "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[HFOV2Scan], 5);
 
 			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV2Scan], [](SafetyHookContext& ctx)
 			{
@@ -273,14 +273,14 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.ebx, FADD);
 			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[HFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[HFOV3Scan], 6);
 
 			CameraHFOVInstruction3Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV3Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.ebx + 0x15C, FLD);
 			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[HFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[HFOV4Scan], 6);
 
 			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV4Scan], [](SafetyHookContext& ctx)
 			{
@@ -297,7 +297,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

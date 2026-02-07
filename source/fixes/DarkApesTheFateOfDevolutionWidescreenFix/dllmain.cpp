@@ -192,15 +192,12 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("visionP71.dll")) == nullptr)
-	{
-		spdlog::warn("visionP71.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for visionP71.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("visionP71.dll");
 
 	return true;
 }
+
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -210,28 +207,25 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionlistScanResult = Memory::PatternScan(exeModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 A0 48 40 00 44 61");
-		if (ResolutionlistScanResult)
+		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "20 03 00 00 00 04 00 00 00 05 00 00 58 02 00 00 00 03 00 00 00 04 00 00 A0 48 40 00 44 61");
+		if (ResolutionListScanResult)
 		{
-			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionlistScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 			
-			// 800
-			Memory::Write(ResolutionlistScanResult, iCurrentResX);
+			// 800x600
+			Memory::Write(ResolutionListScanResult, iCurrentResX);
+
+			Memory::Write(ResolutionListScanResult + 12, iCurrentResY);
 			
-			// 1024
-			Memory::Write(ResolutionlistScanResult + 4, iCurrentResX);
+			// 1024x768
+			Memory::Write(ResolutionListScanResult + 4, iCurrentResX);
 
-			// 1280
-			Memory::Write(ResolutionlistScanResult + 8, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 16, iCurrentResY);
 
-			// 600
-			Memory::Write(ResolutionlistScanResult + 12, iCurrentResY);
+			// 1280x1024
+			Memory::Write(ResolutionListScanResult + 8, iCurrentResX);
 
-			// 768
-			Memory::Write(ResolutionlistScanResult + 16, iCurrentResY);
-
-			// 1024
-			Memory::Write(ResolutionlistScanResult + 20, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 20, iCurrentResY);			
 		}
 		else
 		{
@@ -244,11 +238,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is visionP71.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-			
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);			
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x90);
 

@@ -64,16 +64,12 @@ enum class Game
 	Unknown
 };
 
-enum CameraHFOVInstructionsIndex
+enum CameraFOVInstructionsIndex
 {
-	CameraHFOV1Scan,
-	CameraHFOV2Scan
-};
-
-enum CameraVFOVInstructionsIndex
-{
-	CameraVFOV1Scan,
-	CameraVFOV2Scan
+	HFOV1Scan = 0,
+	HFOV2Scan = 1,
+	VFOV1Scan = 0,
+	VFOV2Scan = 1
 };
 
 struct GameInfo
@@ -236,20 +232,20 @@ void FOVFix()
 
 			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionsScansResult[CameraHFOV2Scan] - (std::uint8_t*)exeModule);
 
-			CameraHFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraHFOVInstructionsScansResult[CameraHFOV1Scan] + 4, Memory::PointerMode::Absolute);
+			CameraHFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraHFOVInstructionsScansResult[HFOV1Scan] + 4, Memory::PointerMode::Absolute);
 
-			CameraHFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraHFOVInstructionsScansResult[CameraHFOV2Scan] + 4, Memory::PointerMode::Absolute);
+			CameraHFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraHFOVInstructionsScansResult[HFOV2Scan] + 4, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[HFOV1Scan], 8);
 
-			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], [](SafetyHookContext& ctx)
+			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV1Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx, CameraHFOV1Address, fAspectRatioScale);
 			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[HFOV2Scan], 8);
 
-			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], [](SafetyHookContext& ctx)
+			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV2Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx, CameraHFOV2Address, fAspectRatioScale);
 			});
@@ -261,20 +257,20 @@ void FOVFix()
 
 			spdlog::info("Camera VFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionsScansResult[CameraVFOV2Scan] - (std::uint8_t*)exeModule);
 
-			CameraVFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraVFOVInstructionsScansResult[CameraVFOV1Scan] + 4, Memory::PointerMode::Absolute);
+			CameraVFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraVFOVInstructionsScansResult[VFOV1Scan] + 4, Memory::PointerMode::Absolute);
 
-			CameraVFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraVFOVInstructionsScansResult[CameraVFOV2Scan] + 4, Memory::PointerMode::Absolute);
+			CameraVFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraVFOVInstructionsScansResult[VFOV2Scan] + 4, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[VFOV1Scan], 8);
 
-			CameraVFOVInstruction1Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV1Scan], [](SafetyHookContext& ctx)
+			CameraVFOVInstruction1Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[VFOV1Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx, CameraVFOV1Address, 1.0f);
 			});
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV2Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[VFOV2Scan], 8);
 
-			CameraVFOVInstruction2Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV2Scan], [](SafetyHookContext& ctx)
+			CameraVFOVInstruction2Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[VFOV2Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx, CameraVFOV2Address, 1.0f);
 			});

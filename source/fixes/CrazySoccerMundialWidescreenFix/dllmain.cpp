@@ -45,14 +45,14 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
-float fNewCameraFOV;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -193,36 +193,13 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("ChromeEngine.dll")) == nullptr)
-	{
-		spdlog::warn("ChromeEngine.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for ChromeEngine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("ChromeEngine.dll");
 
 	return true;
 }
 
+static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
-
-	if (fCurrentCameraFOV == 1.04719758f)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void WidescreenFix()
 {
@@ -232,27 +209,18 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(dllModule2, "03 8D 49 00 FA 9E 14 10 01 9F 14 10 08 9F 14 10 0F 9F 14 10 8B 44 24 04 8B 54 24 08 89 41 0C 89 51 10");
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(dllModule2, "89 41 ?? 89 51 ?? C2 ?? ?? 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 8B 54 24");
 		if (ResolutionInstructionsScanResult)
 		{
 			spdlog::info("Resolution Instructions Scan: Address is ChromeEngine.dll+{:x}", ResolutionInstructionsScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult + 31, "\x90\x90\x90", 3); // NOP out the original instructions
+			Memory::WriteNOPs(ResolutionInstructionsScanResult, 6); // NOP out the original instructions			
 
-			static SafetyHookMid ResolutionHeightInstructionMidHook{};
-
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 31, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.ecx + 0x10) = iCurrentResY;
-			});
-
-			Memory::PatchBytes(ResolutionInstructionsScanResult + 28, "\x90\x90\x90", 3); // NOP out the original instruction
-
-			static SafetyHookMid ResolutionWidthInstructionMidHook{};
-
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 28, [](SafetyHookContext& ctx)
+			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.ecx + 0xC) = iCurrentResX;
+
+				*reinterpret_cast<int*>(ctx.ecx + 0x10) = iCurrentResY;
 			});
 		}
 		else
@@ -266,9 +234,23 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is ChromeEngine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4); // NOP out the original instruction
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+
+				if (fCurrentCameraFOV == 1.04719758f)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{

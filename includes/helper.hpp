@@ -42,7 +42,7 @@ concept Integral = std::is_integral_v<T>;
 namespace Memory
 {
 	template<typename T>
-	void Write(std::uint8_t* writeAddress, T value)
+	inline void Write(std::uint8_t* writeAddress, T value)
 	{
 		DWORD oldProtect = 0;
 
@@ -61,21 +61,85 @@ namespace Memory
 		VirtualProtect(writeAddress, sizeof(T), oldProtect, &dummy);
 	}
 
-	void PatchBytes(std::uint8_t* address, const char* pattern, unsigned int numBytes)
+	template<typename T>
+	inline void Write(const std::vector<std::uint8_t*>& addresses, std::size_t startIndex, std::size_t endIndex, std::ptrdiff_t offset, T value)
 	{
-		DWORD oldProtect;
-
-		if (VirtualProtect(address, numBytes, PAGE_EXECUTE_READWRITE, &oldProtect) == false)
+		if (addresses.empty())
 		{
-			spdlog::error("VirtualProtect failed in Memory::PatchBytes");
 			return;
 		}
 
-		std::memcpy(address, pattern, numBytes);
+		if (startIndex > endIndex || endIndex >= addresses.size())
+		{
+			spdlog::error("Memory::Write(range): invalid range [{}..{}] (size={})", startIndex, endIndex, addresses.size());
 
-		FlushInstructionCache(GetCurrentProcess(), address, numBytes);
+			return;
+		}
 
-		VirtualProtect(address, numBytes, oldProtect, &oldProtect);
+		for (std::size_t i = startIndex; i <= endIndex; ++i)
+		{
+			std::uint8_t* address = addresses[i];
+
+			if (!address)
+			{
+				continue;
+			}
+
+			Memory::Write(address + offset, value);
+		}
+	}
+
+	template <std::size_t N>
+	inline void PatchBytes(std::uint8_t* address, const char(&bytes)[N])
+	{
+		static_assert(N > 1, "PatchBytes: empty byte string");
+
+		constexpr std::size_t kSize = N - 1;
+
+		DWORD oldProtect{};
+
+		if (!VirtualProtect(address, kSize, PAGE_EXECUTE_READWRITE, &oldProtect))
+		{
+			spdlog::error("VirtualProtect failed in Memory::PatchBytes");
+
+			return;
+		}
+
+		std::memcpy(address, bytes, kSize);
+
+		FlushInstructionCache(GetCurrentProcess(), address, kSize);
+
+		VirtualProtect(address, kSize, oldProtect, &oldProtect);
+	}
+
+	template <typename T> requires std::is_trivially_copyable_v<T>
+	inline void PatchBytes(const std::vector<std::uint8_t*>& addresses,	std::size_t startIndex, std::size_t endIndex, std::ptrdiff_t offset, const T& data)
+	{
+		if (addresses.empty())
+		{
+			spdlog::error("Memory::PatchBytes(range): empty address list");
+
+			return;
+		}
+
+		if (startIndex > endIndex || endIndex >= addresses.size())
+		{
+			spdlog::error("Memory::PatchBytes(range): invalid range [{}..{}] (size={})", startIndex, endIndex, addresses.size());
+
+			return;
+		}
+
+		for (std::size_t i = startIndex; i <= endIndex; ++i)
+		{
+			std::uint8_t* addr = addresses[i];
+
+			if (!addr)
+			{
+				continue;
+			}
+
+			Memory::PatchBytes(addr + offset, data);
+		}
 	}
 
 	inline void WriteNOPs(std::uint8_t* address, std::size_t numBytes)
@@ -84,26 +148,24 @@ namespace Memory
 		{
 			return;
 		}
-		
-		constexpr std::size_t MaxStackNops = 16;
 
-		if (numBytes <= MaxStackNops)
+		DWORD oldProtect{};
+
+		if (!VirtualProtect(address, numBytes, PAGE_EXECUTE_READWRITE, &oldProtect))
 		{
-			std::uint8_t buf[MaxStackNops];
+			spdlog::error("VirtualProtect failed in Memory::WriteNOPs");
 
-			std::memset(buf, 0x90, numBytes);
-
-			PatchBytes(address, reinterpret_cast<const char*>(buf), static_cast<unsigned int>(numBytes));
+			return;
 		}
-		else
-		{
-			std::vector<std::uint8_t> nops(numBytes, 0x90);
 
-			PatchBytes(address, reinterpret_cast<const char*>(nops.data()), static_cast<unsigned int>(numBytes));
-		}
+		std::memset(address, 0x90, numBytes);
+
+		FlushInstructionCache(GetCurrentProcess(), address, numBytes);
+
+		VirtualProtect(address, numBytes, oldProtect, &oldProtect);
 	}
 
-	bool PatchCallRel32(uint8_t* callSite, uint8_t* target, std::array<uint8_t, 5>* out_orig)
+	inline bool PatchCallRel32(uint8_t* callSite, uint8_t* target, std::array<uint8_t, 5>* out_orig)
 	{
 		if (!callSite || !target)
 		{

@@ -237,7 +237,7 @@ void FOVFix()
 
 			CameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);			
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 5);			
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

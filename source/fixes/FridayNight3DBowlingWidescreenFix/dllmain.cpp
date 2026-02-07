@@ -351,20 +351,9 @@ void StartFocusToggleWatcherEnhanced(bool useAltTab = true, int maxWaitMs = 3000
 		}).detach();
 }
 
+static SafetyHookMid ResolutionInstructions1Hook{};
+static SafetyHookMid ResolutionInstructions2Hook{};
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	double& dCurrentCameraFOV = *reinterpret_cast<double*>(CameraFOVAddress);
-
-	// Computes the new FOV value
-	dNewCameraFOV = Maths::CalculateNewFOV_RadBased(dCurrentCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dFOVFactor;
-
-	_asm
-	{
-		fld qword ptr ds:[dNewCameraFOV]
-	}
-}
 
 void WidescreenFix()
 {
@@ -383,22 +372,18 @@ void WidescreenFix()
 
 			ResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 30, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(ResolutionInstructionsScanResult, 12);			
 
-			static SafetyHookMid ResolutionInstructionsMidHook{};
-
-			ResolutionInstructionsMidHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			ResolutionInstructions1Hook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
 
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult + 22, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(ResolutionInstructionsScanResult + 22, 12);			
 
-			static SafetyHookMid ResolutionInstructions2MidHook{};
-
-			ResolutionInstructions2MidHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 22, [](SafetyHookContext& ctx)
+			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScanResult + 22, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ResolutionWidthAddress) = iCurrentResX;
 
@@ -420,9 +405,17 @@ void WidescreenFix()
 
 			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioAndCameraFOVInstructionsScanResult, 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+			{
+				double& dCurrentCameraFOV = *reinterpret_cast<double*>(CameraFOVAddress);
+				
+				// Computes the new FOV value
+				dNewCameraFOV = Maths::CalculateNewFOV_RadBased(dCurrentCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dFOVFactor;
+				
+				FPU::FLD(dNewCameraFOV);
+			});
 		}
 		else
 		{

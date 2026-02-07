@@ -308,13 +308,13 @@ void WidescreenFix()
 				FPU::FILD(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 1, "\x14", 1);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 1, "\x14");
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 14, "\x07", 1);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 14, "\x07");
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 34, "\x14", 1);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 34, "\x14");
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 47, "\x07", 1);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 47, "\x07");
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution6Scan] + 22, 3);
 

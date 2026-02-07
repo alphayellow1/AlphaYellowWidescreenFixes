@@ -250,21 +250,21 @@ void FOVFix()
 
 			spdlog::info("Aspect Ratio Instruction 3: Address is LS3DF.dll+{:x}", AspectRatioInstructionsScansResult[AR3Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AR1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR1Scan], 6);
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FCOMP(fAspectRatioToCompare);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AR2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR2Scan], 6);
 			
 			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FCOMP(fAspectRatioToCompare);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AR3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR3Scan], 6);
 
 			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR3Scan], [](SafetyHookContext& ctx)
 			{
@@ -278,14 +278,14 @@ void FOVFix()
 
 			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult[FOV2Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult[FOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult[FOV1Scan], 6);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionMidHook(ctx.edx + 0x108);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult[FOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult[FOV2Scan], 6);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV2Scan], [](SafetyHookContext& ctx)
 			{

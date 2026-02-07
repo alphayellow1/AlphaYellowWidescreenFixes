@@ -339,9 +339,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 10);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 10);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult + 10, AspectRatioInstructionMidHook);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
 		}
 		else
 		{
@@ -354,9 +354,9 @@ void WidescreenFix()
 		{
 			spdlog::info("FMV Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), FMVAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(FMVAspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 14);
+			Memory::WriteNOPs(FMVAspectRatioInstructionScanResult, 14);
 
-			FMVAspectRatioInstructionHook = safetyhook::create_mid(FMVAspectRatioInstructionScanResult + 14, FMVAspectRatioInstructionMidHook);
+			FMVAspectRatioInstructionHook = safetyhook::create_mid(FMVAspectRatioInstructionScanResult, FMVAspectRatioInstructionMidHook);
 		}
 		else
 		{
@@ -382,9 +382,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Interface Scale Secondary Instruction: Address is {:s}+{:x}", sExeName.c_str(), InterfaceScaleSecondaryInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(InterfaceScaleSecondaryInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::WriteNOPs(InterfaceScaleSecondaryInstructionScanResult, 8);
 
-			InterfaceScaleSecondaryInstructionHook = safetyhook::create_mid(InterfaceScaleSecondaryInstructionScanResult + 8, InterfaceScaleSecondaryInstructionMidHook);
+			InterfaceScaleSecondaryInstructionHook = safetyhook::create_mid(InterfaceScaleSecondaryInstructionScanResult, InterfaceScaleSecondaryInstructionMidHook);
 		}
 		else
 		{
@@ -397,9 +397,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Move Interface Instruction: Address is {:s}+{:x}", sExeName.c_str(), MoveInterfaceInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(MoveInterfaceInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(MoveInterfaceInstructionScanResult, 6);
 
-			MoveInterfaceInstructionHook = safetyhook::create_mid(MoveInterfaceInstructionScanResult + 6, MoveInterfaceInstructionMidHook);
+			MoveInterfaceInstructionHook = safetyhook::create_mid(MoveInterfaceInstructionScanResult, MoveInterfaceInstructionMidHook);
 		}
 		else
 		{
@@ -425,9 +425,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Text Scale Instruction: Address is {:s}+{:x}", sExeName.c_str(), TextScaleInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(TextScaleInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::WriteNOPs(TextScaleInstructionScanResult, 8);
 
-			TextScaleInstructionHook = safetyhook::create_mid(TextScaleInstructionScanResult + 8, TextScaleInstructionMidHook);
+			TextScaleInstructionHook = safetyhook::create_mid(TextScaleInstructionScanResult, TextScaleInstructionMidHook);
 		}
 		else
 		{

@@ -211,28 +211,28 @@ void FOVFix()
 
 			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio4Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90", 3);			
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio1Scan], 3);			
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio2Scan], 3);
 
 			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FLD(fNewAspectRatio);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio3Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio3Scan], 3);
 
 			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FLD(fNewAspectRatio);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio4Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio4Scan], 3);
 
 			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], [](SafetyHookContext& ctx)
 			{

@@ -284,7 +284,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 4);
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
@@ -298,7 +298,7 @@ void WidescreenFix()
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult + 7, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 7, 4);
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 7, [](SafetyHookContext& ctx)
 			{
@@ -404,7 +404,7 @@ void WidescreenFix()
 			Memory::Write(HUDElementsScansResult[HUD4Scan] + 55, fAmmoWidth);			
 
 			// Compass needle width
-			Memory::PatchBytes(HUDElementsScansResult[HUD5Scan] + 4, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(HUDElementsScansResult[HUD5Scan] + 4, 6);
 
 			fCompassNeedleWidth = 0.0333333f / fNewAspectRatio;
 
@@ -414,7 +414,7 @@ void WidescreenFix()
 			});
 
 			// Unknown HUD element #1
-			Memory::PatchBytes(HUDElementsScansResult[HUD6Scan] + 4, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(HUDElementsScansResult[HUD6Scan] + 4, 6);
 
 			fUnknownHUDElement1 = 0.025000000372529f;
 
