@@ -190,6 +190,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionsHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::EEE && bFixActive == true)
@@ -203,14 +205,11 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 12);			
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				// Convert the EAX register value to float
-				float fCurrentCameraHFOV = std::bit_cast<float>(ctx.eax);
+				const float& fCurrentCameraHFOV = std::bit_cast<float>(ctx.eax);
 
 				// Compute the new HFOV value
 				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;

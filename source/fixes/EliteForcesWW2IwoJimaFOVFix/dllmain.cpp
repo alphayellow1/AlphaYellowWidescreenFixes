@@ -205,16 +205,15 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("cshell.dll")) == nullptr)
-	{
-		spdlog::warn("cshell.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for cshell.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("cshell.dll");
 
 	return true;
 }
+
+static SafetyHookMid UnderwaterValueCheckHook{};
+static SafetyHookMid QuickLoadInstructionHook{};
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -227,11 +226,9 @@ void FOVFix()
 		std::uint8_t* UnderwaterValueCheckInstructionScanResult = Memory::PatternScan(dllModule2, "8A 46 61 84 C0 75 28 F6 46 44 08 74 22 8B 44 24 2C 8B CE");
 		if (UnderwaterValueCheckInstructionScanResult)
 		{
-			spdlog::info("Underwater Value Check Instruction: Address is cshell.dll+{:x}", UnderwaterValueCheckInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Underwater Value Check Instruction: Address is cshell.dll+{:x}", UnderwaterValueCheckInstructionScanResult - (std::uint8_t*)dllModule2);			
 
-			static SafetyHookMid UnderwaterValueCheckMidHook{};
-
-			UnderwaterValueCheckMidHook = safetyhook::create_mid(UnderwaterValueCheckInstructionScanResult, [](SafetyHookContext& ctx)
+			UnderwaterValueCheckHook = safetyhook::create_mid(UnderwaterValueCheckInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				iIsUnderwater = *reinterpret_cast<uint8_t*>(ctx.esi + 0x61);
 			});
@@ -245,11 +242,9 @@ void FOVFix()
 		std::uint8_t* QuickLoadInstructionScanResult = Memory::PatternScan(dllModule2, "8A 0F 32 C0 84 C9 8B DF");
 		if (QuickLoadInstructionScanResult)
 		{
-			spdlog::info("Quick Load Instruction: Address is cshell.dll+{:x}", QuickLoadInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Quick Load Instruction: Address is cshell.dll+{:x}", QuickLoadInstructionScanResult - (std::uint8_t*)dllModule2);			
 
-			static SafetyHookMid QuickLoadInstructionMidHook{};
-
-			QuickLoadInstructionMidHook = safetyhook::create_mid(QuickLoadInstructionScanResult, [](SafetyHookContext& ctx)
+			QuickLoadInstructionHook = safetyhook::create_mid(QuickLoadInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				const char* cMessage = reinterpret_cast<const char*>(ctx.edi);
 
@@ -272,11 +267,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraHFOVInstructionScanResult, 6);			
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x150
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
@@ -330,48 +323,46 @@ void FOVFix()
 		{
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
+			Memory::WriteNOPs(CameraVFOVInstructionScanResult, 6);
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x150
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x150);
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
 
 				// Access the VFOV value at the memory address EAX + 0x154
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x154);								
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);								
 
 				if (iIsUnderwater == 0)
 				{
-					if (Maths::isClose(fCurrentCameraHFOV2, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV2, fMenuVFOV / fAspectRatioScale))
+					if (Maths::isClose(fCurrentCameraHFOV, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV, fMenuVFOV / fAspectRatioScale))
 					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale);
 					}
-					else if (Maths::isClose(fCurrentCameraHFOV2, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV / fAspectRatioScale)) // Hipfire VFOV
+					else if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale)) // Hipfire VFOV
 					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
 					}
 					else
 					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale);
 					}
 				}
 				else if (iIsUnderwater == 1)
 				{
-					if (Maths::isClose(fCurrentCameraHFOV2, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV2, fMenuVFOV / fAspectRatioScale))
+					if (Maths::isClose(fCurrentCameraHFOV, fMenuHFOV) && Maths::isClose(fCurrentCameraVFOV, fMenuVFOV / fAspectRatioScale))
 					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale);
 
 						iIsUnderwater = 0;
 					}
-					else if (fCurrentCameraVFOV2 > fMinimumWunderwaterVFOV && fCurrentCameraVFOV2 < fMaximumUnderwaterVFOV)
+					else if (fCurrentCameraVFOV > fMinimumWunderwaterVFOV && fCurrentCameraVFOV < fMaximumUnderwaterVFOV)
 					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
 					}
 					else
 					{
-						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
+						fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale);
 					}
 				}
 
