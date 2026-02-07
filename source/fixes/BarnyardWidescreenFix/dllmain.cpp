@@ -277,7 +277,7 @@ void WidescreenFix()
 
 				spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90", 3);
+				Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 3);
 
 				CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 				{
@@ -290,7 +290,7 @@ void WidescreenFix()
 
 				CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 2, Memory::PointerMode::Absolute);
 
-				Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
 
 				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 				{

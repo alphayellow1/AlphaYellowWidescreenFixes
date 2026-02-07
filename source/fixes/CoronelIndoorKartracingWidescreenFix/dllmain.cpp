@@ -194,24 +194,15 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("qserver.dll")) == nullptr)
-	{
-		spdlog::warn("qserver.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
+	dllModule2 = Memory::GetHandle("qserver.dll");
 
-	spdlog::info("Successfully obtained handle for qserver.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	while ((dllModule3 = GetModuleHandleA("world.dll")) == nullptr)
-	{
-		spdlog::warn("world.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for world.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+	dllModule3 = Memory::GetHandle("world.dll");
 
 	return true;
 }
+
+static SafetyHookMid MenuCameraFOVInstructionHook{};
+static SafetyHookMid GameplayCameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -272,11 +263,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Menu Camera FOV Instruction: Address is qserver.dll+{:x}", MenuCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(MenuCameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(MenuCameraFOVInstructionScanResult, 4);			
 
-			static SafetyHookMid MenuCameraFOVInstructionMidHook{};
-
-			MenuCameraFOVInstructionMidHook = safetyhook::create_mid(MenuCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			MenuCameraFOVInstructionHook = safetyhook::create_mid(MenuCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentMenuCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x44);
 
@@ -296,9 +285,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Gameplay Camera FOV Instruction: Address is world.dll+{:x}", GameplayCameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			static SafetyHookMid GameplayCameraFOVInstructionMidHook{};
-
-			GameplayCameraFOVInstructionMidHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.eax);
 

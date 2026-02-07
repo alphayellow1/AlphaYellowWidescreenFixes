@@ -193,19 +193,9 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((pluginModule = GetModuleHandleA("NagaPlugin.vplugin")) == nullptr)
-	{
-		spdlog::warn("NagaPlugin.vplugin not loaded yet. Waiting...");
-	}
+	pluginModule = Memory::GetHandle("NagaPlugin.vplugin");
 
-	spdlog::info("Successfully obtained handle for NagaPlugin.vplugin: 0x{:X}", reinterpret_cast<uintptr_t>(pluginModule));
-
-	while ((dllModule2 = GetModuleHandleA("vision71.dll")) == nullptr)
-	{
-		spdlog::warn("vision71.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for vision71.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("vision71.dll");
 
 	return true;
 }
@@ -253,7 +243,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is vision71.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
 
 			static SafetyHookMid CameraFOVInstructionMidHook{};
 

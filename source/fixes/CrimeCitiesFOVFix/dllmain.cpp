@@ -189,16 +189,6 @@ bool DetectGame()
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewCameraFOVMultiplier = fFOVFactor * (fOriginalCameraFOVMultiplier * (fNewAspectRatio / fOldAspectRatio));
-
-	_asm
-	{
-		fmul dword ptr ds : [fNewCameraFOVMultiplier]
-	}
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::CC && bFixActive == true)
@@ -210,9 +200,14 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
+			{
+				fNewCameraFOVMultiplier = fFOVFactor * (fOriginalCameraFOVMultiplier * (fNewAspectRatio / fOldAspectRatio));
+
+				FPU::FMUL(fNewCameraFOVMultiplier);
+			});
 		}
 		else
 		{

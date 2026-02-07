@@ -228,7 +228,7 @@ void FOVFix()
 
 			MenuCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansRsesult[MenuFOV1Scan] + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansRsesult[MenuFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansRsesult[MenuFOV1Scan], 6);
 
 			MenuCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansRsesult[MenuFOV1Scan], [](SafetyHookContext& ctx)
 			{
@@ -243,14 +243,14 @@ void FOVFix()
 				FPU::FMUL(fNewMenuCameraFOVFactor);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansRsesult[MenuFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansRsesult[MenuFOV2Scan], 6);
 
 			MenuCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansRsesult[MenuFOV2Scan], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewMenuCameraFOVFactor);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansRsesult[MenuFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansRsesult[MenuFOV3Scan], 6);
 
 			MenuCameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansRsesult[MenuFOV3Scan], [](SafetyHookContext& ctx)
 			{
@@ -259,7 +259,7 @@ void FOVFix()
 
 			GameplayCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansRsesult[GameplayFOVScan] + 1, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansRsesult[GameplayFOVScan], "\x90\x90\x90\x90\x90", 5); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansRsesult[GameplayFOVScan], 5);
 
 			GameplayCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansRsesult[GameplayFOVScan], [](SafetyHookContext& ctx)
 			{

@@ -257,13 +257,13 @@ void WidescreenFix()
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 1, "\x14", 1);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 1, "\x14");
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 14, "\x07", 1);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 14, "\x07");
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 34, "\x14", 1);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 34, "\x14");
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 47, "\x07", 1);
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution3Scan] + 47, "\x07");
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution3Scan] + 22, 3);			
 

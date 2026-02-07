@@ -286,7 +286,7 @@ void FOVFix()
 			spdlog::info("Weapon FOV Instruction: Address is Bos.dll+{:x}", CameraFOVInstructionsScansResult[WeaponFOVScan] - (std::uint8_t*)dllModule3);
 
 			// Camera FOV Instruction 1 Hook
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 6);
 			
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
@@ -298,7 +298,7 @@ void FOVFix()
 			});
 
 			// Camera FOV Instruction 2 Hook
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
@@ -310,7 +310,7 @@ void FOVFix()
 			});
 
 			// Camera FOV Instruction 3 Hook
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV3Scan], 6);
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], [](SafetyHookContext& ctx)
 			{
@@ -328,7 +328,7 @@ void FOVFix()
 
 			StandardZoomFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 17, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan], 11);
 
 			HipfireCameraAndShieldZoomFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan], [](SafetyHookContext& ctx)
 			{
@@ -345,7 +345,7 @@ void FOVFix()
 				ctx.edx = std::bit_cast<uintptr_t>(fNewShieldZoomFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 15, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 15, 6);
 
 			StandardCameraZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 15, [](SafetyHookContext& ctx)
 			{
@@ -357,7 +357,7 @@ void FOVFix()
 			});
 
 			// Weapon FOV Instruction Hook
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[WeaponFOVScan] + 6, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[WeaponFOVScan] + 6, 3);
 
 			WeaponHipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[WeaponFOVScan] + 6, [](SafetyHookContext& ctx)
 			{

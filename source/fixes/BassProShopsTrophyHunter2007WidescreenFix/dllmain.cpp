@@ -213,14 +213,14 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90", 3);			
+			Memory::WriteNOPs(ResolutionInstructionsScanResult, 3);			
 
 			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.ecx + 0x1C) = iCurrentResX;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult + 7, "\x90\x90\x90", 3);			
+			Memory::WriteNOPs(ResolutionInstructionsScanResult + 7, 3);			
 
 			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 7, [](SafetyHookContext& ctx)
 			{
@@ -298,7 +298,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(WeaponFOVInstructionScanResult, 6);
 			
 			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

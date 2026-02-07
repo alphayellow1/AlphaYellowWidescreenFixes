@@ -260,7 +260,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera Background HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraBackgroundHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraBackgroundHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraBackgroundHFOVInstructionScanResult, 6);
 
 			CameraBackgroundHFOVInstructionHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraHFOV); });
 		}
@@ -275,7 +275,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera Background VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraBackgroundVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraBackgroundVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraBackgroundVFOVInstructionScanResult, 6);
 
 			CameraBackgroundVFOVInstructionHook = safetyhook::create_mid(CameraBackgroundVFOVInstructionScanResult, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraVFOV); });
 		}

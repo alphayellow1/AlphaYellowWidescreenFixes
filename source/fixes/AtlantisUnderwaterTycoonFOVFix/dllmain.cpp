@@ -213,7 +213,7 @@ void FOVFix()
 
 			fNewCullingValue = 16.0f;
 
-			Memory::PatchBytes(CameraCullingInstructionScanResult, 6);
+			Memory::WriteNOPs(CameraCullingInstructionScanResult, 6);
 
 			CameraCullingInstructionHook = safetyhook::create_mid(CameraCullingInstructionScanResult, [](SafetyHookContext& ctx)
 			{

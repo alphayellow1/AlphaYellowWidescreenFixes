@@ -208,14 +208,14 @@ void WidescreenFix()
 			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
 			// 640x480
-			Memory::PatchBytes(ResolutionListScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionListScanResult, 4);
 
 			ResolutionWidth640Hook = safetyhook::create_mid(ResolutionListScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.esp + 0x14) = iCurrentResX;
 			});
 
-			Memory::PatchBytes(ResolutionListScanResult + 11, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionListScanResult + 11, 4);
 
 			ResolutionHeight480Hook = safetyhook::create_mid(ResolutionListScanResult + 11, [](SafetyHookContext& ctx)
 			{
@@ -243,7 +243,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -265,7 +265,7 @@ void WidescreenFix()
 		{
 			spdlog::info("HUD Horizontal Res Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDHorizontalResInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(HUDHorizontalResInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(HUDHorizontalResInstructionScanResult, 4);
 
 			HUDHorizontalResInstructionHook = safetyhook::create_mid(HUDHorizontalResInstructionScanResult, [](SafetyHookContext& ctx)
 			{

@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "CrimeLifeGangWarsFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -190,21 +190,13 @@ bool DetectGame()
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewCameraFOV]
-	}
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::CLGW && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "68 39 8E E3 3F EB 05 68 AB AA AA 3F");
+		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? EB ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 0D");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
@@ -219,20 +211,21 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 89 45 F4 8D 45 FC 89 45 F0 D9 5D F8 8B 45 F0 8B 55 F4");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 40 ?? D8 0D ?? ?? ?? ?? D9 F2");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
 
-			fDamping = 0.75f;
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x44);
+					
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-			fEffectiveFOVFactor = powf(fFOVFactor, fDamping);
-
-			fNewCameraFOV = fOriginalCameraFOV * fEffectiveFOVFactor;
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{

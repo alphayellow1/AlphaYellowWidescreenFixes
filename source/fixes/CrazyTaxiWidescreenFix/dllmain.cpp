@@ -296,7 +296,7 @@ void WidescreenFix()
 
 			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV1Scan] + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[FOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 6);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
@@ -309,7 +309,7 @@ void WidescreenFix()
 
 			dNewCameraFOV2 = 64.0;
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[FOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 6);			
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
 			{
@@ -318,7 +318,7 @@ void WidescreenFix()
 
 			dNewCameraFOV3 = 0.0001;
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[FOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV3Scan], 6);			
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV3Scan], [](SafetyHookContext& ctx)
 			{

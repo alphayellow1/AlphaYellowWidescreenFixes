@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DaemonicaWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -50,37 +50,29 @@ int iCurrentResY;
 float fFOVFactor;
 
 // Variables
-float fNewCameraFOV;
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
-float fNewCameraFOV3;
-uint8_t* ResolutionWidth2Address;
-uint8_t* ResolutionHeight2Address;
-uint8_t* ResolutionWidth3Address;
-uint8_t* ResolutionHeight3Address;
-uint8_t* ResolutionWidth4Address;
-uint8_t* ResolutionHeight4Address;
-uint8_t* ResolutionWidth6Address;
-uint8_t* ResolutionHeight6Address;
-uint8_t* ResolutionWidth7Address;
-uint8_t* ResolutionHeight7Address;
-uint8_t* ResolutionWidth8Address;
-uint8_t* ResolutionHeight8Address;
-uint8_t* ResolutionWidth9Address;
-uint8_t* ResolutionHeight9Address;
-uint8_t* ResolutionWidth10Address;
-uint8_t* ResolutionHeight10Address;
-uint8_t* CameraFOV1Address;
-uint8_t* CameraFOV2Address;
-uint8_t* CameraFOV3Address;
+double dNewAspectRatio;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
 	DAEMONICA,
 	Unknown
+};
+
+enum ResolutionInstructionsIndices
+{
+	ResListScan,
+	Res2Scan,
+	Res3Scan,
+	Res4Scan,
+	Res5Scan,
+	Res6Scan,
+	Res7Scan,
+	Res8Scan,
+	Res9Scan
 };
 
 struct GameInfo
@@ -211,66 +203,38 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstruction1Hook{};
+static SafetyHookMid AspectRatioInstruction2Hook{};
+static SafetyHookMid CameraFOVInstruction1Hook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void AspectRatioInstruction1MidHook(SafetyHookContext& ctx)
 {
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
+	FPU::FLD(fNewAspectRatio);
 }
-
-static SafetyHookMid AspectRatioInstruction2Hook{};
 
 void AspectRatioInstruction2MidHook(SafetyHookContext& ctx)
 {
-	_asm
-	{
-		fdiv dword ptr ds:[fNewAspectRatio]
-	}
+	FPU::FDIV(fNewAspectRatio);
 }
 
-static SafetyHookMid CameraFOVInstruction1Hook{};
-
-void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(CameraFOV1Address);
-
-	fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV1]
-	}
-}
-
-static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOV2Address);
-
-	fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
-}
-
-static SafetyHookMid CameraFOVInstruction3Hook{};
-
-void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(CameraFOV3Address);
-
-	fNewCameraFOV3 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV3]
-	}
-}
+static SafetyHookMid ResolutionInstructions2Hook{};
+static SafetyHookMid ResolutionWidthInstruction3Hook{};
+static SafetyHookMid ResolutionHeightInstruction3Hook{};
+static SafetyHookMid ResolutionWidthInstruction4Hook{};
+static SafetyHookMid ResolutionHeightInstruction4Hook{};
+static SafetyHookMid ResolutionWidthInstruction5Hook{};
+static SafetyHookMid ResolutionHeightInstruction5Hook{};
+static SafetyHookMid ResolutionWidthInstruction6Hook{};
+static SafetyHookMid ResolutionHeightInstruction6Hook{};
+static SafetyHookMid ResolutionWidthInstruction7Hook{};
+static SafetyHookMid ResolutionHeightInstruction7Hook{};
+static SafetyHookMid ResolutionWidthInstruction8Hook{};
+static SafetyHookMid ResolutionHeightInstruction8Hook{};
+static SafetyHookMid ResolutionWidthInstruction9Hook{};
+static SafetyHookMid ResolutionHeightInstruction9Hook{};
+static SafetyHookMid AspectRatioInstructionHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -280,419 +244,185 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 78 05 00 00 1A 04 00 00 40 06 00 00 B0 04 00 00");
-		if (ResolutionListScanResult)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 78 05 00 00 1A 04 00 00 40 06 00 00 B0 04 00 00", "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? A3 ?? ?? ?? ?? A3", "8B 96 ?? ?? ?? ?? 89 15 ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? A3 ?? ?? ?? ?? 8B C7", "8B 86 ?? ?? ?? ?? 8B 1F", "8B 44 24 ?? 83 EC ?? 85 C0 74 ?? A3", "8B 35 ?? ?? ?? ?? 33 D2 89 15", "8B 1D ?? ?? ?? ?? 56 8B 35 ?? ?? ?? ?? 57 8B 3D ?? ?? ?? ?? 89 0D", "8B 35 ?? ?? ?? ?? 57 8B 3D ?? ?? ?? ?? 89 0D", "8B 44 24 ?? 2B C1 89 0D");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
-			
-			// 800x600
-			Memory::Write(ResolutionListScanResult, iCurrentResX);
+			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListScan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionListScanResult + 4, iCurrentResY);
+			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res5Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions 6 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res6Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions 7 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res7Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions 8 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res8Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions 9 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res9Scan] - (std::uint8_t*)exeModule);
+
+			// 800x600
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan], iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 4, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionListScanResult + 8, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 8, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 12, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 12, iCurrentResY);
 
 			// 1280x1024
-			Memory::Write(ResolutionListScanResult + 16, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 16, iCurrentResX);
 
-			Memory::Write(ResolutionListScanResult + 20, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution list scan memory address.");
-			return;
-		}
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 20, iCurrentResY);
 
-		std::uint8_t* ResolutionInstructions2ScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? A3 ?? ?? ?? ?? C1 E0 0A 89 0D ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 0D ?? ?? ?? ??");
-		if (ResolutionInstructions2ScanResult)
-		{
-			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions2ScanResult - (std::uint8_t*)exeModule);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res2Scan], 11);
 
-			ResolutionWidth2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 1, Memory::PointerMode::Absolute);
-
-			ResolutionWidth3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 6, Memory::PointerMode::Absolute);
-
-			ResolutionHeight2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 15, Memory::PointerMode::Absolute);
-
-			ResolutionHeight3Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 27, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructions2ScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 10);
-
-			static SafetyHookMid ResolutionWidthInstructions2MidHook{};
-
-			ResolutionWidthInstructions2MidHook = safetyhook::create_mid(ResolutionInstructions2ScanResult, [](SafetyHookContext& ctx)
+			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionWidth2Address) = iCurrentResX;
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 
-				*reinterpret_cast<int*>(ResolutionWidth3Address) = iCurrentResX;
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
+			});			
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3Scan], 6);
+
+			ResolutionWidthInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3Scan], [](SafetyHookContext& ctx)
+			{
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions2ScanResult + 13, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3Scan] + 12, 6);
 
-			static SafetyHookMid ResolutionHeight2Instruction1MidHook{};
-
-			ResolutionHeight2Instruction1MidHook = safetyhook::create_mid(ResolutionInstructions2ScanResult + 13, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3Scan] + 12, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight2Address) = iCurrentResY;
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions2ScanResult + 25, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res4Scan], 6);
 
-			static SafetyHookMid ResolutionHeight2Instruction2MidHook{};
-
-			ResolutionHeight2Instruction2MidHook = safetyhook::create_mid(ResolutionInstructions2ScanResult + 25, [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight3Address) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 2 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionInstructions3ScanResult = Memory::PatternScan(exeModule, "89 15 ?? ?? ?? ?? 8B 86 B0 00 00 00 A3 ?? ?? ?? ?? 8B C7 5F 5D 5B");
-		if (ResolutionInstructions3ScanResult)
-		{
-			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions3ScanResult - (std::uint8_t*)exeModule);
-
-			ResolutionWidth4Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions3ScanResult + 2, Memory::PointerMode::Absolute);
-
-			ResolutionHeight4Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions3ScanResult + 13, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructions3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid ResolutionWidthInstruction3MidHook{};
-
-			ResolutionWidthInstruction3MidHook = safetyhook::create_mid(ResolutionInstructions3ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ResolutionWidth4Address) = iCurrentResX;
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions3ScanResult + 12, "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res4Scan] + 8, 6);
 
-			static SafetyHookMid ResolutionHeightInstruction3MidHook{};
-
-			ResolutionHeightInstruction3MidHook = safetyhook::create_mid(ResolutionInstructions3ScanResult + 12, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4Scan] + 8, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight4Address) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 3 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionInstructions4ScanResult = Memory::PatternScan(exeModule, "89 86 AC 00 00 00 2B CA 89 46 68 8B 86 00 02 00 00 85 C0 89 8E B0 00 00 00 89 4E 6C");
-		if (ResolutionInstructions4ScanResult)
-		{
-			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions4ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(ResolutionInstructions4ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid ResolutionWidth1Instruction4MidHook{};
-
-			ResolutionWidth1Instruction4MidHook = safetyhook::create_mid(ResolutionInstructions4ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.esi + 0xAC) = iCurrentResX;
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions4ScanResult + 8, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res5Scan], 4);
 
-			static SafetyHookMid ResolutionWidth2Instruction4MidHook{};
-
-			ResolutionWidth2Instruction4MidHook = safetyhook::create_mid(ResolutionInstructions4ScanResult + 8, [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0x68) = iCurrentResX;
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions4ScanResult + 19, "\x90\x90\x90\x90\x90\x90\x90\x90\x90", 9);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res5Scan] + 16, 4);
 
-			static SafetyHookMid ResolutionHeightInstructions4MidHook{};
-
-			ResolutionHeightInstructions4MidHook = safetyhook::create_mid(ResolutionInstructions4ScanResult + 19, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5Scan] + 16, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0xB0) = iCurrentResY;
-
-				*reinterpret_cast<int*>(ctx.esi + 0x6C) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 4 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionInstructions5ScanResult = Memory::PatternScan(exeModule, "89 B7 D0 01 00 00 89 9F D4 01 00 00 C7 05 ?? ?? ?? ?? 3C 00 00 00");
-		if (ResolutionInstructions5ScanResult)
-		{
-			spdlog::info("Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions5ScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(ResolutionInstructions5ScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
-
-			static SafetyHookMid ResolutionInstructions5MidHook{};
-
-			ResolutionInstructions5MidHook = safetyhook::create_mid(ResolutionInstructions5ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.edi + 0x1D0) = iCurrentResX;
-
-				*reinterpret_cast<int*>(ctx.edi + 0x1D4) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 5 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionInstructions6ScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? 8B 44 24 24 85 C0 74 05 A3 ?? ?? ?? ??");
-		if (ResolutionInstructions6ScanResult)
-		{
-			spdlog::info("Resolution Instructions 6 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions6ScanResult - (std::uint8_t*)exeModule);
-
-			ResolutionWidth6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions6ScanResult + 1, Memory::PointerMode::Absolute);
-
-			ResolutionHeight6Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions6ScanResult + 14, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructions6ScanResult, "\x90\x90\x90\x90\x90", 5);
-
-			static SafetyHookMid ResolutionWidthInstruction6MidHook{};
-
-			ResolutionWidthInstruction6MidHook = safetyhook::create_mid(ResolutionInstructions6ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ResolutionWidth6Address) = iCurrentResX;
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions6ScanResult + 13, "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res6Scan], 6);
 
-			static SafetyHookMid ResolutionHeightInstruction6MidHook{};
-
-			ResolutionHeightInstruction6MidHook = safetyhook::create_mid(ResolutionInstructions6ScanResult + 13, [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res6Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight6Address) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 6 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionInstructions7ScanResult = Memory::PatternScan(exeModule, "89 35 ?? ?? ?? ?? 8B 41 24 85 C0 75 15 8B 0D ?? ?? ?? ?? 33 C0 A3 ?? ?? ?? ?? 89 0D ?? ?? ?? ??");
-		if (ResolutionInstructions7ScanResult)
-		{
-			spdlog::info("Resolution Instructions 7 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions7ScanResult - (std::uint8_t*)exeModule);
-
-			ResolutionWidth7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions7ScanResult + 2, Memory::PointerMode::Absolute);
-
-			ResolutionHeight7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions7ScanResult + 28, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructions7ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid ResolutionWidthInstruction7MidHook{};
-
-			ResolutionWidthInstruction7MidHook = safetyhook::create_mid(ResolutionInstructions7ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ResolutionWidth7Address) = iCurrentResX;
+				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions7ScanResult + 26, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res6Scan] + 98, 6);
 
-			static SafetyHookMid ResolutionHeightInstruction7MidHook{};
-
-			ResolutionHeightInstruction7MidHook = safetyhook::create_mid(ResolutionInstructions7ScanResult + 26, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res6Scan] + 98, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight7Address) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 7 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionInstructions8ScanResult = Memory::PatternScan(exeModule, "89 35 ?? ?? ?? ?? 89 15 ?? ?? ?? ?? 89 3D ?? ?? ?? ?? 7D 04 33 C9 EB 09 8D 43 FF");
-		if (ResolutionInstructions8ScanResult)
-		{
-			spdlog::info("Resolution Instructions 8 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions8ScanResult - (std::uint8_t*)exeModule);
-
-			ResolutionWidth8Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions8ScanResult + 2, Memory::PointerMode::Absolute);
-
-			ResolutionHeight8Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions8ScanResult + 14, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructions8ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid ResolutionWidthInstruction8MidHook{};
-
-			ResolutionWidthInstruction8MidHook = safetyhook::create_mid(ResolutionInstructions8ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ResolutionWidth8Address) = iCurrentResX;
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions8ScanResult + 12, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res7Scan], 6);
 
-			static SafetyHookMid ResolutionHeightInstruction8MidHook{};
-
-			ResolutionHeightInstruction8MidHook = safetyhook::create_mid(ResolutionInstructions8ScanResult + 12, [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction7Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res7Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight8Address) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 8 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionInstructions9ScanResult = Memory::PatternScan(exeModule, "89 35 ?? ?? ?? ?? 89 15 ?? ?? ?? ?? A3 ?? ?? ?? ?? 89 0D ?? ?? ?? ?? 5E C3 CC CC CC CC CC CC CC");
-		if (ResolutionInstructions9ScanResult)
-		{
-			spdlog::info("Resolution Instructions 9 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions9ScanResult - (std::uint8_t*)exeModule);
-
-			ResolutionWidth9Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions9ScanResult + 2, Memory::PointerMode::Absolute);
-
-			ResolutionHeight9Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions9ScanResult + 19, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructions9ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid ResolutionWidthInstruction9MidHook{};
-
-			ResolutionWidthInstruction9MidHook = safetyhook::create_mid(ResolutionInstructions9ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ResolutionWidth9Address) = iCurrentResX;
+				ctx.ebx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions9ScanResult + 17, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res7Scan] + 91, 6);
 
-			static SafetyHookMid ResolutionHeightInstruction9MidHook{};
-
-			ResolutionHeightInstruction9MidHook = safetyhook::create_mid(ResolutionInstructions9ScanResult + 17, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction7Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res7Scan] + 91, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight9Address) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 9 scan memory address.");
-			return;
-		}
-
-		std::uint8_t* ResolutionInstructions10ScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? A1 ?? ?? ?? ?? 2B CA 89 15 ?? ?? ?? ?? 89 0D ?? ?? ?? ?? C7 05 ?? ?? ?? ?? 00 00 00 00 C7 05 ?? ?? ?? ?? 00 00 80 3F");
-		if (ResolutionInstructions10ScanResult)
-		{
-			spdlog::info("Resolution Instructions 10 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructions10ScanResult - (std::uint8_t*)exeModule);
-
-			ResolutionWidth10Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions10ScanResult + 1, Memory::PointerMode::Absolute);
-
-			ResolutionHeight10Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions10ScanResult + 20, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(ResolutionInstructions10ScanResult, "\x90\x90\x90\x90\x90", 5);
-
-			static SafetyHookMid ResolutionWidthInstruction10MidHook{};
-
-			ResolutionWidthInstruction10MidHook = safetyhook::create_mid(ResolutionInstructions10ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ResolutionWidth10Address) = iCurrentResX;
+				ctx.ebx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructions10ScanResult + 18, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res8Scan], 6);
 
-			static SafetyHookMid ResolutionHeightInstruction10MidHook{};
-
-			ResolutionHeightInstruction10MidHook = safetyhook::create_mid(ResolutionInstructions10ScanResult + 18, [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction8Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res8Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight10Address) = iCurrentResY;
+				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResX);
+			});
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res8Scan] + 7, 6);
+
+			ResolutionHeightInstruction8Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res8Scan] + 7, [](SafetyHookContext& ctx)
+			{
+				ctx.edi = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res9Scan], 4);
+
+			ResolutionWidthInstruction9Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res9Scan], [](SafetyHookContext& ctx)
+			{
+				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
+			});
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res9Scan] + 12, 4);
+
+			ResolutionHeightInstruction9Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res9Scan] + 12, [](SafetyHookContext& ctx)
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions 10 scan memory address.");
-			return;
-		}
 
-		std::uint8_t* AspectRatioInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? DD 1C 24 E8 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? 8B 02 83 C4 10 3B C3");
-		if (AspectRatioInstruction1ScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "DC 0D ?? ?? ?? ?? DB 05");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(AspectRatioInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult, AspectRatioInstruction1MidHook);
+			dNewAspectRatio = 320.0 * (double)fAspectRatioScale;
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(dNewAspectRatio);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio instruction 1 memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 5C 24 08 89 0D ?? ?? ?? ?? D8 74 24 08 D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 35 ?? ?? ?? ??");
-		if (AspectRatioInstruction2ScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 35 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? DB 40 ?? A1");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstruction2ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstruction2ScanResult + 26, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult + 26, AspectRatioInstruction2MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instruction 2 memory address.");
-			return;
-		}
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? DD 1C 24 E8 ?? ?? ?? ?? D9 5C 24 20 83 C4 08 D9 44 24 18");
-		if (CameraFOVInstruction1ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
+				fNewCameraFOV = fCurrentCameraFOV * fAspectRatioScale * fFOVFactor;
 
-			CameraFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction1ScanResult + 2, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, CameraFOVInstruction1MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "74 5E D9 05 ?? ?? ?? ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 05 7A 1C");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
-
-			CameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction2ScanResult + 4, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult + 2, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 2, CameraFOVInstruction2MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "DC C0 DD 1C 24 E8 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ??");
-		if (CameraFOVInstruction3ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
-
-			CameraFOV3Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction3ScanResult + 18, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(CameraFOVInstruction3ScanResult + 16, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult + 16, CameraFOVInstruction3MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 3 memory address.");
-			return;
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 	}
 }

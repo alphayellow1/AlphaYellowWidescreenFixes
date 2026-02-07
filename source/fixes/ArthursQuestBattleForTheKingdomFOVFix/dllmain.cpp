@@ -237,7 +237,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera VFOV Instruction: Address is CShell.dll+{:x}", CameraVFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, 6);
+			Memory::WriteNOPs(CameraVFOVInstructionScanResult, 6);
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

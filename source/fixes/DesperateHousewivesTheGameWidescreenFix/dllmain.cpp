@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DesperateHousewivesTheGameWidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -45,15 +45,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
-float fNewCameraFOV;
-float fNewCameraFOV2;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewCameraFOV1;
+float fNewCameraFOV2;
 uint8_t* CameraFOV2ValueAddress;
 
 // Game detection
@@ -61,6 +61,18 @@ enum class Game
 {
 	DHTG,
 	Unknown
+};
+
+enum ResolutionListsIndices
+{
+	ResList1Scan,
+	ResList2Scan
+};
+
+enum CameraFOVInstructionsIndices
+{
+	FOV1Scan,
+	FOV2Scan
 };
 
 struct GameInfo
@@ -191,28 +203,8 @@ bool DetectGame()
 }
 
 static SafetyHookMid FamilySelectionAspectRatioInstructionHook{};
-
-void FamilySelectionAspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx);
-
-	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
+static SafetyHookMid CameraFOVInstruction1Hook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void WidescreenFix()
 {
@@ -222,146 +214,138 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 		
-		std::uint8_t* ResolutionList1ScanResult = Memory::PatternScan(exeModule, "C7 00 80 02 00 00 C7 01 E0 01 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 20 03 00 00 C7 00 58 02 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 04 00 00 C7 02 00 03 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 80 04 00 00 C7 01 60 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 C0 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 05 00 00 C7 02 00 04 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 40 06 00 00 C7 01 B0 04 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 04 00 00 C7 00 00 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 C0 03 00 00 C7 02 D0 02 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 B0 04 00 00 C7 01 84 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 2B 04 00 00 C7 00 20 03 00 00");
-		if (ResolutionList1ScanResult)
+		std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(exeModule, "C7 00 ?? ?? ?? ?? C7 01 ?? ?? ?? ?? C3 8B 54 24 ?? 8B 44 24 ?? C7 02 ?? ?? ?? ?? C7 00 ?? ?? ?? ?? C3 8B 4C 24 ?? 8B 54 24 ?? C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B 44 24 ?? 8B 4C 24 ?? C7 00 ?? ?? ?? ?? C7 01 ?? ?? ?? ?? C3 8B 54 24 ?? 8B 44 24 ?? C7 02 ?? ?? ?? ?? C7 00 ?? ?? ?? ?? C3 8B 4C 24 ?? 8B 54 24 ?? C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B 44 24 ?? 8B 4C 24 ?? C7 00 ?? ?? ?? ?? C7 01 ?? ?? ?? ?? C3 8B 54 24 ?? 8B 44 24 ?? C7 02 ?? ?? ?? ?? C7 00 ?? ?? ?? ?? C3 8B 4C 24 ?? 8B 54 24 ?? C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B 44 24 ?? 8B 4C 24 ?? C7 00 ?? ?? ?? ?? C7 01 ?? ?? ?? ?? C3 8B 54 24 ?? 8B 44 24 ?? C7 02 ?? ?? ?? ?? C7 00 ?? ?? ?? ?? C3 8B 4C 24 ?? 8B 54 24 ?? C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B FF 04",
+		"C7 00 ?? ?? ?? ?? C7 01 ?? ?? ?? ?? C3 8B 54 24 ?? 8B 44 24 ?? C7 02 ?? ?? ?? ?? C7 00 ?? ?? ?? ?? C3 8B 4C 24 ?? 8B 54 24 ?? C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B 44 24 ?? 8B 4C 24 ?? C7 00 ?? ?? ?? ?? C7 01 ?? ?? ?? ?? C3 8B 54 24 ?? 8B 44 24 ?? C7 02 ?? ?? ?? ?? C7 00 ?? ?? ?? ?? C3 8B 4C 24 ?? 8B 54 24 ?? C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B 44 24 ?? 8B 4C 24 ?? C7 00 ?? ?? ?? ?? C7 01 ?? ?? ?? ?? C3 8B 54 24 ?? 8B 44 24 ?? C7 02 ?? ?? ?? ?? C7 00 ?? ?? ?? ?? C3 8B 4C 24 ?? 8B 54 24 ?? C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B 44 24 ?? 8B 4C 24 ?? C7 00 ?? ?? ?? ?? C7 01 ?? ?? ?? ?? C3 8B 54 24 ?? 8B 44 24 ?? C7 02 ?? ?? ?? ?? C7 00 ?? ?? ?? ?? C3 8B 4C 24 ?? 8B 54 24 ?? C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B FF 94");
+		if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
 		{
-			spdlog::info("Resolution List 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListsScansResult[ResList1Scan] - (std::uint8_t*)exeModule);
 
+			spdlog::info("Resolution List 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListsScansResult[ResList2Scan] - (std::uint8_t*)exeModule);
+
+			// Resolution List 1
 			// 640x480
-			Memory::Write(ResolutionList1ScanResult + 2, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 2, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 8, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 8, iCurrentResY);
 
 			// 800x600
-			Memory::Write(ResolutionList1ScanResult + 23, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 23, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 29, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 29, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionList1ScanResult + 44, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 44, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 50, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 50, iCurrentResY);
 
 			// 1152x864
-			Memory::Write(ResolutionList1ScanResult + 65, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 65, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 71, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 71, iCurrentResY);
 
 			// 1290x960
-			Memory::Write(ResolutionList1ScanResult + 86, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 86, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 92, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 92, iCurrentResY);
 			
 			// 1280x1024
-			Memory::Write(ResolutionList1ScanResult + 107, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 107, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 113, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 113, iCurrentResY);
 
 			// 1600x1200
-			Memory::Write(ResolutionList1ScanResult + 128, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 128, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 134, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 134, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionList1ScanResult + 149, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 149, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 155, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 155, iCurrentResY);
 
 			// 960x720
-			Memory::Write(ResolutionList1ScanResult + 170, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 170, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 176, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 176, iCurrentResY);
 
 			// 1200x900
-			Memory::Write(ResolutionList1ScanResult + 191, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 191, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 197, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 197, iCurrentResY);
 
 			// 1067x800
-			Memory::Write(ResolutionList1ScanResult + 212, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 212, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 218, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution list 1 memory address.");
-			return;
-		}
-	
-	    std::uint8_t* ResolutionList2ScanResult = Memory::PatternScan(exeModule, "C7 00 80 02 00 00 C7 01 E0 01 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 20 03 00 00 C7 00 58 02 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 04 00 00 C7 02 00 03 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 80 04 00 00 C7 01 60 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 C0 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 05 00 00 C7 02 00 04 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 40 06 00 00 C7 01 B0 04 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 00 03 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 00 05 00 00 C7 02 D0 02 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 40 06 00 00 C7 01 84 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 20 03 00 00");
-		if (ResolutionList2ScanResult)
-		{
-			spdlog::info("Resolution List 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList2ScanResult - (std::uint8_t*)exeModule);
-			
+			Memory::Write(ResolutionListsScansResult[ResList1Scan] + 218, iCurrentResY);
+
+			// Resolution List 2
 			// 640x480
-			Memory::Write(ResolutionList2ScanResult + 2, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 2, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 8, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 8, iCurrentResY);
 
 			// 800x600
-			Memory::Write(ResolutionList2ScanResult + 23, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 23, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 29, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 29, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionList2ScanResult + 44, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 44, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 50, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 50, iCurrentResY);
 
 			// 1152x864
-			Memory::Write(ResolutionList2ScanResult + 65, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 65, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 71, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 71, iCurrentResY);
 
 			// 1290x960
-			Memory::Write(ResolutionList2ScanResult + 86, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 86, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 92, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 92, iCurrentResY);
 
 			// 1280x1024
-			Memory::Write(ResolutionList2ScanResult + 107, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 107, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 113, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 113, iCurrentResY);
 
 			// 1600x1200
-			Memory::Write(ResolutionList2ScanResult + 128, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 128, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 134, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 134, iCurrentResY);
 
 			// 1280x768
-			Memory::Write(ResolutionList2ScanResult + 149, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 149, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 155, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 155, iCurrentResY);
 
 			// 1280x720
-			Memory::Write(ResolutionList2ScanResult + 170, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 170, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 176, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 176, iCurrentResY);
 
 			// 1600x900
-			Memory::Write(ResolutionList2ScanResult + 191, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 191, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 197, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 197, iCurrentResY);
 
 			// 1280x800
-			Memory::Write(ResolutionList2ScanResult + 212, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 212, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 218, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution list 2 memory address.");
-			return;
+			Memory::Write(ResolutionListsScansResult[ResList2Scan] + 218, iCurrentResY);
 		}
 
-		std::uint8_t* FamilySelectionAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D9 58 04 D9 E8 D9 58 08");
+		std::uint8_t* FamilySelectionAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D9 58 ?? D9 E8 D9 58 ?? D9 05");
 		if (FamilySelectionAspectRatioInstructionScanResult)
 		{
 			spdlog::info("Family Selection Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), FamilySelectionAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(FamilySelectionAspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(FamilySelectionAspectRatioInstructionScanResult, 6);
 
-			FamilySelectionAspectRatioInstructionHook = safetyhook::create_mid(FamilySelectionAspectRatioInstructionScanResult, FamilySelectionAspectRatioInstructionMidHook);
+			FamilySelectionAspectRatioInstructionHook = safetyhook::create_mid(FamilySelectionAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(fNewAspectRatio);
+			});
 		}
 		else
 		{
@@ -369,45 +353,36 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 03 D9 1C 24 50 E8 ?? ?? ?? ?? 8D 4C 24 54");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 03 D9 1C ?? 50", "A3 ?? ?? ?? ?? D9 05");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90", 2);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 2);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? 8B 4B 04 DC 0D ?? ?? ?? ?? 89 0D ?? ?? ?? ??");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
-			
-			CameraFOV2ValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction2ScanResult + 1, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90", 5);
-
-			static SafetyHookMid CameraFOVInstruction2MidHook{};
-
-			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV2 = std::bit_cast<float>(ctx.eax);
+				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebx);
+				
+				fNewCameraFOV1 = fCurrentCameraFOV1 * fFOVFactor;
+				
+				FPU::FLD(fNewCameraFOV1);
+			});
+
+			CameraFOV2ValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV2Scan] + 1, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 5);
+
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
+			{
+				const float& fCurrentCameraFOV2 = std::bit_cast<float>(ctx.eax);
 
 				fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
 
 				*reinterpret_cast<float*>(CameraFOV2ValueAddress) = fNewCameraFOV2;
 			});
-		}
-		else
-		{
-			spdlog::info("Cannot locate the camera FOV instruction 2 memory address.");
-			return;
 		}
 	}
 }

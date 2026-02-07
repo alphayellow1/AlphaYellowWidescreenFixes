@@ -258,7 +258,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4); // NOP out the original instruction
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}

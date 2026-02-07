@@ -200,7 +200,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraHFOVInstructionScanResult, 3);
 
 			static SafetyHookMid CameraHFOVInstructionMidHook{};
 

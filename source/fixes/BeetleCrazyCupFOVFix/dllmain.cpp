@@ -227,7 +227,7 @@ void FOVFix()
 			// Races Camera FOV
 			RacesCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[RacesCameraFOVScan] + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[RacesCameraFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[RacesCameraFOVScan], 6);
 
 			RacesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[RacesCameraFOVScan], [](SafetyHookContext& ctx)
 			{
@@ -241,7 +241,7 @@ void FOVFix()
 			// Pre-races Camera FOV
 			PreRacesCameraFOVOffsetAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[PreRacesCameraFOVScan] + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[PreRacesCameraFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[PreRacesCameraFOVScan], 6);
 
 			PreRacesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[PreRacesCameraFOVScan], [](SafetyHookContext& ctx)
 			{
@@ -260,7 +260,7 @@ void FOVFix()
 			// Replay Camera FOV
 			ReplayCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[ReplayCameraFOVScan] + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[ReplayCameraFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[ReplayCameraFOVScan], 6);
 
 			ReplayCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ReplayCameraFOVScan], [](SafetyHookContext& ctx)
 			{

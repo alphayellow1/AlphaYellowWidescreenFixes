@@ -29,5 +29,8 @@
     <MASM Include="..\includes\fpu_ops_x64.asm">
       <Filter>Arquivos de Origem</Filter>
     </MASM>
+    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x86.asm">
+      <Filter>Arquivos de Origem</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

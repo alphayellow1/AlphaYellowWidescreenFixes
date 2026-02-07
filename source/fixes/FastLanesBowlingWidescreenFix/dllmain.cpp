@@ -67,29 +67,29 @@ enum class Game
 
 enum ResolutionInstructionsScansIndices
 {
-	RendererResolutionScan,
-	Resolution2Scan,
-	Resolution3Scan,
-	Resolution4Scan,
-	Resolution5Scan,
-	Resolution6Scan
+	RendererResScan,
+	Res2Scan,
+	Res3Scan,
+	Res4Scan,
+	Res5Scan,
+	Res6Scan
 };
 
 enum AspectRatioInstructionsScansIndices
 {
-	AspectRatio1Scan,
-	AspectRatio2Scan,
-	AspectRatio3Scan,
-	AspectRatio4Scan
+	AR1Scan,
+	AR2Scan,
+	AR3Scan,
+	AR4Scan
 };
 
 enum CameraFOVInstructionsScansIndices
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan,
-	CameraFOV3Scan,
-	CameraFOV4Scan,
-	CameraFOV5Scan
+	FOV1Scan,
+	FOV2Scan,
+	FOV3Scan,
+	FOV4Scan,
+	FOV5Scan
 };
 
 struct GameInfo
@@ -248,20 +248,20 @@ void WidescreenFix()
 		
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Renderer Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResolutionScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Renderer Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResScan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution4Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution5Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res5Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution 6 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution6Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution 6 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res6Scan] - (std::uint8_t*)exeModule);
 
 			// Renderer Resolution
-			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolutionScan], [](SafetyHookContext& ctx)
+			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResScan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
 
@@ -269,16 +269,16 @@ void WidescreenFix()
 			});
 			
 			// Resolution 2
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res2Scan], 6);
 
-			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution2Scan], [](SafetyHookContext& ctx)
+			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
 
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			ResolutionInstructions3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan], [](SafetyHookContext& ctx)
+			ResolutionInstructions3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3Scan], [](SafetyHookContext& ctx)
 			{
 				if (eGameType == Game::FLB_DX9)
 				{
@@ -296,18 +296,18 @@ void WidescreenFix()
 
 			if (eGameType == Game::FLB_DX9)
 			{
-				Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(ResolutionInstructionsScansResult[Res4Scan], 6);
 
-				Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan] + 11, "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(ResolutionInstructionsScansResult[Res4Scan] + 11, 6);
 			}
 			else if (eGameType == Game::FLB_DX8)
 			{
-				Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+				Memory::WriteNOPs(ResolutionInstructionsScansResult[Res4Scan], 8);
 
-				Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan] + 13, "\x90\x90\x90\x90", 4);
+				Memory::WriteNOPs(ResolutionInstructionsScansResult[Res4Scan] + 13, 4);
 			}
 
-			ResolutionInstructions5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution5Scan], [](SafetyHookContext& ctx)
+			ResolutionInstructions5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5Scan], [](SafetyHookContext& ctx)
 			{
 				if (eGameType == Game::FLB_DX9)
 				{
@@ -323,16 +323,16 @@ void WidescreenFix()
 				}
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res6Scan], 3);
 
-			ResolutionWidth6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution6Scan], [](SafetyHookContext& ctx)
+			ResolutionWidth6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res6Scan], [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan] + 18, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res6Scan] + 18, 4);
 
-			ResolutionHeight6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution6Scan] + 18, [](SafetyHookContext& ctx)
+			ResolutionHeight6Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res6Scan] + 18, [](SafetyHookContext& ctx)
 			{
 				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
@@ -341,23 +341,23 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? C7 44 24", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 54 24 ?? 89 44 24 ?? 8B 47 ?? 52 33 F6", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 54 24 ?? 89 44 24 ?? 8B 47 ?? 52 50", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 11");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR2Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR3Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AspectRatio4Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR4Scan] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio1Scan] + 1, fNewAspectRatio);
+			Memory::Write(AspectRatioInstructionsScansResult[AR1Scan] + 1, fNewAspectRatio);
 
-			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio2Scan] + 1, fNewAspectRatio);
+			Memory::Write(AspectRatioInstructionsScansResult[AR2Scan] + 1, fNewAspectRatio);
 
-			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio3Scan] + 1, fNewAspectRatio);
+			Memory::Write(AspectRatioInstructionsScansResult[AR3Scan] + 1, fNewAspectRatio);
 
 			fNewAspectRatio4 = 0.4f * fAspectRatioScale;
 
-			Memory::Write(AspectRatioInstructionsScansResult[AspectRatio4Scan] + 4, fNewAspectRatio4);
+			Memory::Write(AspectRatioInstructionsScansResult[AR4Scan] + 4, fNewAspectRatio4);
 		}
 
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult;
@@ -373,31 +373,31 @@ void WidescreenFix()
 		
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)exeModule);					
+			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV3Scan] - (std::uint8_t*)exeModule);					
 
 			fNewCameraFOV1 = 0.4f * fAspectRatioScale;
 
 			fNewCameraFOV2 = 0.4f * fAspectRatioScale * fFOVFactor;
 
-			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 1, fNewCameraFOV1);
+			Memory::Write(CameraFOVInstructionsScansResult[FOV1Scan] + 1, fNewCameraFOV1);
 
-			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 1, fNewCameraFOV2);
+			Memory::Write(CameraFOVInstructionsScansResult[FOV2Scan] + 1, fNewCameraFOV2);
 
-			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV3Scan] + 1, fNewCameraFOV1);
+			Memory::Write(CameraFOVInstructionsScansResult[FOV3Scan] + 1, fNewCameraFOV1);
 
 			if (eGameType == Game::FLB_DX8)
 			{
-				spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV4Scan] - (std::uint8_t*)exeModule);
+				spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV4Scan] - (std::uint8_t*)exeModule);
 
-				spdlog::info("Camera FOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV5Scan] - (std::uint8_t*)exeModule);
+				spdlog::info("Camera FOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV5Scan] - (std::uint8_t*)exeModule);
 
-				Memory::Write(CameraFOVInstructionsScansResult[CameraFOV4Scan] + 1, fNewCameraFOV1);
+				Memory::Write(CameraFOVInstructionsScansResult[FOV4Scan] + 1, fNewCameraFOV1);
 
-				Memory::Write(CameraFOVInstructionsScansResult[CameraFOV5Scan] + 1, fNewCameraFOV1);
+				Memory::Write(CameraFOVInstructionsScansResult[FOV5Scan] + 1, fNewCameraFOV1);
 			}
 		}
 	}	

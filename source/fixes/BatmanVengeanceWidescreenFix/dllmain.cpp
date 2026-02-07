@@ -256,7 +256,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera VFOV Instruction: Address is osr_dx8_vf.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 			fNewAspectRatio2 = fAspectRatioScale;
 
@@ -276,7 +276,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is enginecore_vr.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
 			// Hook is located in the AdjustCameraToViewport function
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)

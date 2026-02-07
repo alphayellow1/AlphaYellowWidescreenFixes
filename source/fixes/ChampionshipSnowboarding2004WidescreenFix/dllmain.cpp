@@ -263,7 +263,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Ground Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GroundCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(GroundCameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(GroundCameraFOVInstructionScanResult, 4);
 
 			GroundCameraFOVInstructionHook = safetyhook::create_mid(GroundCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -285,7 +285,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Overview Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(OverviewCameraFOVInstruction1ScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(OverviewCameraFOVInstruction1ScanResult, 3);
 
 			OverviewCameraFOVInstruction1Hook = safetyhook::create_mid(OverviewCameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
 			{
@@ -307,7 +307,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Overview Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(OverviewCameraFOVInstruction2ScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(OverviewCameraFOVInstruction2ScanResult, 3);
 
 			OverviewCameraFOVInstruction2Hook = safetyhook::create_mid(OverviewCameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
@@ -336,7 +336,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Overview Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(OverviewCameraFOVInstruction3ScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(OverviewCameraFOVInstruction3ScanResult, 3);
 
 			OverviewCameraFOVInstruction3Hook = safetyhook::create_mid(OverviewCameraFOVInstruction3ScanResult, [](SafetyHookContext& ctx)
 			{
@@ -358,7 +358,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Overview Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction4ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(OverviewCameraFOVInstruction4ScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(OverviewCameraFOVInstruction4ScanResult, 3);
 
 			OverviewCameraFOVInstruction4Hook = safetyhook::create_mid(OverviewCameraFOVInstruction4ScanResult, [](SafetyHookContext& ctx)
 			{
@@ -380,7 +380,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Overview Camera FOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction5ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(OverviewCameraFOVInstruction5ScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(OverviewCameraFOVInstruction5ScanResult, 3);
 
 			OverviewCameraFOVInstruction5Hook = safetyhook::create_mid(OverviewCameraFOVInstruction5ScanResult, [](SafetyHookContext& ctx)
 			{
@@ -402,7 +402,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Overview Camera FOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction6ScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(OverviewCameraFOVInstruction6ScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(OverviewCameraFOVInstruction6ScanResult, 3);
 			
 			OverviewCameraFOVInstruction6Hook = safetyhook::create_mid(OverviewCameraFOVInstruction6ScanResult, [](SafetyHookContext& ctx)
 			{
@@ -424,7 +424,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Overview Camera FOV Instruction 7: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction7ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(OverviewCameraFOVInstruction7ScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(OverviewCameraFOVInstruction7ScanResult, 3);
 
 			OverviewCameraFOVInstruction7Hook = safetyhook::create_mid(OverviewCameraFOVInstruction7ScanResult, [](SafetyHookContext& ctx)
 			{
@@ -446,7 +446,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Overview Camera FOV Instruction 8: Address is {:s}+{:x}", sExeName.c_str(), OverviewCameraFOVInstruction8ScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(OverviewCameraFOVInstruction8ScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(OverviewCameraFOVInstruction8ScanResult, 3);
 
 			OverviewCameraFOVInstruction8Hook = safetyhook::create_mid(OverviewCameraFOVInstruction8ScanResult, [](SafetyHookContext& ctx)
 			{

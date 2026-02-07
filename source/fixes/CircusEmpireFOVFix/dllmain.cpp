@@ -223,6 +223,15 @@ void AspectRatioInstructionComparisonMidHook(SafetyHookContext& ctx)
 	FPU::FCOMP(fAspectRatioToCompare);
 }
 
+void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor = 1.0f)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
+
+	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fovFactor;
+
+	FPU::FLD(fNewCameraFOV);
+}
+
 void FOVFix()
 {
 	if (eGameType == Game::CE && bFixActive == true)
@@ -241,11 +250,11 @@ void FOVFix()
 
 			spdlog::info("Aspect Ratio Comparison Instruction 2: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(AspectRatioComparisonInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioComparisonInstructionsScansResult[AspectRatio1Scan], 6);
 
 			AspectRatioComparisonInstruction1Hook = safetyhook::create_mid(AspectRatioComparisonInstructionsScansResult[AspectRatio1Scan], AspectRatioInstructionComparisonMidHook);
 
-			Memory::PatchBytes(AspectRatioComparisonInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioComparisonInstructionsScansResult[AspectRatio2Scan], 6);
 
 			AspectRatioComparisonInstruction2Hook = safetyhook::create_mid(AspectRatioComparisonInstructionsScansResult[AspectRatio2Scan], AspectRatioInstructionComparisonMidHook);
 		}
@@ -256,26 +265,18 @@ void FOVFix()
 
 			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 17, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 17, 6);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 17, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.edx + 0x108);
-
-				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
-
-				FPU::FLD(fNewCameraFOV1);
+				CameraFOVInstructionsMidHook(ctx.edx + 0x108, fFOVFactor);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.edx + 0x114);
-
-				fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
-
-				FPU::FLD(fNewCameraFOV2);
+				CameraFOVInstructionsMidHook(ctx.edx + 0x114);
 			});
 		}		
 	}

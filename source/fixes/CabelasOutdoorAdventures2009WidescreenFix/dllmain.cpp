@@ -221,7 +221,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is EngineDll8r.dll+{:x}", ResolutionInstructionsScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instructions			
+			Memory::WriteNOPs(ResolutionInstructionsScanResult, 6); // NOP out the original instructions			
 
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
@@ -241,7 +241,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is EngineDll8r.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6); // NOP out the original instruction			
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

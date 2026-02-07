@@ -185,6 +185,9 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid ResolutionWidthInstructionHook{};
+static SafetyHookMid ResolutionHeightInstructionHook{};
+
 void WidescreenFix()
 {
 	if (eGameType == Game::CCT && bFixActive == true)
@@ -196,11 +199,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionWidthInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionWidthInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(ResolutionWidthInstructionScanResult, 3);
 
-			static SafetyHookMid ResolutionWidthInstructionMidHook{};
-
-			ResolutionWidthInstructionMidHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.esi + 70) = iCurrentResX;
 			});
@@ -216,11 +217,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionHeightInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionHeightInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(ResolutionHeightInstructionScanResult, 3);
 
-			static SafetyHookMid ResolutionHeightInstructionMidHook{};
-
-			ResolutionHeightInstructionMidHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<int*>(ctx.esi + 74) = iCurrentResY;
 			});
