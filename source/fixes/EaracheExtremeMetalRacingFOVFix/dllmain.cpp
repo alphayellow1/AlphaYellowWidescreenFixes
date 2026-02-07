@@ -205,7 +205,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 3);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -213,7 +213,7 @@ void FOVFix()
 
 				if (fCurrentAspectRatio == 0.75f)
 				{
-					fNewAspectRatio2 = 0.75f / fAspectRatioScale;
+					fNewAspectRatio2 = fCurrentAspectRatio / fAspectRatioScale;
 				}
 				else
 				{
@@ -229,28 +229,20 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 18 E8 D5 B0 03 00 D9 5C 24 08 0F B7 46 10 0F B7 4E 12");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 46 ?? 8B 4E ?? D9 1C");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			fEffectiveFOVFactor = powf(fFOVFactor, fDamping); // This makes the FOV change be less aggressive and more gradual
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x18);				
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x14);				
 
-				if (fCurrentCameraFOV != 0.556599319f && fCurrentCameraFOV != 0.6057697535f && fCurrentCameraFOV != 0.5f)
-				{
-					// Computes the new FOV value if the current FOV is different from the last modified FOV
-					fNewCameraFOV = fCurrentCameraFOV * fEffectiveFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV = fCurrentCameraFOV;
-				}
+				fNewCameraFOV = fCurrentCameraFOV * fEffectiveFOVFactor;
 
 				FPU::FLD(fNewCameraFOV);
 			});
