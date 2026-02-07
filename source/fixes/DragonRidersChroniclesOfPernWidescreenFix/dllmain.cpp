@@ -60,14 +60,14 @@ enum class Game
 
 enum ResolutionInstructionsScans
 {
-	ResolutionListScan,
-	StartupLoadingScreenResolutionScan
+	ResListScan,
+	StartupLoadingResScan
 };
 
 enum CameraFOVInstructionsScans
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1Scan,
+	FOV2Scan
 };
 
 struct GameInfo
@@ -218,60 +218,60 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "80 02 00 00 20 03 00 00 00 04 00 00 00 05 00 00 40 06 00 00 00 00 00 00 E0 01 00 00 58 02 00 00 00 03 00 00 C0 03 00 00 B0 04 00 00", "68 E0 01 00 00 68 80 02 00 00 56 53 50 FF 52 08 85 C0");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution List: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionListScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListScan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Startup Loading Screen Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[StartupLoadingScreenResolutionScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Startup Loading Screen Resolution Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[StartupLoadingResScan] - (std::uint8_t*)exeModule);
 
 			// Resolution List
 			// 640x480
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan], iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan], iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 24, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 24, iCurrentResY);
 
 			// 800x600
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 4, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 4, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 28, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 28, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 8, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 8, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 32, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 32, iCurrentResY);
 
 			// 1280x960
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 12, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 12, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 36, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 36, iCurrentResY);
 
 			// 1600x1200
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 16, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 16, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 40, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResListScan] + 40, iCurrentResY);
 
 			// Startup Loading Screen Resolution
 			// 640x480
-			Memory::Write(ResolutionInstructionsScansResult[StartupLoadingScreenResolutionScan] + 6, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[StartupLoadingResScan] + 6, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[StartupLoadingScreenResolutionScan] + 1, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[StartupLoadingResScan] + 1, iCurrentResY);
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 44 24 08 D8 0D 38 95 4A 00 D9 C0 D9 FE D9 C0 D9 E1", "D9 44 24 34 D8 0D 38 95 4A 00 A1 E4 DC 5C 00 56 57 8D BB D4 00 00 00 D9 F2");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 0D ?? ?? ?? ?? D9 C0", "D9 44 24 ?? D8 0D ?? ?? ?? ?? A1");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 4);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionMidHook(ctx.esp + 0x8);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 4);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionMidHook(ctx.esp + 0x34);
 			});
