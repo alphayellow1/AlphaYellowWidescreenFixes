@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "EndOfTwilightFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,25 +41,37 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+int iCurrentResX;
+int iCurrentResY;
+float fFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
-float fNewCameraFOV;
-float fNewCameraFOV2;
-float fNewCameraFOV3;
 float fNewAspectRatio;
-float fFOVFactor;
 float fAspectRatioScale;
+float fNewAspectRatio1;
+float fNewAspectRatio2;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
 	EOT,
 	Unknown
+};
+
+enum AspectRatioInstructionsIndices
+{
+	AR1Scan,
+	AR2Scan
+};
+
+enum CameraFOVInstructionsIndices
+{
+	FOV1Scan,
+	FOV2Scan
 };
 
 struct GameInfo
@@ -194,27 +206,23 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("driver.dll")) == nullptr)
-	{
-		spdlog::warn("driver.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for driver.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("driver.dll");
 
 	return true;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
+static SafetyHookMid AspectRatioInstruction1Hook{};
+static SafetyHookMid AspectRatioInstruction2Hook{};
+static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
-static SafetyHookMid CameraFOVInstructionHook{};
 
 enum destInstruction
 {
 	FLD,
 	ECX
-}
+};
 
-void CameraFOVInstruction2MidHook(uintptr FOVAddress, destInstruction DestInstruction, SafetyHookContext& ctx)
+void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, destInstruction DestInstruction, SafetyHookContext& ctx)
 {
 	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
 
@@ -228,7 +236,7 @@ void CameraFOVInstruction2MidHook(uintptr FOVAddress, destInstruction DestInstru
 	}
 
 	switch (DestInstruction)
-	{[
+	{
 		case FLD:
 		{
 			FPU::FLD(fNewCameraFOV);
@@ -240,8 +248,7 @@ void CameraFOVInstruction2MidHook(uintptr FOVAddress, destInstruction DestInstru
 			ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			break;
 		}
-	]}
-	
+	}	
 }
 
 void FOVFix()
@@ -252,28 +259,37 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "8B 95 A4 02 00 00 89 44 24 20 8D 43 4C 89 54 24 24 8B 54 24 3C 89 08 8B 4C 24 40");
-		if (AspectRatioInstructionScanResult)
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 95 ?? ?? ?? ?? 89 44 24", "D8 8F ?? ?? ?? ?? D9 9D");
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is driver.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is driver.dll+{:x}", AspectRatioInstructionsScansResult[AR1Scan] - (std::uint8_t*)dllModule2);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Aspect Ratio Instruction 2: Address is driver.dll+{:x}", AspectRatioInstructionsScansResult[AR2Scan] - (std::uint8_t*)dllModule2);
+
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR1Scan], 6);
+
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fAspectRatio = *reinterpret_cast<float*>(ctx.ebp + 0x2A4);
+				float& fCurrentAspectRatio1 = *reinterpret_cast<float*>(ctx.ebp + 0x2A4);
 
-				if (fAspectRatio == 1.333333373f)
-				{
-					fAspectRatio = fNewAspectRatio;
-				}
+				fNewAspectRatio1 = fCurrentAspectRatio1 * fAspectRatioScale;
+
+				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio1);
+			});
+
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR2Scan], 6);
+
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2Scan], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentAspectRatio2 = *reinterpret_cast<float*>(ctx.edi + 0x2A4);
+
+				fNewAspectRatio2 = fCurrentAspectRatio2 * fAspectRatioScale;
+
+				FPU::FMUL(fNewAspectRatio2);
 			});
 		}
-		else
-		{
-			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
-			return;
-		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 8E 80 00 00 00 8B 50 04 89 4C 24 5C 8B 4C 24 38 89 54 24 1C", "D9 87 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8B 7C 24 10 8B 54 24 14 D9 F2");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 8E ?? ?? ?? ?? 8B 50 ?? 89 4C 24", "D9 87 ?? ?? ?? ?? D8 0D");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is driver.dll+{:x}", CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)dllModule2);
@@ -292,7 +308,7 @@ void FOVFix()
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.edi + 0x80, FLD, ctx);
-			}
+			});
 		}
 	}
 }
