@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DynastyWarriors4WidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -51,22 +51,22 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fCurrentCameraFOV;
 float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	DW4,
+	DW4_EN,
+	DW4_JPN,
+	DW4_KOREAN,
+	DW4_CHN,
 	Unknown
 };
 
 enum ResolutionInstructionsIndex
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan,
-	CameraFOV3Scan,
-	CameraFOV4Scan
+	GameplayFOVScan,
+	MenuFOVScan
 };
 
 struct GameInfo
@@ -76,7 +76,10 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::DW4, {"Dynasty Warriors 4", "Dynasty Warriors 4 Hyper.exe"}},
+	{Game::DW4_EN, {"Dynasty Warriors 4 (English)", "Dynasty Warriors 4 Hyper.exe"}},
+	{Game::DW4_JPN, {"Dynasty Warriors 4 (Japanese)", "Shin Sangokumusou 3.exe"}},
+	{Game::DW4_KOREAN, {"Dynasty Warriors 4 (Korean)", "Samgukmussang 3 Hyper.exe"}},
+	{Game::DW4_CHN, {"Dynasty Warriors 4 (Chinese)", "Zhen SanGuoWuShuang 3 Hyper.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -197,23 +200,21 @@ bool DetectGame()
 }
 
 static SafetyHookMid CharactersNameAspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-static SafetyHookMid CameraFOVInstruction3Hook{};
-static SafetyHookMid CameraFOVInstruction4Hook{};
+static SafetyHookMid GameplayCameraFOVInstructionHook{};
+static SafetyHookMid MenuCameraFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(uintptr_t CameraFOVAddress1, uintptr_t CameraFOVAddress2)
+void CameraFOVInstructionsMidHook(float& SourceAddress, uintptr_t DestAddress, float fovFactor = 1.0f)
 {
-	fCurrentCameraFOV = *(float*)(CameraFOVAddress1) + *(float*)(CameraFOVAddress2);
+	float& fCurrentCameraFOV = SourceAddress;
 
-	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
 
-	FPU::FLD(fNewCameraFOV);
+	*reinterpret_cast<float*>(DestAddress) = fNewCameraFOV;
 }
 
 void WidescreenFix()
 {
-	if (eGameType == Game::DW4 && bFixActive == true)
+	if ((eGameType == Game::DW4_EN || eGameType == Game::DW4_JPN || eGameType == Game::DW4_KOREAN || eGameType == Game::DW4_CHN) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
@@ -224,7 +225,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionListUnlockScanResult, "\xEB\x2F", 2); // jump unconditionally rather than if it's below 640 to always allow custom resolutions
+			Memory::PatchBytes(ResolutionListUnlockScanResult, "\xEB\x2F"); // jump unconditionally rather than if it's below 640 to always allow custom resolutions
 		}
 		else
 		{
@@ -232,12 +233,12 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CharactersNameAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 10 05 38 61 65 00 F3 0F 11 44 24 10");
+		std::uint8_t* CharactersNameAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 44 24 ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB");
 		if (CharactersNameAspectRatioInstructionScanResult)
 		{
 			spdlog::info("Characters Name Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), CharactersNameAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(CharactersNameAspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8); // NOP out the original instruction
+			Memory::WriteNOPs(CharactersNameAspectRatioInstructionScanResult, 8); // NOP out the original instruction
 			
 			CharactersNameAspectRatioInstructionHook = safetyhook::create_mid(CharactersNameAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -250,43 +251,25 @@ void WidescreenFix()
 			return;
 		}
 		
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 87 9C 00 00 00 D8 87 98 00 00 00 F3 0F 10 05 ?? ?? ?? ??", "D9 80 9C 00 00 00 D8 80 98 00 00 00 D8 0D ?? ?? ?? ??", "D9 86 ?? ?? ?? ?? D8 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 F2 DD D8", "D9 87 ?? ?? ?? ?? D8 87 ?? ?? ?? ?? D8 0D");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 11 85 ?? ?? ?? ?? 8B 17 89 10 8B 4F ??", "F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ??");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOVScan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MenuFOVScan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV4Scan] - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOVScan], 8);
 			
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			GameplayCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOVScan], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionMidHook(ctx.edi + 0x9C, ctx.edi + 0x98);
+				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.ebp + 0x98, fFOVFactor);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MenuFOVScan], 8);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			MenuCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MenuFOVScan], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionMidHook(ctx.eax + 0x9C, ctx.eax + 0x98);
-			});
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
-
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionMidHook(ctx.esi + 0x00A133FC, ctx.esi + 0x00A133F8);
-			});
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV4Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
-
-			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV4Scan], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionMidHook(ctx.edi + 0x9C, ctx.edi + 0x98);
+				CameraFOVInstructionsMidHook(ctx.xmm3.f32[0], ctx.esi + 0x98);
 			});
 		}
 	}

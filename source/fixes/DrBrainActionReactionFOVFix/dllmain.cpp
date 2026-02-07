@@ -275,7 +275,7 @@ void FOVFix()
 				spdlog::info("Camera FOV Instruction 3: Address is OpenGLDrv.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)OpenGLDLLHandle);
 			}
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 6);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
@@ -289,7 +289,7 @@ void FOVFix()
 				FPU::FLD(fNewCameraFOV1);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
@@ -305,7 +305,7 @@ void FOVFix()
 
 			if (D3D8DLLHandle || D3D9DLLHandle || OpenGLDLLHandle)
 			{
-				Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV3Scan], 6);
 
 				CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], [](SafetyHookContext& ctx)
 				{
