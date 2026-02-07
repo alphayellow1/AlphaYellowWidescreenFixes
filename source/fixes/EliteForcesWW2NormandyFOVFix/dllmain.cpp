@@ -191,6 +191,9 @@ bool DetectGame()
 	return false;	
 }
 
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::EFWW2N && bFixActive == true)
@@ -204,11 +207,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraHFOVInstructionScanResult, 6);
 
-			static SafetyHookMid CameraHFOVInstructionMidHook{};
-
-			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x150
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
@@ -239,25 +240,23 @@ void FOVFix()
 		{
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraVFOVInstructionScanResult, 6);			
 
-			static SafetyHookMid CameraVFOVInstructionMidHook{};
-
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x150
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x150);
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
 
 				// Access the VFOV value at the memory address EAX + 0x154
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
 
-				if (Maths::isClose(fCurrentCameraHFOV2, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV2, fDefaultVFOV / fAspectRatioScale)) // Hipfire VFOV
+				if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale)) // Hipfire VFOV
 				{
-					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale, fFOVFactor);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
 				}
 				else
 				{
-					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2 * fAspectRatioScale);
+					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale);
 				}
 
 				ctx.esi = std::bit_cast<uintptr_t>(fNewCameraVFOV);
