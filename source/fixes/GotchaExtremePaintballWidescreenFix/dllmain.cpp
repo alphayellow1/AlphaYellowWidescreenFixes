@@ -200,6 +200,8 @@ bool DetectGame()
 	return false;	
 }
 
+static SafetyHookMid ZoomCameraFOVInstructionHook{};
+
 void WidescreenFix()
 {
 	if (eGameType == Game::GEP && bFixActive == true)
@@ -263,11 +265,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Zoom FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ZoomFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(ZoomFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			static SafetyHookMid ZoomCameraFOVInstructionMidHook{};
+			Memory::WriteNOPs(ZoomFOVInstructionScanResult, 6);						
 			
-			ZoomCameraFOVInstructionMidHook = safetyhook::create_mid(ZoomFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			ZoomCameraFOVInstructionHook = safetyhook::create_mid(ZoomFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentZoomFOV = *reinterpret_cast<float*>(ctx.eax + 0x3A8);
 					
@@ -297,20 +297,27 @@ DWORD __stdcall Main(void*)
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
-	switch (ul_reason_for_call) {
-	case DLL_PROCESS_ATTACH: {
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle) {
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+	switch (ul_reason_for_call)
+	{
+		case DLL_PROCESS_ATTACH:
+		{
+			thisModule = hModule;
+
+			HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
+
+			if (mainHandle)
+			{
+				SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
+				CloseHandle(mainHandle);
+			}
+
+			break;
 		}
-		break;
-	}
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
+		
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		case DLL_PROCESS_DETACH:
+			break;
 	}
 	return TRUE;
 }
