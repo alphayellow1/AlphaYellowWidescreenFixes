@@ -52,7 +52,6 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fCurrentCameraFOV;
 float fNewCameraFOV;
 
 // Game detection
@@ -194,13 +193,7 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("Engine.dll")) == nullptr)
-	{
-		spdlog::warn("Engine.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for Engine.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("Engine.dll");
 
 	return true;
 }
@@ -220,11 +213,11 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is Engine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);			
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				const float& fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
 				if (fCurrentCameraFOV == 78.0f)
 				{

@@ -258,14 +258,14 @@ void WidescreenFix()
 
 				spdlog::info("Aspect Ratio Instruction 2: Address is fnx_dx7.dll+{:x}", AspectRatioInstructionsScanResult[AspectRatio2Scan] - (std::uint8_t*)dllModule2);
 
-				Memory::PatchBytes(AspectRatioInstructionsScanResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(AspectRatioInstructionsScanResult[AspectRatio1Scan], 6);
 
 				AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
 				{
 					ctx.ecx = std::bit_cast<uintptr_t>(fNewAspectRatio);
 				});
 
-				Memory::PatchBytes(AspectRatioInstructionsScanResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(AspectRatioInstructionsScanResult[AspectRatio2Scan], 6);
 
 				AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
 				{
@@ -280,7 +280,7 @@ void WidescreenFix()
 
 				spdlog::info("Camera FOV Instruction 2: Address is fnx_dx7.dll+{:x}", CameraFOVInstructionsScanResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
 
-				Memory::PatchBytes(CameraFOVInstructionsScanResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(CameraFOVInstructionsScanResult[CameraFOV1Scan], 6);
 
 				CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 				{
@@ -298,7 +298,7 @@ void WidescreenFix()
 					ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
 				});
 
-				Memory::PatchBytes(CameraFOVInstructionsScanResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(CameraFOVInstructionsScanResult[CameraFOV2Scan], 6);
 
 				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 				{
