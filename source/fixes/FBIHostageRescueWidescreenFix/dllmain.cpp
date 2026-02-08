@@ -62,8 +62,8 @@ enum class Game
 
 enum CameraFOVInstructionsIndices
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1Scan,
+	FOV2Scan
 };
 
 struct GameInfo
@@ -233,7 +233,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -249,13 +249,13 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 8E ?? ?? ?? ?? 51 E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 8D 94 24", "8B 86 ?? ?? ?? ?? 8D 4C 24 ?? 89 44 24");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 6);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x2F0);
 				
@@ -271,9 +271,9 @@ void WidescreenFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x374);
 

@@ -189,6 +189,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::FDNYFAH && bFixActive == true)
@@ -202,11 +204,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4); // NOP out the original instruction			
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
 

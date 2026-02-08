@@ -212,7 +212,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3);			
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);			
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -241,13 +241,13 @@ void FOVFix()
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D9 46 ?? D8 76 ?? 8B 56", "E8 7D 68 F0 FF 8B 46 1C 8B 4E 18 8B 56 14");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Menu Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[MenuAspectRatioScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[MenuARScan] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Races Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[RacesAspectRatioScan] + 11 - (std::uint8_t*)exeModule);
+			spdlog::info("Races Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[RacesARScan] + 11 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[MenuAspectRatioScan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[MenuARScan], 3);
 
-			MenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[MenuAspectRatioScan], [](SafetyHookContext& ctx)
+			MenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[MenuARScan], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentMenuAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x30);
 
@@ -256,9 +256,9 @@ void FOVFix()
 				FPU::FLD(fNewMenuAspectRatio);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[RacesAspectRatioScan] + 11, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[RacesARScan] + 11, 3);
 
-			RacesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[RacesAspectRatioScan] + 11, [](SafetyHookContext& ctx)
+			RacesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[RacesARScan] + 11, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentRacesAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x14);
 

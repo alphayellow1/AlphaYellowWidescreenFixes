@@ -219,13 +219,13 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is ChromeEngine.dll+{:x}", ResolutionInstructionsScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(ResolutionInstructionsScanResult, 6);			
 
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<uint32_t*>(ctx.ecx + 0xC) = iCurrentResX;
+				*reinterpret_cast<int*>(ctx.ecx + 0xC) = iCurrentResX;
 
-				*reinterpret_cast<uint32_t*>(ctx.ecx + 0x10) = iCurrentResY;
+				*reinterpret_cast<int*>(ctx.ecx + 0x10) = iCurrentResY;
 			});
 		}
 		else
@@ -239,7 +239,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

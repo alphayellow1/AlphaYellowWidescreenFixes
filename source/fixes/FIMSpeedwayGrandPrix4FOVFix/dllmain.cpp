@@ -45,12 +45,14 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
+float fAspectRatioScale;
+float fNewCameraFOV;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 
@@ -199,12 +201,8 @@ bool DetectGame()
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fFOVFactor * (2.0f * atanf(tanf(fCurrentFOV / 2.0f) * (fNewAspectRatio / fOldAspectRatio)));
-}
-
 static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
@@ -213,10 +211,7 @@ void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
 		fNewCameraHFOV = 1.035f;
 	}
 
-	_asm
-	{
-		fadd dword ptr ds : [fNewCameraHFOV]
-	}
+	FPU::FADD(fNewCameraHFOV);
 }
 
 void FOVFix()
@@ -230,7 +225,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV Instruction: Address is ChromeEngine3.dll+{:x}", CameraHFOVInstructionScanResult + 10 - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraHFOVInstructionScanResult + 10, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraHFOVInstructionScanResult + 10, 6);
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 10, CameraHFOVInstructionMidHook);
 		}
@@ -243,21 +238,19 @@ void FOVFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 96 5C 04 00 00 53 88 86 64 04 00 00 55");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is ChromeEngine3.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is ChromeEngine3.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);			
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentFOVValue = std::bit_cast<float>(ctx.edx);
+				const float& fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
 
 				if (fNewAspectRatio > 16.0f / 9.0f)
 				{
-					float fModifiedFOVValue = CalculateNewFOV(fCurrentFOVValue);
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 				else
 				{
-					fCurrentFOVValue *= fFOVFactor;
+					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 				}
 
 				ctx.edx = std::bit_cast<uintptr_t>(fCurrentFOVValue);
