@@ -356,7 +356,7 @@ DWORD WINAPI PatchWatchdogThread(LPVOID)
         {
             if (memcmp(g_AspectRatioAddr, g_AspectRatioHookBytes.data(), g_AspectRatioHookBytes.size()) != 0)
             {
-				Memory::PatchBytes(g_AspectRatioAddr, reinterpret_cast<const char*>(g_AspectRatioHookBytes.data()), g_AspectRatioHookBytes.size());
+				Memory::PatchBytes(g_AspectRatioAddr, reinterpret_cast<const char*>(g_AspectRatioHookBytes.data()));
             }
         }
 
@@ -364,7 +364,7 @@ DWORD WINAPI PatchWatchdogThread(LPVOID)
         {
             if (memcmp(g_CameraFOV1Addr, g_CameraFOV1HookBytes.data(), g_CameraFOV1HookBytes.size()) != 0)
             {
-				Memory::PatchBytes(g_CameraFOV1Addr, reinterpret_cast<const char*>(g_CameraFOV1HookBytes.data()), g_CameraFOV1HookBytes.size());
+				Memory::PatchBytes(g_CameraFOV1Addr, reinterpret_cast<const char*>(g_CameraFOV1HookBytes.data()));
             }
         }
 
@@ -372,7 +372,7 @@ DWORD WINAPI PatchWatchdogThread(LPVOID)
         {
             if (memcmp(g_CameraFOV2Addr, g_CameraFOV2HookBytes.data(), g_CameraFOV2HookBytes.size()) != 0)
             {
-				Memory::PatchBytes(g_CameraFOV2Addr, reinterpret_cast<const char*>(g_CameraFOV2HookBytes.data()), g_CameraFOV2HookBytes.size());
+				Memory::PatchBytes(g_CameraFOV2Addr, reinterpret_cast<const char*>(g_CameraFOV2HookBytes.data()));
             }
         }
     }
