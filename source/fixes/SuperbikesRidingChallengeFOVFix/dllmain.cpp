@@ -53,6 +53,8 @@ float fAspectRatioScale;
 float fNewHUDAspectRatio;
 uint8_t* BikeSelectionFOVAddress2;
 float fNewCameraFOV;
+uint8_t* RacesFOVAddress3;
+float fNewRacesFOV3;
 
 // Game detection
 enum class Game
@@ -73,6 +75,7 @@ enum CameraFOVInstructionsIndices
 	BikeSelectionFOV2,
 	RacesFOV1,
 	RacesFOV2,
+	RacesFOV3,
 	FOVReference
 };
 
@@ -208,6 +211,7 @@ static SafetyHookMid BikeSelectionFOVInstruction1Hook{};
 static SafetyHookMid BikeSelectionFOVInstruction2Hook{};
 static SafetyHookMid RacesCameraFOVInstruction1Hook{};
 static SafetyHookMid RacesCameraFOVInstruction2Hook{};
+static SafetyHookMid RacesCameraFOVInstruction3Hook{};
 
 enum destInstruction
 {
@@ -252,7 +256,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "c7 46 ? ? ? ? ? c7 46 ? ? ? ? ? c7 46 ? ? ? ? ? a1", "8B 54 24 ?? D8 74 24 ?? 89 54 24");
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? A1", "8B 54 24 ?? D8 74 24 ?? 89 54 24");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
 			spdlog::info("Bike Selection Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[BikeSelectionAR] - (std::uint8_t*)exeModule);
@@ -273,7 +277,7 @@ void FOVFix()
 			});
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8b 44 24 ? 50 50 e8 ? ? ? ? 5f 5d 5b 5e c2", "a1 ? ? ? ? 50 50", "8b 44 24 ? 50 50 e8 ? ? ? ? a0", "d9 07 d8 0d ? ? ? ? 51", "d9 44 24 ? 56 d8 0d ? ? ? ? 8b f1 8b 4e");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8b 44 24 ? 50 50 e8 ? ? ? ? 5f 5d 5b 5e c2", "a1 ? ? ? ? 50 50", "8b 44 24 ? 50 50 e8 ? ? ? ? a0", "d9 07 d8 0d ? ? ? ? 51", "d8 0d ? ? ? ? 8b f1 51");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Bike Selection FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[BikeSelectionFOV1] - (std::uint8_t*)exeModule);
@@ -283,6 +287,8 @@ void FOVFix()
 			spdlog::info("Races FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[RacesFOV1] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Races FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[RacesFOV2] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Races FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[RacesFOV3] - (std::uint8_t*)exeModule);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[BikeSelectionFOV1], 4);
 
@@ -314,11 +320,17 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.edi, FLD, false, ctx);
 			});
 
-			static SafetyHookMid fovhook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOVReference], [](SafetyHookContext& ctx)
-			{
-				float& fov = *(float*)(ctx.esp + 0xC);
+			RacesFOVAddress3 = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[RacesFOV3] + 2, Memory::PointerMode::Absolute);
 
-				spdlog::info("[Hook] Raw incoming FOV: {:.12f}", fov);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[RacesFOV3], 6);
+
+			RacesCameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[RacesFOV3], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentRacesFOV3 = *reinterpret_cast<float*>(RacesFOVAddress3);
+
+				fNewRacesFOV3 = fCurrentRacesFOV3 * fFOVFactor;
+
+				FPU::FMUL(fNewRacesFOV3);
 			});
 		}
 	}
