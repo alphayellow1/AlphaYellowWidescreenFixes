@@ -46,12 +46,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 uint32_t iDuringGameplay;
@@ -196,49 +196,17 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("EngineDll7r.dll")) == nullptr)
-	{
-		spdlog::warn("EngineDll7r.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
+	dllModule2 = Memory::GetHandle("EngineDll7r.dll");
 
-	spdlog::info("Successfully obtained handle for EngineDll7r.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	while ((dllModule3 = GetModuleHandleA("GameDll7r.dll")) == nullptr)
-	{
-		spdlog::warn("GameDll7r.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for GameDll7r.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+	dllModule3 = Memory::GetHandle("GameDll7r.dll");
 
 	return true;
 }
 
+static SafetyHookMid GameplayTriggerInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
-
-	if (iDuringGameplay == 0)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-	else if (iDuringGameplay == 1)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
+static SafetyHookMid AspectRatioInstruction1Hook{};
+static SafetyHookMid AspectRatioInstruction2Hook{};
 
 void FOVFix()
 {
@@ -253,11 +221,9 @@ void FOVFix()
 		{
 			spdlog::info("Gameplay Trigger Instruction: Address is GameDll7r.dll+{:x}", GameplayTriggerInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			iDuringGameplayValueAddress = Memory::GetPointerFromAddress<uint32_t>(GameplayTriggerInstructionScanResult + 1, Memory::PointerMode::Absolute);
-			
-			static SafetyHookMid GameplayTriggerInstructionMidHook{};
+			iDuringGameplayValueAddress = Memory::GetPointerFromAddress<uint32_t>(GameplayTriggerInstructionScanResult + 1, Memory::PointerMode::Absolute);			
 
-			GameplayTriggerInstructionMidHook = safetyhook::create_mid(GameplayTriggerInstructionScanResult, [](SafetyHookContext& ctx)
+			GameplayTriggerInstructionHook = safetyhook::create_mid(GameplayTriggerInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				iDuringGameplay = *reinterpret_cast<uint32_t*>(iDuringGameplayValueAddress);
 			});
@@ -273,9 +239,27 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is EngineDll7r.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+
+				if (iDuringGameplay == 0)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+				else if (iDuringGameplay == 1)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
@@ -286,18 +270,14 @@ void FOVFix()
 		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(dllModule2, "D9 93 DC 00 00 00 D9 83 D4 00 00 00");
 		if (AspectRatioInstructionsScanResult)
 		{
-			spdlog::info("Aspect Ratio Instructions Scan: Address is EngineDll7r.dll+{:x}", AspectRatioInstructionsScanResult + 6 - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instructions Scan: Address is EngineDll7r.dll+{:x}", AspectRatioInstructionsScanResult + 6 - (std::uint8_t*)dllModule2);			
 
-			static SafetyHookMid AspectRatioInstruction1MidHook{};
-
-			AspectRatioInstruction1MidHook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 6, [](SafetyHookContext& ctx)
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 6, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / fAspectRatioScale;
 			});
 
-			static SafetyHookMid AspectRatioInstruction2MidHook{};
-
-			AspectRatioInstruction2MidHook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 12, [](SafetyHookContext& ctx)
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 12, [](SafetyHookContext& ctx)
 			{
 				*reinterpret_cast<float*>(ctx.ebx + 0xD8) = 1.0f;
 			});

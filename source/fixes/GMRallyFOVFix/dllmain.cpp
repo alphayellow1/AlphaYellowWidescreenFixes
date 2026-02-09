@@ -45,13 +45,13 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fFOVFactor;
 float fNewCameraFOV;
 uint32_t* pInRaceFlag;
 static bool bInRace;
@@ -195,38 +195,12 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("ChromeEngine2.dll")) == nullptr)
-	{
-		spdlog::warn("ChromeEngine2.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for ChromeEngine2.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("ChromeEngine2.dll");
 
 	return true;
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
-
-	bInRace = (*pInRaceFlag == 1);
-
-	if (bInRace == 1)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -256,9 +230,25 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4); // NOP out the original instruction
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+
+				bInRace = (*pInRaceFlag == 1);
+
+				if (bInRace == 1)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{

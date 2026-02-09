@@ -301,7 +301,7 @@ void ApplyD3DFix(HMODULE dllModule)
 
 		ResolutionHeight5Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScans2Result[Resolution5Scan] + 8, Memory::PointerMode::Absolute);
 
-		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution3Scan], 6);
 
 		static SafetyHookMid g_ResolutionWidthInstruction3MidHook{};
 
@@ -310,7 +310,7 @@ void ApplyD3DFix(HMODULE dllModule)
 				*reinterpret_cast<int*>(ResolutionWidth3Address) = iCurrentResX;
 			});
 
-		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution3Scan] + 12, "\x90\x90\x90\x90\x90\x90", 6);
+		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution3Scan] + 12, 6);
 
 		static SafetyHookMid g_ResolutionHeightInstruction3MidHook{};
 
@@ -319,7 +319,7 @@ void ApplyD3DFix(HMODULE dllModule)
 				*reinterpret_cast<int*>(ResolutionHeight3Address) = iCurrentResY;
 			});
 
-		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution4Scan], "\x90\x90\x90\x90\x90\x90", 6);
+		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution4Scan], 6);
 
 		static SafetyHookMid g_ResolutionWidthInstruction4MidHook{};
 
