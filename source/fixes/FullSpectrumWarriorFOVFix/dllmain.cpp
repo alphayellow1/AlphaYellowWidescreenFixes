@@ -71,9 +71,8 @@ enum class Game
 
 enum CameraFOVInstructionsIndex
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan,
-	CameraFOV3Scan
+	FOV1,
+	FOV2
 };
 
 struct GameInfo
@@ -227,7 +226,7 @@ void PatchAspectRatio()
 {
 	memcpy(g_AspectRatioHookBytes.data(), AspectRatioInstructionScanResult, g_AspectRatioHookBytes.size());
 
-	Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+	Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 	AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 	{
@@ -243,11 +242,11 @@ void PatchAspectRatio()
 
 void PatchFOV1()
 {
-	memcpy(g_CameraFOV1HookBytes.data(), CameraFOVInstructionsScansResult[CameraFOV1Scan], g_CameraFOV1HookBytes.size());
+	memcpy(g_CameraFOV1HookBytes.data(), CameraFOVInstructionsScansResult[FOV1], g_CameraFOV1HookBytes.size());
 
-	Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+	Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 6);
 
-	CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+	CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 	{
 		float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebx + 0xF0);
 
@@ -259,20 +258,20 @@ void PatchFOV1()
 		FPU::FLD(fNewCameraFOV1);
 	});
 
-	memcpy(g_CameraFOV1HookBytes.data(), CameraFOVInstructionsScansResult[CameraFOV1Scan], g_CameraFOV1HookBytes.size());
+	memcpy(g_CameraFOV1HookBytes.data(), CameraFOVInstructionsScansResult[FOV1], g_CameraFOV1HookBytes.size());
 
-	g_CameraFOV1Addr = CameraFOVInstructionsScansResult[CameraFOV1Scan];
+	g_CameraFOV1Addr = CameraFOVInstructionsScansResult[FOV1];
 
 	FlushInstructionCache(GetCurrentProcess(), g_CameraFOV1Addr, g_CameraFOV1HookBytes.size());
 }
 
 void PatchFOV2()
 {
-	memcpy(g_CameraFOV2HookBytes.data(), CameraFOVInstructionsScansResult[CameraFOV2Scan], g_CameraFOV2HookBytes.size());
+	memcpy(g_CameraFOV2HookBytes.data(), CameraFOVInstructionsScansResult[FOV2], g_CameraFOV2HookBytes.size());
 
-	Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+	Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 6);
 
-	CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+	CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
 	{
 		float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0xF0);
 
@@ -284,9 +283,9 @@ void PatchFOV2()
 		ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV2);
 	});
 
-	memcpy(g_CameraFOV2HookBytes.data(), CameraFOVInstructionsScansResult[CameraFOV2Scan], g_CameraFOV2HookBytes.size());
+	memcpy(g_CameraFOV2HookBytes.data(), CameraFOVInstructionsScansResult[FOV2], g_CameraFOV2HookBytes.size());
 
-	g_CameraFOV2Addr = CameraFOVInstructionsScansResult[CameraFOV2Scan];
+	g_CameraFOV2Addr = CameraFOVInstructionsScansResult[FOV2];
 
 	FlushInstructionCache(GetCurrentProcess(), g_CameraFOV2Addr, g_CameraFOV2HookBytes.size());
 }
@@ -317,18 +316,18 @@ void FOVFix()
 		CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 83 ?? ?? ?? ?? 8B 03", "8B 88 ?? ?? ?? ?? 8B 93 ?? ?? ?? ?? 83 C2");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {}+{:x}", sDllName, CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is {}+{:x}", sDllName, CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {}+{:x}", sDllName, CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 2: Address is {}+{:x}", sDllName, CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)dllModule2);
 
-			g_CameraFOV1Addr = CameraFOVInstructionsScansResult[CameraFOV1Scan];
+			g_CameraFOV1Addr = CameraFOVInstructionsScansResult[FOV1];
 
 			static std::array<uint8_t, 6> g_OriginalFOV1Bytes{};
 			memcpy(g_OriginalFOV1Bytes.data(), g_CameraFOV1Addr, 6);
 
 			PatchFOV1();
 
-			g_CameraFOV2Addr = CameraFOVInstructionsScansResult[CameraFOV2Scan];
+			g_CameraFOV2Addr = CameraFOVInstructionsScansResult[FOV2];
 
 			static std::array<uint8_t, 6> g_OriginalFOV2Bytes{};
 			memcpy(g_OriginalFOV2Bytes.data(), g_CameraFOV2Addr, 6);
