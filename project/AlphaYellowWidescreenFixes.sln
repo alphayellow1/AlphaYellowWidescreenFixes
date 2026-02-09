@@ -1097,6 +1097,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CasinoIncWidescreenFix", "C
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SCARSquadraCorseAlfaRomeoFOVFix", "SCARSquadraCorseAlfaRomeoFOVFix.vcxproj", "{9229BB60-28AA-4715-9D45-B903D3EB4B60}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SuperbikesRidingChallengeFOVFix", "SuperbikesRidingChallengeFOVFix.vcxproj", "{64F83AB8-C564-47FD-93B8-4910205CB4B7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5465,6 +5467,14 @@ Global
 		{9229BB60-28AA-4715-9D45-B903D3EB4B60}.Release|x64.Build.0 = Release|x64
 		{9229BB60-28AA-4715-9D45-B903D3EB4B60}.Release|x86.ActiveCfg = Release|Win32
 		{9229BB60-28AA-4715-9D45-B903D3EB4B60}.Release|x86.Build.0 = Release|Win32
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7}.Debug|x64.ActiveCfg = Debug|x64
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7}.Debug|x64.Build.0 = Debug|x64
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7}.Debug|x86.ActiveCfg = Debug|Win32
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7}.Debug|x86.Build.0 = Debug|Win32
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7}.Release|x64.ActiveCfg = Release|x64
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7}.Release|x64.Build.0 = Release|x64
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7}.Release|x86.ActiveCfg = Release|Win32
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6015,6 +6025,7 @@ Global
 		{A3833EC4-C5D5-4E37-B56E-AB60FCFB8E2D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{2347DDF2-4C40-4FBD-B2C6-ACAF9DE93D24} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{9229BB60-28AA-4715-9D45-B903D3EB4B60} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{64F83AB8-C564-47FD-93B8-4910205CB4B7} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
