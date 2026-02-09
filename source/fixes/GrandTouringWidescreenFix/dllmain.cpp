@@ -192,7 +192,7 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraFOVInstructionMidHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -217,17 +217,17 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);				
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 7);
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				iCurrentCameraFOV = ctx.eax & 0xFFFF;
+				const int& iCurrentCameraFOV = ctx.eax & 0xFFFF;
 
 				if (iCurrentCameraFOV != iNewCameraFOV)
 				{
-					fCurrentCameraFOV = (iCurrentCameraFOV * 360.0f) / 32768.0f;
+					const float& fCurrentCameraFOV = ((float)iCurrentCameraFOV * 360.0f) / 32768.0f;
 
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * powf(fFOVFactor, 0.5f);
+					const float& fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * powf(fFOVFactor, 0.5f);
 
 					iNewCameraFOV = (int16_t)((fNewCameraFOV * 32768.0f) / 360.0f);
 				}

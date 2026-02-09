@@ -211,7 +211,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult + 39, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 39, 6); // NOP out the original instruction			
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 39, [](SafetyHookContext& ctx)
 			{
@@ -223,7 +223,7 @@ void FOVFix()
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 6); // NOP out the original instruction			
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
@@ -247,7 +247,7 @@ void FOVFix()
 		{
 			spdlog::info("Weapon FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(WeaponFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(WeaponFOVInstructionsScanResult, 6); // NOP out the original instruction
 
 			WeaponHFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
@@ -260,7 +260,7 @@ void FOVFix()
 				FPU::FLD(fNewWeaponHFOV2);
 			});
 
-			Memory::PatchBytes(WeaponFOVInstructionsScanResult + 21, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(WeaponFOVInstructionsScanResult + 21, 6); // NOP out the original instruction
 
 			WeaponVFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionsScanResult + 21, [](SafetyHookContext& ctx)
 			{
