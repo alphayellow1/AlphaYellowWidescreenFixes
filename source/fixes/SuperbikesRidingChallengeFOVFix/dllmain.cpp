@@ -75,8 +75,7 @@ enum CameraFOVInstructionsIndices
 	BikeSelectionFOV2,
 	RacesFOV1,
 	RacesFOV2,
-	RacesFOV3,
-	FOVReference
+	RacesFOV3
 };
 
 struct GameInfo
