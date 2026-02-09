@@ -277,7 +277,7 @@ void FOVFix()
 			});
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8b 44 24 ? 50 50 e8 ? ? ? ? 5f 5d 5b 5e c2", "a1 ? ? ? ? 50 50", "8b 44 24 ? 50 50 e8 ? ? ? ? a0", "d9 07 d8 0d ? ? ? ? 51", "d8 0d ? ? ? ? 8b f1 51");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 50 50 E8 ?? ?? ?? ?? 5F 5D 5B 5E C2", "A1 ?? ?? ?? ?? 50 50", "8B 44 24 ?? 50 50 E8 ?? ?? ?? ?? A0", "D9 07 D8 0D ?? ?? ?? ?? 51", "D8 0D ?? ?? ?? ?? 8B F1 51");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Bike Selection FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[BikeSelectionFOV1] - (std::uint8_t*)exeModule);
