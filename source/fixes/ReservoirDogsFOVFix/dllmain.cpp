@@ -54,6 +54,7 @@ float fFramerate;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewHUDAspectRatio;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fNewHipfireCameraFOV;
@@ -209,6 +210,7 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid HUDAspectRatioInstructionHook{};
 static SafetyHookMid CameraHFOVInstructionHook{};
 static SafetyHookMid CameraVFOVInstructionHook{};
 static SafetyHookMid HipfireCameraFOVInstruction2Hook{};
@@ -223,6 +225,26 @@ void FOVFix()
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+		std::uint8_t* HUDAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 68 ?? ?? ?? ?? 50 F3");
+		if (HUDAspectRatioInstructionScanResult)
+		{
+			spdlog::info("HUD Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+
+			fNewHUDAspectRatio = 1.0f / fAspectRatioScale;
+
+			Memory::WriteNOPs(HUDAspectRatioInstructionScanResult, 4);			
+
+			HUDAspectRatioInstructionHook = safetyhook::create_mid(HUDAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				ctx.eax = std::bit_cast<uintptr_t>(fNewHUDAspectRatio);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate HUD aspect ratio instruction memory address.");
+			return;
+		}
 
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 46 ?? D8 0D ?? ?? ?? ?? D9 1C ?? E8", "D9 46 ?? 83 EC ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 46", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 89 BE ?? ?? ?? ?? F3 0F 10 05 ?? ?? ?? ??", "D9 05 ?? ?? ?? ?? D8 25 ?? ?? ?? ?? F3 0F 10 15", "D9 05 ?? ?? ?? ?? D8 25 ?? ?? ?? ?? F3 0F 10 1D");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
@@ -243,6 +265,12 @@ void FOVFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x34);
 
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x38);
+
+				const float& fCurrentAspect = fCurrentCameraHFOV / fCurrentCameraVFOV;
+
+				spdlog::info("[Hook] Raw incoming aspect 1: {:.12f}", fCurrentAspect);
+
 				fNewCameraHFOV = Maths::CalculateNewHFOV_DegBased(fCurrentCameraHFOV, fAspectRatioScale);
 
 				FPU::FLD(fNewCameraHFOV);
@@ -252,7 +280,13 @@ void FOVFix()
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[VFOV], [](SafetyHookContext& ctx)
 			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x34);
+
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x38);
+
+				const float& fCurrentAspect = fCurrentCameraHFOV / fCurrentCameraVFOV;
+
+				spdlog::info("[Hook] Raw incoming aspect 2: {:.12f}", fCurrentAspect);
 
 				fNewCameraVFOV = Maths::CalculateNewVFOV_DegBased(fCurrentCameraVFOV);
 
