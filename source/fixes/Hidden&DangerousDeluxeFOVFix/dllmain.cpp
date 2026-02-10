@@ -240,7 +240,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "C7 80 9C 02 00 00 00 00 40 3F 83 E1 FD DD D8 89 48 40 8D 88 7C 02 00 00");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "c7 80 ? ? ? ? ? ? ? ? 83 e1");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is i3d2.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
@@ -255,7 +255,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 83 E4 01 00 00 D8 0D ?? ?? ?? ?? D9 C0 D9 FF D9 5D FC D9 FE");
+		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "d9 83 ? ? ? ? d8 0d");
 		if (CameraFOVInstruction1ScanResult)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is i3d2.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);

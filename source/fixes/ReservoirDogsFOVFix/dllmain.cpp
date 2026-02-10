@@ -226,26 +226,6 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* HUDAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 68 ?? ?? ?? ?? 50 F3");
-		if (HUDAspectRatioInstructionScanResult)
-		{
-			spdlog::info("HUD Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-
-			fNewHUDAspectRatio = 1.0f / fAspectRatioScale;
-
-			Memory::WriteNOPs(HUDAspectRatioInstructionScanResult, 4);			
-
-			HUDAspectRatioInstructionHook = safetyhook::create_mid(HUDAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(fNewHUDAspectRatio);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate HUD aspect ratio instruction memory address.");
-			return;
-		}
-
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 46 ?? D8 0D ?? ?? ?? ?? D9 1C ?? E8", "D9 46 ?? 83 EC ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 46", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 89 BE ?? ?? ?? ?? F3 0F 10 05 ?? ?? ?? ??", "D9 05 ?? ?? ?? ?? D8 25 ?? ?? ?? ?? F3 0F 10 15", "D9 05 ?? ?? ?? ?? D8 25 ?? ?? ?? ?? F3 0F 10 1D");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
