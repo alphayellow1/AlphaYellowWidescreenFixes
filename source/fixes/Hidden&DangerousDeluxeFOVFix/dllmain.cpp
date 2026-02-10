@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "Hidden&DangerousDeluxeFOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -54,23 +54,33 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 float fNewAspectRatio;
 float fNewAspectRatio2;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fCurrentCameraFOV1;
+float fNewCameraFOV1;
 float fNewCameraFOV2;
-float fNewCameraFOV3;
-float fNewCameraFOV4;
 float fNewRenderingDistance1;
 float fNewRenderingDistance2;
-float fNewRenderingDistance3;
-float fNewRenderingDistance4;
-float fNewRenderingDistance5;
-float fNewRenderingDistance6;
-float fCurrentCameraFOV;
 
 // Game detection
 enum class Game
 {
 	HDD,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	FOV1,
+	FOV2
+};
+
+enum RenderingDistanceInstructionsIndices
+{
+	RenderingDistance1,
+	RenderingDistance2,
+	RenderingDistance3,
+	RenderingDistance4,
+	RenderingDistance5,
+	RenderingDistance6
 };
 
 struct GameInfo
@@ -210,27 +220,62 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("i3d2.dll")) == nullptr)
-	{
-		spdlog::warn("i3d2.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for i3d2.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("i3d2.dll");
 
 	return true;
 }
 
 static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-static SafetyHookMid CameraFOVInstruction3Hook{};
-static SafetyHookMid CameraFOVInstruction4Hook{};
-
 static SafetyHookMid RenderingDistanceInstruction1Hook{};
 static SafetyHookMid RenderingDistanceInstruction2Hook{};
 static SafetyHookMid RenderingDistanceInstruction3Hook{};
 static SafetyHookMid RenderingDistanceInstruction4Hook{};
 static SafetyHookMid RenderingDistanceInstruction5Hook{};
 static SafetyHookMid RenderingDistanceInstruction6Hook{};
+
+enum destInstruction
+{
+	FLD,
+	FDIVR
+};
+
+void RenderingDistanceInstructions1MidHook(uintptr_t RendDistanceAddress, destInstruction DestInstruction)
+{
+	float& fCurrentRenderingDistance1 = *reinterpret_cast<float*>(RendDistanceAddress);
+
+	if (fCurrentCameraFOV1 == 1.483529806f * fFOVFactor && fCurrentRenderingDistance1 == 50.0f)
+	{
+		fNewRenderingDistance1 = fCurrentRenderingDistance1 * fRenderingDistanceFactor;
+	}
+	else
+	{
+		fNewRenderingDistance1 = fCurrentRenderingDistance1;
+	}
+
+	switch (DestInstruction)
+	{
+		case FLD:
+		{
+			FPU::FLD(fNewRenderingDistance1);
+			break;
+		}
+
+		case FDIVR:
+		{
+			FPU::FDIVR(fNewRenderingDistance1);
+			break;
+		}
+	}	
+}
+
+void RenderingDistanceInstructions2MidHook(uintptr_t RendDistanceAddress, uintptr_t& DestInstruction)
+{
+	float& fCurrentRenderingDistance2 = *reinterpret_cast<float*>(RendDistanceAddress);
+
+	fNewRenderingDistance2 = fCurrentRenderingDistance2 * fRenderingDistanceFactor;
+
+	DestInstruction = std::bit_cast<uintptr_t>(fNewRenderingDistance2);
+}
 
 void FOVFix()
 {
@@ -240,7 +285,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "c7 80 ? ? ? ? ? ? ? ? 83 e1");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "C7 80 ?? ?? ?? ?? ?? ?? ?? ?? 83 E1");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is i3d2.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
@@ -255,273 +300,85 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(dllModule2, "d9 83 ? ? ? ? d8 0d");
-		if (CameraFOVInstruction1ScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 45 ?? 8B 81", exeModule, "68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 54 24");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is i3d2.dll+{:x}", CameraFOVInstruction1ScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is i3d2.dll+{:x}", CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 3);
+
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x1E4);
+				fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebp + 0xC);
 
-				if (fCurrentCameraFOV == 1.483529806f)
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
+				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
 
-				FPU::FLD(fNewCameraFOV);
+				FPU::FLD(fNewCameraFOV1);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 1 memory address.");
-			return;
+
+			fNewCameraFOV2 = 1.0f * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScansResult[FOV2] + 1, fNewCameraFOV2);
 		}
 
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 80 E4 01 00 00 D8 0D ?? ?? ?? ?? 89 8D 7C FF FF FF D9 C0 D9 FE D9 5D C0 D9 FF");
-		if (CameraFOVInstruction2ScanResult)
+		std::vector<std::uint8_t*> RenderingDistanceInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 80 ?? ?? ?? ?? D9 5D", "D9 83 ?? ?? ?? ?? D8 A3 ?? ?? ?? ?? D8 BB ?? ?? ?? ?? D9 5D", "D8 BB ?? ?? ?? ?? D9 5D", "8B 90 ?? ?? ?? ?? 8D 98", "8B 97 ?? ?? ?? ?? 8B 1E", "8B 80 ?? ?? ?? ?? 89 45");
+		if (Memory::AreAllSignaturesValid(RenderingDistanceInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 2: Address is i3d2.dll+{:x}", CameraFOVInstruction2ScanResult - (std::uint8_t*)dllModule2);
-			
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-			
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Rendering Distance Instruction 1: Address is i3d2.dll+{:x}", RenderingDistanceInstructionsScansResult[RenderingDistance1] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Rendering Distance Instruction 2: Address is i3d2.dll+{:x}", RenderingDistanceInstructionsScansResult[RenderingDistance2] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Rendering Distance Instruction 3: Address is i3d2.dll+{:x}", RenderingDistanceInstructionsScansResult[RenderingDistance3] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Rendering Distance Instruction 4: Address is i3d2.dll+{:x}", RenderingDistanceInstructionsScansResult[RenderingDistance4] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Rendering Distance Instruction 5: Address is i3d2.dll+{:x}", RenderingDistanceInstructionsScansResult[RenderingDistance5] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Rendering Distance Instruction 5: Address is i3d2.dll+{:x}", RenderingDistanceInstructionsScansResult[RenderingDistance6] - (std::uint8_t*)dllModule2);
+
+			Memory::WriteNOPs(RenderingDistanceInstructionsScansResult[RenderingDistance1], 6);
+
+			RenderingDistanceInstruction1Hook = safetyhook::create_mid(RenderingDistanceInstructionsScansResult[RenderingDistance1], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x1E4);
-
-				if (fCurrentCameraFOV2 == 1.483529806f)
-				{
-					fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
-				}
-
-				FPU::FLD(fNewCameraFOV2);
+				RenderingDistanceInstructions1MidHook(ctx.eax + 0x1EC, FLD);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
-			return;
-		}
 
-		std::uint8_t* CameraFOVInstruction3ScanResult = Memory::PatternScan(dllModule2, "D9 80 E4 01 00 00 8B 17 D9 1C 24 57 FF 92 C8 00 00 00 8B 8E 9C 02 00 00 51 8B CF");
-		if (CameraFOVInstruction3ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 3: Address is i3d2.dll+{:x}", CameraFOVInstruction3ScanResult - (std::uint8_t*)dllModule2);
-			
-			Memory::PatchBytes(CameraFOVInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-			
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstruction3ScanResult, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(RenderingDistanceInstructionsScansResult[RenderingDistance2], 6);
+
+			RenderingDistanceInstruction2Hook = safetyhook::create_mid(RenderingDistanceInstructionsScansResult[RenderingDistance2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.eax + 0x1E4);
-
-				if (fCurrentCameraFOV3 == 1.483529806f)
-				{
-					fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
-				}
-
-				FPU::FLD(fNewCameraFOV3);
+				RenderingDistanceInstructions1MidHook(ctx.ebx + 0x1EC, FLD);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 3 memory address.");
-			return;
-		}
 
-		std::uint8_t* CameraFOVInstruction4ScanResult = Memory::PatternScan(dllModule2, "D9 81 E4 01 00 00 D8 0D ?? ?? ?? ?? D9 53 7C 8B 50 38 D8 8A F8 02 00 00 D9 5B 7C 5B");
-		if (CameraFOVInstruction4ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 4: Address is i3d2.dll+{:x}", CameraFOVInstruction4ScanResult - (std::uint8_t*)dllModule2);
+			Memory::WriteNOPs(RenderingDistanceInstructionsScansResult[RenderingDistance3], 6);
 
-			Memory::PatchBytes(CameraFOVInstruction4ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstruction4ScanResult, [](SafetyHookContext& ctx)
+			RenderingDistanceInstruction3Hook = safetyhook::create_mid(RenderingDistanceInstructionsScansResult[RenderingDistance3], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV4 = *reinterpret_cast<float*>(ctx.ecx + 0x1E4);
-
-				if (fCurrentCameraFOV4 == 1.483529806f)
-				{
-					fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale);
-				}
-
-				FPU::FLD(fNewCameraFOV4);
+				RenderingDistanceInstructions1MidHook(ctx.ebx + 0x1EC, FDIVR);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 4 memory address.");
-			return;
-		}
 
-		std::uint8_t* RenderingDistanceInstruction1ScanResult = Memory::PatternScan(dllModule2, "D9 80 ?? ?? ?? ?? D9 5D");
-		if (RenderingDistanceInstruction1ScanResult)
-		{
-			spdlog::info("Rendering Distance Instruction 1: Address is i3d2.dll+{:x}", RenderingDistanceInstruction1ScanResult - (std::uint8_t*)dllModule2);
+			Memory::WriteNOPs(RenderingDistanceInstructionsScansResult[RenderingDistance4], 6);
 
-			Memory::PatchBytes(RenderingDistanceInstruction1ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-
-			RenderingDistanceInstruction1Hook = safetyhook::create_mid(RenderingDistanceInstruction1ScanResult, [](SafetyHookContext& ctx)
+			RenderingDistanceInstruction4Hook = safetyhook::create_mid(RenderingDistanceInstructionsScansResult[RenderingDistance4], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentRenderingDistance1 = *reinterpret_cast<float*>(ctx.eax + 0x1EC);
-
-				if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance1 == 50.0f)
-				{
-					fNewRenderingDistance1 = fCurrentRenderingDistance1 * fRenderingDistanceFactor;
-				}
-				else
-				{
-					fNewRenderingDistance1 = fCurrentRenderingDistance1;
-				}
-
-				FPU::FLD(fNewRenderingDistance1);
+				RenderingDistanceInstructions2MidHook(ctx.eax + 0x1EC, ctx.edx);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate rendering distance instruction 1 memory address.");
-			return;
-		}
 
-		std::uint8_t* RenderingDistanceInstruction2ScanResult = Memory::PatternScan(dllModule2, "D9 83 ?? ?? ?? ?? D8 A3 ?? ?? ?? ?? D8 BB ?? ?? ?? ?? D9 5D");
-		if (RenderingDistanceInstruction2ScanResult)
-		{
-			spdlog::info("Rendering Distance Instruction 2: Address is i3d2.dll+{:x}", RenderingDistanceInstruction2ScanResult + 2 - (std::uint8_t*)dllModule2);
+			Memory::WriteNOPs(RenderingDistanceInstructionsScansResult[RenderingDistance5], 6);
 
-			Memory::PatchBytes(RenderingDistanceInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-
-			RenderingDistanceInstruction2Hook = safetyhook::create_mid(RenderingDistanceInstruction2ScanResult, [](SafetyHookContext& ctx)
+			RenderingDistanceInstruction5Hook = safetyhook::create_mid(RenderingDistanceInstructionsScansResult[RenderingDistance5], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentRenderingDistance2 = *reinterpret_cast<float*>(ctx.ebx + 0x1EC);
-
-				if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance2 == 50.0f)
-				{
-					fNewRenderingDistance2 = fCurrentRenderingDistance2 * fRenderingDistanceFactor;
-				}
-				else
-				{
-					fNewRenderingDistance2 = fCurrentRenderingDistance2;
-				}
-
-				FPU::FLD(fNewRenderingDistance2);
+				RenderingDistanceInstructions2MidHook(ctx.edi + 0x1EC, ctx.edx);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate rendering distance instruction 2 memory address.");
-			return;
-		}
 
-		std::uint8_t* RenderingDistanceInstruction3ScanResult = Memory::PatternScan(dllModule2, "D8 BB ?? ?? ?? ?? D9 5D");
-		if (RenderingDistanceInstruction3ScanResult)
-		{
-			spdlog::info("Rendering Distance Instruction 3: Address is i3d2.dll+{:x}", RenderingDistanceInstruction3ScanResult - (std::uint8_t*)dllModule2);
+			Memory::WriteNOPs(RenderingDistanceInstructionsScansResult[RenderingDistance6], 6);
 
-			Memory::PatchBytes(RenderingDistanceInstruction3ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-
-			RenderingDistanceInstruction3Hook = safetyhook::create_mid(RenderingDistanceInstruction3ScanResult, [](SafetyHookContext& ctx)
+			RenderingDistanceInstruction6Hook = safetyhook::create_mid(RenderingDistanceInstructionsScansResult[RenderingDistance6], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentRenderingDistance3 = *reinterpret_cast<float*>(ctx.ebx + 0x1EC);
-
-				if (fCurrentCameraFOV == 1.483529806f && fCurrentRenderingDistance3 == 50.0f)
-				{
-					fNewRenderingDistance3 = fCurrentRenderingDistance3 / fRenderingDistanceFactor;
-				}
-				else
-				{
-					fNewRenderingDistance3 = fCurrentRenderingDistance3;
-				}
-
-				FPU::FDIVR(fNewRenderingDistance3);
+				RenderingDistanceInstructions2MidHook(ctx.eax + 0x1EC, ctx.eax);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate rendering distance instruction 3 memory address.");
-			return;
-		}
-
-		std::uint8_t* RenderingDistanceInstruction4ScanResult = Memory::PatternScan(dllModule2, "8B 90 ?? ?? ?? ?? 8D 98");
-		if (RenderingDistanceInstruction4ScanResult)
-		{
-			spdlog::info("Rendering Distance Instruction 4: Address is i3d2.dll+{:x}", RenderingDistanceInstruction4ScanResult - (std::uint8_t*)dllModule2);
-
-			Memory::PatchBytes(RenderingDistanceInstruction4ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-
-			RenderingDistanceInstruction4Hook = safetyhook::create_mid(RenderingDistanceInstruction4ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentRenderingDistance4 = *reinterpret_cast<float*>(ctx.eax + 0x1EC);
-
-				fNewRenderingDistance4 = fCurrentRenderingDistance4 * fRenderingDistanceFactor;
-
-				ctx.edx = std::bit_cast<uintptr_t>(fNewRenderingDistance4);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate rendering distance instruction 4 memory address.");
-			return;
-		}
-
-		std::uint8_t* RenderingDistanceInstruction5ScanResult = Memory::PatternScan(dllModule2, "8B 97 ?? ?? ?? ?? 8B 1E");
-		if (RenderingDistanceInstruction5ScanResult)
-		{
-			spdlog::info("Rendering Distance Instruction 5: Address is i3d2.dll+{:x}", RenderingDistanceInstruction5ScanResult - (std::uint8_t*)dllModule2);
-
-			Memory::PatchBytes(RenderingDistanceInstruction5ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction			
-
-			RenderingDistanceInstruction5Hook = safetyhook::create_mid(RenderingDistanceInstruction5ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentRenderingDistance5 = *reinterpret_cast<float*>(ctx.edi + 0x1EC);
-
-				fNewRenderingDistance5 = fCurrentRenderingDistance5 * fRenderingDistanceFactor;
-
-				ctx.edx = std::bit_cast<uintptr_t>(fNewRenderingDistance5);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate rendering distance instruction 5 memory address.");
-			return;
-		}
-
-		std::uint8_t* RenderingDistanceInstruction6ScanResult = Memory::PatternScan(dllModule2, "8B 80 ?? ?? ?? ?? 89 45");
-		if (RenderingDistanceInstruction6ScanResult)
-		{
-			spdlog::info("Rendering Distance Instruction 5: Address is i3d2.dll+{:x}", RenderingDistanceInstruction6ScanResult - (std::uint8_t*)dllModule2);
-
-			Memory::PatchBytes(RenderingDistanceInstruction6ScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
-
-			RenderingDistanceInstruction6Hook = safetyhook::create_mid(RenderingDistanceInstruction6ScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentRenderingDistance6 = *reinterpret_cast<float*>(ctx.eax + 0x1EC);
-
-				fNewRenderingDistance6 = fCurrentRenderingDistance6 * fRenderingDistanceFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewRenderingDistance6);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate rendering distance instruction 6 memory address.");
-			return;
 		}
 	}
 }
