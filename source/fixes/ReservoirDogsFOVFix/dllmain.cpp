@@ -265,12 +265,6 @@ void FOVFix()
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x34);
 
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x38);
-
-				const float& fCurrentAspect = fCurrentCameraHFOV / fCurrentCameraVFOV;
-
-				spdlog::info("[Hook] Raw incoming aspect 1: {:.12f}", fCurrentAspect);
-
 				fNewCameraHFOV = Maths::CalculateNewHFOV_DegBased(fCurrentCameraHFOV, fAspectRatioScale);
 
 				FPU::FLD(fNewCameraHFOV);
@@ -280,13 +274,7 @@ void FOVFix()
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[VFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x34);
-
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x38);
-
-				const float& fCurrentAspect = fCurrentCameraHFOV / fCurrentCameraVFOV;
-
-				spdlog::info("[Hook] Raw incoming aspect 2: {:.12f}", fCurrentAspect);
 
 				fNewCameraVFOV = Maths::CalculateNewVFOV_DegBased(fCurrentCameraVFOV);
 
