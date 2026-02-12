@@ -2,7 +2,7 @@ name: Update traffic badges
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # Runs daily at 00:00 UTC
+    - cron: '0 0 * * *' # Runs daily at 00:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,6 @@ permissions:
 jobs:
   update-badges:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,17 +29,21 @@ jobs:
         run: |
           set -e
 
+          # Folder for badges
+          BADGE_DIR=".github/workflows/traffic-badges"
+          mkdir -p "$BADGE_DIR"
+
           RESPONSE=$(curl -s -H "Authorization: token $TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/$REPO/traffic/views")
 
-          [ -f views_total.txt ] || echo 0 > views_total.txt
-          [ -f uniques_total.txt ] || echo 0 > uniques_total.txt
-          [ -f last_date.txt ] || echo "" > last_date.txt
+          [ -f "$BADGE_DIR/views_total.txt" ] || echo 0 > "$BADGE_DIR/views_total.txt"
+          [ -f "$BADGE_DIR/uniques_total.txt" ] || echo 0 > "$BADGE_DIR/uniques_total.txt"
+          [ -f "$BADGE_DIR/last_date.txt" ] || echo "" > "$BADGE_DIR/last_date.txt"
 
-          PREV_VIEWS=$(cat views_total.txt)
-          PREV_UNIQUES=$(cat uniques_total.txt)
-          LAST_DATE=$(cat last_date.txt)
+          PREV_VIEWS=$(cat "$BADGE_DIR/views_total.txt")
+          PREV_UNIQUES=$(cat "$BADGE_DIR/uniques_total.txt")
+          LAST_DATE=$(cat "$BADGE_DIR/last_date.txt")
 
           if [ -z "$LAST_DATE" ]; then
             ADD_VIEWS=$(echo "$RESPONSE" | jq '[.views[]? | .count] | add // 0')
@@ -57,22 +60,19 @@ jobs:
           NEW_UNIQUES=$((PREV_UNIQUES + ADD_UNIQUES))
 
           MAX_TS=$(echo "$RESPONSE" | jq -r '[.views[]?.timestamp] | max // empty')
-
           if [ -n "$MAX_TS" ]; then
             MAX_DATE=$(echo "$MAX_TS" | cut -dT -f1)
-            echo "$MAX_DATE" > last_date.txt
+            echo "$MAX_DATE" > "$BADGE_DIR/last_date.txt"
           fi
 
-          echo "$NEW_VIEWS" > views_total.txt
-          echo "$NEW_UNIQUES" > uniques_total.txt
+          echo "$NEW_VIEWS" > "$BADGE_DIR/views_total.txt"
+          echo "$NEW_UNIQUES" > "$BADGE_DIR/uniques_total.txt"
 
-          printf '{\n  "schemaVersion": 1,\n  "label": "views",\n  "message": "%s",\n  "color": "blue"\n}\n' "$NEW_VIEWS" > views-badge.json
-
-          printf '{\n  "schemaVersion": 1,\n  "label": "visitors",\n  "message": "%s",\n  "color": "green"\n}\n' "$NEW_UNIQUES" > uniques-badge.json
+          printf '{\n "schemaVersion": 1,\n "label": "views",\n "message": "%s",\n "color": "blue"\n}\n' "$NEW_VIEWS" > "$BADGE_DIR/views-badge.json"
+          printf '{\n "schemaVersion": 1,\n "label": "visitors",\n "message": "%s",\n "color": "green"\n}\n' "$NEW_UNIQUES" > "$BADGE_DIR/uniques-badge.json"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add views_total.txt uniques_total.txt last_date.txt views-badge.json uniques-badge.json
+          git add "$BADGE_DIR/views_total.txt" "$BADGE_DIR/uniques_total.txt" "$BADGE_DIR/last_date.txt" "$BADGE_DIR/views-badge.json" "$BADGE_DIR/uniques-badge.json"
           git commit -m "Update traffic badges" || echo "No changes to commit"
           git push origin HEAD:${BRANCH}
