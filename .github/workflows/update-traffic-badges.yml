@@ -1,0 +1,93 @@
+name: Update traffic badges
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # Runs daily at 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-badges:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Fetch traffic and update totals
+        env:
+          REPO: alphayellow1/AlphaYellowWidescreenFixes
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: main
+        run: |
+
+          RESPONSE=$(curl -s -H "Authorization: token $TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/traffic/views")
+
+          # Ensure files exist
+          [ -f views_total.txt ] || echo 0 > views_total.txt
+          [ -f uniques_total.txt ] || echo 0 > uniques_total.txt
+          [ -f last_date.txt ] || echo "" > last_date.txt
+
+          PREV_VIEWS=$(cat views_total.txt)
+          PREV_UNIQUES=$(cat uniques_total.txt)
+          LAST_DATE=$(cat last_date.txt)
+
+          if [ -z "$LAST_DATE" ]; then
+            ADD_VIEWS=$(echo "$RESPONSE" | jq '[.views[] | .count] | add // 0')
+            ADD_UNIQUES=$(echo "$RESPONSE" | jq '[.views[] | .uniques] | add // 0')
+          else
+            LAST_TS="${LAST_DATE}T00:00:00Z"
+            ADD_VIEWS=$(echo "$RESPONSE" | jq --arg last "$LAST_TS" \
+              '[.views[] | select(.timestamp > $last) | .count] | add // 0')
+            ADD_UNIQUES=$(echo "$RESPONSE" | jq --arg last "$LAST_TS" \
+              '[.views[] | select(.timestamp > $last) | .uniques] | add // 0')
+          fi
+
+          NEW_VIEWS=$((PREV_VIEWS + ADD_VIEWS))
+          NEW_UNIQUES=$((PREV_UNIQUES + ADD_UNIQUES))
+
+          MAX_TS=$(echo "$RESPONSE" | jq -r '[.views[].timestamp] | max // empty')
+
+          if [ -n "$MAX_TS" ]; then
+            MAX_DATE=$(echo "$MAX_TS" | cut -dT -f1)
+            echo "$MAX_DATE" > last_date.txt
+          fi
+
+          echo "$NEW_VIEWS" > views_total.txt
+          echo "$NEW_UNIQUES" > uniques_total.txt
+
+          # Create badge JSON files
+          cat > views-badge.json <<EOF
+{
+  "schemaVersion": 1,
+  "label": "views",
+  "message": "$NEW_VIEWS",
+  "color": "blue"
+}
+EOF
+
+          cat > uniques-badge.json <<EOF
+{
+  "schemaVersion": 1,
+  "label": "visitors",
+  "message": "$NEW_UNIQUES",
+  "color": "green"
+}
+EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add views_total.txt uniques_total.txt last_date.txt views-badge.json uniques-badge.json
+          git commit -m "Update traffic badges" || echo "No changes to commit"
+          git push origin HEAD:${BRANCH}
