@@ -20,7 +20,7 @@
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\fixes\ElementsOfDestructionWidescreenFix\dllmain.cpp">
+    <ClCompile Include="..\source\fixes\ElementsOfDestructionFOVFix\dllmain.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
