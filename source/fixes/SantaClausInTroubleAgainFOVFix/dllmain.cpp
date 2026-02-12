@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "SantaClausInTroubleAgainFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -188,12 +188,12 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "89 46 54 68 AB AA AA 3F 8D 86 B0 00 00 00 50");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8D 86 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? D9 46 ?? D8 8E ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 5E C2 ?? ?? CC CC CC CC CC CC 8B 44 24");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 3 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::Write(AspectRatioInstructionScanResult + 4, fNewAspectRatio);
+			Memory::Write(AspectRatioInstructionScanResult + 1, fNewAspectRatio);
 		}
 		else
 		{
@@ -201,7 +201,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "68 00 00 80 3F 8B 10 8B C8 FF 52 0C 33 C0 89 7E 1C 5F");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8B 10");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
