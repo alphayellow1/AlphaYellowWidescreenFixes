@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "SantaClausInTroubleFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -182,18 +182,20 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid CameraFOVInstructionHook{};
+
 void FOVFix()
 {
 	if (eGameType == Game::SCIT && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "AC 00 00 00 68 ?? ?? ?? ?? 51 E8 F0 B5 00 00 C2");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 51 E8 ?? ?? ?? ?? C2 ?? ?? 90 90 90 90 90 90 90 90 90 90");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::Write(AspectRatioInstructionScanResult + 5, fNewAspectRatio);
+			Memory::Write(AspectRatioInstructionScanResult + 1, fNewAspectRatio);
 		}
 		else
 		{
@@ -201,18 +203,16 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 04 52 89 41 54");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 41 ?? 50");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 5, "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);			
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				const float& fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
 
 				fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
 
