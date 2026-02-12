@@ -1,4 +1,13 @@
 ![Artboard 1](https://github.com/user-attachments/assets/c335dc49-5887-4e40-9944-31e8aad24e3f)
+
+<p align="center">
+  <img src="https://img.shields.io/github/downloads/alphayellow1/AlphaYellowWidescreenFixes/total?label=DOWNLOADS&style=for-the-badge" width="150" alt="Downloads" style="margin-right: 30 px;" />
+  
+  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/views-badge.json&style=for-the-badge" alt="Views" style="margin-right: 30 px;" />
+  
+  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/uniques-badge.json&style=for-the-badge" alt="Visitors" />
+</p>
+
 ## About
 
 This repository is dedicated to enhancing the experience of classic PC games. It's focused on providing fixes and improvements such as field of view (FOV) adjustments, HUD corrections, and support for widescreen, ultrawide, and multi-monitor setups, and hopefully in the future, fix long-standing bugs in games as well.
