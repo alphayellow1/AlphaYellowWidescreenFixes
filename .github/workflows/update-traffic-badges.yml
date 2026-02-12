@@ -28,12 +28,12 @@ jobs:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: main
         run: |
+          set -e
 
           RESPONSE=$(curl -s -H "Authorization: token $TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/$REPO/traffic/views")
 
-          # Ensure files exist
           [ -f views_total.txt ] || echo 0 > views_total.txt
           [ -f uniques_total.txt ] || echo 0 > uniques_total.txt
           [ -f last_date.txt ] || echo "" > last_date.txt
@@ -43,20 +43,20 @@ jobs:
           LAST_DATE=$(cat last_date.txt)
 
           if [ -z "$LAST_DATE" ]; then
-            ADD_VIEWS=$(echo "$RESPONSE" | jq '[.views[] | .count] | add // 0')
-            ADD_UNIQUES=$(echo "$RESPONSE" | jq '[.views[] | .uniques] | add // 0')
+            ADD_VIEWS=$(echo "$RESPONSE" | jq '[.views[]? | .count] | add // 0')
+            ADD_UNIQUES=$(echo "$RESPONSE" | jq '[.views[]? | .uniques] | add // 0')
           else
             LAST_TS="${LAST_DATE}T00:00:00Z"
             ADD_VIEWS=$(echo "$RESPONSE" | jq --arg last "$LAST_TS" \
-              '[.views[] | select(.timestamp > $last) | .count] | add // 0')
+              '[.views[]? | select(.timestamp > $last) | .count] | add // 0')
             ADD_UNIQUES=$(echo "$RESPONSE" | jq --arg last "$LAST_TS" \
-              '[.views[] | select(.timestamp > $last) | .uniques] | add // 0')
+              '[.views[]? | select(.timestamp > $last) | .uniques] | add // 0')
           fi
 
           NEW_VIEWS=$((PREV_VIEWS + ADD_VIEWS))
           NEW_UNIQUES=$((PREV_UNIQUES + ADD_UNIQUES))
 
-          MAX_TS=$(echo "$RESPONSE" | jq -r '[.views[].timestamp] | max // empty')
+          MAX_TS=$(echo "$RESPONSE" | jq -r '[.views[]?.timestamp] | max // empty')
 
           if [ -n "$MAX_TS" ]; then
             MAX_DATE=$(echo "$MAX_TS" | cut -dT -f1)
@@ -66,24 +66,9 @@ jobs:
           echo "$NEW_VIEWS" > views_total.txt
           echo "$NEW_UNIQUES" > uniques_total.txt
 
-          # Create badge JSON files
-          cat > views-badge.json <<EOF
-{
-  "schemaVersion": 1,
-  "label": "views",
-  "message": "$NEW_VIEWS",
-  "color": "blue"
-}
-EOF
+          printf '{\n  "schemaVersion": 1,\n  "label": "views",\n  "message": "%s",\n  "color": "blue"\n}\n' "$NEW_VIEWS" > views-badge.json
 
-          cat > uniques-badge.json <<EOF
-{
-  "schemaVersion": 1,
-  "label": "visitors",
-  "message": "$NEW_UNIQUES",
-  "color": "green"
-}
-EOF
+          printf '{\n  "schemaVersion": 1,\n  "label": "visitors",\n  "message": "%s",\n  "color": "green"\n}\n' "$NEW_UNIQUES" > uniques-badge.json
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
