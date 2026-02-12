@@ -1105,6 +1105,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cricket2004FOVFix", "Cricke
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cricket2002WidescreenFix", "Cricket2002WidescreenFix.vcxproj", "{8D9D28B8-A390-472C-997B-07392EA23C8E}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ElementsOfDestructionWidescreenFix", "ElementsOfDestructionWidescreenFix.vcxproj", "{4B992984-EAAF-472D-8C93-413C43E04277}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5505,6 +5507,14 @@ Global
 		{8D9D28B8-A390-472C-997B-07392EA23C8E}.Release|x64.Build.0 = Release|x64
 		{8D9D28B8-A390-472C-997B-07392EA23C8E}.Release|x86.ActiveCfg = Release|Win32
 		{8D9D28B8-A390-472C-997B-07392EA23C8E}.Release|x86.Build.0 = Release|Win32
+		{4B992984-EAAF-472D-8C93-413C43E04277}.Debug|x64.ActiveCfg = Debug|x64
+		{4B992984-EAAF-472D-8C93-413C43E04277}.Debug|x64.Build.0 = Debug|x64
+		{4B992984-EAAF-472D-8C93-413C43E04277}.Debug|x86.ActiveCfg = Debug|Win32
+		{4B992984-EAAF-472D-8C93-413C43E04277}.Debug|x86.Build.0 = Debug|Win32
+		{4B992984-EAAF-472D-8C93-413C43E04277}.Release|x64.ActiveCfg = Release|x64
+		{4B992984-EAAF-472D-8C93-413C43E04277}.Release|x64.Build.0 = Release|x64
+		{4B992984-EAAF-472D-8C93-413C43E04277}.Release|x86.ActiveCfg = Release|Win32
+		{4B992984-EAAF-472D-8C93-413C43E04277}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6059,6 +6069,7 @@ Global
 		{3A830BE2-B30E-4BC1-9789-D84D9DA727D1} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{D87CD47D-B76B-437A-9000-A2013D844DB0} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{8D9D28B8-A390-472C-997B-07392EA23C8E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{4B992984-EAAF-472D-8C93-413C43E04277} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
