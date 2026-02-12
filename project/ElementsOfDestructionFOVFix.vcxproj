@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{4b992984-eaaf-472d-8c93-413c43e04277}</ProjectGuid>
-    <RootNamespace>ElementsOfDestructionWidescreenFix</RootNamespace>
+    <ProjectGuid>{1b4edb91-3268-4d15-99e8-f281ee422e49}</ProjectGuid>
+    <RootNamespace>ElementsOfDestructionFOVFix</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -140,7 +140,7 @@
   <ItemGroup>
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp" />
     <ClCompile Include="..\external\safetyhook\Zydis.c" />
-    <ClCompile Include="..\source\fixes\ElementsOfDestructionWidescreenFix\dllmain.cpp" />
+    <ClCompile Include="..\source\fixes\ElementsOfDestructionFOVFix\dllmain.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

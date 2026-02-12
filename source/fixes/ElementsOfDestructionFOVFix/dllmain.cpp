@@ -26,7 +26,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "ElementsOfDestructionWidescreenFix";
+std::string sFixName = "ElementsOfDestructionFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -59,15 +59,6 @@ enum class Game
 {
 	EOD,
 	Unknown
-};
-
-enum ResolutionListsIndices
-{
-	Res1,
-	Res2,
-	Res3,
-	Res4,
-	Res5
 };
 
 struct GameInfo
@@ -153,7 +144,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -197,102 +188,15 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid ResolutionWidth1Hook{};
-static SafetyHookMid ResolutionHeight1Hook{};
-static SafetyHookMid ResolutionWidth2Hook{};
-static SafetyHookMid ResolutionHeight2Hook{};
-static SafetyHookMid ResolutionWidth3Hook{};
-static SafetyHookMid ResolutionHeight3Hook{};
-static SafetyHookMid ResolutionWidth4Hook{};
-static SafetyHookMid ResolutionHeight4Hook{};
-static SafetyHookMid ResolutionWidth5Hook{};
-static SafetyHookMid ResolutionHeight5Hook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void WidescreenFix()
+void FOVFix()
 {
 	if (eGameType == Game::EOD && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-		
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 0d ? ? ? ? 7f", "8b 74 24 ? 57 8b 7c 24 ? 6a", "8b 48 ? 89 0d ? ? ? ? 8b 50 ? 89 15 ? ? ? ? c3", "8b 48 ? 89 0d ? ? ? ? 8b 50 ? 89 15 ? ? ? ? 8b 50", "8b 70 ? 89 71 ? 8b 40");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
-		{
-			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res5] - (std::uint8_t*)exeModule);
-
-			ResolutionWidth1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1], [](SafetyHookContext& ctx)
-			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
-
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res2] + 5, 4);
-
-			ResolutionWidth2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2] + 5, [](SafetyHookContext& ctx)
-			{
-				ctx.edi = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res2], 4);
-
-			ResolutionHeight2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2], [](SafetyHookContext& ctx)
-			{
-				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3], 3);
-
-			ResolutionWidth3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3], [](SafetyHookContext& ctx)
-			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3] + 9, 3);
-
-			ResolutionHeight3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3] + 9, [](SafetyHookContext& ctx)
-			{
-				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res4], 3);
-
-			ResolutionWidth4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4], [](SafetyHookContext& ctx)
-			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res4] + 9, 3);
-
-			ResolutionHeight4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4] + 9, [](SafetyHookContext& ctx)
-			{
-				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res5], 3);
-
-			ResolutionWidth5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5], [](SafetyHookContext& ctx)
-			{
-				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res5] + 6, 3);
-
-			ResolutionHeight5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5] + 6, [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 01 8D 8A");
 		if (CameraFOVInstructionScanResult)
@@ -318,6 +222,17 @@ void WidescreenFix()
 	}
 }
 
+DWORD __stdcall Main(void*)
+{
+	Logging();
+	Configuration();
+	if (DetectGame())
+	{
+		FOVFix();
+	}
+	return TRUE;
+}
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
@@ -325,11 +240,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		Logging();
-		Configuration();
-		if (DetectGame())
+		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
+		if (mainHandle)
 		{
-			WidescreenFix();
+			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
+			CloseHandle(mainHandle);
 		}
 		break;
 	}
