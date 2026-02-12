@@ -1,11 +1,21 @@
 ![Artboard 1](https://github.com/user-attachments/assets/c335dc49-5887-4e40-9944-31e8aad24e3f)
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/alphayellow1/AlphaYellowWidescreenFixes/total?label=DOWNLOADS&style=for-the-badge" width="150" alt="Downloads" style="margin-right: 30 px;" />
-  
-  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/views-badge.json&style=for-the-badge" alt="Views" style="margin-right: 30 px;" />
-  
+  <a href="https://github.com/alphayellow1/AlphaYellowWidescreenFixes/releases">
+   <img src="https://img.shields.io/github/v/release/alphayellow1/AlphaYellowWidescreenFixes?label=LATEST%20RELEASE&style=for-the-badge" alt="Latest Release" />
+  </a>
+
+  <img src="https://img.shields.io/github/downloads/alphayellow1/AlphaYellowWidescreenFixes/total?label=DOWNLOADS&style=for-the-badge" alt="Downloads" />
+
+  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/views-badge.json&style=for-the-badge" alt="Views" />
+
   <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/uniques-badge.json&style=for-the-badge" alt="Visitors" />
+
+  <img src="https://img.shields.io/github/stars/alphayellow1/AlphaYellowWidescreenFixes?style=for-the-badge" alt="Stars" />
+
+  <img src="https://img.shields.io/github/last-commit/alphayellow1/AlphaYellowWidescreenFixes?style=for-the-badge" alt="Last Commit" />
+
+  <img src="https://img.shields.io/github/issues/alphayellow1/AlphaYellowWidescreenFixes?style=for-the-badge" alt="Open Issues" />
 </p>
 
 ## About
