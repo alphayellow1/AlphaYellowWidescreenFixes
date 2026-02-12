@@ -7,9 +7,9 @@
 
   <img src="https://img.shields.io/github/downloads/alphayellow1/AlphaYellowWidescreenFixes/total?label=DOWNLOADS&style=for-the-badge" alt="Downloads" />
 
-  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/views-badge.json&style=for-the-badge" alt="Views" />
+  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/.github/data/badges/views-badge.json&style=for-the-badge" alt="Views" />
 
-  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/uniques-badge.json&style=for-the-badge" alt="Visitors" />
+  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/alphayellow1/AlphaYellowWidescreenFixes/main/.github/data/badges/uniques-badge.json&style=for-the-badge" alt="Visitors" />
 
   <img src="https://img.shields.io/github/stars/alphayellow1/AlphaYellowWidescreenFixes?style=for-the-badge" alt="Stars" />
 
