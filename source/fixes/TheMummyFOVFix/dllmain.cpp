@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TheMummyFOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,6 +40,8 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr int iOriginalCutscenesFOV = 1024;
+constexpr int iOriginalGameplayFOV = 683;
 
 // Ini variables
 bool bFixActive;
@@ -50,9 +52,12 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
-double dNewCullingFOV;
-uint8_t* CameraFOVAddress;
+float fOriginalCutscenesFOV;
+float fOriginalGameplayFOV;
+float fNewCutscenesFOV;
+float fNewGameplayFOV;
+int iNewCutscenesFOV;
+int iNewGameplayFOV;
 
 // Game detection
 enum class Game
@@ -63,8 +68,8 @@ enum class Game
 
 enum CameraFOVInstructionsIndex
 {
-	CameraFOVScan,
-	CullingFOVScan
+	CutscenesFOV,
+	GameplayFOV
 };
 
 struct GameInfo
@@ -211,7 +216,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -224,41 +229,28 @@ void FOVFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 57", "DC 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0 C1 E6");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? A3", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? E8 ?? ?? ?? ?? 8B CE");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOVScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CutscenesFOV] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Culling FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CullingFOVScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOV] - (std::uint8_t*)exeModule);
 
-			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOVScan] + 2, Memory::PointerMode::Absolute);
+			fOriginalCutscenesFOV = (float)iOriginalCutscenesFOV * 360.0f / 4096.0f;
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
+			fNewCutscenesFOV = Maths::CalculateNewFOV_DegBased(fOriginalCutscenesFOV, fAspectRatioScale);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOVScan], [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+			iNewCutscenesFOV = (int)(fNewCutscenesFOV * 4096.0f / 360.0f);
 
-				if (fCurrentCameraFOV == 60.029296875000f)
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
+			fOriginalGameplayFOV = (float)iOriginalGameplayFOV * 360.0f / 4096.0f;
 
-				FPU::FLD(fNewCameraFOV);
-			});
+			fNewGameplayFOV = Maths::CalculateNewFOV_DegBased(fOriginalGameplayFOV, fAspectRatioScale) * fFOVFactor;
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CullingFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
+			iNewGameplayFOV = (int)(fNewGameplayFOV * 4096.0f / 360.0f);
 
-			dNewCullingFOV = 100.0;
+			Memory::Write(CameraFOVInstructionsScansResult[CutscenesFOV] + 1, iNewCutscenesFOV);
 
-			CullingFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CullingFOVScan], [](SafetyHookContext& ctx)
-			{
-				FPU::FMUL(dNewCullingFOV);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[GameplayFOV] + 1, iNewGameplayFOV);
 		}		
 	}
 }
