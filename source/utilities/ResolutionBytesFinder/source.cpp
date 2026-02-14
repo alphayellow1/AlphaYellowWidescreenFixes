@@ -12,8 +12,8 @@
 #include <thread>
 #include <chrono>
 #include <algorithm>
+#include <cmath> // for fabs
 
-// Helper: read one value of type T from stdin, retrying on failure
 template<typename T>
 T readValue(const std::string& prompt)
 {
@@ -40,31 +40,51 @@ T readValue(const std::string& prompt)
 
 // Core search loop, parameterized on T
 template<typename T>
-void findPairs(const std::vector<char>& buffer,
-    T firstValue,
-    T secondValue,
-    size_t byteRange)
+void findPairs(const std::vector<char>& buffer, T firstValue, T secondValue, size_t byteRange, bool approx = false, T epsilon = T())
 {
     const size_t N = sizeof(T);
     const size_t totalStarts = (buffer.size() >= N ? buffer.size() - N + 1 : 0);
 
+    // helper comparison that respects floating-point approximate mode
+    auto equal = [&](T a, T b) -> bool
+    {
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            if (approx)
+            {
+                return std::fabs(a - b) <= epsilon;
+            }
+            else
+            {
+                return a == b;
+            }
+        }
+        else
+        {
+            return a == b;
+        }
+    };
+
     // ——— DRY RUNS ———————————————————————————————————————————————
     std::vector<size_t> initialCandidates;
     initialCandidates.reserve(1024);
-    for (size_t i = 0; i < totalStarts; ++i) {
+    for (size_t i = 0; i < totalStarts; ++i)
+    {
         T curr;
         std::memcpy(&curr, &buffer[i], N);
-        if (curr == firstValue)
+        if (equal(curr, firstValue))
             initialCandidates.push_back(i);
     }
 
     size_t phase1Steps = totalStarts;
     size_t phase2Steps = 0;
-    for (size_t i : initialCandidates) {
+    for (size_t i : initialCandidates)
+    {
         size_t start = (i > byteRange ? i - byteRange : 0);
         size_t end = std::min(buffer.size() - N, i + byteRange);
         phase2Steps += (end - start + 1);
     }
+
     const size_t totalSteps = phase1Steps + phase2Steps;
 
     // ——— PROGRESS BAR SETUP ——————————————————————————————————————
@@ -73,20 +93,29 @@ void findPairs(const std::vector<char>& buffer,
     size_t     lastPos = SIZE_MAX;   // forces initial draw
     const std::string PREFIX = "Scanning for matches... ";
 
-    auto drawBar = [&](bool force = false) {
-        if (totalSteps == 0) return;
-        double frac = double(workDone) / double(totalSteps);
-        size_t pos = size_t(frac * BAR_WIDTH + 0.5);
-        if (force || pos != lastPos) {
-            std::cout << '\r' << PREFIX << '[';
-            for (int x = 0; x < BAR_WIDTH; ++x)
-                std::cout << (x < pos ? '=' : ' ');
-            std::cout << "] "
-                << std::setw(3) << int(frac * 100 + 0.5)
-                << '%' << std::flush;
-            lastPos = pos;
+    auto drawBar = [&](bool force = false)
+    {
+        if (totalSteps == 0)
+        {
+            return;
         }
-        };
+
+        double frac = double(workDone) / double(totalSteps);
+
+        size_t pos = size_t(frac * BAR_WIDTH + 0.5);
+
+        if (force || pos != lastPos)
+        {
+            std::cout << '\r' << PREFIX << '[';
+
+            for (int x = 0; x < BAR_WIDTH; ++x)
+            {
+                std::cout << (x < pos ? '=' : ' ');
+                std::cout << "] " << std::setw(3) << int(frac * 100 + 0.5) << '%' << std::flush;
+                lastPos = pos;
+            }                
+        }
+    };
 
     // one-line prefix+bar
     std::cout << '\n';
@@ -98,7 +127,7 @@ void findPairs(const std::vector<char>& buffer,
     for (size_t i = 0; i < totalStarts; ++i) {
         T curr;
         std::memcpy(&curr, &buffer[i], N);
-        if (curr == firstValue)
+        if (equal(curr, firstValue))
             candidates.push_back(i);
 
         ++workDone;
@@ -112,7 +141,7 @@ void findPairs(const std::vector<char>& buffer,
         for (size_t j = start; j <= end; ++j) {
             T tmp;
             std::memcpy(&tmp, &buffer[j], N);
-            if (tmp == secondValue)
+            if (equal(tmp, secondValue))
                 found.emplace_back(i, j);
 
             ++workDone;
@@ -120,7 +149,6 @@ void findPairs(const std::vector<char>& buffer,
         }
     }
 
-    // ——— FINISH AT 100% ————————————————————————————————————————
     workDone = totalSteps;
     drawBar(/*force=*/true);
 
@@ -128,10 +156,16 @@ void findPairs(const std::vector<char>& buffer,
     size_t clearLen = PREFIX.size() + BAR_WIDTH + 7;
     std::cout << '\r' << std::string(clearLen, ' ') << '\r';
 
-    // ——— REPORT RESULTS ——————————————————————————————————————
     if (found.empty())
     {
         std::cout << "No matches found within " << byteRange << " bytes.\n";
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            if (approx)
+                std::cout << "Note: approximate mode used with epsilon = " << epsilon << ".\n";
+            else
+                std::cout << "Note: exact (bitwise) floating-point comparison was used.\n";
+        }
     }
     else
     {
@@ -146,6 +180,14 @@ void findPairs(const std::vector<char>& buffer,
                 << p.second << std::dec << std::setfill(' ')
                 << "\n";
         }
+
+        if constexpr (std::is_floating_point_v<T>)
+        {
+            if (approx)
+                std::cout << "\n(Approximate floating-point matching was used with epsilon = " << epsilon << ".)\n";
+            else
+                std::cout << "\n(Exact floating-point matching was used.)\n";
+        }
     }
 }
 
@@ -154,16 +196,28 @@ void handleTypeSearch(const std::vector<char>& buffer)
 {
     // build the prompts dynamically
     auto firstPrompt = "\n- Enter the first value: ";
-
     auto secondPrompt = "\n- Enter the second value: ";
-
     auto rangePrompt = "\n- Enter the byte range: ";
 
     T first = readValue<T>(firstPrompt);
-
     T second = readValue<T>(secondPrompt);
-
     size_t range = readValue<size_t>(rangePrompt);
+
+    if constexpr (std::is_floating_point_v<T>)
+    {
+        std::cout << "\nFloating-point search: choose mode:\n"
+                  << "  1) Exact (bitwise) match\n"
+                  << "  2) Approximate (use epsilon)\n"
+                  << "Selection> ";
+        int mode = readValue<int>(""); // will reprompt until int read
+        if (mode == 2)
+        {
+            T epsilon = readValue<T>("\n- Enter epsilon (e.g. 1e-6): ");
+            findPairs<T>(buffer, first, second, range, /*approx=*/true, epsilon);
+            return;
+        }
+        // else fallthrough to exact
+    }
 
     findPairs<T>(buffer, first, second, range);
 }
@@ -228,7 +282,8 @@ std::vector<char> readFileBuffer(const std::string& prompt)
         size_t lastPos = SIZE_MAX;
         const size_t totalSteps = fileSize;
 
-        auto drawBar = [&](bool force = false) {
+        auto drawBar = [&](bool force = false)
+        {
             if (totalSteps == 0) return;               // nothing to do
             double frac = double(bytesRead) / totalSteps;
             size_t pos = size_t(frac * BAR_WIDTH + 0.5);
@@ -242,14 +297,15 @@ std::vector<char> readFileBuffer(const std::string& prompt)
                     << '%' << std::flush;
                 lastPos = pos;
             }
-            };
+        };
 
         // 5) initial draw at 0%
         std::cout << '\n';
         drawBar(/*force=*/true);
 
         // 6) read in chunks, updating bar
-        while (bytesRead < fileSize) {
+        while (bytesRead < fileSize)
+        {
             size_t toRead = std::min(CHUNK_SIZE, fileSize - bytesRead);
             buf.resize(bytesRead + toRead);
             file.read(buf.data() + bytesRead, toRead);
@@ -263,18 +319,15 @@ std::vector<char> readFileBuffer(const std::string& prompt)
         bytesRead = fileSize;
         drawBar(/*force=*/true);
 
-        // total length = prefix + '[' + BAR_WIDTH + ']' + space + "100%" = 
+        // total length = prefix + '[' + BAR_WIDTH + ']' + space + "100%" =
         // LOADING_TEXT.size() + 1 + BAR_WIDTH + 1 + 1 + 4
         size_t clearLen = LOADING_TEXT.size() + BAR_WIDTH + 7;
-        std::cout << '\r'
-            << std::string(clearLen, ' ')
-            << '\r';
+        std::cout << '\r' << std::string(clearLen, ' ') << '\r';
 
-        // 8) done?
         if (bytesRead == fileSize)
         {
             return buf;
-        }           
+        }
 
         std::cerr << "Error reading \"" << fileName << "\". Try again.\n";
     }
@@ -282,7 +335,7 @@ std::vector<char> readFileBuffer(const std::string& prompt)
 
 int main()
 {
-    std::cout << "==== Resolution Bytes Finder v1.1 by AlphaYellow, 2025 ====\n\n";
+    std::cout << "==== Resolution Bytes Finder v1.2 by AlphaYellow, 2025 ====\n\n";
 
     auto buffer = readFileBuffer("- Enter file name: ");
 
@@ -290,8 +343,7 @@ int main()
 
     do
     {
-        // 1) choose data type
-        enum TypeID {UINT8 = 1, INT16, UINT16, INT32, UINT32, FLOAT, DOUBLE, INT64, UINT64};
+        enum TypeID { UINT8 = 1, INT16, UINT16, INT32, UINT32, INT64, UINT64, FLOAT, DOUBLE };
 
         std::cout << "- Choose a data type:\n"
             << "  Integer types:\n"
@@ -302,10 +354,9 @@ int main()
             << "  Floating-point types:\n"
             << "    8) 32-bit floating point (float)        9) 64-bit floating point (double)\n"
             << "Selection> ";
-        
+
         int selectedType = readInput<int>(1, 9);
 
-        // 2) dispatch templated helper
         switch (selectedType)
         {
         case UINT8:
@@ -349,9 +400,8 @@ int main()
             break;
         }
 
-        // 3) ask to try again or exit
         std::cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
-        
+
         again = readInput<char>('1', '2');
 
         std::cout << "\n";
