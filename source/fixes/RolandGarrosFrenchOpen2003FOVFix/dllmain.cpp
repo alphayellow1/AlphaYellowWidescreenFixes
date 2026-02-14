@@ -50,7 +50,6 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewAspectRatio2;
 float fNewCameraFOV;
 
 // Game detection
@@ -203,27 +202,16 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);			
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentAspectRatio = std::bit_cast<float>(ctx.eax);
-
-				if (fCurrentAspectRatio == 1.333333373f)
-				{
-					fNewAspectRatio2 = fNewAspectRatio;
-				}
-				else
-				{
-					fNewAspectRatio2 = fCurrentAspectRatio;
-				}
-				
-				*reinterpret_cast<float*>(ctx.ecx + 0xC0) = fNewAspectRatio2;
+				*reinterpret_cast<float*>(ctx.ecx + 0xC0) = fNewAspectRatio;
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
+			spdlog::info("Failed to locate the aspect ratio instruction memory address.");
 			return;
 		}
 
@@ -232,11 +220,11 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.ebx);
+				const float& fCurrentCameraFOV = std::bit_cast<float>(ctx.ebx);
 				
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 				
@@ -245,7 +233,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			spdlog::info("Failed to locate the camera FOV instruction memory address.");
 			return;
 		}
 	}
