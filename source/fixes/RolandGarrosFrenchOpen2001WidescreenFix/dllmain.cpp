@@ -219,43 +219,13 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("rcMain.dll")) == nullptr)
-	{
-		spdlog::warn("rcMain.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for rcMain.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("rcMain.dll");
 
 	return true;
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(safetyhook::Context& ctx)
-{
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x144);
-
-	fNewCameraHFOV = (fCurrentCameraHFOV / fAspectRatioScale) / fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(safetyhook::Context& ctx)
-{
-	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x148);
-
-	fNewCameraVFOV = fCurrentCameraVFOV / fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
 
 void WidescreenFix()
 {
@@ -348,13 +318,27 @@ void WidescreenFix()
 
 			spdlog::info("Camera VFOV Instruction Scan: Address is rcMain.dll+{:x}", CameraFOVInstructionScanResult + 30 - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x144);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 30, "\x90\x90\x90\x90\x90\x90", 6);
+				fNewCameraHFOV = (fCurrentCameraHFOV / fAspectRatioScale) / fFOVFactor;
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 30, CameraVFOVInstructionMidHook);
+				FPU::FLD(fNewCameraHFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionScanResult + 30, 6);
+
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 30, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x148);
+
+				fNewCameraVFOV = fCurrentCameraVFOV / fFOVFactor;
+
+				FPU::FLD(fNewCameraVFOV);
+			});
 		}
 		else
 		{
