@@ -53,6 +53,8 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+uint8_t* CameraHFOVAddress;
+uint8_t* CameraVFOVAddress;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 
@@ -65,11 +67,11 @@ enum class Game
 
 enum MenuResolutionInstructionsScan
 {
-	MenuResolution1Scan,
-	MenuResolution2Scan,
-	MenuResolution3Scan,
-	MenuResolution4Scan,
-	MenuResolution5Scan
+	MenuRes1,
+	MenuRes2,
+	MenuRes3,
+	MenuRes4,
+	MenuRes5
 };
 
 struct GameInfo
@@ -238,36 +240,36 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> MenuResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 0D", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF D5 8B 0D", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF D7 8B 0D", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 15", "81 38 ?? ?? ?? ?? 0F 95 ?? 84 C0 74 ?? 8B 0D");
 		if (Memory::AreAllSignaturesValid(MenuResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Menu Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuRes1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Menu Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuRes2] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Menu Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuRes3] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Menu Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution4Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuRes4] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Menu Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuResolution5Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), MenuResolutionInstructionsScansResult[MenuRes5] - (std::uint8_t*)exeModule);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution1Scan] + 6, iNewMenuResX);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes1] + 6, iNewMenuResX);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution1Scan] + 1, iNewMenuResY);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes1] + 1, iNewMenuResY);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution2Scan] + 6, iNewMenuResX);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes2] + 6, iNewMenuResX);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution2Scan] + 1, iNewMenuResY);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes2] + 1, iNewMenuResY);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution3Scan] + 6, iNewMenuResX);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes3] + 6, iNewMenuResX);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution3Scan] + 1, iNewMenuResY);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes3] + 1, iNewMenuResY);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution4Scan] + 6, iNewMenuResX);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes4] + 6, iNewMenuResX);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution4Scan] + 1, iNewMenuResY);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes4] + 1, iNewMenuResY);
 
-			Memory::Write(MenuResolutionInstructionsScansResult[MenuResolution5Scan] + 2, iNewMenuResX);
+			Memory::Write(MenuResolutionInstructionsScansResult[MenuRes5] + 2, iNewMenuResX);
 		}
 
-		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "66 C7 41 58 90 01 66 C7 41 5A 2C 01 C2 04 00 66 C7 41 58 00 02 66 C7 41 5A 80 01 C2 04 00 66 C7 41 58 80 02 66 C7 41 5A 90 01 C2 04 00 66 C7 41 58 80 02 66 C7 41 5A E0 01 C2 04 00 66 C7 41 58 20 03 66 C7 41 5A 58 02 C2 04 00 66 C7 41 58 00 04 66 C7 41 5A 00 03 C2 04 00 66 C7 41 58 00 05 66 C7 41 5A 00 04 C2 04 00 66 C7 41 58 40 06 66 C7 41 5A B0 04");
+		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(exeModule, "66 C7 41 ?? ?? ?? 66 C7 41 ?? ?? ?? C2 ?? ?? 66 C7 41 ?? ?? ?? 66 C7 41 ?? ?? ?? C2 ?? ?? 66 C7 41 ?? ?? ?? 66 C7 41 ?? ?? ?? C2 ?? ?? 66 C7 41 ?? ?? ?? 66 C7 41 ?? ?? ?? C2 ?? ?? 66 C7 41 ?? ?? ?? 66 C7 41 ?? ?? ?? C2 ?? ?? 66 C7 41 ?? ?? ?? 66 C7 41 ?? ?? ?? C2 ?? ?? 66 C7 41 ?? ?? ?? 66 C7 41 ?? ?? ?? C2 ?? ?? 66 C7 41");
 		if (ResolutionListScanResult)
 		{
 			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
@@ -311,33 +313,37 @@ void WidescreenFix()
 		}		
 
 		// Located in rcMain.Runn::RCamera::think
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 86 44 01 00 00 D8 A6 3C 01 00 00 D8 C9 D8 86 3C 01 00 00 D9 54 24 04 D9 9E 3C 01 00 00 D9 86 48 01 00 00");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D8 0D ?? ?? ?? ?? D9 9E ?? ?? ?? ?? DB 05 ?? ?? ?? ?? D8 C9 D8 0D ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 5E");
+		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction Scan: Address is rcMain.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera HFOV Instruction Scan: Address is rcMain.dll+{:x}", CameraFOVInstructionsScanResult - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera VFOV Instruction Scan: Address is rcMain.dll+{:x}", CameraFOVInstructionScanResult + 30 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera VFOV Instruction Scan: Address is rcMain.dll+{:x}", CameraFOVInstructionsScanResult + 20 - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
+			CameraHFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraVFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScanResult + 22, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 6);
+
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esi + 0x144);
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(CameraHFOVAddress);
 
 				fNewCameraHFOV = (fCurrentCameraHFOV / fAspectRatioScale) / fFOVFactor;
 
-				FPU::FLD(fNewCameraHFOV);
+				FPU::FMUL(fNewCameraHFOV);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult + 30, 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 20, 6);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 30, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 20, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esi + 0x148);
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
 
 				fNewCameraVFOV = fCurrentCameraVFOV / fFOVFactor;
 
-				FPU::FLD(fNewCameraVFOV);
+				FPU::FMUL(fNewCameraVFOV);
 			});
 		}
 		else
