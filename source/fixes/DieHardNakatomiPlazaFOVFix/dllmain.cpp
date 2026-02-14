@@ -211,7 +211,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-	    std::uint8_t* UnderwaterCheckInstructionScanResult = Memory::PatternScan(exeModule, "A3 BC 64 4E 00 8B 46 3C D9 05 BC 64 4E 00");
+	    std::uint8_t* UnderwaterCheckInstructionScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? 8B 46 ?? D9 05");
 		if (UnderwaterCheckInstructionScanResult)
 		{
 			spdlog::info("Underwater Check Instruction: Address is {:s}+{:x}", sExeName.c_str(), UnderwaterCheckInstructionScanResult - (std::uint8_t*)exeModule);			
@@ -227,7 +227,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 98 01 00 00 89 45 BC");
+		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 81 ?? ?? ?? ?? 89 45 ?? 8B 81 ?? ?? ?? ?? 89 45 ?? 74");
 		if (CameraHFOVInstructionScanResult)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
