@@ -50,7 +50,8 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraHFOVAndVFOV;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -194,31 +195,24 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		fNewCameraHFOVAndVFOV = Maths::CalculateNewFOV_MultiplierBased(0.6999999881f, fAspectRatioScale) * fFOVFactor;
+		fNewCameraHFOV = 0.6999999881f * fAspectRatioScale * fFOVFactor;
 
-		std::uint8_t* CameraHFOVScanResult = Memory::PatternScan(exeModule, "C7 45 DC 33 33 33 3F 83 7D 08");
-		if (CameraHFOVScanResult)
+		fNewCameraVFOV = 0.6999999881f * fAspectRatioScale * fFOVFactor;
+
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "C7 45 ?? ?? ?? ?? ?? 83 7D ?? ?? 75 ?? C7 45 ?? ?? ?? ?? ?? EB ?? 8B 55 ?? 89 55 ?? C7 45 ?? ?? ?? ?? ?? DF 6D ?? D8 0D ?? ?? ?? ?? 8B 45 ?? 89 45 ?? C7 45 ?? ?? ?? ?? ?? DA 75 ?? D9 5D ?? 8B 4D ?? 89 4D ?? EB");
+		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera HFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVScanResult + 3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(CameraHFOVScanResult + 3, fNewCameraHFOVAndVFOV);
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult + 13 - (std::uint8_t*)exeModule);
+
+			Memory::Write(CameraFOVInstructionsScanResult + 3, fNewCameraHFOV);
+
+			Memory::Write(CameraFOVInstructionsScanResult + 16, fNewCameraVFOV);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera HFOV memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraVFOVScanResult = Memory::PatternScan(exeModule, "F8 3A 40 00 00 00 00 00 33 33 33 3F 00 00 87 43 00 00 00 00");
-		if (CameraVFOVScanResult)
-		{
-			spdlog::info("Camera VFOV: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVScanResult + 8 - (std::uint8_t*)exeModule);
-
-			Memory::Write(CameraVFOVScanResult + 8, fNewCameraHFOVAndVFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera VFOV memory address.");
+			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 			return;
 		}
 	}
