@@ -18,16 +18,16 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "KISSPsychoCircusTheNightmareChildFOVFix";
-std::string sFixVersion = "1.8";
+std::string sFixName = "WorldChampionshipRugbyFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,25 +52,27 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-uint8_t* CameraHFOVAddress;
-uint8_t* CameraVFOVAddress;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
-float fNewInventoryHFOV;
-float fNewInventoryVFOV;
+float fNewCameraFOV;
+float fNewCameraFOV6;
+float fNewCameraFOV7;
 
 // Game detection
 enum class Game
 {
-	KPCTNC,
+	WCR,
 	Unknown
 };
 
 enum CameraFOVInstructionsIndices
 {
-	GameplayHFOV,
-	GameplayVFOV,
-	InventoryFOV
+	FOV1,
+	FOV2,
+	FOV3,
+	FOV4,
+	FOV5,
+	FOV6,
+	FOV7,
+	FOV8
 };
 
 struct GameInfo
@@ -80,7 +82,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::KPCTNC, {"KISS Psycho Circus: The Nightmare Child", "client.exe"}},
+	{Game::WCR, {"World Championship Rugby", "WCR.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -184,8 +186,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -194,83 +194,141 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	dllModule2 = Memory::GetHandle("cshell.dll");
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-static SafetyHookMid GameplayHFOVInstructionHook{};
-static SafetyHookMid GameplayVFOVInstructionHook{};
-static SafetyHookMid InventoryFOVInstructionsHook{};
+static SafetyHookMid CameraFOVInstruction1Hook{};
+static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid CameraFOVInstruction3Hook{};
+static SafetyHookMid CameraFOVInstruction4Hook{};
+static SafetyHookMid CameraFOVInstruction5Hook{};
+
+enum DestInstruction
+{
+	FLD,
+	EAX,
+	ECX
+};
+
+enum AngleMode
+{
+	DEG,
+	RAD
+};
+
+void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, AngleMode angleMode, float fovFactor, DestInstruction destInstruction, SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
+
+	if (angleMode == DEG)
+	{
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
+	}
+	else if (angleMode == RAD)
+	{
+		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
+	}
+
+	switch (destInstruction)
+	{
+		case FLD:
+		{
+			FPU::FLD(fNewCameraFOV);
+			break;
+		}
+
+		case EAX:
+		{
+			ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
+			break;
+		}
+
+		case ECX:
+		{
+			ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
+			break;
+		}
+	}
+}
 
 void FOVFix()
 {
-	if (eGameType == Game::KPCTNC && bFixActive == true)
+	if (eGameType == Game::WCR && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? 51 8B 0D ?? ?? ?? ?? D9 1C ?? 50", "D9 05 ?? ?? ?? ?? 8B 06", "8B 4C 24 ?? D8 4C 24 ?? D8 F1");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 0D ?? ?? ?? ?? 8B 44 24 ?? 8B 4C 24 ?? 8B 54 24 ?? D9", 
+		"D9 44 24 ?? 8B 54 24 ?? D8 0D ?? ?? ?? ?? 8B 44 24 ?? D9", "8B 4C 24 ?? A1 ?? ?? ?? ?? 89", "8B 4C 24 ?? 8B DF", "8B 44 24 ?? A3 ?? ?? ?? ?? 5F", 
+		"C7 05 ?? ?? ?? ?? 92 0A 86 3F 8B 57 ??", "C7 05 ?? ?? ?? ?? 7C 64 93 3D", "C7 05 ?? ?? ?? ?? 92 0A 86 3F 5E");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Gameplay Camera HFOV Instruction: Address is cshell.dll+{:x}", CameraFOVInstructionsScansResult[GameplayHFOV] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Gameplay Camera VFOV Instruction: Address is cshell.dll+{:x}", CameraFOVInstructionsScansResult[GameplayVFOV] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Inventory Selection FOV Instructions Scan: Address is cshell.dll+{:x}", CameraFOVInstructionsScansResult[InventoryFOV] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV3] - (std::uint8_t*)exeModule);
 
-			CameraHFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayHFOV] + 2, Memory::PointerMode::Absolute);
+			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV4] - (std::uint8_t*)exeModule);
 
-			CameraVFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayVFOV] + 2, Memory::PointerMode::Absolute);
+			spdlog::info("Camera FOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV5] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayHFOV], 6);
+			spdlog::info("Camera FOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV6] - (std::uint8_t*)exeModule);
 
-			GameplayHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayHFOV], [](SafetyHookContext& ctx)
+			spdlog::info("Camera FOV Instruction 7: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV7] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Camera FOV Instruction 8: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV8] - (std::uint8_t*)exeModule);
+			
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 4);
+
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(CameraHFOVAddress);
-
-				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
-
-				FPU::FLD(fNewCameraHFOV);
+				CameraFOVInstructionsMidHook(ctx.esp + 0x0, DEG, fFOVFactor, FLD, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayVFOV], 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 4);
 
-			GameplayVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayVFOV], [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
-
-				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
-
-				FPU::FLD(fNewCameraVFOV);
+				CameraFOVInstructionsMidHook(ctx.esp + 0x28, DEG, 1.0f, FLD, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[InventoryFOV], 8);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV3], 4);
 
-			InventoryFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[InventoryFOV], [](SafetyHookContext& ctx)
+			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV3], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentInventoryFOV = *reinterpret_cast<float*>(ctx.esp + 0x24);
-
-				fNewInventoryHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentInventoryFOV, fAspectRatioScale);
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewInventoryHFOV);
-
-				fNewInventoryVFOV = fCurrentInventoryFOV * fAspectRatioScale;
-
-				FPU::FMUL(fNewInventoryVFOV);
+				CameraFOVInstructionsMidHook(ctx.esp + 0x10, RAD, 1.0f, ECX, ctx);
 			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV4], 4);
+
+			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV4], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.esp + 0x10, RAD, 1.0f, ECX, ctx);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV5], 4);
+
+			CameraFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV5], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.esp + 0x8, RAD, 1.0f, EAX, ctx);
+			});
+
+			fNewCameraFOV6 = Maths::CalculateNewFOV_RadBased(1.04719758f, fAspectRatioScale);
+
+			fNewCameraFOV7 = Maths::CalculateNewFOV_RadBased(0.07196900249f, fAspectRatioScale);
+
+			Memory::Write(CameraFOVInstructionsScansResult[FOV6] + 6, fNewCameraFOV6);
+
+			Memory::Write(CameraFOVInstructionsScansResult[FOV7] + 6, fNewCameraFOV7);
+
+			Memory::Write(CameraFOVInstructionsScansResult[FOV8] + 6, fNewCameraFOV6);
 		}
 	}
 }
