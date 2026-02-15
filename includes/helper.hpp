@@ -165,52 +165,121 @@ namespace Memory
 		VirtualProtect(address, numBytes, oldProtect, &oldProtect);
 	}
 
-	inline bool PatchCallRel32(uint8_t* callSite, uint8_t* target, std::array<uint8_t, 5>* out_orig)
-	{
-		if (!callSite || !target)
-		{
-			return false;
-		}
+	enum class CallType
+    {
+        Relative,
+        Absolute
+    };
 
-		if (callSite[0] != 0xE8)
-		{
-			return false;
-		}
+    inline std::optional<std::vector<uint8_t>>
+    PatchCALL(uint8_t* callSite, uint8_t* target, CallType type = CallType::Relative)
+    {
+        if (!callSite || !target)
+        {
+            spdlog::error("PatchCALL failed: null pointer (callSite={}, target={})", fmt::ptr(callSite), fmt::ptr(target));
 
-		if (out_orig) std::memcpy(out_orig->data(), callSite, 5);
+            return std::nullopt;
+        }
 
-		intptr_t nextInstr = reinterpret_cast<intptr_t>(callSite) + 5;
+        DWORD oldProt{};
 
-		intptr_t rel64 = reinterpret_cast<intptr_t>(target) - nextInstr;
+        if (type == CallType::Relative)
+        {
+            intptr_t nextInstr = reinterpret_cast<intptr_t>(callSite) + 5;
+            intptr_t rel64 = reinterpret_cast<intptr_t>(target) - nextInstr;
 
-		if (rel64 < INT32_MIN || rel64 > INT32_MAX)
-		{
-			return false;
-		}
+            if (rel64 < INT32_MIN || rel64 > INT32_MAX)
+            {
+                spdlog::error("PatchCALL (Relative) failed: rel32 overflow.");
+                return std::nullopt;
+            }
 
-		int32_t rel32 = static_cast<int32_t>(rel64);
+            std::vector<uint8_t> original(5);
+            std::memcpy(original.data(), callSite, 5);
 
-		uint8_t patch[5];
+            int32_t rel32 = static_cast<int32_t>(rel64);
 
-		patch[0] = 0xE8;
+            uint8_t patch[5];
+            patch[0] = 0xE8;
+            std::memcpy(&patch[1], &rel32, sizeof(rel32));
 
-		std::memcpy(&patch[1], &rel32, sizeof(rel32));
+            if (!VirtualProtect(callSite, 5, PAGE_EXECUTE_READWRITE, &oldProt))
+            {
+                spdlog::error("PatchCALL failed: VirtualProtect.");
+                return std::nullopt;
+            }
 
-		DWORD oldProt;
+            std::memcpy(callSite, patch, 5);
 
-		if (!VirtualProtect(callSite, 5, PAGE_EXECUTE_READWRITE, &oldProt))
-		{
-			return false;
-		}
+            FlushInstructionCache(GetCurrentProcess(), callSite, 5);
 
-		std::memcpy(callSite, patch, 5);
+            VirtualProtect(callSite, 5, oldProt, &oldProt);
 
-		FlushInstructionCache(GetCurrentProcess(), callSite, 5);
+            spdlog::info("PatchCALL (Relative): {:#x} -> {:#x}", reinterpret_cast<uintptr_t>(callSite), reinterpret_cast<uintptr_t>(target));
 
-		VirtualProtect(callSite, 5, oldProt, &oldProt);
+            return original;
+        }
+        else
+        {
+		#if defined(_WIN64)
+            constexpr size_t patchSize = 12;
 
-		return true;
-	}
+            std::vector<uint8_t> original(patchSize);
+            std::memcpy(original.data(), callSite, patchSize);
+
+            uint8_t patch[patchSize] = { 0 };
+
+            patch[0] = 0x48;
+            patch[1] = 0xB8; // mov rax, imm64
+            std::memcpy(&patch[2], &target, sizeof(uint64_t));
+
+            patch[10] = 0xFF;
+            patch[11] = 0xD0; // call rax
+
+            if (!VirtualProtect(callSite, patchSize, PAGE_EXECUTE_READWRITE, &oldProt))
+            {
+                spdlog::error("PatchCALL (Absolute) failed: VirtualProtect.");
+                return std::nullopt;
+            }
+
+            std::memcpy(callSite, patch, patchSize);
+            FlushInstructionCache(GetCurrentProcess(), callSite, patchSize);
+            VirtualProtect(callSite, patchSize, oldProt, &oldProt);
+
+            spdlog::info("PatchCALL (Absolute x64): {:#x} -> {:#x}",
+                reinterpret_cast<uintptr_t>(callSite),
+                reinterpret_cast<uintptr_t>(target));
+
+            return original;
+
+		#else
+            constexpr size_t patchSize = 6;
+
+            std::vector<uint8_t> original(patchSize);
+            std::memcpy(original.data(), callSite, patchSize);
+
+            uint8_t patch[patchSize];
+
+            patch[0] = 0x68;
+            std::memcpy(&patch[1], &target, sizeof(uint32_t));
+            patch[5] = 0xC3;
+
+            if (!VirtualProtect(callSite, patchSize, PAGE_EXECUTE_READWRITE, &oldProt))
+            {
+                spdlog::error("PatchCALL (Absolute) failed: VirtualProtect.");
+                return std::nullopt;
+            }
+
+            std::memcpy(callSite, patch, patchSize);
+            FlushInstructionCache(GetCurrentProcess(), callSite, patchSize);
+            VirtualProtect(callSite, patchSize, oldProt, &oldProt);
+
+            spdlog::info("PatchCALL (Absolute x86): {:#x} -> {:#x}", reinterpret_cast<uintptr_t>(callSite), reinterpret_cast<uintptr_t>(target));
+
+            return original;
+		#endif
+        }
+    }
 
 	static inline int hexval(char c) noexcept
 	{
