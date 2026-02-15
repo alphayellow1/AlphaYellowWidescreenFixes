@@ -28,7 +28,7 @@ HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "PowerdromeFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,6 +53,7 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+uint8_t* GameplayFOVAddress1;
 float fNewCameraFOV;
 
 // Game detection
@@ -60,6 +61,18 @@ enum class Game
 {
 	PD,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	MainMenuFOV,
+	CutscenesFOV1,
+	CutscenesFOV2,
+	CutscenesFOV3,
+	GameplayFOV1,
+	GameplayFOV2,
+	GameplayFOV3,
+	GameplayFOV4
 };
 
 struct GameInfo
@@ -194,18 +207,61 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("FGraphics.dll")) == nullptr)
-	{
-		spdlog::warn("FGraphics.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for FGraphics.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("powerdrome.dll");
 
 	return true;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid MainMenuCameraFOVInstructionHook{};
+static SafetyHookMid CutscenesCameraFOVInstruction1Hook{};
+static SafetyHookMid CutscenesCameraFOVInstruction2Hook{};
+static SafetyHookMid CutscenesCameraFOVInstruction3Hook{};
+static SafetyHookMid GameplayCameraFOVInstruction1Hook{};
+static SafetyHookMid GameplayCameraFOVInstruction2Hook{};
+static SafetyHookMid GameplayCameraFOVInstruction3Hook{};
+static SafetyHookMid GameplayCameraFOVInstruction4Hook{};
+
+enum destInstruction
+{
+	FADD,
+	EAX,
+	EDX,
+	ECX
+};
+
+void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor, destInstruction DestInstruction, SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
+
+	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
+
+	switch (DestInstruction)
+	{
+		case FADD:
+		{
+			FPU::FADD(fNewCameraFOV);
+			break;
+		}
+
+		case EAX:
+		{
+			ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
+			break;
+		}
+
+		case EDX:
+		{
+			ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
+			break;
+		}
+
+		case ECX:
+		{
+			ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
+			break;
+		}
+	}
+}
 
 void FOVFix()
 {
@@ -214,28 +270,86 @@ void FOVFix()
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		// It's located in FsCamera::SetPinhole function
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? 89 06");
-		if (CameraFOVInstructionScanResult)
+		
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 54 24 ?? D8 07", "8B 44 24 ?? D8 44 24 ?? 50", "8B 4C 24 ?? D8 44 24 ?? 51", "8B 4D ?? 51 8B 4C 24", "D8 05 ?? ?? ?? ?? D9 1C ?? 51 8B 8C 24", 
+		"8B 44 24 ?? 50 8D 4C 24 ?? 51 8B 8C 24 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 FF 15 ?? ?? ?? ?? 81 C4 ?? ?? ?? ?? C2 ?? ?? D9 44 24 ?? D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 C7 44 24 ?? ?? ?? ?? ?? EB ?? 90 90 90 90 90 90 90 90 90 90 83 EC",
+		"8B 44 24 ?? 50 8D 4C 24 ?? 51 8B 8C 24 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 FF 15 ?? ?? ?? ?? 81 C4 ?? ?? ?? ?? C2 ?? ?? D9 44 24 ?? D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 C7 44 24 ?? ?? ?? ?? ?? EB ?? 90 90 90 90 90 90 90 90 90 90 90",
+		"8B 44 24 ?? 50 8D 4C 24 ?? 51 8B 8C 24 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 FF 15 ?? ?? ?? ?? 81 C4 ?? ?? ?? ?? C2 ?? ?? D9 44 24 ?? D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 C7 44 24 ?? ?? ?? ?? ?? EB ?? 90 90 90 90 90 90 90 90 90 90 A1");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is FGraphics.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Main Menu Camera FOV Instruction: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[MainMenuFOV] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			spdlog::info("Cutscenes Camera FOV Instruction 1: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[CutscenesFOV1] - (std::uint8_t*)dllModule2);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[CutscenesFOV2] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Cutscenes Camera FOV Instruction 3: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[CutscenesFOV3] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Gameplay Camera FOV Instruction 1: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV1] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV2] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Gameplay Camera FOV Instruction 3: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV3] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Gameplay Camera FOV Instruction 4: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV4] - (std::uint8_t*)dllModule2);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MainMenuFOV], 4);
+
+			MainMenuCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenuFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x2C);
-
-				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-
-				FPU::FLD(fNewCameraFOV);
+				CameraFOVInstructionsMidHook(ctx.esp + 0x54, 1.0f, EDX, ctx);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV1], 4);
+
+			CutscenesCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV1], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.esp + 0x2C, 1.0f, EAX, ctx);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV2], 4);
+
+			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV2], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.esp + 0x4, 1.0f, ECX, ctx);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV3], 3);
+
+			CutscenesCameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV3], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.ebp + 0x34, 1.0f, ECX, ctx);
+			});
+
+			GameplayFOVAddress1 = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayFOV1] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV1], 6);
+
+			GameplayCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV1], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook((uintptr_t)GameplayFOVAddress1, fFOVFactor, FADD, ctx);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV2], 4);
+
+			GameplayCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV2], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.esp + 0x14, fFOVFactor, EAX, ctx);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV3], 4);
+
+			GameplayCameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV3], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.esp + 0x4, fFOVFactor, EAX, ctx);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV4], 4);
+
+			GameplayCameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV4], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.esp + 0x10, fFOVFactor, EAX, ctx);
+			});			
 		}
 	}
 }
