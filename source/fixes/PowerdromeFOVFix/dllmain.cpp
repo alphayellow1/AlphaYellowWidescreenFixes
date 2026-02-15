@@ -24,7 +24,6 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
-HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "PowerdromeFOVFix";
