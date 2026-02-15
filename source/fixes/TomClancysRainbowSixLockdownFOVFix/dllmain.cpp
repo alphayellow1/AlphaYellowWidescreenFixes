@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TomClancysRainbowSixLockdownFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,26 +42,33 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fDefaultCameraFOV = 1.3962634801864624f; // 80 degrees in radians
-constexpr float fCurrentWeaponFOV = 1.0471975803375244f; // 60 degrees in radians
+constexpr float fDefaultCameraFOV = 1.3962634801864624f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fCameraFOVFactor;
-float fWeaponFOVFactor;
+double dWeaponFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
+uint8_t* WeaponFOVAddress;
+double dNewWeaponFOV;
 
 // Game detection
 enum class Game
 {
 	TCRSL,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	CameraFOV,
+	WeaponFOV
 };
 
 struct GameInfo
@@ -154,11 +161,11 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "CameraFOVFactor", fCameraFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", fWeaponFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", dWeaponFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fCameraFOVFactor);
-	spdlog_confparse(fWeaponFOVFactor);
+	spdlog_confparse(dWeaponFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -194,29 +201,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xA4);
-
-	if (fCurrentCameraFOV == fDefaultCameraFOV)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fCameraFOVFactor;
-	}
-	else if (fCurrentCameraFOV == fCurrentWeaponFOV)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fWeaponFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
+static SafetyHookMid WeaponFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -226,19 +211,43 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 83 A4 00 00 00 D8 0D ?? ?? ?? ?? D9 F2");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8b 54 24 ? 89 91 ? ? ? ? a1 ? ? ? ? d9 80", "dd 05 ? ? ? ? 8b 96");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
+			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[WeaponFOV] - (std::uint8_t*)exeModule);
+			
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV], 4);
+
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+
+				if (fCurrentCameraFOV == fDefaultCameraFOV)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fCameraFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
+			});
+
+			WeaponFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[WeaponFOV] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[WeaponFOV], 6);
+
+			WeaponFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[WeaponFOV], [](SafetyHookContext& ctx)
+			{
+				double& dCurrentWeaponFOV = *reinterpret_cast<double*>(WeaponFOVAddress);
+
+				dNewWeaponFOV = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dWeaponFOVFactor;
+
+				FPU::FLD(dNewWeaponFOV);
+			});
 		}
 	}
 }
