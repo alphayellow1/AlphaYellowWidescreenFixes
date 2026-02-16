@@ -113,6 +113,41 @@ namespace Memory
 	}
 
 	template <typename T> requires std::is_trivially_copyable_v<T>
+	inline void PatchBytes(std::uint8_t* address, const T& data)
+	{
+		DWORD oldProtect{};
+
+		if (!VirtualProtect(address, sizeof(T), PAGE_EXECUTE_READWRITE, &oldProtect))
+		{
+			spdlog::error("VirtualProtect failed in Memory::PatchBytes<T>");
+			return;
+		}
+
+		std::memcpy(address, &data, sizeof(T));
+
+		FlushInstructionCache(GetCurrentProcess(), address, sizeof(T));
+
+		VirtualProtect(address, sizeof(T), oldProtect, &oldProtect);
+	}
+
+	inline void PatchBytes(std::uint8_t* address, const std::uint8_t* data, std::size_t size)
+	{
+		DWORD oldProtect{};
+
+		if (!VirtualProtect(address, size, PAGE_EXECUTE_READWRITE, &oldProtect))
+		{
+			spdlog::error("VirtualProtect failed in Memory::PatchBytes(raw)");
+			return;
+		}
+
+		std::memcpy(address, data, size);
+
+		FlushInstructionCache(GetCurrentProcess(), address, size);
+
+		VirtualProtect(address, size, oldProtect, &oldProtect);
+	}
+
+	template <typename T> requires std::is_trivially_copyable_v<T>
 	inline void PatchBytes(const std::vector<std::uint8_t*>& addresses,	std::size_t startIndex, std::size_t endIndex, std::ptrdiff_t offset, const T& data)
 	{
 		if (addresses.empty())

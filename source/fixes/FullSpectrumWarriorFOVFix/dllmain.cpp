@@ -24,10 +24,11 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
+std::string sDllName;
 
 // Fix details
 std::string sFixName = "FullSpectrumWarriorFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,27 +53,15 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-std::string sDllName;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
-float fNewCameraFOV3;
+float fNewCameraFOV;
 std::uint8_t* AspectRatioInstructionScanResult;
-std::vector<std::uint8_t*> CameraFOVInstructionsScansResult;
-std::uint8_t* g_AspectRatioAddr = nullptr;
-std::uint8_t* g_CameraFOV1Addr = nullptr;
-std::uint8_t* g_CameraFOV2Addr = nullptr;
+std::uint8_t* CameraFOVInstructionScanResult;
 
 // Game detection
 enum class Game
 {
 	FSW,
 	Unknown
-};
-
-enum CameraFOVInstructionsIndex
-{
-	FOV1,
-	FOV2
 };
 
 struct GameInfo
@@ -215,80 +204,13 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
+static std::array<uint8_t, 6> g_AspectRatioOriginalBytes{};
 static std::array<uint8_t, 6> g_AspectRatioHookBytes{};
-static std::array<uint8_t, 6> g_CameraFOV1HookBytes{};
-static std::array<uint8_t, 6> g_CameraFOV2HookBytes{};
 
-void PatchAspectRatio()
-{
-	memcpy(g_AspectRatioHookBytes.data(), AspectRatioInstructionScanResult, g_AspectRatioHookBytes.size());
-
-	Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
-
-	AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-	{
-		FPU::FLD(fNewAspectRatio);
-	});
-
-	memcpy(g_AspectRatioHookBytes.data(), AspectRatioInstructionScanResult, g_AspectRatioHookBytes.size());
-
-	g_AspectRatioAddr = AspectRatioInstructionScanResult;
-
-	FlushInstructionCache(GetCurrentProcess(), g_AspectRatioAddr, g_AspectRatioHookBytes.size());
-}
-
-void PatchFOV1()
-{
-	memcpy(g_CameraFOV1HookBytes.data(), CameraFOVInstructionsScansResult[FOV1], g_CameraFOV1HookBytes.size());
-
-	Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 6);
-
-	CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
-	{
-		float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebx + 0xF0);
-
-		if (fCurrentCameraFOV1 != fNewCameraFOV1)
-		{
-			fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
-		}			
-
-		FPU::FLD(fNewCameraFOV1);
-	});
-
-	memcpy(g_CameraFOV1HookBytes.data(), CameraFOVInstructionsScansResult[FOV1], g_CameraFOV1HookBytes.size());
-
-	g_CameraFOV1Addr = CameraFOVInstructionsScansResult[FOV1];
-
-	FlushInstructionCache(GetCurrentProcess(), g_CameraFOV1Addr, g_CameraFOV1HookBytes.size());
-}
-
-void PatchFOV2()
-{
-	memcpy(g_CameraFOV2HookBytes.data(), CameraFOVInstructionsScansResult[FOV2], g_CameraFOV2HookBytes.size());
-
-	Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 6);
-
-	CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
-	{
-		float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0xF0);
-
-		if (fCurrentCameraFOV2 != fNewCameraFOV2)
-		{
-			fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
-		}		
-
-		ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV2);
-	});
-
-	memcpy(g_CameraFOV2HookBytes.data(), CameraFOVInstructionsScansResult[FOV2], g_CameraFOV2HookBytes.size());
-
-	g_CameraFOV2Addr = CameraFOVInstructionsScansResult[FOV2];
-
-	FlushInstructionCache(GetCurrentProcess(), g_CameraFOV2Addr, g_CameraFOV2HookBytes.size());
-}
+static std::array<uint8_t, 6> g_CameraFOVOriginalBytes{};
+static std::array<uint8_t, 6> g_CameraFOVHookBytes{};
 
 void FOVFix()
 {
@@ -297,96 +219,113 @@ void FOVFix()
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-		
+
 		AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC C7 01");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {}+{:x}", sDllName, AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction: Address is {}+{:X}", sDllName, AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			g_AspectRatioAddr = AspectRatioInstructionScanResult;
+			memcpy(g_AspectRatioOriginalBytes.data(), AspectRatioInstructionScanResult, g_AspectRatioOriginalBytes.size());
 
-			PatchAspectRatio();
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, g_AspectRatioOriginalBytes.size());
+
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(fNewAspectRatio);
+			});
+
+			memcpy(g_AspectRatioHookBytes.data(), AspectRatioInstructionScanResult, g_AspectRatioHookBytes.size());
+
+			FlushInstructionCache(GetCurrentProcess(), AspectRatioInstructionScanResult, g_AspectRatioHookBytes.size());
 		}
 		else
 		{
 			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
-		
-		CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 83 ?? ?? ?? ?? 8B 03", "8B 88 ?? ?? ?? ?? 8B 93 ?? ?? ?? ?? 83 C2");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+
+		CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D9 E1 D9 54 24 ?? D9 05 ?? ?? ?? ?? DF F1 DD D8 77");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {}+{:x}", sDllName, CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is {}+{:X}", sDllName, CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {}+{:x}", sDllName, CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)dllModule2);
+			memcpy(g_CameraFOVOriginalBytes.data(), CameraFOVInstructionScanResult, g_CameraFOVOriginalBytes.size());
 
-			g_CameraFOV1Addr = CameraFOVInstructionsScansResult[FOV1];
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
-			static std::array<uint8_t, 6> g_OriginalFOV1Bytes{};
-			memcpy(g_OriginalFOV1Bytes.data(), g_CameraFOV1Addr, 6);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-			PatchFOV1();
+				if (fCurrentCameraFOV != fNewCameraFOV)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
 
-			g_CameraFOV2Addr = CameraFOVInstructionsScansResult[FOV2];
+				FPU::FLD(fNewCameraFOV);
+			});
 
-			static std::array<uint8_t, 6> g_OriginalFOV2Bytes{};
-			memcpy(g_OriginalFOV2Bytes.data(), g_CameraFOV2Addr, 6);
+			memcpy(g_CameraFOVHookBytes.data(), CameraFOVInstructionScanResult, g_CameraFOVHookBytes.size());
 
-			PatchFOV2();
+			FlushInstructionCache(GetCurrentProcess(), CameraFOVInstructionScanResult, g_CameraFOVHookBytes.size());
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
 		}
 	}
 }
 
 DWORD WINAPI PatchWatchdogThread(LPVOID)
 {
-    while (true)
-    {
+	while (!dllModule2)
+	{
+		dllModule2 = Memory::GetHandle("FSW.dll");
+
+		Sleep(200);
+	}
+
+	if (eGameType != Game::FSW || !bFixActive)
+	{
+		return 0;
+	}		
+
+	while (eGameType == Game::FSW && bFixActive)
+	{
+		if (AspectRatioInstructionScanResult && memcmp(AspectRatioInstructionScanResult, g_AspectRatioOriginalBytes.data(), g_AspectRatioOriginalBytes.size()) == 0)
+		{
+			Memory::PatchBytes(AspectRatioInstructionScanResult, g_AspectRatioHookBytes.data(), g_AspectRatioHookBytes.size());
+
+			FlushInstructionCache(GetCurrentProcess(), AspectRatioInstructionScanResult, g_AspectRatioHookBytes.size());
+		}
+
+		if (CameraFOVInstructionScanResult && memcmp(CameraFOVInstructionScanResult, g_CameraFOVOriginalBytes.data(), g_CameraFOVOriginalBytes.size()) == 0)
+		{
+			Memory::PatchBytes(CameraFOVInstructionScanResult, g_CameraFOVHookBytes.data(), g_CameraFOVHookBytes.size());
+
+			FlushInstructionCache(GetCurrentProcess(), CameraFOVInstructionScanResult, g_CameraFOVHookBytes.size());
+		}
+
 		Sleep(500);
+	}
 
-		dllModule2 = Memory::GetHandle("FSW.dll", 200, 0, false);
-
-		g_AspectRatioAddr = (std::uint8_t*)dllModule2 + 0x465990;
-
-		g_CameraFOV1Addr = (std::uint8_t*)dllModule2 + 0x40139C;
-
-		g_CameraFOV2Addr = (std::uint8_t*)dllModule2 + 0x167F57;
-
-        if (g_AspectRatioAddr)
-        {
-            if (memcmp(g_AspectRatioAddr, g_AspectRatioHookBytes.data(), g_AspectRatioHookBytes.size()) != 0)
-            {
-				Memory::PatchBytes(g_AspectRatioAddr, reinterpret_cast<const char*>(g_AspectRatioHookBytes.data()));
-            }
-        }
-
-        if (g_CameraFOV1Addr)
-        {
-            if (memcmp(g_CameraFOV1Addr, g_CameraFOV1HookBytes.data(), g_CameraFOV1HookBytes.size()) != 0)
-            {
-				Memory::PatchBytes(g_CameraFOV1Addr, reinterpret_cast<const char*>(g_CameraFOV1HookBytes.data()));
-            }
-        }
-
-        if (g_CameraFOV2Addr)
-        {
-            if (memcmp(g_CameraFOV2Addr, g_CameraFOV2HookBytes.data(), g_CameraFOV2HookBytes.size()) != 0)
-            {
-				Memory::PatchBytes(g_CameraFOV2Addr, reinterpret_cast<const char*>(g_CameraFOV2HookBytes.data()));
-            }
-        }
-    }
+	return 0;
 }
 
 DWORD __stdcall Main(void*)
 {
 	Logging();
+
 	Configuration();
+
 	if (DetectGame())
 	{
 		FOVFix();
 
 		CreateThread(nullptr, 0, PatchWatchdogThread, nullptr, 0, nullptr);
 	}
+
 	return TRUE;
 }
 
