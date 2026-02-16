@@ -28,7 +28,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "SniperGhostWarriorFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,8 +53,8 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
-float fCurrentCameraHFOV;
+float fNewGameplayFOV;
+float fNewCutscenesFOV;
 
 // Game detection
 enum class Game
@@ -65,8 +65,8 @@ enum class Game
 
 enum CameraFOVInstructionsIndices
 {
-	FOV1Scan,
-	FOV2Scan
+	GameplayFOV,
+	CutscenesFOV
 };
 
 struct GameInfo
@@ -201,8 +201,8 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
+static SafetyHookMid GameplayFOVInstructionHook{};
+static SafetyHookMid CutscenesFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -212,47 +212,50 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? 8B 15 ?? ?? ?? ?? DC C9", "D9 44 24 ?? 51 D9 96");
+		// Instructions are located in IBaseCamera::SetFOV and IGSObject::GetStatusEditor
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D8 0D ?? ?? ?? ?? D9 1C 24 FF D2", "D9 83 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? D8 0D");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Gameplay Camera FOV Instruction: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 2: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[CutscenesFOV] - (std::uint8_t*)dllModule2);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV], 4);
+
+			GameplayFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x2C);
+				float& fCurrentGameplayFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
+
+				spdlog::info("[Hook] Raw incoming gameplay FOV: {:.12f}", fCurrentGameplayFOV);
+
+				if (fCurrentGameplayFOV == 46.799999237061f || fCurrentGameplayFOV == 46.799995422363f)
+				{
+					fNewGameplayFOV = fCurrentGameplayFOV * fFOVFactor;
+				}
+				else
+				{
+					fNewGameplayFOV = fCurrentGameplayFOV;
+				}
+
+				FPU::FLD(fNewGameplayFOV);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV], 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
+			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x24);
+				float& fCurrentCutscenesFOV = *reinterpret_cast<float*>(ctx.ebx + 0x150);
 
-				if (fCurrentCameraHFOV == 10.0f)
+				if (fNewAspectRatio > fOldAspectRatio)
 				{
-					if (fCurrentCameraFOV != fNewCameraFOV)
-					{
-						fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-					}
+					fNewCutscenesFOV = Maths::CalculateNewFOV_DegBased(fCurrentCutscenesFOV, fAspectRatioScale);
 				}
-				else if (fCurrentCameraHFOV == 5.0f)
+				else if (fNewAspectRatio <= fOldAspectRatio)
 				{
-					if (fCurrentCameraFOV != fNewCameraFOV)
-					{
-						if (fCurrentCameraFOV == 0.8168140054f)
-						{
-							fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-						}
-						else
-						{
-							fNewCameraFOV = fCurrentCameraFOV;
-						}
-					}
+					fNewCutscenesFOV = fCurrentCutscenesFOV;
 				}
 
-				FPU::FLD(fNewCameraFOV);
+				FPU::FLD(fNewCutscenesFOV);
 			});
 		}
 	}
