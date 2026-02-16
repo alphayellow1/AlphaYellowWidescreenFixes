@@ -226,8 +226,6 @@ void FOVFix()
 			{
 				float& fCurrentGameplayFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
 
-				spdlog::info("[Hook] Raw incoming gameplay FOV: {:.12f}", fCurrentGameplayFOV);
-
 				if (fCurrentGameplayFOV == 46.799999237061f || fCurrentGameplayFOV == 46.799995422363f)
 				{
 					fNewGameplayFOV = fCurrentGameplayFOV * fFOVFactor;
