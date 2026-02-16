@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TheSumOfAllFearsFOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,24 +42,31 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fDefaultCameraFOV = 1.570796371f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
+float fNewGameplayFOV;
+float fNewMenuFOV;
 
 // Game detection
 enum class Game
 {
 	SOAF,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	GameplayFOV,
+	MainMenuFOV
 };
 
 struct GameInfo
@@ -189,47 +196,8 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebx + 0x1C8);
-
-	if (fCurrentCameraFOV1 == 1.5707963705062866f)
-	{
-		fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV1]
-	}
-}
-
-static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ebx + 0x1C8);
-
-	if (fCurrentCameraFOV2 == 1.5707963705062866f)
-	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV2]
-	}
-}
+static SafetyHookMid GameplayFOVInstructionHook{};
+static SafetyHookMid MainMenuFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -239,34 +207,41 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 83 C8 01 00 00 D8 0D ?? ?? ?? ?? 3B CF 0F 85 ?? ?? ?? ?? D9 F2 DD D8 D9 93 D8 01 00 00");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 54 24 ?? 89 91", "D9 45 ?? 8B 11");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOV] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MainMenuFOV] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV], 4);
 
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D9 83 C8 01 00 00 D8 0D ?? ?? ?? ?? D9 F2 DD D8 D8 B3 CC 01 00 00 D9 93 DC 01 00 00 D9 E0 D9 93 E0 01 00 00");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
+			GameplayFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentGameplayFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
-			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+				if (fCurrentGameplayFOV == fDefaultCameraFOV)
+				{
+					fNewGameplayFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewGameplayFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayFOV, fAspectRatioScale);
+				}
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, CameraFOVInstruction2MidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
-			return;
+				ctx.edx = std::bit_cast<uintptr_t>(fNewGameplayFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MainMenuFOV], 3);
+
+			MainMenuFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenuFOV], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentMenuFOV = *reinterpret_cast<float*>(ctx.ebp + 0x70);
+
+				fNewMenuFOV = Maths::CalculateNewFOV_RadBased(fCurrentMenuFOV, fAspectRatioScale);
+
+				FPU::FLD(fNewMenuFOV);
+			});
 		}
 	}
 }
