@@ -218,7 +218,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is enginecore_vr.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 4);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{

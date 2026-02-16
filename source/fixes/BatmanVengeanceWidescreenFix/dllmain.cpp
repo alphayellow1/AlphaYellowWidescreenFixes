@@ -24,11 +24,13 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
 HMODULE dllModule2 = nullptr;
 HMODULE dllModule3 = nullptr;
+HMODULE dllModule4 = nullptr;
+HMODULE dllModule5 = nullptr;
 HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BatmanVengeanceWidescreenFix";
-std::string sFixVersion = "1.5";
+std::string sFixVersion = "1.6";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,14 +55,29 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewAspectRatio2;
-float fNewCameraFOV;
+float fNewResX;
+float fNewGeneralFOV;
+float fNewGameplayFOV;
+float fNewCameraFOV3;
+uintptr_t GameplayFOVAddress1;
+uintptr_t GameplayFOVAddress5;
 
 // Game detection
 enum class Game
 {
 	BV,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	GeneralFOV,
+	GameplayFOV1,
+	GameplayFOV2,
+	GameplayFOV3,
+	GameplayFOV4,
+	GameplayFOV5,
+	GameplayFOV6
 };
 
 struct GameInfo
@@ -195,27 +212,28 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule = GetModuleHandleA("osr_dx8_vf.dll")) == nullptr)
-	{
-		spdlog::warn("osr_dx8_vf.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for osr_dx8_vf.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
-
-	while ((dllModule2 = GetModuleHandleA("enginecore_vf.dll")) == nullptr)
-	{
-		spdlog::warn("enginecore_vf.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for enginecore_vf.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("osr_dx8_vf.dll", 50);
 
 	return true;
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid GeneralFOVInstructionHook{};
+static SafetyHookMid GameplayFOVInstruction1Hook{};
+static SafetyHookMid GameplayFOVInstruction2Hook{};
+static SafetyHookMid GameplayFOVInstruction3Hook{};
+static SafetyHookMid GameplayFOVInstruction4Hook{};
+static SafetyHookMid GameplayFOVInstruction5Hook{};
+static SafetyHookMid GameplayFOVInstruction6Hook{};
+
+void GameplayFOVInstructionsMidHook(uintptr_t FOVAddress, uintptr_t& destInstruction)
+{
+	float& fCurrentGameplayFOV = *reinterpret_cast<float*>(FOVAddress);
+
+	fNewGameplayFOV = fCurrentGameplayFOV * fFOVFactor;
+
+	destInstruction = std::bit_cast<uintptr_t>(fNewGameplayFOV);
+}
 
 void WidescreenFix()
 {
@@ -225,73 +243,119 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionsScanResult = Memory::PatternScan(dllModule, "00 00 00 00 02 00 00 80 01 00 00 80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00 3C 00 00 00");
-		if (ResolutionsScanResult)
+		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(dllModule2, "00 00 00 00 02 00 00 80 01 00 00 80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00 3C 00 00 00");
+		if (ResolutionListScanResult)
 		{
-			spdlog::info("Resolutions Scan: Address is osr_dx8_vf.dll+{:x}", ResolutionsScanResult - (std::uint8_t*)dllModule);
+			spdlog::info("Resolution List Scan: Address is osr_dx8_vf.dll+{:x}", ResolutionListScanResult - (std::uint8_t*)dllModule2);
 
 			// 640x480
-			Memory::Write(ResolutionsScanResult + 11, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 11, iCurrentResX);
 
-			Memory::Write(ResolutionsScanResult + 15, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 15, iCurrentResY);
 
 			// 800x600
-			Memory::Write(ResolutionsScanResult + 19, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 19, iCurrentResX);
 
-			Memory::Write(ResolutionsScanResult + 23, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 23, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionsScanResult + 27, iCurrentResX);
+			Memory::Write(ResolutionListScanResult + 27, iCurrentResX);
 
-			Memory::Write(ResolutionsScanResult + 31, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 31, iCurrentResY);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolutions scan memory address.");
+			spdlog::error("Failed to locate resolution list scan memory address.");
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule, "D8 3D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 C2 D8 4D 1C D8 C9 D9 18 D9 EE D9 58 04 D9 EE D9 58 08 D9 EE D9 58 0C D9 EE D9 58 10 D9 C1 D8 4D 1C D8 C9 D9 58 14 DD D8 D9 EE D9 58 18 D9 EE D9 58 1C D9 45 0C D8 45 10 D8 CA D9 58 20 D9 45 14 D8 45 18 D8 C9 D9 58 24 DD D8 DD D8 D9 45 1C D8 65 20 D8 7D 20 D9 50 28 D9 EE D9 58 30 D9 EE D9 58 34 D8 4D 1C D9 58 38");
+		dllModule3 = Memory::GetHandle("enginecore_vf.dll", 50);
+
+		dllModule4 = Memory::GetHandle("aisdk_gamedll_vf.dll", 50);
+
+		dllModule5 = Memory::GetHandle("DLG_vf.dll", 50);
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule5, "8B 46 ?? 8B 4E ?? 8B 96 ?? ?? ?? ?? 53");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera VFOV Instruction: Address is osr_dx8_vf.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule);
+			spdlog::info("Aspect Ratio Instruction: Address is DLG_vf.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule5);
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
-
-			fNewAspectRatio2 = fAspectRatioScale;
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 3);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				FPU::FDIVR(fNewAspectRatio2);
+				float& fCurrentResX = *reinterpret_cast<float*>(ctx.esi + 0x24);
+
+				fNewResX = fCurrentResX * fAspectRatioScale;
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewResX);
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera VFOV instruction memory address.");
+			spdlog::info("Cannot locate the aspect ratio instruction memory address.");
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D8 4C 24 0C D9 5C 24 20 D9 44 24 24 D8 74 24 28 8B 54 24 20 D8 4C 24 20 D9 5C 24 24");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule3, "D8 4C 24 ?? D9 5C 24 ?? D9 44 24 ?? D8 74 24", dllModule4, "8B 0D ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 51 52 FF 15 ?? ?? ?? ?? 8B 0D",
+		"8B 8E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 51 52 FF 15 ?? ?? ?? ?? 8B 8E", "68 ?? ?? ?? ?? 52 FF 15 ?? ?? ?? ?? A1", "68 ?? ?? ?? ?? 50 FF 15 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 8E",
+		"8B 0D ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 55");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is enginecore_vr.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("General Camera FOV Instruction: Address is enginecore_vr.dll+{:x}", CameraFOVInstructionsScansResult[GeneralFOV] - (std::uint8_t*)dllModule3);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
+			spdlog::info("Gameplay Camera FOV Instruction 1: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV1] - (std::uint8_t*)dllModule4);
 
-			// Hook is located in the AdjustCameraToViewport function
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV2] - (std::uint8_t*)dllModule4);
+
+			spdlog::info("Gameplay Camera FOV Instruction 3: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV3] - (std::uint8_t*)dllModule4);
+
+			spdlog::info("Gameplay Camera FOV Instruction 4: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV4] - (std::uint8_t*)dllModule4);
+
+			spdlog::info("Gameplay Camera FOV Instruction 5: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV5] - (std::uint8_t*)dllModule4);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GeneralFOV], 4);
+
+			// Instruction is located in the CAM_vAdjustCameraToViewport function
+			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+				float& fCurrentGeneralFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
 
-				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				fNewGeneralFOV = fCurrentGeneralFOV * fAspectRatioScale;
 
-				FPU::FMUL(fNewCameraFOV);
+				FPU::FMUL(fNewGeneralFOV);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
+
+			GameplayFOVAddress1 = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayFOV1] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV1], 6);
+
+			GameplayFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV1], [](SafetyHookContext& ctx)
+			{
+				GameplayFOVInstructionsMidHook(GameplayFOVAddress1, ctx.ecx);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV2], 6);
+
+			GameplayFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV2], [](SafetyHookContext& ctx)
+			{
+				GameplayFOVInstructionsMidHook(ctx.esi + 0x13C, ctx.ecx);
+			});
+
+			fNewCameraFOV3 = 1.299999952f * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScansResult[GameplayFOV3] + 1, fNewCameraFOV3);
+
+			Memory::Write(CameraFOVInstructionsScansResult[GameplayFOV4] + 1, fNewCameraFOV3);
+			
+			GameplayFOVAddress5 = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayFOV5] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV5], 6);
+
+			GameplayFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV5], [](SafetyHookContext& ctx)
+			{
+				GameplayFOVInstructionsMidHook(GameplayFOVAddress5, ctx.ecx);
+			});
 		}
 	}
 }
