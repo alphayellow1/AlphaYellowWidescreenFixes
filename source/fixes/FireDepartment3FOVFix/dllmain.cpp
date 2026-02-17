@@ -261,37 +261,37 @@ void FOVFix()
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 6);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
-				{
-					CameraFOVInstructionsMidHook(ctx.esi + 0xB8, EAX, ctx);
-				});
+			{
+				CameraFOVInstructionsMidHook(ctx.esi + 0xB8, EAX, ctx);
+			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 6);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
-				{
-					CameraFOVInstructionsMidHook(ctx.ecx + 0xB8, ECX, ctx);
-				});
+			{
+				CameraFOVInstructionsMidHook(ctx.ecx + 0xB8, ECX, ctx);
+			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV3Scan], 6);
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV3Scan], [](SafetyHookContext& ctx)
-				{
-					CameraFOVInstructionsMidHook(ctx.esi + 0xB8, FLD, ctx);
-				});
+			{
+				CameraFOVInstructionsMidHook(ctx.esi + 0xB8, FLD, ctx);
+			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV4Scan], 6);
 
 			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV4Scan], [](SafetyHookContext& ctx)
-				{
-					CameraFOVInstructionsMidHook(ctx.edx + 0xB8, FLD, ctx);
-				});
+			{
+				CameraFOVInstructionsMidHook(ctx.edx + 0xB8, FLD, ctx);
+			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV5Scan], 6);
 
 			CameraFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV5Scan], [](SafetyHookContext& ctx)
-				{
-					CameraFOVInstructionsMidHook(ctx.esi + 0xB8, EAX, ctx);
-				});
+			{
+				CameraFOVInstructionsMidHook(ctx.esi + 0xB8, EAX, ctx);
+			});
 		}
 	}
 }
