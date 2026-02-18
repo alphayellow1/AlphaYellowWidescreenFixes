@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "NikitaSpeedyPiratesFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -53,6 +53,7 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
+uint8_t* TriggerValueAddress;
 uint32_t* pInRaceFlag;
 static bool bInRace;
 
@@ -215,9 +216,7 @@ void FOVFix()
 		{
 			spdlog::info("In A Race Trigger Instruction: Address is ChromeEngine2.dll+{:x}", InARaceTriggerInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			uint32_t imm = *reinterpret_cast<uint32_t*>(InARaceTriggerInstructionScanResult + 2);
-
-			uint8_t* TriggerValueAddress = reinterpret_cast<uint8_t*>(imm);
+			TriggerValueAddress = Memory::GetPointerFromAddress<uint32_t>(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			pInRaceFlag = reinterpret_cast<uint32_t*>(TriggerValueAddress);
 		}
@@ -232,7 +231,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::Write(CameraFOVInstructionScanResult, 4); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4); // NOP out the original instruction
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
