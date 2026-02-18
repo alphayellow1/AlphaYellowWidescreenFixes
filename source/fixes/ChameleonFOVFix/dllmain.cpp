@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "ChameleonFOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -54,7 +54,6 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
-float fNewCameraFOV2;
 
 // Game detection
 enum class Game
@@ -65,15 +64,15 @@ enum class Game
 
 enum AspectRatioInstructionScans
 {
-	AR1Scan,
-	AR2Scan,
-	AR3Scan
+	AR1,
+	AR2,
+	AR3
 };
 
 enum CameraFOVInstructionScans
 {
-	FOV1Scan,
-	FOV2Scan
+	FOV1,
+	FOV2
 };
 
 struct GameInfo
@@ -238,58 +237,56 @@ void FOVFix()
 
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(dllModule2, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 D9 05 ?? ?? ?? ?? D9 C0 8D BA", 
 		"D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 D9 05 ?? ?? ?? ?? D9 C0 5F", "D8 8A ?? ?? ?? ?? D9 C1 D9 1B");
-		
-		std::vector<std::uint8_t*> CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 82 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 82 ?? ?? ?? ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 D9 05 ?? ?? ?? ?? D9 C0 8D BA", 
-		"D9 82 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 82 ?? ?? ?? ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? D9 C0 DE C1 D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 D9 05 ?? ?? ?? ?? D9 C0 5F");
-		
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is LS3DF.dll+{:x}", AspectRatioInstructionsScansResult[AR1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is LS3DF.dll+{:x}", AspectRatioInstructionsScansResult[AR1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Instruction 2: Address is LS3DF.dll+{:x}", AspectRatioInstructionsScansResult[AR2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 2: Address is LS3DF.dll+{:x}", AspectRatioInstructionsScansResult[AR2] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Instruction 3: Address is LS3DF.dll+{:x}", AspectRatioInstructionsScansResult[AR3Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 3: Address is LS3DF.dll+{:x}", AspectRatioInstructionsScansResult[AR3] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR1Scan], 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR1], 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1], [](SafetyHookContext& ctx)
 			{
 				FPU::FCOMP(fAspectRatioToCompare);
 			});
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR2Scan], 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR2], 6);
 			
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2], [](SafetyHookContext& ctx)
 			{
 				FPU::FCOMP(fAspectRatioToCompare);
 			});
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR3Scan], 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR3], 6);
 
-			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR3Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR3], [](SafetyHookContext& ctx)
 			{
 				FPU::FMUL(fNewAspectRatio);
 			});
 		}
 		
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionScanResult) == true)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 44 24 08 D8 15 ?? ?? ?? ?? DF E0 F6 C4 05 7B 0D D8 15 ?? ?? ?? ?? DF E0 F6 C4 01 75 1B D8 1D ?? ?? ?? ?? DF E0 F6 C4 05 7A 08 D9 05 ?? ?? ?? ?? EB 06 D9 05 ?? ?? ?? ?? 8B 4C 24 04 8A 81 24 01 00 00 D9 99 08 01 00 00",
+		"D9 44 24 08 D8 15 ?? ?? ?? ?? DF E0 F6 C4 05 7B 0D D8 15 ?? ?? ?? ?? DF E0 F6 C4 01 75 1B D8 1D ?? ?? ?? ?? DF E0 F6 C4 05 7A 08 D9 05 ?? ?? ?? ?? EB 06 D9 05 ?? ?? ?? ?? 8B 4C 24 04 8A 81 24 01 00 00 D9 99 14 01 00 00");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult[FOV1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstructionScanResult[FOV2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult[FOV1Scan], 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 4);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionMidHook(ctx.edx + 0x108);
+				CameraFOVInstructionMidHook(ctx.esp + 0x8);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult[FOV2Scan], 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 4);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionScanResult[FOV2Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionMidHook(ctx.edx + 0x114);
+				CameraFOVInstructionMidHook(ctx.esp + 0x8);
 			});
 		}
 	}
