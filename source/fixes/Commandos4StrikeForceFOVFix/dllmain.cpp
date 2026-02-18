@@ -237,21 +237,18 @@ void FOVFix()
 			
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 3);
 
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1] + 9, 6);
+
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebp + 0x8);
 
+				spdlog::info("[Hook] Raw incoming FOV 1: {:.12f}", fCurrentCameraFOV1);
+
 				if (fCurrentCameraFOV1 != fNewCameraFOV1)
 				{
-					if (fCurrentCameraFOV1 == 1.221730471f)
-					{
-						fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
-					}
-					else
-					{
-						fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
-					}
-				}				
+					fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
+				}
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV1);
 			});
@@ -264,14 +261,7 @@ void FOVFix()
 
 				if (fCurrentCameraFOV2 != fNewCameraFOV2)
 				{
-					if (fCurrentCameraFOV2 == 1.221730471f)
-					{
-						fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
-					}
-					else
-					{
-						fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
-					}
+					fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
 				}				
 
 				FPU::FLD(fNewCameraFOV2);
