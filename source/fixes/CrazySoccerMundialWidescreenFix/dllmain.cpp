@@ -24,6 +24,7 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
+HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "CrazySoccerMundialWidescreenFix";
@@ -57,6 +58,8 @@ float fCurrentCameraFOV;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fNewMatchesFOV;
+int numHits;
+std::vector<std::uint8_t*> CameraFOVInstructionsScanResult;
 
 // Game detection
 enum class Game
@@ -69,7 +72,8 @@ enum CameraFOVInstructionsIndices
 {
 	HFOV,
 	VFOV,
-	MatchesFOV
+	MatchesFOV,
+	hook4_1
 };
 
 struct GameInfo
@@ -204,7 +208,9 @@ bool DetectGame()
 		return false;
 	}
 
-	dllModule2 = Memory::GetHandle("ChromeEngine.dll");
+	dllModule2 = Memory::GetHandle("ChromeEngine.dll", 50);
+
+	dllModule3 = Memory::GetHandle("KernelGL.dll", 50);
 
 	return true;
 }
@@ -212,6 +218,7 @@ bool DetectGame()
 static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid CameraHFOVInstructionHook{};
 static SafetyHookMid CameraVFOVInstructionHook{};
+static SafetyHookMid InitializeHook {};
 
 void WidescreenFix()
 {
@@ -241,7 +248,7 @@ void WidescreenFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D8 4C 24 ?? D9 5C 24 ?? D8 C9", "D8 4C 24 ?? D9 5C 24 ?? DD D8", "B8 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 15");
+		CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D8 4C 24 ?? D9 5C 24 ?? D8 C9", "D8 4C 24 ?? D9 5C 24 ?? DD D8", "B8 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 15", dllModule3, "d9 44 24 ?? d8 64 24 ?? da 35 ?? ?? ?? ?? d9 44 24");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is ChromeEngine.dll+{:x}", CameraFOVInstructionsScanResult[HFOV] - (std::uint8_t*)dllModule2);
@@ -272,11 +279,19 @@ void WidescreenFix()
 				FPU::FMUL(fNewCameraVFOV);
 			});
 
-			Sleep(2000);
-
 			fNewMatchesFOV = fOriginalMatchesFOV * fFOVFactor;
+			
+			numHits = 0;
 
-			Memory::Write(CameraFOVInstructionsScanResult[MatchesFOV] + 1, fNewMatchesFOV);
+			InitializeHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[hook4_1], [](SafetyHookContext& ctx)
+			{
+				numHits++;
+
+				if (numHits == 20)
+				{
+					Memory::Write(CameraFOVInstructionsScanResult[MatchesFOV] + 1, fNewMatchesFOV);
+				}				
+			});
 		}
 	}
 }
