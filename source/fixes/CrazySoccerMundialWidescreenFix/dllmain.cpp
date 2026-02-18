@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "CrazySoccerMundialWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,6 +42,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalMatchesFOV = 1.308996916f;
 
 // Ini variables
 bool bFixActive;
@@ -52,13 +53,23 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fCurrentCameraFOV;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
+float fNewMatchesFOV;
 
 // Game detection
 enum class Game
 {
 	CSM,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	HFOV,
+	VFOV,
+	MatchesFOV
 };
 
 struct GameInfo
@@ -199,7 +210,8 @@ bool DetectGame()
 }
 
 static SafetyHookMid ResolutionInstructionsHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -229,33 +241,42 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 04 D8 0D ?? ?? ?? ?? 8A 81 80 03 00 00 84 C0 D9 F2");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D8 4C 24 ?? D9 5C 24 ?? D8 C9", "D8 4C 24 ?? D9 5C 24 ?? DD D8", "B8 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 15");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is ChromeEngine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera HFOV Instruction: Address is ChromeEngine.dll+{:x}", CameraFOVInstructionsScanResult[HFOV] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4); // NOP out the original instruction
+			spdlog::info("Camera VFOV Instruction: Address is ChromeEngine.dll+{:x}", CameraFOVInstructionsScanResult[VFOV] - (std::uint8_t*)dllModule2);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Matches FOV Instruction: Address is ChromeEngine.dll+{:x}", CameraFOVInstructionsScanResult[MatchesFOV] - (std::uint8_t*)dllModule2);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult[HFOV], 4); // NOP out the original instruction
+
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[HFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
 
-				if (fCurrentCameraFOV == 1.04719758f)
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
+				fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale;
 
-				FPU::FLD(fNewCameraFOV);
+				FPU::FMUL(fNewCameraHFOV);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
+
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult[VFOV], 4); // NOP out the original instruction
+
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[VFOV], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+
+				fNewCameraVFOV = fCurrentCameraVFOV * fAspectRatioScale;
+
+				FPU::FMUL(fNewCameraVFOV);
+			});
+
+			Sleep(2000);
+
+			fNewMatchesFOV = fOriginalMatchesFOV * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScanResult[MatchesFOV] + 1, fNewMatchesFOV);
 		}
 	}
 }
