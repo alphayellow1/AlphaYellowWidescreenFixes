@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "NikitaTheMysteryOfTheHiddenTreasureFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -45,14 +45,16 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
-float fNewCameraFOV;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
+uint8_t* TriggerValueAddress;
 uint32_t* pInGameplayFlag;
 static bool bInGameplay;
 
@@ -195,43 +197,13 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("ChromeEngine2.dll")) == nullptr)
-	{
-		spdlog::warn("ChromeEngine2.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for ChromeEngine2.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("ChromeEngine2.dll");
 
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
-
-	bInGameplay = (*pInGameplayFlag == 1);
-
-	if (bInGameplay == 1)
-	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = CalculateNewFOV(fCurrentCameraFOV);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -246,9 +218,7 @@ void FOVFix()
 		{
 			spdlog::info("In A Race Trigger Instruction: Address is ChromeEngine2.dll+{:x}", InARaceTriggerInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			uint32_t imm = *reinterpret_cast<uint32_t*>(InARaceTriggerInstructionScanResult + 2);
-
-			uint8_t* TriggerValueAddress = reinterpret_cast<uint8_t*>(imm);
+			TriggerValueAddress = Memory::GetPointerFromAddress<uint32_t>(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			pInGameplayFlag = reinterpret_cast<uint32_t*>(TriggerValueAddress);
 		}
@@ -258,18 +228,54 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 08 D8 0D ?? ?? ?? ?? D9 F2");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D8 C9 D9 5C 24 ?? D8 C9 D8 4C 24");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instructions Scan: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4); // NOP out the original instruction
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+
+				bInGameplay = (*pInGameplayFlag == 1);
+
+				if (bInGameplay == 1)
+				{
+					fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale;
+				}
+
+				FPU::FLD(fNewCameraHFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionScanResult + 12, 4); // NOP out the original instruction
+
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 12, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+
+				bInGameplay = (*pInGameplayFlag == 1);
+
+				if (bInGameplay == 1)
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV * fAspectRatioScale * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraVFOV = fCurrentCameraVFOV * fAspectRatioScale;
+				}
+
+				FPU::FMUL(fNewCameraVFOV);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 			return;
 		}
 	}
