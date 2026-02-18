@@ -218,7 +218,7 @@ bool DetectGame()
 static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid CameraHFOVInstructionHook{};
 static SafetyHookMid CameraVFOVInstructionHook{};
-static SafetyHookMid InitializeHook {};
+static SafetyHookMid InitializeHook{};
 
 void WidescreenFix()
 {

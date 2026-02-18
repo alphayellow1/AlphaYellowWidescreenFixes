@@ -228,14 +228,14 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D8 C9 D9 5C 24 ?? D8 C9 D8 4C 24");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D8 C9 D9 5C 24 ?? D8 C9 D8 4C 24");
+		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instructions Scan: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instructions Scan: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionsScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 4); // NOP out the original instruction
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
 
@@ -253,9 +253,9 @@ void FOVFix()
 				FPU::FLD(fNewCameraHFOV);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult + 12, 4); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 12, 4); // NOP out the original instruction
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 12, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 12, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
 
