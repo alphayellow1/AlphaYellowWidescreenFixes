@@ -248,7 +248,7 @@ void FOVFix()
 				*reinterpret_cast<float*>(ctx.edi + 0xCB) = fNewCameraFOV;
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV4], 4); // NOP out the original instructions
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV4], 4); // NOP out the original instruction
 
 			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV4], [](SafetyHookContext& ctx)
 			{
