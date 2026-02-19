@@ -220,12 +220,7 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("render.dll")) == nullptr)
-	{
-		spdlog::warn("render.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for render.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("render.dll");
 
 	return true;
 }
@@ -253,7 +248,7 @@ void WidescreenFix()
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 0D 18 B2 62 00 89 15 1C B2 62 00 BF 01 00 00 00 BE C4 F4 55 00", "8B 0D 40 55 AE 00 8B 15 90 55 AE 00 56 57", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 68",
-			                                                                               dllModule2, "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 35", "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? 5E", "89 35 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 35", "A3 ?? ?? ?? ?? 8B 44 24 ?? 6A 00 6A 00 68 ?? ?? ?? ?? 50 89 7C 24 ?? FF D6 85 C0 0F 85 ?? ?? ?? ?? 8B 44 24 ?? 85 C0 0F 84 ?? ?? ?? ?? 8B 4C 24 ?? 8D 54 24 ?? 8D 44 24 ?? 52 50 89 0D ?? ?? ?? ??");
+		dllModule2, "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 35", "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? 5E", "89 35 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 35", "A3 ?? ?? ?? ?? 8B 44 24 ?? 6A 00 6A 00 68 ?? ?? ?? ?? 50 89 7C 24 ?? FF D6 85 C0 0F 85 ?? ?? ?? ?? 8B 44 24 ?? 85 C0 0F 84 ?? ?? ?? ?? 8B 4C 24 ?? 8D 54 24 ?? 8D 44 24 ?? 52 50 89 0D ?? ?? ?? ??");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
@@ -286,7 +281,7 @@ void WidescreenFix()
 
 			ResolutionHeight7Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[Resolution7Scan] + 61, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution1Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution1Scan], 12);
 
 			static SafetyHookMid ResolutionInstructions1MidHook{};
 
@@ -312,7 +307,7 @@ void WidescreenFix()
 			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 1, iCurrentResY);
 			*/
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution4Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 11);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution4Scan], 11);
 
 			static SafetyHookMid ResolutionInstructions4MidHook{};
 
@@ -323,7 +318,7 @@ void WidescreenFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution5Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution5Scan], 12);
 
 			static SafetyHookMid ResolutionInstructions5MidHook{};
 
@@ -334,7 +329,7 @@ void WidescreenFix()
 				*reinterpret_cast<int*>(ResolutionHeight5Address) = iCurrentResY;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution6Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution6Scan], 12);
 
 			static SafetyHookMid ResolutionInstructions6MidHook{};
 
@@ -345,7 +340,7 @@ void WidescreenFix()
 				*reinterpret_cast<int*>(ResolutionHeight6Address) = iCurrentResY;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution7Scan], "\x90\x90\x90\x90\x90", 5);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution7Scan], 5);
 
 			static SafetyHookMid ResolutionWidthInstruction7MidHook{};
 
@@ -354,7 +349,7 @@ void WidescreenFix()
 				*reinterpret_cast<int*>(ResolutionWidth7Address) = iCurrentResX;
 			});
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[Resolution7Scan] + 59, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution7Scan] + 59, 6);
 
 			static SafetyHookMid ResolutionHeightInstruction7MidHook{};
 
@@ -369,7 +364,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is render.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
