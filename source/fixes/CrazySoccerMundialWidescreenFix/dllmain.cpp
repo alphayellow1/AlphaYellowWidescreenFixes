@@ -54,7 +54,6 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fCurrentCameraFOV;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 float fNewMatchesFOV;
@@ -248,7 +247,7 @@ void WidescreenFix()
 			return;
 		}
 
-		CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D8 4C 24 ?? D9 5C 24 ?? D8 C9", "D8 4C 24 ?? D9 5C 24 ?? DD D8", "B8 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 15", dllModule3, "d9 44 24 ?? d8 64 24 ?? da 35 ?? ?? ?? ?? d9 44 24");
+		CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D8 4C 24 ?? D9 5C 24 ?? D8 C9", "D8 4C 24 ?? D9 5C 24 ?? DD D8", "B8 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 15", dllModule3, "D9 44 24 ?? D8 64 24 ?? DA 35 ?? ?? ?? ?? D9 44 24");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is ChromeEngine.dll+{:x}", CameraFOVInstructionsScanResult[HFOV] - (std::uint8_t*)dllModule2);
