@@ -62,19 +62,8 @@ enum class Game
 	Unknown
 };
 
-enum AspectRatioInstructionsIndices
-{
-	HUD_AR1,
-	HUD_AR2,
-	HUD_AR3,
-	CameraAR
-};
-
 enum CameraFOVInstructionsIndices
 {
-	HUD_FOV1,
-	HUD_FOV2,
-	HUD_FOV3,
 	GameplayFOV,
 	CutscenesFOV
 };
