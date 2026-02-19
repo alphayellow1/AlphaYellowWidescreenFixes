@@ -208,7 +208,7 @@ static SafetyHookMid AspectRatioInstruction3Hook{};
 static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
 
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
+void AspectRatioInstructionsMidHook(SafetyHookContext& ctx)
 {
 	FPU::FLD(fNewAspectRatio2);
 }
@@ -244,17 +244,17 @@ void FOVFix()
 
 			fNewAspectRatio2 = fAspectRatioScale;
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan] + 3, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio1Scan] + 3, 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan] + 3, AspectRatioInstructionMidHook);
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan] + 3, AspectRatioInstructionsMidHook);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan] + 6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio2Scan] + 6, 6);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan] + 6, AspectRatioInstructionMidHook);
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan] + 6, AspectRatioInstructionsMidHook);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio3Scan] + 6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AspectRatio3Scan] + 6, 6);
 
-			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan] + 6, AspectRatioInstructionMidHook);
+			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan] + 6, AspectRatioInstructionsMidHook);
 		}
 
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
@@ -265,11 +265,11 @@ void FOVFix()
 
 			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 6);
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], CameraFOVInstructionMidHook);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], CameraFOVInstructionMidHook);
 		}
