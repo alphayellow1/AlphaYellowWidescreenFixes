@@ -205,9 +205,9 @@ bool DetectGame()
 	{
 		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
 		return false;
-	}	
+	}
 
-	dllModule3 = Memory::GetHandle("RenderD3D.dll", 50);
+	dllModule3 = Memory::GetHandle({ "RenderD3D.dll", "RenderOpenGL.dll" });
 
 	return true;
 }
