@@ -28,7 +28,7 @@ HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "HitmanCodename47WidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
