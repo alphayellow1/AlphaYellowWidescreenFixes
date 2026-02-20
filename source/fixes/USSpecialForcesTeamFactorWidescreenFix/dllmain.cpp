@@ -230,18 +230,18 @@ void WidescreenFix()
 
 					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
 
-					Memory::PatchBytes(ResolutionStringScanResult + 10, "\x00", 1);
+					Memory::PatchBytes(ResolutionStringScanResult + 10, "\x00");
 				}
 
 				if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
 				{
-					Memory::PatchBytes(ResolutionStringScanResult, "\x00", 1);
+					Memory::PatchBytes(ResolutionStringScanResult, "\x00");
 
 					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 1, iCurrentResX);
 
 					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
 
-					Memory::PatchBytes(ResolutionStringScanResult + 10, "\x00", 1);
+					Memory::PatchBytes(ResolutionStringScanResult + 10, "\x00");
 				}
 			}
 			else
@@ -284,7 +284,7 @@ void WidescreenFix()
 			{
 				spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 				dNewAspectRatio = 1.0 / (double)fAspectRatioScale;
 
@@ -306,7 +306,7 @@ void WidescreenFix()
 
 				CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
