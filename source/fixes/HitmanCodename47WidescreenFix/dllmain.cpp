@@ -25,10 +25,11 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
 HMODULE dllModule3 = nullptr;
+std::string dllModule3Name;
 
 // Fix details
 std::string sFixName = "HitmanCodename47WidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -207,7 +208,9 @@ bool DetectGame()
 		return false;
 	}
 
-	dllModule3 = Memory::GetHandle({ "RenderD3D.dll", "RenderOpenGL.dll" });
+	dllModule3 = Memory::GetHandle({ "RenderD3D.dll", "RenderOpenGL.dll" }, 50);
+
+	dllModule3Name = Memory::GetModuleName(dllModule3);
 
 	return true;
 }
@@ -228,7 +231,7 @@ void WidescreenFix()
 		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(dllModule3, "0F 84 ?? ?? ?? ?? 8B 42");
 		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is RenderD3D.dll+{:x}", ResolutionInstructionsScanResult - (std::uint8_t*)dllModule3);
+			spdlog::info("Resolution Instructions Scan: Address is {}+{:x}", dllModule3Name, ResolutionInstructionsScanResult - (std::uint8_t*)dllModule3);
 
 			Memory::WriteNOPs(ResolutionInstructionsScanResult, 6);
 
