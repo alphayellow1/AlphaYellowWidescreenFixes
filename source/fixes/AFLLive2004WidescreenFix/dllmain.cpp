@@ -253,7 +253,7 @@ void WidescreenFix()
 			});
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 89 4C 24 ?? D8 B6", "d8 b6 ? ? ? ? d8 4c 24 ? d9 5c 24");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 89 4C 24 ?? D8 B6", "D8 B6 ?? ?? ?? ?? D8 4C 24 ?? D9 5C 24");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HFOVScan] - (std::uint8_t*)exeModule);

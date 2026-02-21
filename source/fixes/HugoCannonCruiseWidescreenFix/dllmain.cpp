@@ -230,7 +230,7 @@ void WidescreenFix()
 
 			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-			std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "d8 0d ? ? ? ? 8b 44 24 ? 8b 4c 24");
+			std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 8B 44 24 ?? 8B 4C 24");
 			if (CameraFOVInstructionsScanResult)
 			{
 				spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult + 10 - (std::uint8_t*)exeModule);
