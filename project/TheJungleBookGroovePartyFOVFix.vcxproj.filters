@@ -27,7 +27,7 @@
   </ItemGroup>
   <ItemGroup>
     <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x86.asm">
-      <Filter>Source Files</Filter>
+      <Filter>Resource Files</Filter>
     </MASM>
   </ItemGroup>
 </Project>
