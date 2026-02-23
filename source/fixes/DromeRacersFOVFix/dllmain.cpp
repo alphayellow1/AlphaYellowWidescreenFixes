@@ -242,6 +242,7 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.edx, 1.0f, true, ctx);
 			});
 
+			// During races, minimum FOV is 70º and maximum is 125º in 4:3
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MinCameraFOV], 3);
 
 			MinimumCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MinCameraFOV], [](SafetyHookContext& ctx)
