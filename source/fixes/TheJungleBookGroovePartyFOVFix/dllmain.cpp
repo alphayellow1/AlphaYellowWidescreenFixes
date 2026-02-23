@@ -26,6 +26,7 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
+HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "TheJungleBookGroovePartyFOVFix";
@@ -198,6 +199,8 @@ bool DetectGame()
 
 	dllModule2 = Memory::GetHandle("enginecore_vr.dll");
 
+	dllModule3 = Memory::GetHandle("DLG_vr.dll");
+
 	return true;
 }
 
@@ -212,21 +215,20 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		// Both instructions are located in the CAM_vAdjustCameraToViewport function
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D8 74 24 ?? D8 4C 24");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule3, "8B 46 ?? 8B 4E ?? 8B 56");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is enginecore_vr.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction: Address is DLG_vr.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 4);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 3);
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentResX = *reinterpret_cast<float*>(ctx.esp + 0x28);
+				float& fCurrentResX = *reinterpret_cast<float*>(ctx.esi + 0x24);
 
 				fNewResX = fCurrentResX * fAspectRatioScale;
 
-				FPU::FDIV(fNewResX);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewResX);
 			});
 		}
 		else
