@@ -22,11 +22,12 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule2 = nullptr;
+HMODULE dllModule3 = nullptr;
 HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "EndOfTwilightFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -64,14 +65,8 @@ enum class Game
 
 enum AspectRatioInstructionsIndices
 {
-	AR1Scan,
-	AR2Scan
-};
-
-enum CameraFOVInstructionsIndices
-{
-	FOV1Scan,
-	FOV2Scan
+	AR1,
+	AR2
 };
 
 struct GameInfo
@@ -208,48 +203,14 @@ bool DetectGame()
 
 	dllModule2 = Memory::GetHandle("driver.dll");
 
+	dllModule3 = Memory::GetHandle("e3d.dll");
+
 	return true;
 }
 
 static SafetyHookMid AspectRatioInstruction1Hook{};
 static SafetyHookMid AspectRatioInstruction2Hook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-
-enum destInstruction
-{
-	FLD,
-	ECX
-};
-
-void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, destInstruction DestInstruction, SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
-
-	if (fCurrentCameraFOV == 1.222000003f)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-
-	switch (DestInstruction)
-	{
-		case FLD:
-		{
-			FPU::FLD(fNewCameraFOV);
-			break;
-		}
-
-		case ECX:
-		{
-			ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
-			break;
-		}
-	}	
-}
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -259,16 +220,17 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
+		// Instructions are located in the D3DRenderView::precalculateParameters() and D3DRenderView::render() functions
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 95 ?? ?? ?? ?? 89 44 24", "D8 8F ?? ?? ?? ?? D9 9D");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is driver.dll+{:x}", AspectRatioInstructionsScansResult[AR1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is driver.dll+{:x}", AspectRatioInstructionsScansResult[AR1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Instruction 2: Address is driver.dll+{:x}", AspectRatioInstructionsScansResult[AR2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 2: Address is driver.dll+{:x}", AspectRatioInstructionsScansResult[AR2] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR1Scan], 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR1], 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentAspectRatio1 = *reinterpret_cast<float*>(ctx.ebp + 0x2A4);
 
@@ -277,9 +239,9 @@ void FOVFix()
 				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio1);
 			});
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR2Scan], 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR2], 6);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentAspectRatio2 = *reinterpret_cast<float*>(ctx.edi + 0x2A4);
 
@@ -289,26 +251,34 @@ void FOVFix()
 			});
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 8E ?? ?? ?? ?? 8B 50 ?? 89 4C 24", "D9 87 ?? ?? ?? ?? D8 0D");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		// Instruction is located in the View::draw() function
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule3, "89 95 ?? ?? ?? ?? 8d 7b");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is driver.dll+{:x}", CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is e3d.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			spdlog::info("Camera FOV Instruction 2: Address is driver.dll+{:x}", CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)dllModule2);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 6);			
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esi + 0x80, ECX, ctx);
-			});			
+				const float& fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 6);
+				if (fCurrentCameraFOV == 1.222000003f)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook(ctx.edi + 0x80, FLD, ctx);
+				*reinterpret_cast<float*>(ctx.ebp + 0x28C) = fNewCameraFOV;
 			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
 		}
 	}
 }
