@@ -252,7 +252,7 @@ void FOVFix()
 		}
 
 		// Instruction is located in the View::draw() function
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule3, "89 95 ?? ?? ?? ?? 8d 7b");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule3, "89 95 ?? ?? ?? ?? 8D 7B");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is e3d.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
