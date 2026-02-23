@@ -59,6 +59,7 @@ double dNewGeneralFOV;
 double dNewCutscenesFOV;
 float fNewHipfireFOV;
 float fNewDrawDistance;
+double dNewScopeFOV;
 
 // Game detection
 enum class Game
@@ -219,6 +220,7 @@ static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid GeneralFOVInstructionHook{};
 static SafetyHookMid CutscenesFOVInstructionHook{};
 static SafetyHookMid DrawDistanceInstructionHook{};
+static SafetyHookMid ScopeFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -249,7 +251,7 @@ void WidescreenFix()
 
 		dllModule2 = Memory::GetHandle("HitmanDlc.dlc", 50);
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "DD 85 ?? ?? ?? ?? 8B 11", "DD 44 24 ?? DC 0D ?? ?? ?? ?? 6A", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 89 5E");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "dd 85 ?? ?? ?? ?? 8b 11", "DD 44 24 ?? DC 0D ?? ?? ?? ?? 6A", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 89 5E");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
 		{
 			spdlog::info("General FOV Instruction: Address is HitmanDlc.dlc+{:x}", CameraFOVInstructionsScanResult[GeneralFOV] - (std::uint8_t*)dllModule2);
@@ -264,17 +266,7 @@ void WidescreenFix()
 			{
 				double& dCurrentGeneralFOV = *reinterpret_cast<double*>(ctx.ebp + 0x16E);
 
-				if (dCurrentGeneralFOV != dNewGeneralFOV)
-				{
-					if (dCurrentGeneralFOV < 0.0)
-					{
-						dNewGeneralFOV = Maths::CalculateNewFOV_RadBased(0.7853981853, fAspectRatioScale);
-					}
-					else
-					{
-						dNewGeneralFOV = Maths::CalculateNewFOV_RadBased(dCurrentGeneralFOV, fAspectRatioScale);
-					}	
-				}
+				dNewGeneralFOV = Maths::CalculateNewFOV_RadBased(dCurrentGeneralFOV, fAspectRatioScale);
 
 				FPU::FLD(dNewGeneralFOV);
 			});
@@ -285,12 +277,19 @@ void WidescreenFix()
 			{
 				double& dCurrentCutscenesFOV = *reinterpret_cast<double*>(ctx.esp + 0x14);
 
-				dNewCutscenesFOV = Maths::CalculateNewFOV_DegBased(dCurrentCutscenesFOV, fAspectRatioScale);
+				if (dCurrentCutscenesFOV == 67.4)
+				{
+					dNewCutscenesFOV = dCurrentCutscenesFOV;
+				}
+				else
+				{
+					dNewCutscenesFOV = Maths::CalculateNewFOV_DegBased(dCurrentCutscenesFOV, fAspectRatioScale);
+				}				
 
 				FPU::FLD(dNewCutscenesFOV);
 			});
 
-			fNewHipfireFOV = 3.324630499f * powf(fFOVFactor, 0.075f);
+			fNewHipfireFOV = 3.263281f * powf(fFOVFactor, 0.075f);
 
 			Memory::Write(CameraFOVInstructionsScanResult[HipfireFOV] + 1, fNewHipfireFOV);
 		}
