@@ -28,7 +28,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "DromeRacersFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,7 +43,6 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fFOVDamping = 0.3f; // Just the smoothing factor
 
 // Ini variables
 bool bFixActive;
@@ -55,13 +54,20 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
-float fEffectiveFOVFactor;
+uintptr_t MaxCameraFOVAddress;
 
 // Game detection
 enum class Game
 {
 	DR,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	GeneralFOV,
+	MinCameraFOV,
+	MaxCameraFOV
 };
 
 struct GameInfo
@@ -191,7 +197,26 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid GeneralCameraFOVInstructionHook{};
+static SafetyHookMid MinimumCameraFOVInstructionHook{};
+static SafetyHookMid MaximumCameraFOVInstructionHook{};
+
+void CameraFOVInstructionsMidHook(uintptr_t SourceAddress, float fovFactor, bool isFOVCalculated, SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = *reinterpret_cast<float*>(SourceAddress);
+
+	if (isFOVCalculated == true)
+	{
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
+	}
+	else
+	{
+		fNewCameraFOV = fCurrentCameraFOV * fovFactor;
+	}
+	
+
+	FPU::FLD(fNewCameraFOV);
+}
 
 void FOVFix()
 {
@@ -201,35 +226,37 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 02 DE CB D9 CA D8 0D ?? ?? ?? ?? D9 FE");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "d9 02 de cb d9 ca", "d9 45 ?? d9 45 ?? d9 05 ?? ?? ?? ?? d9 05", "d9 05 ?? ?? ?? ?? d9 05 ?? ?? ?? ?? d9 05 ?? ?? ?? ?? dd 84 24");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("General Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GeneralFOV] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 2);
+			spdlog::info("Min Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MinCameraFOV] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Max Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MaxCameraFOV] - (std::uint8_t*)exeModule);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GeneralFOV], 2);
+
+			GeneralCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx);
-
-				fEffectiveFOVFactor = powf(fFOVFactor, fFOVDamping); // This makes the FOV change be less aggressive and more gradual, since when speed is maxed out during races, the FOV is already pretty high in 4:3 (120 degrees max), FOV while idle is 70
-
-				if (fCurrentCameraFOV == 90.0f) // Car selection, garage (career mode), menus background
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
-				else
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fEffectiveFOVFactor; // Only applies the FOV factor during races
-				}
-
-				FPU::FLD(fNewCameraFOV);
+				CameraFOVInstructionsMidHook(ctx.edx, 1.0f, true, ctx);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MinCameraFOV], 3);
+
+			MinimumCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MinCameraFOV], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.ebp + 0x54, fFOVFactor, false, ctx);
+			});
+
+			MaxCameraFOVAddress = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[MaxCameraFOV] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MaxCameraFOV], 6);
+
+			MaximumCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MaxCameraFOV], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(MaxCameraFOVAddress, fFOVFactor, false, ctx);
+			});
 		}
 	}
 }
