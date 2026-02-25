@@ -1119,6 +1119,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GarfieldFOVFix", "GarfieldF
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShreksCarnivalCrazePartyGamesFOVFix", "ShreksCarnivalCrazePartyGamesFOVFix.vcxproj", "{A5D1460C-239E-407D-BC18-93BC7BA90607}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ShrekForeverAfterWidescreenFix", "ShrekForeverAfterWidescreenFix.vcxproj", "{D3017A38-1ACC-4AE3-A18B-3638D1550A94}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5575,6 +5577,14 @@ Global
 		{A5D1460C-239E-407D-BC18-93BC7BA90607}.Release|x64.Build.0 = Release|x64
 		{A5D1460C-239E-407D-BC18-93BC7BA90607}.Release|x86.ActiveCfg = Release|Win32
 		{A5D1460C-239E-407D-BC18-93BC7BA90607}.Release|x86.Build.0 = Release|Win32
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94}.Debug|x64.ActiveCfg = Debug|x64
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94}.Debug|x64.Build.0 = Debug|x64
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94}.Debug|x86.ActiveCfg = Debug|Win32
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94}.Debug|x86.Build.0 = Debug|Win32
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94}.Release|x64.ActiveCfg = Release|x64
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94}.Release|x64.Build.0 = Release|x64
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94}.Release|x86.ActiveCfg = Release|Win32
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6136,6 +6146,7 @@ Global
 		{1EAA4A30-CA4B-4B8B-BC36-27014FFDCD76} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{FAD26D1A-2FE7-4D4F-8981-30A3A41506BB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{A5D1460C-239E-407D-BC18-93BC7BA90607} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{D3017A38-1ACC-4AE3-A18B-3638D1550A94} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
