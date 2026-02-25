@@ -226,7 +226,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(dllModule2, "d9 83 ?? ?? ?? ?? d9 83 ?? ?? ?? ?? d9 c2");
+		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(dllModule2, "D9 83 ?? ?? ?? ?? D9 83 ?? ?? ?? ?? D9 C2");
 		if (AspectRatioInstructionsScanResult)
 		{
 			spdlog::info("Aspect Ratio Instructions Scan: Address is EngineDll.dll+{:x}", AspectRatioInstructionsScanResult - (std::uint8_t*)dllModule2);
