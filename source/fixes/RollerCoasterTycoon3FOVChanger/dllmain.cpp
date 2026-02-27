@@ -22,11 +22,10 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
-HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "KnightsOfTheTempleInfernalCrusadeFOVChanger";
+std::string sFixName = "RollerCoasterTycoon3FOVChanger";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -50,7 +49,7 @@ float fFOVFactor;
 // Game detection
 enum class Game
 {
-	KOTTIC,
+	RCT3,
 	Unknown
 };
 
@@ -61,7 +60,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::KOTTIC, {"Knights of the Temple: Infernal Crusade", "Templar.exe"}},
+	{Game::RCT3, {"RollerCoaster Tycoon 3", "RCT3plus.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -149,8 +148,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -159,62 +156,39 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	dllModule2 = Memory::GetHandle("GameClasses.dll");
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void CameraFOVInstructionsMidHook(uintptr_t FOVAddress)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
-
-	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-	FPU::FLD(fNewCameraFOV);
-}
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVChanger()
 {
-	if (eGameType == Game::KOTTIC && bFixActive == true)
+	if (eGameType == Game::RCT3 && bFixActive == true)
 	{
-		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D9 87 ?? ?? ?? ?? 51 D9 87");
-		if (CameraFOVInstructionsScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 90 90 01 00 00 8B 91 94 01 00 00 89 90 94 01 00 00 8B 91 98 01 00 00 89 90 98 01 00 00 8B 91 9C 01 00 00 89 90 9C 01 00 00");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is GameClasses.dll+{:x}", CameraFOVInstructionsScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is GameClasses.dll+{:x}", CameraFOVInstructionsScanResult - (std::uint8_t*)dllModule2);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 6);
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.edi + 0xE30);
-			});
+				const float& fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 7, 6);
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 7, [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook(ctx.edi + 0xE2C);
+				*reinterpret_cast<float*>(ctx.eax + 0x190) = fNewCameraFOV;
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
