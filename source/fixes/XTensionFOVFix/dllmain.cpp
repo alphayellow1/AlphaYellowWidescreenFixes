@@ -25,7 +25,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "XBeyondTheFrontierFOVFix";
+std::string sFixName = "XTensionFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -57,7 +57,7 @@ int32_t iNewFOV;
 // Game detection
 enum class Game
 {
-	XBTF,
+	XT,
 	Unknown
 };
 
@@ -68,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::XBTF, {"X: Beyond the Frontier", "X.exe"}},
+	{Game::XT, {"X-Tension", "X-TENSION.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -203,13 +203,13 @@ int32_t ConvertFOV(int32_t baseFOV, double baseAR, double newAR)
 
 void FOVFix()
 {
-	if (eGameType == Game::XBTF && bFixActive == true)
+	if (eGameType == Game::XT && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 05 ?? ?? ?? ?? DC 0D");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 05 ?? ?? ?? ?? DC 0D ?? ?? ?? ?? D9 C9");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
