@@ -1,4 +1,4 @@
-﻿// Include necessary headers
+// Include necessary headers
 #include "stdafx.h"
 #include "helper.hpp"
 
@@ -18,8 +18,6 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
-#include <algorithm>
-#include <bit>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -27,7 +25,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "GrandTouringWidescreenFix";
+std::string sFixName = "XBeyondTheFrontierFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -53,12 +51,13 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-int16_t iNewCameraFOV;
+uint8_t* CameraFOVAddress;
+int32_t iNewFOV;
 
 // Game detection
 enum class Game
 {
-	GT,
+	XBTF,
 	Unknown
 };
 
@@ -69,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::GT, {"Grand Touring", "gt.exe"}},
+	{Game::XBTF, {"X: Beyond The Frontier", "X.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -145,7 +144,7 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
@@ -191,45 +190,41 @@ bool DetectGame()
 
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void WidescreenFix()
+int32_t ConvertFOV(int32_t baseFOV, double baseAR, double newAR)
 {
-	if (eGameType == Game::GT && bFixActive == true)
+	double dOriginalVerticalFOV = std::atan(std::tan(((double)baseFOV / 65536.0) * Maths::Pi<double>) / baseAR);
+
+	double dNewHorizFOV = std::atan(newAR * std::tan(dOriginalVerticalFOV));
+
+	int32_t NewFOV = static_cast<int32_t>(std::llround((dNewHorizFOV / Maths::Pi<double>) * 65536.0 * (double)fFOVFactor));
+
+	return NewFOV;
+}
+
+void FOVFix()
+{
+	if (eGameType == Game::XBTF && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "BA ?? ?? ?? ?? B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? A1 ?? ?? ?? ?? 50");
-		if (ResolutionInstructionsScanResult)
-		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionInstructionsScanResult + 6, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScanResult + 1, iCurrentResY);
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "66 89 81 ?? ?? ?? ?? 89 91");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 05 ?? ?? ?? ?? DC 0D");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);				
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 7);
+			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);	
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				const int16_t& iCurrentCameraFOV = ctx.eax & 0xFFFF;
+				int32_t& iCurrentFOV = *reinterpret_cast<int32_t*>(CameraFOVAddress);
 
-				if (iCurrentCameraFOV != iNewCameraFOV)
-				{
-					const float& fCurrentCameraFOV = ((float)iCurrentCameraFOV * 360.0f) / 32768.0f;
+				iNewFOV = ConvertFOV(iCurrentFOV, (double)fOldAspectRatio, (double)fNewAspectRatio);
 
-					const float& fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * powf(fFOVFactor, 0.5f);
-
-					iNewCameraFOV = (int16_t)((fNewCameraFOV * 32768.0f) / 360.0f);
-				}
-
-				*reinterpret_cast<int16_t*>(ctx.ecx + 0x94) = iNewCameraFOV;
+				FPU::FILD(iNewFOV);
 			});
 		}
 		else
@@ -246,7 +241,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
