@@ -26,6 +26,9 @@
 #include <cassert>
 #include <limits>
 #include <algorithm>
+#include <numeric>
+#include <string>
+#include <stdexcept>
 
 #if defined(_WIN64)
 using IMAGE_NT_HEADERS_X = IMAGE_NT_HEADERS64;
@@ -198,6 +201,35 @@ namespace Memory
 		FlushInstructionCache(GetCurrentProcess(), address, numBytes);
 
 		VirtualProtect(address, numBytes, oldProtect, &oldProtect);
+	}
+
+	inline void WriteNOPs(const std::vector<std::uint8_t*>& addresses, std::size_t startIndex, std::size_t endIndex, std::ptrdiff_t offset, std::size_t numBytes)
+	{
+		if (addresses.empty())
+		{
+			spdlog::error("Memory::WriteNOPs(range): empty address list");
+			return;
+		}
+
+		if (startIndex > endIndex || endIndex >= addresses.size())
+		{
+			spdlog::error("Memory::WriteNOPs(range): invalid range [{}..{}] (size={})", startIndex, endIndex, addresses.size());
+			return;
+		}
+
+		if (numBytes == 0)
+		{
+			spdlog::warn("Memory::WriteNOPs(range): numBytes == 0 (nothing to do)");
+			return;
+		}
+
+		for (std::size_t i = startIndex; i <= endIndex; ++i)
+		{
+			std::uint8_t* addr = addresses[i];
+			if (!addr) continue;
+
+			WriteNOPs(addr + offset, numBytes);
+		}
 	}
 
 	enum class CallType
@@ -1878,5 +1910,55 @@ namespace Maths
 		using DefaultTolType = std::common_type_t<T, float>;
 
 		return isClose<T, DefaultTolType>(a, b, static_cast<DefaultTolType>(Maths::defaultTolerance), op, inclusive);
+	}
+
+	struct AspectRatio
+	{
+		int w;
+		int h;
+	};
+
+	static std::vector<AspectRatio> KnownRatios = {
+		{1,1},
+		{4,3},
+		{5,4},
+		{3,2},
+		{16,10},
+		{16,9},
+		{21,9},
+		{32,9},
+		{48,9},
+		{2,1}
+	};
+
+	std::string GetSimpliedAspectRatio(int width, int height, double tolerance = 0.01)
+	{
+		if (width <= 0 || height <= 0)
+		{
+			throw std::invalid_argument("Width and height must be positive");
+		}
+
+		int g = std::gcd(width, height);
+		int reducedW = width / g;
+		int reducedH = height / g;
+
+		double actual = static_cast<double>(width) / height;
+
+		for (const auto& ratio : KnownRatios)
+		{
+			double known = static_cast<double>(ratio.w) / ratio.h;
+			double relDiff = std::abs(known - actual) / known;
+
+			if (relDiff <= tolerance)
+			{
+				std::ostringstream oss;
+				oss << ratio.w << "/" << ratio.h;
+				return oss.str();
+			}
+		}
+
+		std::ostringstream oss;
+		oss << reducedW << "/" << reducedH;
+		return oss.str();
 	}
 }

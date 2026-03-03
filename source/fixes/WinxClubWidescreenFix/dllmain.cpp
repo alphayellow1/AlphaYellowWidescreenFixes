@@ -62,14 +62,14 @@ enum class Game
 
 enum ResolutionInstructionsIndices
 {
-	ResolutionListScan,
-	MainMenuResolutionScan
+	ResList,
+	MainMenuRes
 };
 
 enum CameraFOVInstructionsIndices
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1,
+	FOV2
 };
 
 struct GameInfo
@@ -213,50 +213,50 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "C7 44 24 08 20 03 00 00 C7 44 24 0C 58 02 00 00 EB 34 C7 44 24 08 00 04 00 00 C7 44 24 0C 00 03 00 00 EB 22 C7 44 24 08 00 05 00 00 C7 44 24 0C C0 03 00 00 EB 10 C7 44 24 08 40 06 00 00 C7 44 24 0C B0 04 00 00", "C7 06 00 04 00 00 C7 46 04 00 03 00 00 89 46 08 89 46 0C A1");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionListScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResList] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Main Menu Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolutionScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Main Menu Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuRes] - (std::uint8_t*)exeModule);
 
 			// 800x600
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 4, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResList] + 4, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 12, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResList] + 12, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 22, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResList] + 22, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 30, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResList] + 30, iCurrentResY);
 
 			// 1280x960
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 40, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResList] + 40, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 48, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResList] + 48, iCurrentResY);
 
 			// 1600x1200
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 58, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[ResList] + 58, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[ResolutionListScan] + 66, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[ResList] + 66, iCurrentResY);
 
 			// Main Menu Resolution (1024x768)
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 2, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuRes] + 2, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 9, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuRes] + 9, iCurrentResY);
 
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 52, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuRes] + 52, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 59, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenuRes] + 59, iCurrentResY);
 		}
 
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 44 24 ?? 8B 44 24 ?? D8 0D ?? ?? ?? ?? 89 81", "8B 91 88 01 00 00 52 E8 ?? ?? ?? ??");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 4);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esp + 0x4);
 
@@ -265,9 +265,9 @@ void WidescreenFix()
 				FPU::FLD(fNewCameraFOV1);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x188);
 
