@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DeadToRights2FOVChanger";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,8 +43,7 @@ bool bFixActive;
 float fFOVFactor;
 
 // Variables
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -164,37 +163,31 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraFOVInstructionsHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVChanger()
 {
 	if (eGameType == Game::DTR2 && bFixActive == true)
 	{
-		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 10 8B 40 ?? 89 54 24");
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 54 24 ?? 52 E8 ?? ?? ?? ?? 89 44 24 ?? 83 C4 ?? 8D 44 24 ?? 50 8B CE 89 54 24 ?? E8 ?? ?? ?? ?? 8B 0D");
 		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 5);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 4);
 
-			CameraFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
 
-				fNewCameraHFOV = fCurrentCameraHFOV * fFOVFactor;
+				fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
 
-				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
-
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
-
-				fNewCameraVFOV = fCurrentCameraVFOV * fFOVFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
