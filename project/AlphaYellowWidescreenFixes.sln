@@ -1131,6 +1131,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "XTensionFOVFix", "XTensionF
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PiratesLegendOfTheBlackBuccaneerFOVChanger", "PiratesLegendOfTheBlackBuccaneerFOVChanger.vcxproj", "{B294FA09-2E11-403E-8887-F06926364162}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DaemonVectorWidescreenFix", "DaemonVectorWidescreenFix.vcxproj", "{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5635,6 +5637,14 @@ Global
 		{B294FA09-2E11-403E-8887-F06926364162}.Release|x64.Build.0 = Release|x64
 		{B294FA09-2E11-403E-8887-F06926364162}.Release|x86.ActiveCfg = Release|Win32
 		{B294FA09-2E11-403E-8887-F06926364162}.Release|x86.Build.0 = Release|Win32
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}.Debug|x64.ActiveCfg = Debug|x64
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}.Debug|x64.Build.0 = Debug|x64
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}.Debug|x86.ActiveCfg = Debug|Win32
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}.Debug|x86.Build.0 = Debug|Win32
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}.Release|x64.ActiveCfg = Release|x64
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}.Release|x64.Build.0 = Release|x64
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}.Release|x86.ActiveCfg = Release|Win32
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6202,6 +6212,7 @@ Global
 		{B44E77F9-E6F8-4E9A-939F-7896A6013B16} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{E9C73BBC-EDB8-47FE-AF99-54D98315F18C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{B294FA09-2E11-403E-8887-F06926364162} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{33AADC3D-1C51-4708-8E4F-2BC856AE36C3} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}

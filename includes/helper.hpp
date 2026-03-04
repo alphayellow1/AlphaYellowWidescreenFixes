@@ -27,8 +27,6 @@
 #include <limits>
 #include <algorithm>
 #include <numeric>
-#include <string>
-#include <stdexcept>
 
 #if defined(_WIN64)
 using IMAGE_NT_HEADERS_X = IMAGE_NT_HEADERS64;
@@ -44,7 +42,7 @@ concept Integral = std::is_integral_v<T>;
 
 namespace Memory
 {
-	template<typename T>
+	template<typename T> requires std::is_trivially_copyable_v<T>
 	inline void Write(std::uint8_t* writeAddress, T value)
 	{
 		DWORD oldProtect = 0;
@@ -62,6 +60,30 @@ namespace Memory
 		DWORD dummy = 0;
 
 		VirtualProtect(writeAddress, sizeof(T), oldProtect, &dummy);
+	}
+
+	template<typename Range> requires std::ranges::contiguous_range<Range>&& std::is_trivial_v<std::ranges::range_value_t<Range>>
+	inline void Write(std::uint8_t* writeAddress, const Range& r)
+	{
+		using CharT = std::ranges::range_value_t<Range>;
+
+		const size_t charSize = sizeof(CharT);
+
+		const size_t totalSize = (std::ranges::size(r) + 1) * charSize;
+
+		DWORD oldProtect = 0;
+
+		if (!VirtualProtect(writeAddress, totalSize, PAGE_EXECUTE_READWRITE, &oldProtect))
+		{
+			spdlog::error("VirtualProtect failed in Memory::Write (strings)");
+			return;
+		}			
+
+		std::memcpy(writeAddress, std::ranges::data(r), std::ranges::size(r) * charSize);
+
+		std::memset(writeAddress + std::ranges::size(r) * charSize, 0, charSize);
+
+		VirtualProtect(writeAddress, totalSize, oldProtect, &oldProtect);
 	}
 
 	template<typename T>
