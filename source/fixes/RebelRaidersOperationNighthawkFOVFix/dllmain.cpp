@@ -23,13 +23,10 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-HMODULE dllModule3 = nullptr;
-std::string dllModule3Name;
 
 // Fix details
-std::string sFixName = "HitmanCodename47WidescreenFix";
-std::string sFixVersion = "1.1.1";
+std::string sFixName = "RebelRaidersOperationNighthawkFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -50,28 +47,17 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
-float fDrawDistanceFactor;
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-double dNewGeneralFOV;
-double dNewCutscenesFOV;
-float fNewHipfireFOV;
-float fNewDrawDistance;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	HC47,
+	RRON,
 	Unknown
-};
-
-enum CameraFOVInstructionsIndices
-{
-	GeneralFOV,
-	CutscenesFOV,
-	HipfireFOV
 };
 
 struct GameInfo
@@ -81,7 +67,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::HC47, {"Hitman: Codename 47", "Hitman.Exe"}},
+	{Game::RRON, {"Rebel Raiders: Operation Nighthawk", "rron.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -157,18 +143,16 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "DrawDistanceFactor", fDrawDistanceFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-	spdlog_confparse(fDrawDistanceFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -187,8 +171,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -197,126 +179,62 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	dllModule3 = Memory::GetHandle({ "RenderD3D.dll", "RenderOpenGL.dll" }, 50);
-
-	dllModule3Name = Memory::GetModuleName(dllModule3);
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-static SafetyHookMid ResolutionInstructionsHook{};
-static SafetyHookMid GeneralFOVInstructionHook{};
-static SafetyHookMid CutscenesFOVInstructionHook{};
-static SafetyHookMid DrawDistanceInstructionHook{};
+static SafetyHookMid AspectRatioInstructionHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
-void WidescreenFix()
+void FOVFix()
 {
-	if (eGameType == Game::HC47 && bFixActive == true)
+	if (eGameType == Game::RRON && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(dllModule3, "0F 84 ?? ?? ?? ?? 8B 42");
-		if (ResolutionInstructionsScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 76 ?? EB ?? 8B 46");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {}+{:x}", dllModule3Name, ResolutionInstructionsScanResult - (std::uint8_t*)dllModule3);
+			spdlog::info("Aspect Ratio Instruction: Address is{:s} + {:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(ResolutionInstructionsScanResult, 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 3);
 
-			Memory::WriteNOPs(ResolutionInstructionsScanResult + 9, 7);
-
-			Memory::Write(ResolutionInstructionsScanResult + 17, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScanResult + 22, iCurrentResY);
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FDIV(fNewAspectRatio);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution instructions scan memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
-		dllModule2 = Memory::GetHandle("HitmanDlc.dlc", 50);
-
-		std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "DD 85 ?? ?? ?? ?? 8b 11", "DD 44 24 ?? DC 0D ?? ?? ?? ?? 6A", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 89 5E");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 45 ?? 8B 8B ?? ?? ?? ?? 50");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("General FOV Instruction: Address is HitmanDlc.dlc+{:x}", CameraFOVInstructionsScanResult[GeneralFOV] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			spdlog::info("Cutscenes FOV Instruction: Address is HitmanDlc.dlc+{:x}", CameraFOVInstructionsScanResult[CutscenesFOV] - (std::uint8_t*)dllModule2);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
 
-			spdlog::info("Hipfire FOV Instruction: Address is HitmanDlc.dlc+{:x}", CameraFOVInstructionsScanResult[HipfireFOV] - (std::uint8_t*)dllModule2);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult[GeneralFOV], 6); // NOP out the original instruction
-
-			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[GeneralFOV], [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				double& dCurrentGeneralFOV = *reinterpret_cast<double*>(ctx.ebp + 0x16E);
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebp - 0x4);
 
-				if (dCurrentGeneralFOV != dNewGeneralFOV)
-				{
-					dNewGeneralFOV = Maths::CalculateNewFOV_RadBased(dCurrentGeneralFOV, fAspectRatioScale);
-				}				
+				fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
-				FPU::FLD(dNewGeneralFOV);
-			});
-
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult[CutscenesFOV], 4); // NOP out the original instruction
-
-			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CutscenesFOV], [](SafetyHookContext& ctx)
-			{
-				double& dCurrentCutscenesFOV = *reinterpret_cast<double*>(ctx.esp + 0x14);
-
-				if (dCurrentCutscenesFOV != dNewCutscenesFOV)
-				{
-					if (dCurrentCutscenesFOV == 67.4)
-					{
-						dNewCutscenesFOV = dCurrentCutscenesFOV;
-					}
-					else
-					{
-						dNewCutscenesFOV = Maths::CalculateNewFOV_DegBased(dCurrentCutscenesFOV, fAspectRatioScale);
-					}
-				}							
-
-				FPU::FLD(dNewCutscenesFOV);
-			});
-
-			fNewHipfireFOV = 3.263281f * powf(fFOVFactor, 0.075f);
-
-			Memory::Write(CameraFOVInstructionsScanResult[HipfireFOV] + 1, fNewHipfireFOV);
-		}
-
-		std::uint8_t* DrawDistanceInstructionScanResult = Memory::PatternScan(dllModule2, "8B 85 ?? ?? ?? ?? 8B 4B ?? 8B 11 50 8B 85 ?? ?? ?? ?? 50 FF 92 ?? ?? ?? ?? 8B 43");
-		if (DrawDistanceInstructionScanResult)
-		{
-			spdlog::info("Draw Distance Instruction: Address is HitmanDlc.dlc+{:x}", DrawDistanceInstructionScanResult - (std::uint8_t*)dllModule2);
-
-			Memory::WriteNOPs(DrawDistanceInstructionScanResult, 6); // NOP out the original instruction
-
-			DrawDistanceInstructionHook = safetyhook::create_mid(DrawDistanceInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentDrawDistance = *reinterpret_cast<float*>(ctx.ebp + 0x18A);
-
-				fNewDrawDistance = fCurrentDrawDistance * fDrawDistanceFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewDrawDistance);
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate draw distance instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
@@ -328,7 +246,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		WidescreenFix();
+		FOVFix();
 	}
 	return TRUE;
 }
