@@ -284,12 +284,15 @@ namespace Memory
             }
 
             std::vector<uint8_t> original(5);
+
             std::memcpy(original.data(), callSite, 5);
 
             int32_t rel32 = static_cast<int32_t>(rel64);
 
             uint8_t patch[5];
+
             patch[0] = 0xE8;
+
             std::memcpy(&patch[1], &rel32, sizeof(rel32));
 
             if (!VirtualProtect(callSite, 5, PAGE_EXECUTE_READWRITE, &oldProt))
