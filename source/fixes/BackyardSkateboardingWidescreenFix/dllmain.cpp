@@ -183,9 +183,7 @@ Game DetectDX9Version()
 {
 	uint8_t* VersionCheckScanResult = Memory::PatternScan(exeModule, "?? ?? ?? ?? ?? 73 ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? ?? E8 ?? ?? ?? ??");
 
-	uint8_t* VersionCheckAddress = VersionCheckScanResult;
-
-	uint8_t VersionCheckValue = *reinterpret_cast<uint8_t*>(VersionCheckAddress);
+	uint8_t VersionCheckValue = *reinterpret_cast<uint8_t*>(VersionCheckScanResult);
 
 	if (VersionCheckValue == 0xBB)
 	{
