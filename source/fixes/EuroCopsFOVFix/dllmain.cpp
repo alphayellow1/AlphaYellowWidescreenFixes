@@ -24,10 +24,11 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 HMODULE dllModule2 = nullptr;
+HMODULE dllModule3 = nullptr;
 
 // Fix details
 std::string sFixName = "EuroCopsFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -48,17 +49,30 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
+float fZoomFactor;
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fNewGeneralFOV;
+float fNewHipfireFOV;
+float fNewZoomFOV;
 
 // Game detection
 enum class Game
 {
 	EC,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	GeneralFOV,
+	HipfireFOV1,
+	HipfireFOV2,
+	HipfireFOV3,
+	HipfireFOV4,
+	ZoomFOV
 };
 
 struct GameInfo
@@ -151,9 +165,11 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "ZoomFactor", fZoomFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
+	spdlog_confparse(fZoomFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -195,10 +211,13 @@ bool DetectGame()
 
 	dllModule2 = Memory::GetHandle("Engine.dll");
 
+	dllModule3 = Memory::GetHandle("EntitiesMP.dll");
+
 	return true;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid GeneralFOVInstructionHook{};
+static SafetyHookMid ZoomFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -208,33 +227,53 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "89 86 94 01 00 00 8B 8F 98 01 00 00 89 8E 98 01 00 00 8B 97 9C 01 00 00 89 96 9C 01 00 00 8B 87 A0 01 00 00 89 86 A0 01 00 00 8B 8F A4 01 00 00 89 8E A4 01 00 00 8B 97 A8 01 00 00 89 96 A8 01 00 00 81 C7 AC 01 00 00 8B 0F 8D 86 AC 01 00 00 89 08 8B 57 04 89 50 04 8B 4F 08 89 48 08 8B 57 0C 89 50 0C 5F 8B C6 5E C2 04 00 CC 56 8B F1");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 87 94 01 00 00 89 86 94 01 00 00 8B 8F 98 01 00 00 89 8E 98 01 00 00 8B 97 9C 01 00 00 89 96 9C 01 00 00 8B 87 A0 01 00 00 89 86 A0 01 00 00 8B 8F A4 01 00 00 89 8E A4 01 00 00 8B 97 A8 01 00 00 89 96 A8 01 00 00 81 C7 AC 01 00 00 8B 0F 8D 86 AC 01 00 00 89 08 8B 57 04 89 50 04 8B 4F 08 89 48 08 8B 57 0C 89 50 0C 5F 8B C6 5E C2 04 00 CC 56",
+			dllModule3, "68 ?? ?? ?? ?? 8B CD E8 ?? ?? ?? ?? 83 FE", "68 ?? ?? ?? ?? 8B CD E8 ?? ?? ?? ?? EB", "C7 46 ?? ?? ?? ?? ?? 5E 83 C4 ?? C3 8B 07", "C7 46 ?? ?? ?? ?? ?? 1B C0", "D9 81 ?? ?? ?? ?? E8");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is Engine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("General FOV Instruction: Address is Engine.dll+{:x}", CameraFOVInstructionsScansResult[GeneralFOV] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);			
+			spdlog::info("Hipfire FOV Instruction 1: Address is EntitiesMP.dll+{:x}", CameraFOVInstructionsScansResult[HipfireFOV1] - (std::uint8_t*)dllModule3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Hipfire FOV Instruction 2: Address is EntitiesMP.dll+{:x}", CameraFOVInstructionsScansResult[HipfireFOV2] - (std::uint8_t*)dllModule3);
+
+			spdlog::info("Hipfire FOV Instruction 3: Address is EntitiesMP.dll+{:x}", CameraFOVInstructionsScansResult[HipfireFOV3] - (std::uint8_t*)dllModule3);
+
+			spdlog::info("Hipfire FOV Instruction 4: Address is EntitiesMP.dll+{:x}", CameraFOVInstructionsScansResult[HipfireFOV4] - (std::uint8_t*)dllModule3);
+
+			spdlog::info("Zoom FOV Instruction: Address is EntitiesMP.dll+{:x}", CameraFOVInstructionsScansResult[ZoomFOV] - (std::uint8_t*)dllModule3);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GeneralFOV], 6);
+
+			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				const float& fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				float& fCurrentGeneralFOV = *reinterpret_cast<float*>(ctx.edi + 0x194);
 
-				if (fCurrentCameraFOV == 78.0f)
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
+				fNewGeneralFOV = Maths::CalculateNewFOV_DegBased(fCurrentGeneralFOV, fAspectRatioScale);
 
-				*reinterpret_cast<float*>(ctx.esi + 0x194) = fNewCameraFOV;
+				ctx.eax = std::bit_cast<uintptr_t>(fNewGeneralFOV);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV memory address.");
-			return;
+
+			fNewHipfireFOV = 78.0f * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScansResult[HipfireFOV1] + 1, fNewHipfireFOV);
+
+			Memory::Write(CameraFOVInstructionsScansResult[HipfireFOV2] + 1, fNewHipfireFOV);
+
+			Memory::Write(CameraFOVInstructionsScansResult[HipfireFOV3] + 3, fNewHipfireFOV);
+
+			Memory::Write(CameraFOVInstructionsScansResult[HipfireFOV4] + 3, fNewHipfireFOV);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[ZoomFOV], 6);
+
+			ZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ZoomFOV], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentZoomFOV = *reinterpret_cast<float*>(ctx.ecx + 0xEC);
+
+				fNewZoomFOV = fCurrentZoomFOV / fZoomFactor;
+
+				FPU::FLD(fNewZoomFOV);
+			});
 		}
 	}
 }
