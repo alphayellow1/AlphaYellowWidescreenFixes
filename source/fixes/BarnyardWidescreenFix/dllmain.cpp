@@ -288,7 +288,7 @@ void WidescreenFix()
 					ctx.edx = std::bit_cast<uint32_t>(fNewCameraFOV1);
 				});
 
-				CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 2, Memory::PointerMode::Absolute);
+				CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 2, Memory::PointerMode::Absolute);
 
 				Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
 

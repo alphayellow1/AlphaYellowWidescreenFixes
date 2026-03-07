@@ -242,7 +242,7 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.edx, 1.0f, true, ctx);
 			});
 
-			// During races, minimum FOV is 70º and maximum is 125º in 4:3
+			// During races, minimum FOV is 70ï¿½ and maximum is 125ï¿½ in 4:3
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MinCameraFOV], 3);
 
 			MinimumCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MinCameraFOV], [](SafetyHookContext& ctx)
@@ -250,7 +250,7 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.ebp + 0x54, fFOVFactor, false, ctx);
 			});
 
-			MaxCameraFOVAddress = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[MaxCameraFOV] + 2, Memory::PointerMode::Absolute);
+			MaxCameraFOVAddress = (uintptr_t)Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[MaxCameraFOV] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MaxCameraFOV], 6);
 

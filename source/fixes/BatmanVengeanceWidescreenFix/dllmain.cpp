@@ -326,7 +326,7 @@ void WidescreenFix()
 				FPU::FMUL(fNewGeneralFOV);
 			});
 
-			GameplayFOVAddress1 = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayFOV1] + 2, Memory::PointerMode::Absolute);
+			GameplayFOVAddress1 = (uintptr_t)Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[GameplayFOV1] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV1], 6);
 
@@ -348,7 +348,7 @@ void WidescreenFix()
 
 			Memory::Write(CameraFOVInstructionsScansResult[GameplayFOV4] + 1, fNewCameraFOV3);
 			
-			GameplayFOVAddress5 = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayFOV5] + 2, Memory::PointerMode::Absolute);
+			GameplayFOVAddress5 = (uintptr_t)Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[GameplayFOV5] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV5], 6);
 

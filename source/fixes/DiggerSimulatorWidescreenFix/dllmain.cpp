@@ -249,9 +249,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 1 Scan: Address is acknex.dll+{:x}", ResolutionInstructions1ScanResult - (std::uint8_t*)dllModule2);
 
-			ResolutionWidth1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions1ScanResult + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth1Address = Memory::GetPointerFromAddress(ResolutionInstructions1ScanResult + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight1Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions1ScanResult + 18, Memory::PointerMode::Absolute);
+			ResolutionHeight1Address = Memory::GetPointerFromAddress(ResolutionInstructions1ScanResult + 18, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(ResolutionInstructions1ScanResult, 5);			
 
@@ -278,9 +278,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions 2 Scan: Address is acknex.dll+{:x}", ResolutionInstructions2ScanResult - (std::uint8_t*)dllModule2);
 
-			ResolutionWidth2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 1, Memory::PointerMode::Absolute);
+			ResolutionWidth2Address = Memory::GetPointerFromAddress(ResolutionInstructions2ScanResult + 1, Memory::PointerMode::Absolute);
 
-			ResolutionHeight2Address = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructions2ScanResult + 22, Memory::PointerMode::Absolute);
+			ResolutionHeight2Address = Memory::GetPointerFromAddress(ResolutionInstructions2ScanResult + 22, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(ResolutionInstructions2ScanResult, 5);			
 
@@ -331,7 +331,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is acknex.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 15, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 15, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionScanResult + 13, 6);
 

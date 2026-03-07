@@ -206,7 +206,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			AspectRatioAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			AspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 

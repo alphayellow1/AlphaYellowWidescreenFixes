@@ -1134,47 +1134,55 @@ namespace Memory
 		Relative
 	};
 
-	template<typename PointerType>
-	PointerType GetPointerFromAddress(std::uint8_t* address, PointerMode mode) noexcept
+	struct PointerResult
 	{
-		static_assert(std::is_pointer_v<PointerType> || std::is_integral_v<PointerType>, "PointerType must be a pointer or integer type");
+		std::uintptr_t value{};
 
-		if (!address)
+		template<typename T>
+			requires (std::is_pointer_v<T> || std::is_integral_v<T>)
+		operator T() const noexcept
 		{
-			return {};
-		}
-
-		std::uintptr_t raw{};
-
-		std::memcpy(&raw, address, sizeof(raw));
-
-		if (mode == PointerMode::Absolute)
-		{
-			if constexpr (std::is_pointer_v<PointerType>)
+			if constexpr (std::is_pointer_v<T>)
 			{
-				return reinterpret_cast<PointerType>(raw);
+				return reinterpret_cast<T>(value);
 			}
 			else
 			{
-				return static_cast<PointerType>(raw);
+				return static_cast<T>(value);
 			}
+		}
+	};
+
+	template<typename AddressType>
+	PointerResult GetPointerFromAddress(AddressType address, PointerMode mode) noexcept
+	{
+		std::uintptr_t addr{};
+
+		if constexpr (std::is_pointer_v<AddressType>)
+		{
+			addr = reinterpret_cast<std::uintptr_t>(address);
+		}
+		else
+		{
+			addr = static_cast<std::uintptr_t>(address);
+		}
+
+		if (!addr)
+			return {};
+
+		if (mode == PointerMode::Absolute)
+		{
+			std::uintptr_t raw{};
+			std::memcpy(&raw, reinterpret_cast<void*>(addr), sizeof(raw));
+			return { raw };
 		}
 		else
 		{
 			std::intptr_t displacement{};
+			std::memcpy(&displacement, reinterpret_cast<void*>(addr), sizeof(displacement));
 
-			std::memcpy(&displacement, address, sizeof(displacement));
-
-			std::uintptr_t result = reinterpret_cast<std::uintptr_t>(address) + sizeof(displacement) + displacement;
-
-			if constexpr (std::is_pointer_v<PointerType>)
-			{
-				return reinterpret_cast<PointerType>(result);
-			}
-			else
-			{
-				return static_cast<PointerType>(result);
-			}
+			std::uintptr_t result = addr + sizeof(displacement) + displacement;
+			return { result };
 		}
 	}
 

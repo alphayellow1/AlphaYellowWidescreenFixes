@@ -285,7 +285,7 @@ void FOVFix()
 
 			Memory::Write(AspectRatioInstructionsScansResult[CharSelectionAR2] + 4, fNewCharacterSelectionHFOV2);
 
-			HUDAspectRatioAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioInstructionsScansResult[HUDAR1] + 2, Memory::PointerMode::Absolute);
+			HUDAspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioInstructionsScansResult[HUDAR1] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(AspectRatioInstructionsScansResult[HUDAR1], 6);
 

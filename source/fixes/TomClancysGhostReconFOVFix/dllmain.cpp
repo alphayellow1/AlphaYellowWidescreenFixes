@@ -233,7 +233,7 @@ void FOVFix()
 				ctx.edx = std::bit_cast<uintptr_t>(fNewGameplayFOV);
 			});
 
-			MenuFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[MainMenuFOV] + 2, Memory::PointerMode::Absolute);
+			MenuFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[MainMenuFOV] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MainMenuFOV], 6);
 

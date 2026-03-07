@@ -304,7 +304,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
@@ -334,9 +334,9 @@ void WidescreenFix()
 
 			spdlog::info("HUD Vertical Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD2Scan] - (std::uint8_t*)exeModule);
 
-			HorizontalHUDMarginAddress = Memory::GetPointerFromAddress<uint32_t>(HUDInstructionsScansResult[HUD1Scan] + 2, Memory::PointerMode::Absolute);
+			HorizontalHUDMarginAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD1Scan] + 2, Memory::PointerMode::Absolute);
 
-			VerticalHUDMarginAddress = Memory::GetPointerFromAddress<uint32_t>(HUDInstructionsScansResult[HUD2Scan] + 2, Memory::PointerMode::Absolute);
+			VerticalHUDMarginAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD2Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(HUDInstructionsScansResult[HUD1Scan], 6);
 

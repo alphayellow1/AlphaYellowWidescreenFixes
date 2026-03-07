@@ -228,7 +228,7 @@ void FOVFix()
 
 			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansRsesult[GameplayFOVScan] - (std::uint8_t*)exeModule);
 
-			MenuCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansRsesult[MenuFOV1Scan] + 2, Memory::PointerMode::Absolute);
+			MenuCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansRsesult[MenuFOV1Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansRsesult[MenuFOV1Scan], 6);
 
@@ -259,7 +259,7 @@ void FOVFix()
 				FPU::FMUL(fNewMenuCameraFOVFactor);
 			});
 
-			GameplayCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansRsesult[GameplayFOVScan] + 1, Memory::PointerMode::Absolute);
+			GameplayCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansRsesult[GameplayFOVScan] + 1, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansRsesult[GameplayFOVScan], 5);
 

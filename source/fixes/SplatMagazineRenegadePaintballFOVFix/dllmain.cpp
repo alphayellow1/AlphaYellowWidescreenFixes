@@ -284,7 +284,7 @@ void FOVFix()
 			HipfireCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireCameraFOV2Scan], HipfireCameraFOVInstructionMidHook);
 
 			// Camera Zoom FOV
-			CameraZoomAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CameraZoomScan] + 2, Memory::PointerMode::Absolute);
+			CameraZoomAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[CameraZoomScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraZoomScan], "\x90\x90\x90\x90\x90\x90", 6);
 

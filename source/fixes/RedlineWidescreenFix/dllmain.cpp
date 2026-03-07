@@ -225,7 +225,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Bit Depth Instruction: Address is {:s}+{:x}", sExeName.c_str(), BithDepthInstructionScanResult - (std::uint8_t*)exeModule);
 
-			BitDepthAddress = Memory::GetPointerFromAddress<uint32_t>(BithDepthInstructionScanResult + 3, Memory::PointerMode::Absolute);
+			BitDepthAddress = Memory::GetPointerFromAddress(BithDepthInstructionScanResult + 3, Memory::PointerMode::Absolute);
 
 			iDesiredBitDepth = 32;			
 
@@ -245,9 +245,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			ResolutionWidthAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 12, Memory::PointerMode::Absolute);
+			ResolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScanResult + 12, Memory::PointerMode::Absolute);
 
-			ResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScanResult + 3, Memory::PointerMode::Absolute);			
+			ResolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScanResult + 3, Memory::PointerMode::Absolute);			
 
 			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 10, [](SafetyHookContext& ctx)
 			{
@@ -287,7 +287,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
 			
-			CameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstruction2ScanResult, Memory::PointerMode::Absolute);
+			CameraFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstruction2ScanResult, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstruction2ScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			

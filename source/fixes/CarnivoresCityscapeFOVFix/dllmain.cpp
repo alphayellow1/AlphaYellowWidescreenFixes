@@ -235,7 +235,7 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is Entities.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			CameraFOVValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
+			CameraFOVValueAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionScanResult, 5);			
 

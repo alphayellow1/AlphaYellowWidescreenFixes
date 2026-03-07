@@ -321,7 +321,7 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.ebp + 0x34, 1.0f, ECX, ctx);
 			});
 
-			GameplayFOVAddress1 = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayFOV1] + 2, Memory::PointerMode::Absolute);
+			GameplayFOVAddress1 = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[GameplayFOV1] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV1], 6);
 

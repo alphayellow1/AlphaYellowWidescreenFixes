@@ -296,7 +296,7 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.esp + 0x18, EAX, true, ctx);
 			});
 
-			BikeSelectionFOVAddress2 = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[BikeSelectionFOV2] + 1, Memory::PointerMode::Absolute);
+			BikeSelectionFOVAddress2 = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[BikeSelectionFOV2] + 1, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[BikeSelectionFOV2], 5);
 
@@ -319,7 +319,7 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.edi, FLD, false, ctx);
 			});
 
-			RacesFOVAddress3 = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[RacesFOV3] + 2, Memory::PointerMode::Absolute);
+			RacesFOVAddress3 = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[RacesFOV3] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[RacesFOV3], 6);
 

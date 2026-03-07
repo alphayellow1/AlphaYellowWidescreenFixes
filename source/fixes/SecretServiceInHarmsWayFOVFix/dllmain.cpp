@@ -281,7 +281,7 @@ void FOVFix()
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV2);
 			});
 
-			WeaponFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[WeaponFOVScan] + 2, Memory::PointerMode::Absolute);
+			WeaponFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[WeaponFOVScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[WeaponFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 

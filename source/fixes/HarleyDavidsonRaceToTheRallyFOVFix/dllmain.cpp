@@ -221,7 +221,7 @@ void FOVFix()
 		{
 			spdlog::info("Gameplay Trigger Instruction: Address is GameDll7r.dll+{:x}", GameplayTriggerInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			iDuringGameplayValueAddress = Memory::GetPointerFromAddress<uint32_t>(GameplayTriggerInstructionScanResult + 1, Memory::PointerMode::Absolute);			
+			iDuringGameplayValueAddress = Memory::GetPointerFromAddress(GameplayTriggerInstructionScanResult + 1, Memory::PointerMode::Absolute);			
 
 			GameplayTriggerInstructionHook = safetyhook::create_mid(GameplayTriggerInstructionScanResult, [](SafetyHookContext& ctx)
 			{

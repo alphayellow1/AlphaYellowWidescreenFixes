@@ -314,7 +314,7 @@ void FOVFix()
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], CameraFOVInstructionMidHook);
 
 			// Hipfire FOVs
-			HipfireFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[SniperHipfireFOVScan] + 2, Memory::PointerMode::Absolute);
+			HipfireFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[SniperHipfireFOVScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[SniperHipfireFOVScan], "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
 
