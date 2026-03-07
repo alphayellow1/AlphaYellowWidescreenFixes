@@ -1134,31 +1134,47 @@ namespace Memory
 		Relative
 	};
 
-	template<typename T>
-	std::uint8_t* GetPointerFromAddress(std::uint8_t* address, PointerMode mode) noexcept
+	template<typename PointerType>
+	PointerType GetPointerFromAddress(std::uint8_t* address, PointerMode mode) noexcept
 	{
+		static_assert(std::is_pointer_v<PointerType> || std::is_integral_v<PointerType>, "PointerType must be a pointer or integer type");
+
 		if (!address)
 		{
-			return nullptr;
+			return {};
 		}
-		
-		T raw;
+
+		std::uintptr_t raw{};
 
 		std::memcpy(&raw, address, sizeof(raw));
 
 		if (mode == PointerMode::Absolute)
 		{
-			return reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(raw));
-		}			
+			if constexpr (std::is_pointer_v<PointerType>)
+			{
+				return reinterpret_cast<PointerType>(raw);
+			}
+			else
+			{
+				return static_cast<PointerType>(raw);
+			}
+		}
 		else
 		{
-			using signed_t = std::make_signed_t<T>;
+			std::intptr_t displacement{};
 
-			signed_t disp;
+			std::memcpy(&displacement, address, sizeof(displacement));
 
-			std::memcpy(&disp, address, sizeof(disp));
+			std::uintptr_t result = reinterpret_cast<std::uintptr_t>(address) + sizeof(displacement) + displacement;
 
-			return address + sizeof(T) + static_cast<std::intptr_t>(disp);
+			if constexpr (std::is_pointer_v<PointerType>)
+			{
+				return reinterpret_cast<PointerType>(result);
+			}
+			else
+			{
+				return static_cast<PointerType>(result);
+			}
 		}
 	}
 
