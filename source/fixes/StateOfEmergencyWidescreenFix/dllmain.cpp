@@ -272,7 +272,7 @@ void FOVFix()
 
 			Memory::Write(CameraFOVInstructionsScansResult[FOV3Scan] + 1, fNewCameraFOV2);
 
-			HorizontalCullingAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[HFOVCullingScan] + 2, Memory::PointerMode::Absolute);
+			HorizontalCullingAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HFOVCullingScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HFOVCullingScan], 6);
 

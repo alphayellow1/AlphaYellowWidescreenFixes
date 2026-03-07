@@ -265,7 +265,7 @@ void FOVFix()
 
 			Memory::Write(CameraFOVInstructionsScansResult[HipfireFOV1] + 1, fNewHipfireCameraFOV);
 
-			HipfireFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[HipfireFOV2] + 2, Memory::PointerMode::Absolute);
+			HipfireFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HipfireFOV2] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HipfireFOV2], 6);
 
@@ -278,7 +278,7 @@ void FOVFix()
 				FPU::FLD(fNewHipfireCameraFOV2);
 			});
 
-			ZoomFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[ZoomFOV] + 2, Memory::PointerMode::Absolute);
+			ZoomFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[ZoomFOV] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[ZoomFOV], 6);
 

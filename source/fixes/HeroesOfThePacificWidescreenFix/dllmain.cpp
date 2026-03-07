@@ -333,9 +333,9 @@ void WidescreenFix()
 				FPU::FLD(fNewGameplayCameraFOV);
 			});
 
-			BriefingScreenFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[BriefingFOV1] + 2, Memory::PointerMode::Absolute);
+			BriefingScreenFOV1Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[BriefingFOV1] + 2, Memory::PointerMode::Absolute);
 
-			BriefingScreenFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[BriefingFOV2] + 2, Memory::PointerMode::Absolute);
+			BriefingScreenFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[BriefingFOV2] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[BriefingFOV1], 6);
 

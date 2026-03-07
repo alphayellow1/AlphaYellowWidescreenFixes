@@ -268,7 +268,7 @@ void WidescreenFix()
 
 			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[GameplayFOV2Scan] - (std::uint8_t*)exeModule);
 
-			CutscenesCameraFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResults[CutscenesFOV1Scan] + 2, Memory::PointerMode::Absolute);
+			CutscenesCameraFOV1Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[CutscenesFOV1Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResults[CutscenesFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -281,7 +281,7 @@ void WidescreenFix()
 				FPU::FDIVR(dNewCutscenesCameraFOV1);
 			});
 
-			CutscenesCameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResults[CutscenesFOV2Scan] + 2, Memory::PointerMode::Absolute);
+			CutscenesCameraFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[CutscenesFOV2Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResults[CutscenesFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -294,7 +294,7 @@ void WidescreenFix()
 				FPU::FLD(fNewCutscenesCameraFOV2);
 			});
 
-			GameplayCameraFOV1Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResults[GameplayFOV1Scan] + 2, Memory::PointerMode::Absolute);
+			GameplayCameraFOV1Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[GameplayFOV1Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResults[GameplayFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -307,7 +307,7 @@ void WidescreenFix()
 				FPU::FDIVR(dNewGameplayCameraFOV1);
 			});
 
-			GameplayCameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResults[GameplayFOV2Scan] + 2, Memory::PointerMode::Absolute);
+			GameplayCameraFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[GameplayFOV2Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResults[GameplayFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
 

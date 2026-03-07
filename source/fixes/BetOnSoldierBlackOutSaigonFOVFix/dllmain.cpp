@@ -324,11 +324,11 @@ void FOVFix()
 			});
 
 			// Hipfire & Zoom Camera FOV Instructions Hook
-			HipfireCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 1, Memory::PointerMode::Absolute);
+			HipfireCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 1, Memory::PointerMode::Absolute);
 
-			ShieldZoomFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 7, Memory::PointerMode::Absolute);
+			ShieldZoomFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 7, Memory::PointerMode::Absolute);
 
-			StandardZoomFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 17, Memory::PointerMode::Absolute);
+			StandardZoomFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 17, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan], 11);
 

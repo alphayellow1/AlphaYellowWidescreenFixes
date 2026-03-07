@@ -302,7 +302,7 @@ void WidescreenFix()
 				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.edi + 0x98, FullAngle, fFOVFactor);
 			});
 
-			CutscenesFOVOffset = Memory::GetPointerFromAddress<uintptr_t>(CameraFOVInstructionsScansResult[CutscenesFOV] + 23, Memory::PointerMode::Absolute);
+			CutscenesFOVOffset = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[CutscenesFOV] + 23, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV] + 19, 8);
 

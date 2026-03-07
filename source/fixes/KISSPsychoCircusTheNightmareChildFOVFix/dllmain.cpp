@@ -231,9 +231,9 @@ void FOVFix()
 
 			spdlog::info("Inventory Selection FOV Instructions Scan: Address is cshell.dll+{:x}", CameraFOVInstructionsScansResult[InventoryFOV] - (std::uint8_t*)dllModule2);
 
-			CameraHFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayHFOV] + 2, Memory::PointerMode::Absolute);
+			CameraHFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[GameplayHFOV] + 2, Memory::PointerMode::Absolute);
 
-			CameraVFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayVFOV] + 2, Memory::PointerMode::Absolute);
+			CameraVFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[GameplayVFOV] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayHFOV], 6);
 

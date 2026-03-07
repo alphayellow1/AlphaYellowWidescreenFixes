@@ -249,9 +249,9 @@ void FOVFix()
 
 			Memory::Write(CameraFOVInstructionsScansResult[FOV1Scan] + 16, fNewCameraFOV);
 
-			CameraFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV2Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[FOV2Scan] + 2, Memory::PointerMode::Absolute);
 
-			CameraFOV3Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV3Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOV3Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[FOV3Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 6);
 

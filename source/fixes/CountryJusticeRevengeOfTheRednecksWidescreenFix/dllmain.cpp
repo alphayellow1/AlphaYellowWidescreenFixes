@@ -515,7 +515,7 @@ void WidescreenFix()
 
 			Memory::Write(CameraFOVInstructionsScansResult[HFOVScan] + 4, fNewCameraHFOV);
 
-			CameraVFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[VFOVScan] + 2, Memory::PointerMode::Absolute);
+			CameraVFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[VFOVScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[VFOVScan], 6);
 			

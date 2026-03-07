@@ -2197,7 +2197,7 @@ void WidescreenFix()
 
 			Memory::Write(CameraFOVInstructionsScansResult[GameplayCameraFOVScan] + 4, fNewGameplayCameraHFOV);
 
-			CameraVFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[GameplayCameraFOVScan] + 46, Memory::PointerMode::Absolute);
+			CameraVFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[GameplayCameraFOVScan] + 46, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[GameplayCameraFOVScan] + 44, "\x90\x90\x90\x90\x90\x90", 6);
 			

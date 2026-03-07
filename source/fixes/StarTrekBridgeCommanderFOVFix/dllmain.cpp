@@ -379,7 +379,7 @@ void FOVFix()
 
 			spdlog::info("Exterior Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ExteriorCameraFOVInstructionsScansResult[ExteriorVFOVScan] - (std::uint8_t*)exeModule);
 
-			ExteriorCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV1Scan] + 1, Memory::PointerMode::Absolute);
+			ExteriorCameraFOVAddress = Memory::GetPointerFromAddress(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV1Scan] + 1, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV1Scan], "\x90\x90\x90\x90\x90", 5);
 

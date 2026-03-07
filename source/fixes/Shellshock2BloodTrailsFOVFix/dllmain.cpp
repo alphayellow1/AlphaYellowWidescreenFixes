@@ -248,7 +248,7 @@ void FOVFix()
 				FPU::FLD(fNewCutscenesFOV);
 			});
 
-			HipfireCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[HipfireFOVScan] + 4, Memory::PointerMode::Absolute);
+			HipfireCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HipfireFOVScan] + 4, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[HipfireFOVScan], "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
 

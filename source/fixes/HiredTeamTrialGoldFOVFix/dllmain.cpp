@@ -227,7 +227,7 @@ void FOVFix()
 		{
 			spdlog::info("Hipfire Camera FOV Instruction: Address is ShineEng.dll+{:x}", HipfireCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			HipfireCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(HipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			HipfireCameraFOVAddress = Memory::GetPointerFromAddress(HipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -251,7 +251,7 @@ void FOVFix()
 		{
 			spdlog::info("Zoom Camera FOV Instruction: Address is ShineEng.dll+{:x}", ZoomCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			ZoomCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(ZoomCameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
+			ZoomCameraFOVAddress = Memory::GetPointerFromAddress(ZoomCameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
 			
 			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);			
 			
@@ -275,7 +275,7 @@ void FOVFix()
 		{
 			spdlog::info("Main Menu Camera FOV Instruction: Address is ShineEng.dll+{:x}", MainMenuCameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			MainMenuCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(MainMenuCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			MainMenuCameraFOVAddress = Memory::GetPointerFromAddress(MainMenuCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 			
 			Memory::PatchBytes(MainMenuCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
 			

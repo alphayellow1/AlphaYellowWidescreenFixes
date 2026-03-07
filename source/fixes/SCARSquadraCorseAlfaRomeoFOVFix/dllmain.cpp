@@ -275,7 +275,7 @@ void FOVFix()
 				RacesCameraFOVInstructionsMidHook(ctx.esp + 0xC, ctx.eax);
 			});
 
-			RacesFOV2Address = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[RacesFOV2] + 1, Memory::PointerMode::Absolute);
+			RacesFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[RacesFOV2] + 1, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[RacesFOV2], 5);
 

@@ -217,9 +217,9 @@ void WidescreenFix()
 
 			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResScan] - (std::uint8_t*)exeModule);
 			
-			ResolutionWidthAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[RendererResScan] + 2, Memory::PointerMode::Absolute);
+			ResolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[RendererResScan] + 2, Memory::PointerMode::Absolute);
 
-			ResolutionHeightAddress = Memory::GetPointerFromAddress<uint32_t>(ResolutionInstructionsScansResult[RendererResScan] + 8, Memory::PointerMode::Absolute);
+			ResolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[RendererResScan] + 8, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResScan], 12);
 

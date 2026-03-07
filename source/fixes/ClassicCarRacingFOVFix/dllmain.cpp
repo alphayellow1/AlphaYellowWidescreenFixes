@@ -218,7 +218,7 @@ void FOVFix()
 		{
 			spdlog::info("In A Race Trigger Instruction: Address is ChromeEngine2.dll+{:x}", InARaceTriggerInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			TriggerValueAddress = Memory::GetPointerFromAddress<uint32_t>(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			TriggerValueAddress = Memory::GetPointerFromAddress(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			pInRaceFlag = reinterpret_cast<uint32_t*>(TriggerValueAddress);
 		}

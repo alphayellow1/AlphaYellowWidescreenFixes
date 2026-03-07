@@ -371,7 +371,7 @@ void WidescreenFix()
 				FPU::FLD(fNewCameraFOV1);
 			});
 
-			CameraFOV2ValueAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV2Scan] + 1, Memory::PointerMode::Absolute);
+			CameraFOV2ValueAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[FOV2Scan] + 1, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2Scan], 5);
 

@@ -229,7 +229,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			AspectRatioAddress = Memory::GetPointerFromAddress<uint32_t>(AspectRatioInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			AspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
@@ -255,7 +255,7 @@ void FOVFix()
 
 			spdlog::info("Camera FOV Instruction 2: Address is {}+{:x}", sDllName, CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)dllModule2);
 
-			CameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[FOV1Scan] + 2, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[FOV1Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 6);
 

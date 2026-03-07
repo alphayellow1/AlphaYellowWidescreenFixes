@@ -236,7 +236,7 @@ void FOVFix()
 				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});
 
-			WeaponFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[WeaponFOV] + 2, Memory::PointerMode::Absolute);
+			WeaponFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[WeaponFOV] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[WeaponFOV], 6);
 

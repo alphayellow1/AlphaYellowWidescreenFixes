@@ -309,7 +309,7 @@ void FOVFix()
 				CameraFOVInstructionsMidHook(ctx.esp + 0x8, fFOVFactor, false, FLD, ctx);
 			});			
 
-			CameraFOV3Address = reinterpret_cast<uintptr_t>(Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScanResult[FOV3Scan] + 2, Memory::PointerMode::Absolute));
+			CameraFOV3Address = reinterpret_cast<uintptr_t>(Memory::GetPointerFromAddress(CameraFOVInstructionsScanResult[FOV3Scan] + 2, Memory::PointerMode::Absolute));
 
 			Memory::WriteNOPs(CameraFOVInstructionsScanResult[FOV3Scan], 6);
 

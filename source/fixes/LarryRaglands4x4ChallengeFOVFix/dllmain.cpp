@@ -225,7 +225,7 @@ void FOVFix()
 			spdlog::info("Replay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[ReplayCameraFOVScan] - (std::uint8_t*)exeModule);
 
 			// Races Camera FOV
-			RacesCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[RacesCameraFOVScan] + 2, Memory::PointerMode::Absolute);
+			RacesCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[RacesCameraFOVScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[RacesCameraFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -239,7 +239,7 @@ void FOVFix()
 			});
 
 			// Pre-races Camera FOV
-			PreRacesCameraFOVOffsetAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[PreRacesCameraFOVScan] + 2, Memory::PointerMode::Absolute);
+			PreRacesCameraFOVOffsetAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[PreRacesCameraFOVScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[PreRacesCameraFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 
@@ -258,7 +258,7 @@ void FOVFix()
 			Memory::Write(CameraFOVInstructionsScansResult[MainMenuCameraFOVScan] + 6, fNewMainMenuCameraFOV);
 
 			// Replay Camera FOV
-			ReplayCameraFOVAddress = Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[ReplayCameraFOVScan] + 2, Memory::PointerMode::Absolute);
+			ReplayCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[ReplayCameraFOVScan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::PatchBytes(CameraFOVInstructionsScansResult[ReplayCameraFOVScan], "\x90\x90\x90\x90\x90\x90", 6);
 
