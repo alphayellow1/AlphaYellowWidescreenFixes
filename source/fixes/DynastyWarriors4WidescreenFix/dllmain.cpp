@@ -52,6 +52,7 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
+uintptr_t CutscenesFOVOffset;
 
 // Game detection
 enum class Game
@@ -301,11 +302,13 @@ void WidescreenFix()
 				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.edi + 0x98, FullAngle, fFOVFactor);
 			});
 
+			CutscenesFOVOffset = (uintptr_t)Memory::GetPointerFromAddress<uint32_t>(CameraFOVInstructionsScansResult[CutscenesFOV] + 23, Memory::PointerMode::Absolute);
+
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV] + 19, 8);
 
 			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV] + 19, [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.eax + 0x00A133F8, HalfAngle);
+				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.eax + CutscenesFOVOffset, HalfAngle);
 			});
 		}
 	}
