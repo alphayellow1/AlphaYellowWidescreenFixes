@@ -363,7 +363,7 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 0D E4 86 4C 00 8B 15 E8 86 4C 00 C7 05 D0 84 4C 00 00 00 00 80 89 0D A0 84 4C 00 89 15 A4 84 4C 00");
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8b 0d ?? ?? ?? ?? 8b 15 ?? ?? ?? ?? c7 05");
 		if (ResolutionInstructionsScanResult)
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
