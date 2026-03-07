@@ -63,10 +63,12 @@ enum class Game
 	Unknown
 };
 
-enum ResolutionInstructionsIndex
+enum CameraFOVInstructionsIndex
 {
-	GameplayFOVScan,
-	MenuFOVScan
+	MenuFOV,
+	GameplayFOV1,
+	GameplayFOV2,
+	CutscenesFOV
 };
 
 struct GameInfo
@@ -200,14 +202,29 @@ bool DetectGame()
 }
 
 static SafetyHookMid CharactersNameAspectRatioInstructionHook{};
-static SafetyHookMid GameplayCameraFOVInstructionHook{};
-static SafetyHookMid MenuCameraFOVInstructionHook{};
+static SafetyHookMid MenuFOVInstructionHook{};
+static SafetyHookMid GameplayFOVInstruction1Hook{};
+static SafetyHookMid GameplayFOVInstruction2Hook{};
+static SafetyHookMid CutscenesFOVInstructionHook{};
 
-void CameraFOVInstructionsMidHook(float& SourceAddress, uintptr_t DestAddress, float fovFactor = 1.0f)
+enum angleMode
+{
+	FullAngle,
+	HalfAngle
+};
+
+void CameraFOVInstructionsMidHook(float& SourceAddress, uintptr_t DestAddress, angleMode AngleMode, float fovFactor = 1.0f)
 {
 	float& fCurrentCameraFOV = SourceAddress;
 
-	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
+	if (AngleMode == FullAngle)
+	{
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
+	}
+	else
+	{
+		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * fovFactor;
+	}
 
 	*reinterpret_cast<float*>(DestAddress) = fNewCameraFOV;
 }
@@ -251,25 +268,44 @@ void WidescreenFix()
 			return;
 		}
 		
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 11 85 ?? ?? ?? ?? 8B 17 89 10 8B 4F ??", "F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ??");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ??",
+		"F3 0F 11 85 ?? ?? ?? ?? 8B 17 89 10 8B 4F ??", "F3 0F 58 05 ?? ?? ?? ?? F3 0F 11 87 ?? ?? ?? ??", "C3 CC CC 8B 44 24 ?? F3 0F 10 44 24 ?? 8D 04 40 C1 E0 ?? F3 0F 11 80 ?? ?? ?? ?? C3 CC CC CC");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOVScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MenuFOV] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MenuFOVScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOV1] - (std::uint8_t*)exeModule);			
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOVScan], 8);
-			
-			GameplayCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOVScan], [](SafetyHookContext& ctx)
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOV2] + 8 - (std::uint8_t*)exeModule);
+
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CutscenesFOV] + 19 - (std::uint8_t*)exeModule);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MenuFOV], 8);
+
+			MenuFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MenuFOV], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.ebp + 0x98, fFOVFactor);
+				CameraFOVInstructionsMidHook(ctx.xmm3.f32[0], ctx.esi + 0x98, FullAngle);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MenuFOVScan], 8);
-
-			MenuCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MenuFOVScan], [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV1], 8);
+			
+			GameplayFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV1], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.xmm3.f32[0], ctx.esi + 0x98);
+				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.ebp + 0x98, FullAngle, fFOVFactor);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV2] + 8, 8);
+
+			GameplayFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV2] + 8, [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.edi + 0x98, FullAngle, fFOVFactor);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV] + 19, 8);
+
+			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV] + 19, [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.eax + 0x00A133F8, HalfAngle);
 			});
 		}
 	}
