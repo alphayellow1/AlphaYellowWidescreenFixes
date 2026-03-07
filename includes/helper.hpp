@@ -1168,20 +1168,26 @@ namespace Memory
 		}
 
 		if (!addr)
+		{
 			return {};
+		}
 
 		if (mode == PointerMode::Absolute)
 		{
 			std::uintptr_t raw{};
+
 			std::memcpy(&raw, reinterpret_cast<void*>(addr), sizeof(raw));
+
 			return { raw };
 		}
 		else
 		{
 			std::intptr_t displacement{};
+
 			std::memcpy(&displacement, reinterpret_cast<void*>(addr), sizeof(displacement));
 
 			std::uintptr_t result = addr + sizeof(displacement) + displacement;
+
 			return { result };
 		}
 	}
