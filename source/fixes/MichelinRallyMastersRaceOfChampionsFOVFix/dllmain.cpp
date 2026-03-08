@@ -58,7 +58,7 @@ double dNewCameraFOV;
 uint32_t iNewHUDWidth;
 float fNewHUDVerticalPosition;
 float fNewSelectionMenuCarFOV;
-uint8_t* fCurrentHUDVerticalPositionAddress;
+uintptr_t fCurrentHUDVerticalPositionAddress;
 
 // Game detection
 enum class Game
