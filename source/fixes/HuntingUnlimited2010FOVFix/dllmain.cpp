@@ -202,25 +202,6 @@ bool DetectGame()
 static SafetyHookMid CameraFOVInstructionHook{};
 static SafetyHookMid WeaponFOVInstructionHook{};
 
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x68);
-
-	if (fCurrentCameraFOV > 79.0f && fCurrentCameraFOV <= 80.0f)
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::HU2010 && bFixActive == true)
@@ -236,7 +217,21 @@ void FOVFix()
 
 			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3); // NOP out the original instruction
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x68);
+
+				if (fCurrentCameraFOV > 79.0f && fCurrentCameraFOV <= 80.0f)
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				}
+				else
+				{
+					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
+				}
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{
@@ -244,14 +239,14 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(dllModule2, "C7 44 24 50 00 00 00 00 C7 44 24 4C 00 00 00 00 C7 44 24 48 00 00 00 00 E8 ?? ?? ?? ?? 8B 50 6C");
+		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 50 ?? 6A ?? 8B C2");
 		if (WeaponFOVInstructionScanResult)
 		{
-			spdlog::info("Weapon FOV Instruction: Address is game.dll+{:x}", WeaponFOVInstructionScanResult + 29 - (std::uint8_t*)dllModule2);
+			spdlog::info("Weapon FOV Instruction: Address is game.dll+{:x}", WeaponFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(WeaponFOVInstructionScanResult + 29, 3); // NOP out the original instruction			
+			Memory::WriteNOPs(WeaponFOVInstructionScanResult, 3); // NOP out the original instruction			
 
-			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 29, [](SafetyHookContext& ctx)
+			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.eax + 0x6C);
 
