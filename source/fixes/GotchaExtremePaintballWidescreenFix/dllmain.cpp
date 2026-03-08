@@ -269,7 +269,7 @@ void WidescreenFix()
 			
 			ZoomCameraFOVInstructionHook = safetyhook::create_mid(ZoomFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentZoomFOV = *reinterpret_cast<float*>(ctx.eax + 0x3A8);
+				float& fCurrentZoomFOV = Memory::ReadMem(ctx.eax + 0x3A8);
 					
 				fNewZoomFOV = Maths::CalculateNewFOV_DegBased(fCurrentZoomFOV, fAspectRatioScale) / fZoomFOVFactor;
 					

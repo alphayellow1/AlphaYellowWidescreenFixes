@@ -188,45 +188,9 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid HUDAspectRatioInstruction1Hook{};
+static SafetyHookMid AspectRatioInstructionHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
-void HUDAspectRatioInstruction1MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fdiv dword ptr ds:[fNewAspectRatio]
-	}
-}
-
-static SafetyHookMid HUDAspectRatioInstruction2Hook{};
-
-void HUDAspectRatioInstruction2MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
-static SafetyHookMid HUDAspectRatioInstruction3Hook{};
-
-void HUDAspectRatioInstruction3MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
-static SafetyHookMid HUDAspectRatioInstruction4Hook{};
-
-void HUDAspectRatioInstruction4MidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fdiv dword ptr ds:[fNewAspectRatio]
-	}
-}
 
 void FOVFix()
 {
@@ -243,13 +207,11 @@ void FOVFix()
 
 			AspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);			
 
-			static SafetyHookMid AspectRatioInstructionMidHook{};
-
-			AspectRatioInstructionMidHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(AspectRatioAddress) = fNewAspectRatio;
+				Memory::ReadMem(AspectRatioAddress) = fNewAspectRatio;
 			});
 		}
 		else
@@ -265,17 +227,15 @@ void FOVFix()
 
 			CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
+				const float& fCurrentCameraFOV = Memory::ReadRegister(ctx.edx);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				*reinterpret_cast<float*>(CameraFOVAddress) = fNewCameraFOV;
+				Memory::ReadMem(CameraFOVAddress) = fNewCameraFOV;
 			});
 		}
 		else

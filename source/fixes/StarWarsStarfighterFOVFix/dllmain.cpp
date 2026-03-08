@@ -256,7 +256,7 @@ void FOVFix()
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentResX2 = *reinterpret_cast<int*>(ctx.esp + 0x4);
+				int& iCurrentResX2 = Memory::ReadMem(ctx.esp + 0x4);
 
 				iNewResX = (int)(iCurrentResX2 * fAspectRatioScale);
 
@@ -291,7 +291,7 @@ void FOVFix()
 
 			FrustumFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FrustumFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFrustumFOV = *reinterpret_cast<float*>(ctx.esi + 0x78);
+				float& fCurrentFrustumFOV = Memory::ReadMem(ctx.esi + 0x78);
 
 				fNewFrustumFOV = Maths::CalculateNewFOV_RadBased(fCurrentFrustumFOV, fAspectRatioScale);
 
@@ -302,7 +302,7 @@ void FOVFix()
 
 			LocalToScreenFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[LocalToScreenFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentLocalToScreenFOV = *reinterpret_cast<float*>(ctx.ecx + 0x78);
+				float& fCurrentLocalToScreenFOV = Memory::ReadMem(ctx.ecx + 0x78);
 
 				fNewLocalToScreenFOV = Maths::CalculateNewFOV_RadBased(fCurrentLocalToScreenFOV, fAspectRatioScale);
 
@@ -313,7 +313,7 @@ void FOVFix()
 
 			UnzoomedFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[UnzoomedFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentUnzoomedFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+				float& fCurrentUnzoomedFOV = Memory::ReadMem(ctx.esp + 0x4);
 
 				fNewUnzoomedFOV = fCurrentUnzoomedFOV * fUnzoomedFOVFactor;
 
@@ -324,7 +324,7 @@ void FOVFix()
 
 			ZoomedFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ZoomedFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentZoomedFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+				float& fCurrentZoomedFOV = Memory::ReadMem(ctx.esp + 0x4);
 
 				fNewZoomedFOV = fCurrentZoomedFOV / fZoomedFOVFactor;
 
@@ -335,7 +335,7 @@ void FOVFix()
 
 			RendererViewFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[RendererViewFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentRendererViewFOV = *reinterpret_cast<float*>(ctx.esi + 0x78);
+				float& fCurrentRendererViewFOV = Memory::ReadMem(ctx.esi + 0x78);
 
 				fNewRendererViewFOV = Maths::CalculateNewFOV_RadBased(fCurrentRendererViewFOV, fAspectRatioScale);
 

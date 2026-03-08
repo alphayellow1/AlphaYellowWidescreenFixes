@@ -213,7 +213,7 @@ static SafetyHookMid CameraFOVInstruction16Hook{};
 
 void CameraFOVInstruction16MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV16 = *reinterpret_cast<float*>(ctx.ecx + 0xBC);
+	float& fCurrentCameraFOV16 = Memory::ReadMem(ctx.ecx + 0xBC);
 
 	fNewCameraFOV16 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV16, fAspectRatioScale) * fFOVFactor;
 }
@@ -222,7 +222,7 @@ static SafetyHookMid CameraFOVInstruction17Hook{};
 
 void CameraFOVInstruction17MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV17 = *reinterpret_cast<float*>(ctx.ecx + 0xBC);
+	float& fCurrentCameraFOV17 = Memory::ReadMem(ctx.ecx + 0xBC);
 
 	fNewCameraFOV17 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV17, fAspectRatioScale) * fFOVFactor;
 }
@@ -250,7 +250,7 @@ void FOVFix()
 
 				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0xBC) = fNewCameraFOV1;
+				Memory::ReadMem(ctx.esi + 0xBC) = fNewCameraFOV1;
 			});
 		}
 		else
@@ -274,7 +274,7 @@ void FOVFix()
 
 				fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ecx + 0xBC) = fNewCameraFOV2;
+				Memory::ReadMem(ctx.ecx + 0xBC) = fNewCameraFOV2;
 			});
 		}
 		else
@@ -298,7 +298,7 @@ void FOVFix()
 
 				fNewCameraFOV4 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV4, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ecx + 0xBC) = fNewCameraFOV4;
+				Memory::ReadMem(ctx.ecx + 0xBC) = fNewCameraFOV4;
 			});
 		}
 		else
@@ -322,7 +322,7 @@ void FOVFix()
 
 				fNewCameraFOV5 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV5, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.edi + 0xBC) = fNewCameraFOV5;
+				Memory::ReadMem(ctx.edi + 0xBC) = fNewCameraFOV5;
 			});
 		}
 		else
@@ -376,7 +376,7 @@ void FOVFix()
 
 				fNewCameraFOV8 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV8, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.edi + 0xBC) = fNewCameraFOV8;
+				Memory::ReadMem(ctx.edi + 0xBC) = fNewCameraFOV8;
 			});
 		}
 		else
@@ -415,7 +415,7 @@ void FOVFix()
 
 				fNewCameraFOV10 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV10, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ecx + 0xBC) = fNewCameraFOV10;
+				Memory::ReadMem(ctx.ecx + 0xBC) = fNewCameraFOV10;
 			});
 		}
 		else
@@ -439,7 +439,7 @@ void FOVFix()
 
 				fNewCameraFOV11 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV11, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ecx + 0xBC) = fNewCameraFOV11;
+				Memory::ReadMem(ctx.ecx + 0xBC) = fNewCameraFOV11;
 			});
 		}
 		else
@@ -463,7 +463,7 @@ void FOVFix()
 
 				fNewCameraFOV12 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV12, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0xBC) = fNewCameraFOV12;
+				Memory::ReadMem(ctx.esi + 0xBC) = fNewCameraFOV12;
 			});
 		}
 		else
@@ -487,7 +487,7 @@ void FOVFix()
 
 				fNewCameraFOV13 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV13, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0xBC) = fNewCameraFOV13;
+				Memory::ReadMem(ctx.esi + 0xBC) = fNewCameraFOV13;
 			});
 		}
 		else
@@ -511,7 +511,7 @@ void FOVFix()
 
 				fNewCameraFOV15 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV15, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0xBC) = fNewCameraFOV15;
+				Memory::ReadMem(ctx.esi + 0xBC) = fNewCameraFOV15;
 			});
 		}
 		else
@@ -565,7 +565,7 @@ void FOVFix()
 
 				fNewCameraFOV18 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV18, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0xBC) = fNewCameraFOV18;
+				Memory::ReadMem(ctx.esi + 0xBC) = fNewCameraFOV18;
 			});
 		}
 		else
@@ -604,7 +604,7 @@ void FOVFix()
 
 				fNewCameraFOV20 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV20, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0xBC) = fNewCameraFOV20;
+				Memory::ReadMem(ctx.esi + 0xBC) = fNewCameraFOV20;
 			});
 		}
 		else
@@ -643,7 +643,7 @@ void FOVFix()
 
 				fNewCameraFOV22 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV22, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.esi + 0xBC) = fNewCameraFOV22;
+				Memory::ReadMem(ctx.esi + 0xBC) = fNewCameraFOV22;
 			});
 		}
 		else

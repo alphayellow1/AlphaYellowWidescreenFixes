@@ -221,7 +221,7 @@ void FOVFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x5C);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.eax + 0x5C);
 
 				if (fCurrentCameraFOV > 79.0f && fCurrentCameraFOV <= 80.0f)
 				{
@@ -265,7 +265,7 @@ void FOVFix()
 
 			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.ebp + 0x2B0);
+				float& fCurrentWeaponFOV = Memory::ReadMem(ctx.ebp + 0x2B0);
 
 				fNewWeaponFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponFOV, fAspectRatioScale);
 

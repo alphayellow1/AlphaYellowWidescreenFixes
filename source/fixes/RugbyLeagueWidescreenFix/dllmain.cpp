@@ -280,12 +280,12 @@ void WidescreenFix()
 
 			GameplayResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionInstruction2] + 6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.ecx + 0x10) = iCurrentResY;
+				Memory::ReadMem(ctx.ecx + 0x10) = iCurrentResY;
 			});			
 
 			GameplayResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionInstruction2] + 3, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.ecx + 0xC) = iCurrentResX;
+				Memory::ReadMem(ctx.ecx + 0xC) = iCurrentResX;
 			});
 		}
 
@@ -322,7 +322,7 @@ void WidescreenFix()
 
 			CameraFOVInstructions1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x38);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.esp + 0x38);
 
 				if (fCurrentCameraHFOV != fNewCameraHFOV)
 				{
@@ -331,7 +331,7 @@ void WidescreenFix()
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0x3C);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.esp + 0x3C);
 
 				if (fCurrentCameraVFOV != fNewCameraVFOV)
 				{
@@ -345,7 +345,7 @@ void WidescreenFix()
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esp + 0x40);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esp + 0x40);
 
 				fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
 

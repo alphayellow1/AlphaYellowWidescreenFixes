@@ -231,7 +231,7 @@ void WidescreenFix()
 
 			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionListScanResult + 38, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esp + 0x20) = iCurrentResX;
+				Memory::ReadMem(ctx.esp + 0x20) = iCurrentResX;
 			});
 		}
 		else
@@ -278,7 +278,7 @@ void WidescreenFix()
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esp + 0x5C);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esp + 0x5C);
 
 				fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
 

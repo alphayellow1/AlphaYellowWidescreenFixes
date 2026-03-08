@@ -195,30 +195,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / (double)fFOVFactor;
-
-	_asm
-	{
-		fdivr qword ptr ds:[dNewCameraFOV]
-	}
-}
-
 static SafetyHookMid HUDVerticalPositionInstructionHook{};
-
-void HUDVerticalPositionInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentHUDVerticalPosition = *reinterpret_cast<float*>(fCurrentHUDVerticalPositionAddress);
-
-	fNewHUDVerticalPosition = fCurrentHUDVerticalPosition / fAspectRatioScale;
-
-	_asm
-	{
-		fmul dword ptr ds:[fNewHUDVerticalPosition]
-	}
-}
 
 void FOVFix()
 {
@@ -233,9 +210,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / (double)fFOVFactor;
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			Memory::Write(CameraFOVInstructionScanResult + 2, &dNewCameraFOV);
 		}
 		else
 		{
@@ -265,9 +242,16 @@ void FOVFix()
 
 			fCurrentHUDVerticalPositionAddress = Memory::GetPointerFromAddress(HUDVerticalPositionInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(HUDVerticalPositionInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(HUDVerticalPositionInstructionScanResult, 6);
 
-			HUDVerticalPositionInstructionHook = safetyhook::create_mid(HUDVerticalPositionInstructionScanResult, HUDVerticalPositionInstructionMidHook);
+			HUDVerticalPositionInstructionHook = safetyhook::create_mid(HUDVerticalPositionInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentHUDVerticalPosition = Memory::ReadMem(fCurrentHUDVerticalPositionAddress);
+
+				fNewHUDVerticalPosition = fCurrentHUDVerticalPosition / fAspectRatioScale;
+
+				FPU::FMUL(fNewHUDVerticalPosition);
+			});
 		}
 		else
 		{

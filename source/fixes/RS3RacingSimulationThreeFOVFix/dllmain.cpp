@@ -218,7 +218,7 @@ void FOVFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xC);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0xC);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
@@ -242,7 +242,7 @@ void FOVFix()
 
 			MenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[MenuAspectRatioScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x30);
+				float& fCurrentMenuAspectRatio = Memory::ReadMem(ctx.esi + 0x30);
 
 				fNewMenuAspectRatio = Maths::CalculateNewFOV_MultiplierBased(fCurrentMenuAspectRatio, 1.0f / fAspectRatioScale);
 
@@ -253,7 +253,7 @@ void FOVFix()
 
 			RacesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[RacesAspectRatioScan] + 6, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentRacesAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x14);
+				float& fCurrentRacesAspectRatio = Memory::ReadMem(ctx.esi + 0x14);
 
 				fNewRacesAspectRatio = Maths::CalculateNewFOV_MultiplierBased(fCurrentRacesAspectRatio, 1.0f / fAspectRatioScale);
 

@@ -193,7 +193,7 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	double& dCurrentCameraFOV = *reinterpret_cast<double*>(CameraFOVAddress);
+	double& dCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 	dNewCameraFOV = dCurrentCameraFOV * (double)fFOVFactor;
 
@@ -260,7 +260,7 @@ void WidescreenFix()
 
 				fNewAspectRatio2 = fCurrentAspectRatio / fAspectRatioScale;
 
-				*reinterpret_cast<float*>(AspectRatioAddress) = fNewAspectRatio2;
+				Memory::ReadMem(AspectRatioAddress) = fNewAspectRatio2;
 			});
 
 			Memory::PatchBytes(AspectRatioAndCameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);

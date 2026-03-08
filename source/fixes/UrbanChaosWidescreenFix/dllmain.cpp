@@ -251,13 +251,13 @@ void WidescreenFix()
 
 			AspectRatioAndCameraFOVInstructions1Hook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(AspectRatioAddress);
+				float& fCurrentAspectRatio = Memory::ReadMem(AspectRatioAddress);
 
 				fNewAspectRatio2 = fCurrentAspectRatio / fAspectRatioScale;
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio2);
 
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+				float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 				if (fCurrentCameraFOV == 1.875f)
 				{

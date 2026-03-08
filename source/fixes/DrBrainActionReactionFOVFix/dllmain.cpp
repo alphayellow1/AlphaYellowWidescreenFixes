@@ -279,7 +279,7 @@ void FOVFix()
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.edx + 0x2EC);
+				fCurrentCameraFOV1 = Memory::ReadMem(ctx.edx + 0x2EC);
 
 				if (fCurrentCameraFOV1 != fNewCameraFOV1)
 				{
@@ -293,7 +293,7 @@ void FOVFix()
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x2EC);
+				fCurrentCameraFOV2 = Memory::ReadMem(ctx.ecx + 0x2EC);
 
 				if (fCurrentCameraFOV2 != fNewCameraFOV2)
 				{
@@ -311,11 +311,11 @@ void FOVFix()
 				{
 					if (OpenGLDLLHandle)
 					{
-						fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.eax + 0x2EC);
+						fCurrentCameraFOV3 = Memory::ReadMem(ctx.eax + 0x2EC);
 					}
 					else
 					{
-						fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.ecx + 0x2EC);
+						fCurrentCameraFOV3 = Memory::ReadMem(ctx.ecx + 0x2EC);
 					}
 
 					if (fCurrentCameraFOV3 != fNewCameraFOV3)

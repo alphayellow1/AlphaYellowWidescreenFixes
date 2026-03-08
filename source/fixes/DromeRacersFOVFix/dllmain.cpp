@@ -203,7 +203,7 @@ static SafetyHookMid MaximumCameraFOVInstructionHook{};
 
 void CameraFOVInstructionsMidHook(uintptr_t SourceAddress, float fovFactor, bool isFOVCalculated, SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(SourceAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(SourceAddress);
 
 	if (isFOVCalculated == true)
 	{

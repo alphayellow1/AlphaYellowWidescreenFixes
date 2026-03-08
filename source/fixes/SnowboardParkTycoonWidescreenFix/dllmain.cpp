@@ -204,7 +204,7 @@ static SafetyHookMid GroundCameraFOVInstructionHook{};
 
 void GroundCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentGroundCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+	float& fCurrentGroundCameraFOV = Memory::ReadMem(ctx.esp + 0x4);
 	
 	fNewGroundCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGroundCameraFOV, fAspectRatioScale) * fFOVFactor;
 
@@ -228,7 +228,7 @@ static SafetyHookMid OverviewCameraFOVInstruction1Hook{};
 
 void OverviewCameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentOverviewCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x44);
+	float& fCurrentOverviewCameraFOV1 = Memory::ReadMem(ctx.esi + 0x44);
 
 	fNewOverviewCameraFOV1 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV1, fAspectRatioScale) * fFOVFactor;
 	
@@ -242,7 +242,7 @@ static SafetyHookMid OverviewCameraFOVInstruction2Hook{};
 
 void OverviewCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentOverviewCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+	float& fCurrentOverviewCameraFOV2 = Memory::ReadMem(ctx.ecx + 0x44);
 
 	fNewOverviewCameraFOV2 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV2, fAspectRatioScale) * fFOVFactor;
 
@@ -256,7 +256,7 @@ static SafetyHookMid OverviewCameraFOVInstruction4Hook{};
 
 void OverviewCameraFOVInstruction4MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentOverviewCameraFOV4 = *reinterpret_cast<float*>(ctx.edx + 0x44);
+	float& fCurrentOverviewCameraFOV4 = Memory::ReadMem(ctx.edx + 0x44);
 
 	fNewOverviewCameraFOV4 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV4, fAspectRatioScale) * fFOVFactor;
 
@@ -405,7 +405,7 @@ void WidescreenFix()
 
 			OverviewCameraFOVInstruction3MidHook = safetyhook::create_mid(OverviewCameraFOVInstruction3ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV3 = *reinterpret_cast<float*>(ctx.esi + 0x44);
+				float& fCurrentOverviewCameraFOV3 = Memory::ReadMem(ctx.esi + 0x44);
 
 				fNewOverviewCameraFOV3 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV3, fAspectRatioScale) * fFOVFactor;
 

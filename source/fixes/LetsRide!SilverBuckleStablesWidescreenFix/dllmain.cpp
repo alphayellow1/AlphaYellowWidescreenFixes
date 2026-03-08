@@ -43,16 +43,15 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
-float fNewCameraHFOV;
-float fNewCameraFOV;
-uint8_t* Address1;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
+uintptr_t FOVAddressOffset;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -188,31 +187,7 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
-
-void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewAspectRatio]
-	}
-}
-
 static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	// Reference the current camera FOV value stored in the memory address [EAX + 4 + address]
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax * 0x4 + Address1);
-
-	// Compute the new FOV value
-	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
 
 void WidescreenFix()
 {
@@ -244,9 +219,9 @@ void WidescreenFix()
 
 			ViewportResolutionInstructionsMidHook = safetyhook::create_mid(ViewportResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentViewportResX = *reinterpret_cast<int*>(ctx.eax + 0xC);
+				int& iCurrentViewportResX = Memory::ReadMem(ctx.eax + 0xC);
 
-				int& iCurrentViewportResY = *reinterpret_cast<int*>(ctx.eax + 0x10);
+				int& iCurrentViewportResY = Memory::ReadMem(ctx.eax + 0x10);
 				
 				iCurrentViewportResX = iCurrentResX;
 
@@ -264,9 +239,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, AspectRatioInstructionMidHook);
+			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio);
 		}
 		else
 		{
@@ -279,11 +252,20 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Address1 = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 3, Memory::PointerMode::Absolute);
+			FOVAddressOffset = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 3, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 7);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				// Reference the current camera FOV value stored in the memory address [EAX + 4 + address]
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.eax * 0x4 + FOVAddressOffset);
+
+				// Compute the new FOV value
+				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+
+				FPU::FLD(fNewCameraFOV);
+			});
 		}
 		else
 		{

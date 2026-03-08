@@ -212,14 +212,14 @@ void WidescreenFix()
 
 			ResolutionWidth640Hook = safetyhook::create_mid(ResolutionListScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esp + 0x14) = iCurrentResX;
+				Memory::ReadMem(ctx.esp + 0x14) = iCurrentResX;
 			});
 
 			Memory::WriteNOPs(ResolutionListScanResult + 11, 4);
 
 			ResolutionHeight480Hook = safetyhook::create_mid(ResolutionListScanResult + 11, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esp + 0x18) = iCurrentResY;
+				Memory::ReadMem(ctx.esp + 0x18) = iCurrentResY;
 			});
 
 			// 1024x768
@@ -247,7 +247,7 @@ void WidescreenFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x2C);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x2C);
 
 				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
@@ -269,7 +269,7 @@ void WidescreenFix()
 
 			HUDHorizontalResInstructionHook = safetyhook::create_mid(HUDHorizontalResInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHUDVerticalRes = *reinterpret_cast<float*>(ctx.esp + 0x14);
+				float& fCurrentHUDVerticalRes = Memory::ReadMem(ctx.esp + 0x14);
 
 				fNewHUDHorizontalRes = fCurrentHUDVerticalRes * fNewAspectRatio;
 

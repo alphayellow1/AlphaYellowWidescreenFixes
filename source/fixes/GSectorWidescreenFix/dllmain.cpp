@@ -307,7 +307,7 @@ void ApplyD3DFix(HMODULE dllModule)
 
 		g_ResolutionWidthInstruction3MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution3Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionWidth3Address) = iCurrentResX;
+				Memory::ReadMem(ResolutionWidth3Address) = iCurrentResX;
 			});
 
 		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution3Scan] + 12, 6);
@@ -316,7 +316,7 @@ void ApplyD3DFix(HMODULE dllModule)
 
 		g_ResolutionHeightInstruction3MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution3Scan] + 12, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight3Address) = iCurrentResY;
+				Memory::ReadMem(ResolutionHeight3Address) = iCurrentResY;
 			});
 
 		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution4Scan], 6);
@@ -325,7 +325,7 @@ void ApplyD3DFix(HMODULE dllModule)
 
 		g_ResolutionWidthInstruction4MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution4Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionWidth4Address) = iCurrentResX;
+				Memory::ReadMem(ResolutionWidth4Address) = iCurrentResX;
 			});
 
 		Memory::WriteNOPs(ResolutionInstructionsScans2Result[Resolution4Scan] + 12, 5);
@@ -334,7 +334,7 @@ void ApplyD3DFix(HMODULE dllModule)
 
 		g_ResolutionHeightInstruction4MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution4Scan] + 12, [](SafetyHookContext& ctx)
 		{
-			*reinterpret_cast<int*>(ResolutionHeight4Address) = iCurrentResY;
+			Memory::ReadMem(ResolutionHeight4Address) = iCurrentResY;
 		});
 
 		Memory::WriteNOPs(ResolutionInstructionsScans2Result[Resolution5Scan], 12);
@@ -343,9 +343,9 @@ void ApplyD3DFix(HMODULE dllModule)
 
 		g_ResolutionInstructions5MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution5Scan], [](SafetyHookContext& ctx)
 		{
-			*reinterpret_cast<int*>(ResolutionWidth5Address) = iCurrentResX;
+			Memory::ReadMem(ResolutionWidth5Address) = iCurrentResX;
 
-			*reinterpret_cast<int*>(ResolutionHeight5Address) = iCurrentResY;
+			Memory::ReadMem(ResolutionHeight5Address) = iCurrentResY;
 		});
 
 		bD3DPatched.store(true);

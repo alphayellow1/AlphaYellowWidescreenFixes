@@ -232,7 +232,7 @@ static SafetyHookMid CutscenesFOVInstructionHook{};
 
 void GameplayFOVInstructionsMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentGameplayFOV = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xC0);
+	float& fCurrentGameplayFOV = Memory::ReadMem(ctx.ecx + ctx.eax * 0x4 + 0xC0);
 
 	fNewGameplayFOV = fCurrentGameplayFOV * fAspectRatioScale * fFOVFactor;
 
@@ -291,23 +291,23 @@ void WidescreenFix()
 
 			ViewportResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportRes2Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0x8) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 0x8) = iCurrentResX;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportRes2Scan] + 18, 3);
 
 			ViewportResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportRes2Scan] + 18, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0xC) = iNewViewportResHeight2;
+				Memory::ReadMem(ctx.esi + 0xC) = iNewViewportResHeight2;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportRes3Scan], 3);
 
 			ViewportResolutionWidthInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportRes3Scan], [](SafetyHookContext& ctx)
 			{
-				int& iCurrentViewportResWidth3 = *reinterpret_cast<int*>(ctx.eax + 0x8);
+				int& iCurrentViewportResWidth3 = Memory::ReadMem(ctx.eax + 0x8);
 
-				int& iCurrentViewportResHeight3 = *reinterpret_cast<int*>(ctx.eax + 0xC);
+				int& iCurrentViewportResHeight3 = Memory::ReadMem(ctx.eax + 0xC);
 
 				const float& fCurrentAspect = static_cast<float>(iCurrentViewportResWidth3) / static_cast<float>(iCurrentViewportResHeight3);
 
@@ -327,9 +327,9 @@ void WidescreenFix()
 
 			ViewportResolutionHeightInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportRes3Scan] + 7, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentViewportResWidth3 = *reinterpret_cast<int*>(ctx.eax + 0x8);
+				int& iCurrentViewportResWidth3 = Memory::ReadMem(ctx.eax + 0x8);
 
-				int& iCurrentViewportResHeight3 = *reinterpret_cast<int*>(ctx.eax + 0xC);
+				int& iCurrentViewportResHeight3 = Memory::ReadMem(ctx.eax + 0xC);
 
 				const float& fCurrentAspect = static_cast<float>(iCurrentViewportResWidth3) / static_cast<float>(iCurrentViewportResHeight3);
 
@@ -356,7 +356,7 @@ void WidescreenFix()
 
 			GameplayAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[GameplayARScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0x11C);
+				float& fCurrentAspectRatio = Memory::ReadMem(ctx.ecx + ctx.eax * 0x4 + 0x11C);
 
 				fNewAspectRatio2 = fCurrentAspectRatio * fAspectRatioScale;
 
@@ -365,7 +365,7 @@ void WidescreenFix()
 
 			CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesARScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCutscenesAspectRatio = *reinterpret_cast<float*>(ctx.esp + 0x14);
+				float& fCurrentCutscenesAspectRatio = Memory::ReadMem(ctx.esp + 0x14);
 
 				fCurrentCutscenesAspectRatio = fCurrentCutscenesAspectRatio * fAspectRatioScale;
 			});
@@ -393,7 +393,7 @@ void WidescreenFix()
 
 			MainMenuFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenuFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMainMenuFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
+				float& fCurrentMainMenuFOV = Memory::ReadMem(ctx.esp + 0x14);
 
 				fNewMainMenuFOV = fCurrentMainMenuFOV / fFOVFactor;
 
@@ -404,7 +404,7 @@ void WidescreenFix()
 
 			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCutscenesFOV = *reinterpret_cast<float*>(ctx.esi + 0xA4);
+				float& fCurrentCutscenesFOV = Memory::ReadMem(ctx.esi + 0xA4);
 
 				fNewCutscenesFOV = (fCurrentCutscenesFOV / fAspectRatioScale) / fFOVFactor;
 

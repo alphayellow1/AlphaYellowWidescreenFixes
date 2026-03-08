@@ -234,25 +234,25 @@ void FOVFix()
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edi + 0xC7) = fNewCameraFOV;
+				Memory::ReadMem(ctx.edi + 0xC7) = fNewCameraFOV;
 
-				*reinterpret_cast<float*>(ctx.edi + 0xCB) = fNewCameraFOV;
+				Memory::ReadMem(ctx.edi + 0xCB) = fNewCameraFOV;
 			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV3], 12); // NOP out the original instructions
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV3], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.edi + 0xC7) = fNewCameraFOV;
+				Memory::ReadMem(ctx.edi + 0xC7) = fNewCameraFOV;
 
-				*reinterpret_cast<float*>(ctx.edi + 0xCB) = fNewCameraFOV;
+				Memory::ReadMem(ctx.edi + 0xCB) = fNewCameraFOV;
 			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV4], 4); // NOP out the original instruction
 
 			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV4], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV4 = *reinterpret_cast<float*>(ctx.esp + 0x5C);
+				float& fCurrentCameraFOV4 = Memory::ReadMem(ctx.esp + 0x5C);
 
 				fNewCameraFOV4 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV4, 1.0f / fAspectRatioScale);
 
@@ -263,7 +263,7 @@ void FOVFix()
 
 			GeneralCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGeneralFOV = *reinterpret_cast<float*>(ctx.ecx + 0xC0);
+				float& fCurrentGeneralFOV = Memory::ReadMem(ctx.ecx + 0xC0);
 
 				fNewGeneralFOV = Maths::CalculateNewFOV_RadBased(fCurrentGeneralFOV, fAspectRatioScale);
 

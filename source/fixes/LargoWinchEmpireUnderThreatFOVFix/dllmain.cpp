@@ -240,7 +240,7 @@ void FOVFix()
 
 			GameplayFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGameplayFOV = *reinterpret_cast<float*>(ctx.ecx + 0x5C);
+				float& fCurrentGameplayFOV = Memory::ReadMem(ctx.ecx + 0x5C);
 
 				fNewGameplayFOV = fCurrentGameplayFOV * fFOVFactor;
 
@@ -255,7 +255,7 @@ void FOVFix()
 
 				fNewCutscenesFOV = fCurrentCutscenesFOV / fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.eax + 0x5C) = fNewCutscenesFOV;
+				Memory::ReadMem(ctx.eax + 0x5C) = fNewCutscenesFOV;
 			});
 		}
 	}

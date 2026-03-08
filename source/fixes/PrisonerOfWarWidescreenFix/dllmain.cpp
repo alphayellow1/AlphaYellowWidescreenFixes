@@ -300,7 +300,7 @@ void FOVFix()
 
 				GameplayCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], [](SafetyHookContext& ctx)
 				{
-					float& fCurrentGameplayFOV = *reinterpret_cast<float*>(ctx.esi);
+					float& fCurrentGameplayFOV = Memory::ReadMem(ctx.esi);
 
 					fNewGameplayFOV = fCurrentGameplayFOV * fFOVFactor;
 					

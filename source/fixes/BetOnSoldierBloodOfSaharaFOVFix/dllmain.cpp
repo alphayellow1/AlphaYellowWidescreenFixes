@@ -260,7 +260,7 @@ void FOVFix()
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0xE0);
+				float& fCurrentAspectRatio = Memory::ReadMem(ctx.esi + 0xE0);
 
 				if (fCurrentAspectRatio == 1.3333333333f)
 				{
@@ -294,7 +294,7 @@ void FOVFix()
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebp + 0xD4);
+				float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.ebp + 0xD4);
 
 				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
 
@@ -306,7 +306,7 @@ void FOVFix()
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ebp + 0xD4);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.ebp + 0xD4);
 
 				fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
 
@@ -318,7 +318,7 @@ void FOVFix()
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(ctx.esi + 0xD4);
+				float& fCurrentCameraFOV3 = Memory::ReadMem(ctx.esi + 0xD4);
 
 				fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
 
@@ -336,13 +336,13 @@ void FOVFix()
 
 			HipfireCameraAndShieldZoomFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHipfireCameraFOV = *reinterpret_cast<float*>(HipfireCameraFOVAddress);
+				float& fCurrentHipfireCameraFOV = Memory::ReadMem(HipfireCameraFOVAddress);
 
 				fNewHipfireCameraFOV = fCurrentHipfireCameraFOV * fStandardCameraFOVFactor;
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewHipfireCameraFOV);
 
-				float& fCurrentShieldZoomFOV = *reinterpret_cast<float*>(ShieldZoomFOVAddress);
+				float& fCurrentShieldZoomFOV = Memory::ReadMem(ShieldZoomFOVAddress);
 
 				fNewShieldZoomFOV = fCurrentShieldZoomFOV / fShieldZoomFOVFactor;
 
@@ -353,7 +353,7 @@ void FOVFix()
 
 			StandardCameraZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 15, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentStandardZoomFOV = *reinterpret_cast<float*>(StandardZoomFOVAddress);
+				float& fCurrentStandardZoomFOV = Memory::ReadMem(StandardZoomFOVAddress);
 
 				fNewStandardZoomFOV = fCurrentStandardZoomFOV / fStandardZoomFOVFactor;
 
@@ -365,7 +365,7 @@ void FOVFix()
 
 			WeaponHipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[WeaponFOVScan] + 6, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.ecx + 0x3C);
+				float& fCurrentWeaponHipfireFOV = Memory::ReadMem(ctx.ecx + 0x3C);
 
 				fNewWeaponHipfireFOV = fCurrentWeaponHipfireFOV * fWeaponFOVFactor;
 

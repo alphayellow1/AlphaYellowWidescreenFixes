@@ -208,7 +208,7 @@ enum DestInstruction
 
 void CameraFOVInstructionMidHook(uintptr_t CameraFOVAddress, float fovFactor1, float fovFactor2, DestInstruction destInstruction, SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 	if (fNewAspectRatio > 2.85f)
 	{

@@ -225,7 +225,7 @@ void FOVFix()
 
 			CameraFOVInstruction1MidHook = safetyhook::create_mid(CameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOV1Value = *reinterpret_cast<float*>(ctx.esp + 0x14);
+				float& fCurrentFOV1Value = Memory::ReadMem(ctx.esp + 0x14);
 
 				if (fCurrentFOV1Value == 57.0f)
 				{
@@ -248,7 +248,7 @@ void FOVFix()
 
 			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult + 7, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOV2Value = *reinterpret_cast<float*>(ctx.esi + 0x20);
+				float& fCurrentFOV2Value = Memory::ReadMem(ctx.esi + 0x20);
 
 				if (fCurrentFOV2Value == 57.0f)
 				{
@@ -271,7 +271,7 @@ void FOVFix()
 
 			CameraFOVInstruction3MidHook = safetyhook::create_mid(CameraFOVInstruction3ScanResult + 3, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOV3Value = *reinterpret_cast<float*>(ctx.esi + 0x20);
+				float& fCurrentFOV3Value = Memory::ReadMem(ctx.esi + 0x20);
 
 				if (fCurrentFOV3Value == 57.0f)
 				{
@@ -294,7 +294,7 @@ void FOVFix()
 
 			CameraFOVInstruction4MidHook = safetyhook::create_mid(CameraFOVInstruction4ScanResult + 3, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOV4Value = *reinterpret_cast<float*>(ctx.esi + 0x20);
+				float& fCurrentFOV4Value = Memory::ReadMem(ctx.esi + 0x20);
 
 				if (fCurrentFOV4Value == 57.0f)
 				{
@@ -317,7 +317,7 @@ void FOVFix()
 
 			CameraFOVInstruction5MidHook = safetyhook::create_mid(CameraFOVInstruction5ScanResult + 3, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentFOV5Value = *reinterpret_cast<float*>(ctx.esi + 0x20);
+				float& fCurrentFOV5Value = Memory::ReadMem(ctx.esi + 0x20);
 
 				if (fCurrentFOV5Value == 57.0f)
 				{

@@ -228,7 +228,7 @@ void FOVFix()
 
 			UnderwaterCheckInstructionHook = safetyhook::create_mid(UnderwaterCheckInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				fUnderwaterCheckValue = *reinterpret_cast<float*>(ctx.ecx + 0xC);
+				fUnderwaterCheckValue = Memory::ReadMem(ctx.ecx + 0xC);
 			});
 		}
 		else
@@ -244,13 +244,13 @@ void FOVFix()
 
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult + 9 - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 6);
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x198);
 
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x19C);
 
 				if (fUnderwaterCheckValue == 0.9999999404f)
 				{
@@ -271,13 +271,13 @@ void FOVFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult + 9, "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 9, 6);			
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 9, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x198);
 
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x19C);
 
 				if (fUnderwaterCheckValue == 0.9999999404f)
 				{

@@ -208,7 +208,7 @@ void FOVFix()
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx + 0x198);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.ecx + 0x198);
 
 				if (fCurrentCameraHFOV == 1.0471975803375244f || fCurrentCameraHFOV == 1.0471999645233154f)
 				{
@@ -226,7 +226,7 @@ void FOVFix()
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 9, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.ecx + 0x19C);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.ecx + 0x19C);
 
 				if (fCurrentCameraVFOV == 0.8726646900177002f || fCurrentCameraVFOV == 0.8726649880409241f)
 				{

@@ -194,7 +194,7 @@ void FOVFix()
 
 			HipfireCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHipfireFOV = *reinterpret_cast<float*>(ctx.eax + 0x1C);
+				float& fCurrentHipfireFOV = Memory::ReadMem(ctx.eax + 0x1C);
 
 				fNewCameraFOV = fCurrentHipfireFOV * fCameraFOVFactor;
 
@@ -205,7 +205,7 @@ void FOVFix()
 
 			ZoomCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ZoomFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentZoomFOV = *reinterpret_cast<float*>(ctx.eax + 0x1C);
+				float& fCurrentZoomFOV = Memory::ReadMem(ctx.eax + 0x1C);
 
 				fNewZoomFOV = fCurrentZoomFOV / fZoomFOVFactor;
 

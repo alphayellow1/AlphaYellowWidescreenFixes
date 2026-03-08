@@ -183,7 +183,7 @@ void FOVChanger()
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.eax + 0x190) = fNewCameraFOV;
+				Memory::ReadMem(ctx.eax + 0x190) = fNewCameraFOV;
 			});
 		}
 		else

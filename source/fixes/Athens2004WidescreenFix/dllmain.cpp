@@ -237,32 +237,32 @@ void WidescreenFix()
 
 			MainMenuResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(MainMenuResolutionWidthAddress) = (int16_t)iCurrentResX;
+				Memory::ReadMem(MainMenuResolutionWidthAddress) = (int16_t)iCurrentResX;
 			});			
 
 			MainMenuResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(MainMenuResolutionHeightAddress) = (int16_t)iCurrentResY;
+				Memory::ReadMem(MainMenuResolutionHeightAddress) = (int16_t)iCurrentResY;
 			});			
 
 			MainMenuBitDepthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 13, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(MainMenuBitDepthAddress) = (int16_t)32;
+				Memory::ReadMem(MainMenuBitDepthAddress) = (int16_t)32;
 			});			
 
 			GameplayResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan] + 7, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(GameplayResolutionWidthAddress) = (int16_t)iCurrentResX;
+				Memory::ReadMem(GameplayResolutionWidthAddress) = (int16_t)iCurrentResX;
 			});			
 
 			GameplayResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(GameplayResolutionHeightAddress) = (int16_t)iCurrentResY;
+				Memory::ReadMem(GameplayResolutionHeightAddress) = (int16_t)iCurrentResY;
 			});			
 
 			GameplayBitDepthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan] + 13, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(GameplayBitDepthAddress) = (int16_t)32;
+				Memory::ReadMem(GameplayBitDepthAddress) = (int16_t)32;
 			});
 		}
 
@@ -286,7 +286,7 @@ void WidescreenFix()
 					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 				}
 
-				*reinterpret_cast<float*>(ctx.edi + 0x18) = fNewCameraFOV;
+				Memory::ReadMem(ctx.edi + 0x18) = fNewCameraFOV;
 			});
 		}
 		else

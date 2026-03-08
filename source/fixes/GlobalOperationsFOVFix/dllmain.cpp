@@ -216,7 +216,7 @@ void FOVFix()
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 39, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x1D0
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x1D0);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x1D0);
 
 				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 
@@ -228,7 +228,7 @@ void FOVFix()
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				// Access the VFOV value at the memory address EAX + 0x1D4
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x1D4);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x1D4);
 
 				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
 
@@ -251,7 +251,7 @@ void FOVFix()
 
 			WeaponHFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponHFOV = *reinterpret_cast<float*>(ctx.ebx + 0x94);
+				float& fCurrentWeaponHFOV = Memory::ReadMem(ctx.ebx + 0x94);
 
 				fNewWeaponHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentWeaponHFOV, fAspectRatioScale, fFOVFactor);
 
@@ -264,7 +264,7 @@ void FOVFix()
 
 			WeaponVFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionsScanResult + 21, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponVFOV = *reinterpret_cast<float*>(ctx.ebx + 0x98);
+				float& fCurrentWeaponVFOV = Memory::ReadMem(ctx.ebx + 0x98);
 
 				fNewWeaponVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentWeaponVFOV, fFOVFactor);
 

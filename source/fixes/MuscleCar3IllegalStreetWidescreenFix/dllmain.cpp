@@ -1400,9 +1400,9 @@ void WidescreenFix()
 
 			ViewportResolutionInstructions56Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolution56Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0xD0) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 0xD0) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.esi + 0xD4) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 0xD4) = iCurrentResY;
 			});
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[ViewportResolution57Scan], "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90", 12);
@@ -2203,7 +2203,7 @@ void WidescreenFix()
 			
 			GameplayCameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayCameraFOVScan] + 44, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGameplayCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
+				float& fCurrentGameplayCameraVFOV = Memory::ReadMem(CameraVFOVAddress);
 
 				fNewGameplayCameraVFOV = (fCurrentGameplayCameraVFOV * fAspectRatioScale) * fFOVFactor;
 
@@ -2218,7 +2218,7 @@ void WidescreenFix()
 
 			MenuCameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MenuCameraFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
+				float& fCurrentMenuCameraVFOV = Memory::ReadMem(CameraVFOVAddress);
 
 				fNewMenuCameraVFOV = fCurrentMenuCameraVFOV * fAspectRatioScale;
 

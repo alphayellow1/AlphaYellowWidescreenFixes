@@ -211,9 +211,9 @@ void WidescreenFix()
 
 				ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 				{
-					*reinterpret_cast<int*>(ctx.eax) = iCurrentResX;
+					Memory::ReadMem(ctx.eax) = iCurrentResX;
 
-					*reinterpret_cast<int*>(ctx.eax + 0x4) = iCurrentResY;
+					Memory::ReadMem(ctx.eax + 0x4) = iCurrentResY;
 				});
 			}
 			else

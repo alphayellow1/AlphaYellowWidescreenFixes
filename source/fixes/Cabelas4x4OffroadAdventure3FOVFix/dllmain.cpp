@@ -296,7 +296,7 @@ void FOVFix()
 
 			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGeneralFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+				float& fCurrentGeneralFOV = Memory::ReadMem(ctx.ebx + 0xD0);
 
 				if (iInsideCar == 0)
 				{

@@ -216,7 +216,7 @@ void FOVFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0xC);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0xC);
 
 				if (fCurrentCameraFOV == 0.8944826126f || fCurrentCameraFOV == 0.8726657033f || fCurrentCameraFOV == 0.9773852825f ||
 					fCurrentCameraFOV == 0.9992014766f || fCurrentCameraFOV == 1.082105041f || fCurrentCameraFOV == 0.9861115813f ||
@@ -249,7 +249,7 @@ void FOVFix()
 
 			MenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[MenuARScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x30);
+				float& fCurrentMenuAspectRatio = Memory::ReadMem(ctx.esi + 0x30);
 
 				fNewMenuAspectRatio = Maths::CalculateNewFOV_MultiplierBased(fCurrentMenuAspectRatio, 1.0f / fAspectRatioScale);
 
@@ -260,7 +260,7 @@ void FOVFix()
 
 			RacesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[RacesARScan] + 11, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentRacesAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x14);
+				float& fCurrentRacesAspectRatio = Memory::ReadMem(ctx.esi + 0x14);
 
 				spdlog::info("[Hook] Raw incoming races aspect ratio: {:.12f}", fCurrentRacesAspectRatio);
 

@@ -259,7 +259,7 @@ void FOVFix()
 
 			CurrentCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV4Scan], [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x7C);
+				fCurrentCameraFOV = Memory::ReadMem(ctx.eax + 0x7C);
 			});
 		}
 	}

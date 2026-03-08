@@ -209,7 +209,7 @@ void FOVFix()
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esp + 0x64);
+				float& fCurrentAspectRatio = Memory::ReadMem(ctx.esp + 0x64);
 
 				if (fCurrentAspectRatio == 1.333333373f)
 				{

@@ -217,14 +217,14 @@ void WidescreenFix()
 
 			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.ecx + 0x1C) = iCurrentResX;
+				Memory::ReadMem(ctx.ecx + 0x1C) = iCurrentResX;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructionsScanResult + 7, 3);			
 
 			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 7, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.ecx + 0x20) = iCurrentResY;
+				Memory::ReadMem(ctx.ecx + 0x20) = iCurrentResY;
 			});
 		}
 		else
@@ -302,7 +302,7 @@ void WidescreenFix()
 			
 			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.ecx + 0x80);
+				float& fCurrentWeaponFOV = Memory::ReadMem(ctx.ecx + 0x80);
 
 				fNewWeaponFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponFOV, fAspectRatioScale);
 

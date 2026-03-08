@@ -217,7 +217,7 @@ static SafetyHookMid CameraFOVInstruction1Hook{};
 
 void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(CameraFOV1Address);
+	float& fCurrentCameraFOV1 = Memory::ReadMem(CameraFOV1Address);
 
 	fNewCameraFOV1 = fCurrentCameraFOV1 * fFOVFactor;
 
@@ -231,7 +231,7 @@ static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOV2Address);
+	float& fCurrentCameraFOV2 = Memory::ReadMem(CameraFOV2Address);
 
 	fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
 
@@ -245,7 +245,7 @@ static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(CameraFOV3Address);
+	float& fCurrentCameraFOV3 = Memory::ReadMem(CameraFOV3Address);
 
 	fNewCameraFOV3 = fCurrentCameraFOV3 * fFOVFactor;
 
@@ -259,7 +259,7 @@ static SafetyHookMid CameraFOVInstruction4Hook{};
 
 void CameraFOVInstruction4MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV4 = *reinterpret_cast<float*>(CameraFOV4Address);
+	float& fCurrentCameraFOV4 = Memory::ReadMem(CameraFOV4Address);
 
 	fNewCameraFOV4 = fCurrentCameraFOV4 * fFOVFactor;
 
@@ -273,7 +273,7 @@ static SafetyHookMid ActorInitializeFOVInstructionHook{};
 
 void ActorInitializeFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentActorInitializeFOV = *reinterpret_cast<float*>(ActorInitializeFOVAddress);
+	float& fCurrentActorInitializeFOV = Memory::ReadMem(ActorInitializeFOVAddress);
 
 	fNewActorInitializeFOV = fCurrentActorInitializeFOV * fFOVFactor;
 
@@ -287,7 +287,7 @@ static SafetyHookMid WeaponReloadCameraFOVInstructionHook{};
 
 void WeaponReloadCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponReloadCameraFOV = *reinterpret_cast<float*>(WeaponReloadCameraFOVAddress);
+	float& fCurrentWeaponReloadCameraFOV = Memory::ReadMem(WeaponReloadCameraFOVAddress);
 
 	fNewWeaponReloadCameraFOV = fCurrentWeaponReloadCameraFOV * fFOVFactor;
 
@@ -301,7 +301,7 @@ static SafetyHookMid WeaponChangeCameraFOVInstructionHook{};
 
 void WeaponChangeCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponChangeCameraFOV = *reinterpret_cast<float*>(WeaponChangeCameraFOVAddress);
+	float& fCurrentWeaponChangeCameraFOV = Memory::ReadMem(WeaponChangeCameraFOVAddress);
 
 	fNewWeaponChangeCameraFOV = fCurrentWeaponChangeCameraFOV * fFOVFactor;
 
@@ -315,7 +315,7 @@ static SafetyHookMid WeaponResetCameraFOVInstruction1Hook{};
 
 void WeaponResetCameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponResetCameraFOV1 = *reinterpret_cast<float*>(WeaponResetCamera1FOVAddress);
+	float& fCurrentWeaponResetCameraFOV1 = Memory::ReadMem(WeaponResetCamera1FOVAddress);
 
 	fNewWeaponResetCameraFOV1 = fCurrentWeaponResetCameraFOV1 * fFOVFactor;
 
@@ -329,7 +329,7 @@ static SafetyHookMid WeaponResetCameraFOVInstruction2Hook{};
 
 void WeaponResetCameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponResetCameraFOV2 = *reinterpret_cast<float*>(WeaponResetCamera2FOVAddress);
+	float& fCurrentWeaponResetCameraFOV2 = Memory::ReadMem(WeaponResetCamera2FOVAddress);
 
 	fNewWeaponResetCameraFOV2 = fCurrentWeaponResetCameraFOV2 * fFOVFactor;
 
@@ -343,7 +343,7 @@ static SafetyHookMid WeaponPickupCameraFOVInstructionHook{};
 
 void WeaponPickupCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponPickupCameraFOV = *reinterpret_cast<float*>(WeaponPickupCameraFOVAddress);
+	float& fCurrentWeaponPickupCameraFOV = Memory::ReadMem(WeaponPickupCameraFOVAddress);
 
 	fNewWeaponPickupCameraFOV = fCurrentWeaponPickupCameraFOV * fFOVFactor;
 
@@ -357,7 +357,7 @@ static SafetyHookMid StartingSprintCameraFOVInstructionHook{};
 
 void StartingSprintCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentStartingSprintCameraFOV = *reinterpret_cast<float*>(StartingSprintCameraFOVAddress);
+	float& fCurrentStartingSprintCameraFOV = Memory::ReadMem(StartingSprintCameraFOVAddress);
 
 	fNewStartingSprintCameraFOV = fCurrentStartingSprintCameraFOV * fFOVFactor;
 
@@ -371,7 +371,7 @@ static SafetyHookMid SprintCameraFOVInstructionHook{};
 
 void SprintCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentSprintCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x34);
+	float& fCurrentSprintCameraFOV = Memory::ReadMem(ctx.esi + 0x34);
 
 	fNewSprintCameraFOV = fCurrentSprintCameraFOV * fFOVFactor;
 
