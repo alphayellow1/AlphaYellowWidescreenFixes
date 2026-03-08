@@ -207,7 +207,7 @@ void FOVFix()
 
 			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 6, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult + 6, 6);
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 6, [](SafetyHookContext& ctx)
 			{
@@ -220,15 +220,15 @@ void FOVFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV2 = Memory::ReadMem(ctx.esi + 0x90);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.esi + 0x90);
 
-				float& fCurrentCameraVFOV2 = Memory::ReadMem(ctx.esi + 0x94);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.esi + 0x94);
 
-				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2, fFOVFactor);
+				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
 			});

@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "MonetTheMysteryOfTheOrangeryFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,9 +52,9 @@ double dFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-double dNewCameraFOV;
 float fNewResX;
 float fNewResY;
+double dNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -65,20 +65,20 @@ enum class Game
 
 enum AspectRatioInstructionsIndex
 {
-	AspectRatio1Scan,
-	AspectRatio2Scan,
-	AspectRatio3Scan,
-	AspectRatio4Scan,
-	AspectRatio5Scan
+	AR1,
+	AR2,
+	AR3,
+	AR4,
+	AR5
 };
 
 enum CameraFOVInstructionsIndex
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan,
-	CameraFOV3Scan,
-	CameraFOV4Scan,
-	CameraFOV5Scan
+	FOV1,
+	FOV2,
+	FOV3,
+	FOV4,
+	FOV5
 };
 
 struct GameInfo
@@ -213,13 +213,7 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("x3d.dll")) == nullptr)
-	{
-		spdlog::warn("x3d.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for x3d.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("x3d.dll");
 
 	return true;
 }
@@ -236,17 +230,6 @@ void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 	FPU::FLD(fNewResY);
 }
 
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-static SafetyHookMid CameraFOVInstruction3Hook{};
-static SafetyHookMid CameraFOVInstruction4Hook{};
-static SafetyHookMid CameraFOVInstruction5Hook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	FPU::FDIVR(dNewCameraFOV);
-}
-
 void FOVFix()
 {
 	if (eGameType == Game::MTMOTO && bFixActive == true)
@@ -261,74 +244,48 @@ void FOVFix()
 
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instructions 1 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AspectRatio1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instructions 1 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AR1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Instructions 2 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instructions 2 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AR2] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Instructions 3 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AspectRatio3Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instructions 3 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AR3] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Instructions 4 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AspectRatio4Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instructions 4 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AR4] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Instructions 5 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AspectRatio5Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instructions 5 Scan: Address is x3d.dll+{:x}", AspectRatioInstructionsScansResult[AR5] - (std::uint8_t*)dllModule2);
 			
 			fNewResX = (float)iCurrentResX;
 
 			fNewResY = (float)iCurrentResY;
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult, AR1, AR5, 0, 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio1Scan], AspectRatioInstructionMidHook);
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1], AspectRatioInstructionMidHook);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2], AspectRatioInstructionMidHook);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio2Scan], AspectRatioInstructionMidHook);
+			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR3], AspectRatioInstructionMidHook);
 
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio3Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR4], AspectRatioInstructionMidHook);
 
-			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio3Scan], AspectRatioInstructionMidHook);
-
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio4Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			AspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio4Scan], AspectRatioInstructionMidHook);
-
-			Memory::PatchBytes(AspectRatioInstructionsScansResult[AspectRatio5Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			AspectRatioInstruction5Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AspectRatio5Scan], AspectRatioInstructionMidHook);
+			AspectRatioInstruction5Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR5], AspectRatioInstructionMidHook);
 		}
 		
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1 Scan: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 2 Scan: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 2: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 3 Scan: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 3: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[FOV3] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 4 Scan: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV4Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 4: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[FOV4] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 5 Scan: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV5Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 5: Address is x3d.dll+{:x}", CameraFOVInstructionsScansResult[FOV5] - (std::uint8_t*)dllModule2);
 
 			dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / dFOVFactor;
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], CameraFOVInstructionMidHook);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], CameraFOVInstructionMidHook);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV3Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], CameraFOVInstructionMidHook);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV4Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV4Scan], CameraFOVInstructionMidHook);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV5Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			CameraFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV5Scan], CameraFOVInstructionMidHook);
+			Memory::Write(CameraFOVInstructionsScansResult, FOV1, FOV5, 2, &dNewCameraFOV);
 		}
 	}
 }
