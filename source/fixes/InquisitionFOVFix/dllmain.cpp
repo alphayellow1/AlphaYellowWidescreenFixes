@@ -66,14 +66,14 @@ enum class Game
 
 enum AspectRatioInstructionsIndices
 {
-	AspectRatio1Scan,
-	AspectRatio2Scan
+	AR1,
+	AR2
 };
 
 enum CameraFOVInstructionsIndices
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1,
+	FOV2
 };
 
 struct GameInfo
@@ -229,13 +229,13 @@ void FOVFix()
 		std::vector<std::uint8_t*> AspectRatioInstructionsScanResult = Memory::PatternScan(dllModule2, "8B 8E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 8B 86", "D8 B7");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScanResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is fnx_dx8.dll+{:x}", AspectRatioInstructionsScanResult[AspectRatio1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 1: Address is fnx_dx8.dll+{:x}", AspectRatioInstructionsScanResult[AR1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Instruction 2: Address is fnx_dx8.dll+{:x}", AspectRatioInstructionsScanResult[AspectRatio2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction 2: Address is fnx_dx8.dll+{:x}", AspectRatioInstructionsScanResult[AR2] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(AspectRatioInstructionsScanResult[AspectRatio1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScanResult[AR1], 6);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AR1], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0xD8);
 
@@ -255,9 +255,9 @@ void FOVFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewAspectRatio2);
 			});
 
-			Memory::PatchBytes(AspectRatioInstructionsScanResult[AspectRatio2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScanResult[AR2], 6);
 
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
+			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AR2], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.edi + 0xD8);
 
@@ -281,13 +281,13 @@ void FOVFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "8B 8E ?? ?? ?? ?? 52", "D9 87 ?? ?? ?? ?? 8B CF");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is fnx_dx8.dll+{:x}", CameraFOVInstructionsScanResult[CameraFOV1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is fnx_dx8.dll+{:x}", CameraFOVInstructionsScanResult[FOV1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 2: Address is fnx_dx8.dll+{:x}", CameraFOVInstructionsScanResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 2: Address is fnx_dx8.dll+{:x}", CameraFOVInstructionsScanResult[FOV2] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult[FOV1], 6);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[FOV1], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0xCC);
 
@@ -303,9 +303,9 @@ void FOVFix()
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScanResult[CameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult[FOV2], 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[FOV2], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.edi + 0xCC);
 

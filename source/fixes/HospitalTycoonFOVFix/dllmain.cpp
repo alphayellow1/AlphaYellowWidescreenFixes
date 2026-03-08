@@ -201,7 +201,7 @@ void FOVFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
 
 			dNewAspectRatio = (double)fNewAspectRatio;
 
@@ -221,12 +221,12 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6); // NOP out the original instruction
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Store a float reference to the current FOV value located in the [ECX+1E8] memory address
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0x1E8);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + 0x1E8);
 
 				// Compute the new FOV value
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;

@@ -194,15 +194,13 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("game.dll")) == nullptr)
-	{
-		spdlog::warn("game.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for game.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("game.dll");
 
 	return true;
 }
+
+static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid WeaponFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -217,11 +215,9 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is game.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3); // NOP out the original instruction			
 
-			static SafetyHookMid CameraFOVInstructionMidHook{};
-
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x5C);
 
@@ -248,11 +244,9 @@ void FOVFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is game.dll+{:x}", WeaponFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(WeaponFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(WeaponFOVInstructionScanResult, 3); // NOP out the original instruction
 
-			static SafetyHookMid WeaponFOVInstructionMidHook{};
-
-			WeaponFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.eax + 0x60);
 

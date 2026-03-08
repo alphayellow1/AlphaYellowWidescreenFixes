@@ -64,8 +64,8 @@ enum class Game
 
 enum CameraFOVInstructionsIndices
 {
-	CameraFOVScan,
-	WeaponFOVScan
+	CameraFOV,
+	WeaponFOV
 };
 
 struct GameInfo
@@ -219,13 +219,13 @@ void FOVFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 40 68 C3 CC CC CC CC CC CC CC 56", "8B 48 6C 6A 00 8B D1 52 68 00 00 00 40 68 0A D7 23 3C");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOVScan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Weapon FOV Instruction: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[WeaponFOVScan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Weapon FOV Instruction: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[WeaponFOV] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOVScan], "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV], 3); // NOP out the original instruction
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOVScan], [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x68);
 
@@ -241,9 +241,9 @@ void FOVFix()
 				FPU::FLD(fNewCameraFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[WeaponFOVScan], "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[WeaponFOV], 3); // NOP out the original instruction
 
-			WeaponFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[WeaponFOVScan], [](SafetyHookContext& ctx)
+			WeaponFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[WeaponFOV], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.eax + 0x6C);
 
