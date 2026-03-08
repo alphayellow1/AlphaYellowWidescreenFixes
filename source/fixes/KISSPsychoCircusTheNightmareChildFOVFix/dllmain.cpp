@@ -239,7 +239,7 @@ void FOVFix()
 
 			GameplayHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayHFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(CameraHFOVAddress);
+				float& fCurrentCameraHFOV = Memory::ReadMem(CameraHFOVAddress);
 
 				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
 
@@ -250,7 +250,7 @@ void FOVFix()
 
 			GameplayVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayVFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
+				float& fCurrentCameraVFOV = Memory::ReadMem(CameraVFOVAddress);
 
 				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV * fAspectRatioScale, fFOVFactor);
 
@@ -261,7 +261,7 @@ void FOVFix()
 
 			InventoryFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[InventoryFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentInventoryFOV = *reinterpret_cast<float*>(ctx.esp + 0x24);
+				float& fCurrentInventoryFOV = Memory::ReadMem(ctx.esp + 0x24);
 
 				fNewInventoryHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentInventoryFOV, fAspectRatioScale);
 

@@ -231,7 +231,7 @@ void WidescreenFix()
 
 			BitDepthInstructionHook = safetyhook::create_mid(BithDepthInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(BitDepthAddress) = iDesiredBitDepth;
+				Memory::ReadMem(BitDepthAddress) = iDesiredBitDepth;
 			});
 		}
 		else
@@ -293,7 +293,7 @@ void WidescreenFix()
 			
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOV2Address);
+				float& fCurrentCameraFOV = Memory::ReadMem(CameraFOV2Address);
 
 				fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
 

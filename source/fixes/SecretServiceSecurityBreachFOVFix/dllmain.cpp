@@ -234,7 +234,7 @@ void FOVFix()
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebp + 0x4);
+				float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.ebp + 0x4);
 
 				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
 
@@ -245,7 +245,7 @@ void FOVFix()
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x200);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.ecx + 0x200);
 
 				fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
 

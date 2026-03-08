@@ -1552,7 +1552,7 @@ void ApplyResolutionAndFOV()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edx + 0xE0);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.edx + 0xE0);
 
 				if (fCurrentCameraFOV == 0.6899999976f)
 				{

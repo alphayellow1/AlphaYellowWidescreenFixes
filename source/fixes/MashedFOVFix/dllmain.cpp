@@ -189,24 +189,7 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraHFOVInstructionHook{};
-
-void CameraHFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fmul dword ptr ds:[fNewCameraHFOV]
-	}
-}
-
 static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraVFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraVFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -221,17 +204,23 @@ void FOVFix()
 		{
 			spdlog::info("Camera HFOV & VFOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVAndVFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(CameraHFOVAndVFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraHFOVAndVFOVInstructionScanResult, 6);
 
 			fNewCameraHFOV = 0.75f * fAspectRatioScale * fFOVFactor;
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult, CameraHFOVInstructionMidHook);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(fNewCameraHFOV);
+			});
 
-			Memory::PatchBytes(CameraHFOVAndVFOVInstructionScanResult + 16, "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(CameraHFOVAndVFOVInstructionScanResult + 16, 6);
 
 			fNewCameraVFOV = 0.75f * fFOVFactor;
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult + 16, CameraVFOVInstructionMidHook);
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraHFOVAndVFOVInstructionScanResult + 16, [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(fNewCameraVFOV);
+			});
 		}
 		else
 		{

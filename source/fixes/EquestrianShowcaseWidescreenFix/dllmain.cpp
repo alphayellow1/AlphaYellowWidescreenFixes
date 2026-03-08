@@ -215,14 +215,14 @@ void WidescreenFix()
 			
 			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructions1ScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.eax + ResolutionWidthAddress) = iCurrentResX;
+				Memory::ReadMem(ctx.eax + ResolutionWidthAddress) = iCurrentResX;
 			});
 			
 			Memory::WriteNOPs(ResolutionInstructions1ScanResult + 18, 6);			
 			
 			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructions1ScanResult + 18, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.edx + ResolutionHeightAddress) = iCurrentResY;
+				Memory::ReadMem(ctx.edx + ResolutionHeightAddress) = iCurrentResY;
 			});
 		}
 		else

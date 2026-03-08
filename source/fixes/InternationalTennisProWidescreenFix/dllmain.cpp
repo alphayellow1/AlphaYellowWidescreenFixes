@@ -219,7 +219,7 @@ static SafetyHookMid CutscenesCameraFOVInstructionHook{};
 
 void CameraFOVInstructionsMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0xC0);
+	float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + ctx.eax * 0x4 + 0xC0);
 
 	if (fCurrentCameraFOV == 0.4149999917f || fCurrentCameraFOV == 0.283769995f || fCurrentCameraFOV == 0.3048000038f)
 	{
@@ -250,16 +250,16 @@ void WidescreenFix()
 
 			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolutionScan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.edi) = iCurrentResX;
+				Memory::ReadMem(ctx.edi) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.edi + 0x4) = iCurrentResY;
+				Memory::ReadMem(ctx.edi + 0x4) = iCurrentResY;
 			});
 
 			ViewportResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolutionScan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0xC) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 0xC) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.esi + 0x10) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 0x10) = iCurrentResY;
 			});			
 		}
 
@@ -272,14 +272,14 @@ void WidescreenFix()
 
 			CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesARScan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.esp + 0x14) = *reinterpret_cast<float*>(ctx.esp + 0x14) * fAspectRatioScale;
+				Memory::ReadMem(ctx.esp + 0x14) = Memory::ReadMem(ctx.esp + 0x14) * fAspectRatioScale;
 			});
 
 			Memory::WriteNOPs(AspectRatioInstructionsScansResult[GameplayARScan], 7);
 
 			GameplayAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[GameplayARScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGameplayAspectRatio = *reinterpret_cast<float*>(ctx.ecx + ctx.eax * 0x4 + 0x11C);
+				float& fCurrentGameplayAspectRatio = Memory::ReadMem(ctx.ecx + ctx.eax * 0x4 + 0x11C);
 
 				fNewGameplayAspectRatio = fCurrentGameplayAspectRatio * fAspectRatioScale;
 
@@ -306,7 +306,7 @@ void WidescreenFix()
 
 			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCutscenesFOV = *reinterpret_cast<float*>(ctx.esi + 0xA4);
+				float& fCurrentCutscenesFOV = Memory::ReadMem(ctx.esi + 0xA4);
 
 				fNewCutscenesFOV = fCurrentCutscenesFOV / fAspectRatioScale;
 

@@ -238,7 +238,7 @@ static SafetyHookMid CameraFOVInstruction1Hook{};
 
 void CameraFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
-    float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(CameraFOV1Address);
+    float& fCurrentCameraFOV1 = Memory::ReadMem(CameraFOV1Address);
 
     fNewCameraFOV1 = fCurrentCameraFOV1 / fFOVFactor;
 
@@ -252,7 +252,7 @@ static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void CameraFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-    float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOV2Address);
+    float& fCurrentCameraFOV2 = Memory::ReadMem(CameraFOV2Address);
 
     fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
 
@@ -266,7 +266,7 @@ static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void CameraFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
-    float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(CameraFOV3Address);
+    float& fCurrentCameraFOV3 = Memory::ReadMem(CameraFOV3Address);
 
     fNewCameraFOV3 = fCurrentCameraFOV3 / fFOVFactor;
 

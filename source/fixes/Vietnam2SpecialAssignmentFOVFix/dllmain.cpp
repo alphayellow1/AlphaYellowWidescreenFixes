@@ -210,7 +210,7 @@ void FOVFix()
 
 			UnderwaterCheckInstructionMidHook = safetyhook::create_mid(UnderwaterCheckInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				fUnderwaterCheckValue = *reinterpret_cast<float*>(ctx.edx + 0x8);
+				fUnderwaterCheckValue = Memory::ReadMem(ctx.edx + 0x8);
 			});
 		}
 		else
@@ -230,9 +230,9 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x198);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x198);
 
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x19C);
 
 				if (fUnderwaterCheckValue == 1.0f) // Above water
 				{
@@ -281,9 +281,9 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{				
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x198);
+				float& fCurrentCameraHFOV2 = Memory::ReadMem(ctx.eax + 0x198);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x19C);
+				float& fCurrentCameraVFOV2 = Memory::ReadMem(ctx.eax + 0x19C);
 
 				if (fUnderwaterCheckValue == 1.0f) // Above water
 				{

@@ -252,7 +252,7 @@ void FOVFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ebx + 0xD0);
 
 				if (iInsideCar == 0)
 				{
@@ -290,7 +290,7 @@ void FOVFix()
 
 			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.ebx + 0xD4) = 0.75f / fAspectRatioScale;
+				Memory::ReadMem(ctx.ebx + 0xD4) = 0.75f / fAspectRatioScale;
 			});
 		}
 		else
@@ -306,7 +306,7 @@ void FOVFix()
 
 			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.ebx + 0xD8) = 1.0f;
+				Memory::ReadMem(ctx.ebx + 0xD8) = 1.0f;
 			});
 		}
 		else

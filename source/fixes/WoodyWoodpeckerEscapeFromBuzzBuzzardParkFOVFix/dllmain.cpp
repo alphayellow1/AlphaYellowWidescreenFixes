@@ -211,13 +211,13 @@ void FOVFix()
 
 			AspectRatioAndCameraFOVInstructionsMidHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(AspectRatioAddress) = fNewAspectRatio;
+				Memory::ReadMem(AspectRatioAddress) = fNewAspectRatio;
 
 				float fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
 
 				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
-				*reinterpret_cast<float*>(CameraFOVAddress) = fNewCameraFOV;
+				Memory::ReadMem(CameraFOVAddress) = fNewCameraFOV;
 			});
 		}
 		else

@@ -191,7 +191,7 @@ static SafetyHookMid CameraZoomFOVInstructionHook{};
 
 void CameraZoomFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponZoomFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
+	float& fCurrentWeaponZoomFOV = Memory::ReadMem(ctx.eax + 0x4);
 
 	fNewWeaponZoomFOV = Maths::CalculateNewFOV_RadBased(fCurrentWeaponZoomFOV, fAspectRatioScale);
 
@@ -205,7 +205,7 @@ static SafetyHookMid CameraHipfireFOVInstructionHook{};
 
 void CameraHipfireFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponHipfireFOV = *reinterpret_cast<float*>(ctx.eax + 0x4);
+	float& fCurrentWeaponHipfireFOV = Memory::ReadMem(ctx.eax + 0x4);
 
 	fNewWeaponHipfireFOV = Maths::CalculateNewFOV_RadBased(fCurrentWeaponHipfireFOV, fAspectRatioScale) * fFOVFactor;
 

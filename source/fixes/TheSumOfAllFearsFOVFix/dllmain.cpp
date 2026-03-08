@@ -218,7 +218,7 @@ void FOVFix()
 
 			GameplayFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGameplayFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+				float& fCurrentGameplayFOV = Memory::ReadMem(ctx.esp + 0x4);
 
 				if (fCurrentGameplayFOV == fDefaultCameraFOV)
 				{
@@ -236,7 +236,7 @@ void FOVFix()
 
 			MainMenuFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenuFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuFOV = *reinterpret_cast<float*>(ctx.ebp + 0x70);
+				float& fCurrentMenuFOV = Memory::ReadMem(ctx.ebp + 0x70);
 
 				fNewMenuFOV = Maths::CalculateNewFOV_RadBased(fCurrentMenuFOV, fAspectRatioScale);
 

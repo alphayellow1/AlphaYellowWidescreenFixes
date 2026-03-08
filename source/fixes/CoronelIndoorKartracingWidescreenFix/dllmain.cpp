@@ -267,7 +267,7 @@ void WidescreenFix()
 
 			MenuCameraFOVInstructionHook = safetyhook::create_mid(MenuCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x44);
+				float& fCurrentMenuCameraFOV = Memory::ReadMem(ctx.esp + 0x44);
 
 				fNewMenuCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentMenuCameraFOV, 1.0f / fAspectRatioScale);
 
@@ -287,11 +287,11 @@ void WidescreenFix()
 
 			GameplayCameraFOVInstructionHook = safetyhook::create_mid(GameplayCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.eax);
+				float fCurrentGameplayCameraFOV = Memory::ReadMem(ctx.eax);
 
 				fNewGameplayCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentGameplayCameraFOV, 1.0f / fAspectRatioScale) / fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.eax) = fNewGameplayCameraFOV;
+				Memory::ReadMem(ctx.eax) = fNewGameplayCameraFOV;
 			});
 		}
 		else

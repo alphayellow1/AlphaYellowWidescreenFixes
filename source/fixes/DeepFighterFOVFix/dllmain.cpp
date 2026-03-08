@@ -230,7 +230,7 @@ void FOVFix()
 
 			CutscenesHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesHFOVScan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<float*>(ctx.ebp - 0xC) = *reinterpret_cast<float*>(ctx.ebp - 0xC) * fAspectRatioScale;
+				Memory::ReadMem(ctx.ebp - 0xC) = Memory::ReadMem(ctx.ebp - 0xC) * fAspectRatioScale;
 			});
 		}
 	}

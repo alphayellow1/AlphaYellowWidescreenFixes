@@ -249,7 +249,7 @@ void FOVFix()
 
 			CameraDistanceInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CamDistanceScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraDistance = *reinterpret_cast<float*>(CameraDistanceAddress);
+				float& fCurrentCameraDistance = Memory::ReadMem(CameraDistanceAddress);
 
 				if (fCurrentCameraDistance != fNewCameraDistance)
 				{

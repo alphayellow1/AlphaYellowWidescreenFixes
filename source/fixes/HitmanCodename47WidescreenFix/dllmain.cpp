@@ -262,7 +262,7 @@ void WidescreenFix()
 
 			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				double& dCurrentGeneralFOV = *reinterpret_cast<double*>(ctx.ebp + 0x16E);
+				double& dCurrentGeneralFOV = Memory::ReadMem(ctx.ebp + 0x16E);
 
 				if (dCurrentGeneralFOV != dNewGeneralFOV)
 				{
@@ -276,7 +276,7 @@ void WidescreenFix()
 
 			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CutscenesFOV], [](SafetyHookContext& ctx)
 			{
-				double& dCurrentCutscenesFOV = *reinterpret_cast<double*>(ctx.esp + 0x14);
+				double& dCurrentCutscenesFOV = Memory::ReadMem(ctx.esp + 0x14);
 
 				if (dCurrentCutscenesFOV != dNewCutscenesFOV)
 				{
@@ -307,7 +307,7 @@ void WidescreenFix()
 
 			DrawDistanceInstructionHook = safetyhook::create_mid(DrawDistanceInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentDrawDistance = *reinterpret_cast<float*>(ctx.ebp + 0x18A);
+				float& fCurrentDrawDistance = Memory::ReadMem(ctx.ebp + 0x18A);
 
 				fNewDrawDistance = fCurrentDrawDistance * fDrawDistanceFactor;
 

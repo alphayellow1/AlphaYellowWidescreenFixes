@@ -230,7 +230,7 @@ enum DestinationInstructions
 
 void HUDAspectRatioInstructionsMidHook(uint8_t* address, DestinationInstructions destinationInstruction, SafetyHookContext& ctx)
 {
-	float& fCurrentHUDAspectRatio = *reinterpret_cast<float*>(address);
+	float& fCurrentHUDAspectRatio = Memory::ReadMem(address);
 	
 	fNewHUDAspectRatio = fCurrentHUDAspectRatio * fAspectRatioScale;
 
@@ -347,7 +347,7 @@ void FOVFix()
 
 			CameraFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV5], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV5 = *reinterpret_cast<float*>(ctx.edx + 0x10);
+				float& fCurrentCameraFOV5 = Memory::ReadMem(ctx.edx + 0x10);
 
 				fNewCameraFOV5 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV5, fAspectRatioScale);
 
@@ -358,7 +358,7 @@ void FOVFix()
 
 			CameraFOVInstruction6Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV6], [](SafetyHookContext& ctx)
 			{
-				int& iCurrentCameraFOV6 = *reinterpret_cast<int*>(ctx.eax + 0x14);
+				int& iCurrentCameraFOV6 = Memory::ReadMem(ctx.eax + 0x14);
 
 				iNewCameraFOV6 = (int)(Maths::CalculateNewFOV_DegBased((float)iCurrentCameraFOV6, fAspectRatioScale) * fFOVFactor);
 

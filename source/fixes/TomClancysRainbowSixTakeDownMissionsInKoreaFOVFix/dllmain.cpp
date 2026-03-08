@@ -247,7 +247,7 @@ void FOVFix()
 					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale);
 				}
 
-				*reinterpret_cast<float*>(ctx.eax + 0x74) = fNewCameraFOV;
+				Memory::ReadMem(ctx.eax + 0x74) = fNewCameraFOV;
 			});
 		}
 		else

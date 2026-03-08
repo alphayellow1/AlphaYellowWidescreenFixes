@@ -234,7 +234,7 @@ static SafetyHookMid WeaponFOVInstructionHook{};
 
 void WeaponFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	double& dCurrentWeaponFOV1 = *reinterpret_cast<double*>(WeaponFOVValue1Address);
+	double& dCurrentWeaponFOV1 = Memory::ReadMem(WeaponFOVValue1Address);
 
 	dNewWeaponFOV1 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV1, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dWeaponFOVFactor;
 
@@ -248,7 +248,7 @@ static SafetyHookMid WeaponFOVInstruction2Hook{};
 
 void WeaponFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-	double& dCurrentWeaponFOV2 = *reinterpret_cast<double*>(WeaponFOVValue2Address);
+	double& dCurrentWeaponFOV2 = Memory::ReadMem(WeaponFOVValue2Address);
 
 	dNewWeaponFOV2 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV2, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dWeaponFOVFactor;
 
@@ -262,7 +262,7 @@ static SafetyHookMid WeaponFOVInstruction3Hook{};
 
 void WeaponFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
-	double& dCurrentWeaponFOV3 = *reinterpret_cast<double*>(WeaponFOVValue3Address);
+	double& dCurrentWeaponFOV3 = Memory::ReadMem(WeaponFOVValue3Address);
 
 	dNewWeaponFOV3 = Maths::CalculateNewFOV_RadBased(dCurrentWeaponFOV3, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dWeaponFOVFactor;
 
@@ -289,9 +289,9 @@ void WidescreenFix()
 
 			ResolutionInstructionMidHook = safetyhook::create_mid(ResolutionInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentResX = *reinterpret_cast<int*>(ctx.ebp + 0xC);
+				int& iCurrentResX = Memory::ReadMem(ctx.ebp + 0xC);
 
-				int& iCurrentResY = *reinterpret_cast<int*>(ctx.ebp + 0x10);
+				int& iCurrentResY = Memory::ReadMem(ctx.ebp + 0x10);
 
 				iCurrentResX = iNewResX;
 

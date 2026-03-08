@@ -183,7 +183,7 @@ Game DetectDX9Version()
 {
 	uint8_t* VersionCheckScanResult = Memory::PatternScan(exeModule, "?? ?? ?? ?? ?? 73 ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? ?? E8 ?? ?? ?? ??");
 
-	uint8_t VersionCheckValue = *reinterpret_cast<uint8_t*>(VersionCheckScanResult);
+	uint8_t VersionCheckValue = Memory::ReadMem(VersionCheckScanResult);
 
 	if (VersionCheckValue == 0xBB)
 	{
@@ -296,7 +296,7 @@ void WidescreenFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x2C);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x2C);
 
 				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
@@ -325,7 +325,7 @@ void WidescreenFix()
 
 			HUDHorizontalResInstructionHook = safetyhook::create_mid(HUDHorizontalResInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHUDVerticalRes = *reinterpret_cast<float*>(ctx.esp + 0x14);
+				float& fCurrentHUDVerticalRes = Memory::ReadMem(ctx.esp + 0x14);
 
 				fNewHUDHorizontalRes = fCurrentHUDVerticalRes * fNewAspectRatio;
 

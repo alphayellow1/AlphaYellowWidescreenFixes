@@ -193,14 +193,14 @@ void FOVChanger()
 
 				fNewCameraFOV1 = fCurrentCameraFOV1 * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ecx + 0x50) = fNewCameraFOV1;
+				Memory::ReadMem(ctx.ecx + 0x50) = fNewCameraFOV1;
 			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 2);
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esi);
 
 				fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
 

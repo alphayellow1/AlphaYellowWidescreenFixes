@@ -217,7 +217,7 @@ void FOVFix()
 					fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 				}
 
-				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
+				Memory::ReadMem(ctx.esi + 0x68) = fNewCameraHFOV;
 			});			
 
 			Memory::PatchBytes(CameraFOVInstructionScanResult + 9, "\x90\x90\x90", 3);
@@ -228,7 +228,7 @@ void FOVFix()
 			{
 				fNewCameraVFOV = fNewCameraHFOV / fNewAspectRatio;
 
-				*reinterpret_cast<float*>(ctx.esi + 0x6C) = fNewCameraVFOV;
+				Memory::ReadMem(ctx.esi + 0x6C) = fNewCameraVFOV;
 			});
 		}
 		else

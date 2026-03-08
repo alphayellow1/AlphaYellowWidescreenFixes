@@ -226,7 +226,7 @@ void FOVFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x24);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ebx + 0x24);
 
 				// Computes the new FOV value
 				if (fCurrentCameraFOV != 1.134464025f && fCurrentCameraFOV != Maths::CalculateNewFOV_RadBased(1.134464025f, fAspectRatioScale) * fFOVFactor)
@@ -260,7 +260,7 @@ void FOVFix()
 			
 			PistolHipfireCameraFOVInstructionMidHook = safetyhook::create_mid(PistolHipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentPistolHipfireCameraFOV = *reinterpret_cast<float*>(PistolHipfireCameraFOVValueAddress);
+				float& fCurrentPistolHipfireCameraFOV = Memory::ReadMem(PistolHipfireCameraFOVValueAddress);
 
 				fNewPistolHipfireCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentPistolHipfireCameraFOV, fAspectRatioScale) * fFOVFactor;
 
@@ -286,7 +286,7 @@ void FOVFix()
 
 			M4HipfireCameraFOVInstructionMidHook = safetyhook::create_mid(M4HipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentM4HipfireCameraFOV = *reinterpret_cast<float*>(M4HipfireCameraFOVValueAddress);
+				float& fCurrentM4HipfireCameraFOV = Memory::ReadMem(M4HipfireCameraFOVValueAddress);
 
 				fNewM4HipfireCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentM4HipfireCameraFOV, fAspectRatioScale) * fFOVFactor;
 
@@ -312,7 +312,7 @@ void FOVFix()
 			
 			SniperHipfireCameraFOVInstructionMidHook = safetyhook::create_mid(SniperHipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentSniperHipfireCameraFOV = *reinterpret_cast<float*>(SniperHipfireCameraFOVValueAddress);
+				float& fCurrentSniperHipfireCameraFOV = Memory::ReadMem(SniperHipfireCameraFOVValueAddress);
 
 				fNewSniperHipfireCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentSniperHipfireCameraFOV, fAspectRatioScale) * fFOVFactor;
 

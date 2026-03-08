@@ -270,7 +270,7 @@ void FOVFix()
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.edx + 0x550);
+				fCurrentCameraFOV1 = Memory::ReadMem(ctx.edx + 0x550);
 
 				if (fCurrentCameraFOV1 != fNewCameraFOV1)
 				{
@@ -288,11 +288,11 @@ void FOVFix()
 				{
 					if (D3D9DLLHandle)
 					{
-						fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x550);
+						fCurrentCameraFOV2 = Memory::ReadMem(ctx.ecx + 0x550);
 					}
 					else
 					{
-						fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x550);
+						fCurrentCameraFOV2 = Memory::ReadMem(ctx.eax + 0x550);
 					}					
 
 					if (fCurrentCameraFOV2 != fNewCameraFOV2)

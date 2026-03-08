@@ -228,7 +228,7 @@ void FOVFix()
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstruction1ScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x938);
+				float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.esi + 0x938);
 
 				if (fCurrentCameraFOV1 < 120.0f) // Hell levels
 				{
@@ -259,7 +259,7 @@ void FOVFix()
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x938);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esi + 0x938);
 
 				fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
 

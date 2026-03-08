@@ -250,9 +250,9 @@ void FOVFix()
 
 			ViewportResolutionIntructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Viewport], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0xC) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 0xC) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.esi + 0x10) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 0x10) = iCurrentResY;
 			});
 		}
 
@@ -284,7 +284,7 @@ void FOVFix()
 
 			HUDAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHUDAspectRatio = *reinterpret_cast<float*>(ctx.eax + 0x68);
+				float& fCurrentHUDAspectRatio = Memory::ReadMem(ctx.eax + 0x68);
 
 				fNewHUDAspectRatio = fCurrentHUDAspectRatio / fAspectRatioScale;
 

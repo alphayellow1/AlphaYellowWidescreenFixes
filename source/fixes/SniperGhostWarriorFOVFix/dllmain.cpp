@@ -224,7 +224,7 @@ void FOVFix()
 
 			GameplayFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGameplayFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
+				float& fCurrentGameplayFOV = Memory::ReadMem(ctx.esp + 0x10);
 
 				if (fCurrentGameplayFOV == 46.799999237061f || fCurrentGameplayFOV == 46.799995422363f)
 				{
@@ -242,7 +242,7 @@ void FOVFix()
 
 			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCutscenesFOV = *reinterpret_cast<float*>(ctx.ebx + 0x150);
+				float& fCurrentCutscenesFOV = Memory::ReadMem(ctx.ebx + 0x150);
 
 				if (fNewAspectRatio > fOldAspectRatio)
 				{

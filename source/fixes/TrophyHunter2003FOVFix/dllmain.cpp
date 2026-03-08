@@ -231,7 +231,7 @@ static SafetyHookMid RifleHipfireFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x7C);
+	float& fCurrentCameraFOV = Memory::ReadMem(ctx.eax + 0x7C);
 
 	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 
@@ -240,7 +240,7 @@ void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 
 void HipfireFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentHipfireFOV = *reinterpret_cast<float*>(HipfireFOVAddress);
+	float& fCurrentHipfireFOV = Memory::ReadMem(HipfireFOVAddress);
 
 	fNewHipfireFOV = fCurrentHipfireFOV * fFOVFactor;
 
@@ -264,7 +264,7 @@ void FOVFix()
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(ctx.eax + 0x60);
+				float& fCurrentAspectRatio = Memory::ReadMem(ctx.eax + 0x60);
 
 				if (fCurrentAspectRatio == 1.330000043f)
 				{
@@ -328,7 +328,7 @@ void FOVFix()
 
 			UnarmedHipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[UnarmedHipfireFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentUnarmedHipfireFOV = *reinterpret_cast<float*>(HipfireFOVAddress);
+				float& fCurrentUnarmedHipfireFOV = Memory::ReadMem(HipfireFOVAddress);
 
 				fNewUnarmedHipfireFOV = fCurrentUnarmedHipfireFOV * fFOVFactor;
 

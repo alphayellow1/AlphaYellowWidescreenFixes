@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "KnightsOfTheTemple2WidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,26 +42,55 @@ std::string sExeName;
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fOriginalGameplayAspectRatio = 0.75f;
+constexpr float fOriginalGameplayFOV = 1.5707963268f; // 90 degrees in radians
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewCameraHFOV;
-float fNewAspectRatio;
-float fNewAspectRatio2;
 float fFOVFactor;
-float fNewGameplayCameraFOV;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewAspectRatio2;
+float fNewGameplayCameraFOV;
+float fNewMenuAndCutscenesCameraAspectRatio;
 float fNewMenuAndCutscenesCameraFOV;
+float fNewBlackBarsValue;
+float fNewBlackBarsValue1;
 
 // Game detection
 enum class Game
 {
 	KOTT2,
 	Unknown
+};
+
+enum ResolutionListsIndices
+{
+	List1,
+	List2
+};
+
+enum AspectRatioInstructionsIndices
+{
+	Menu_Cutscenes_AR,
+	Gameplay_AR
+};
+
+enum CameraFOVInstructionsIndices
+{
+	Menu_Cutscenes_FOV,
+	Gameplay_FOV
+};
+
+enum BlackBarsAdjustInstructionsIndices
+{
+	BlackBars1,
+	BlackBars2,
+	BlackBars3,
+	BlackBars4
 };
 
 struct GameInfo
@@ -191,6 +220,22 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid MenuAndCutscenesAspectRatioInstructionHook{};
+static SafetyHookMid MenuAndCutscenesCameraFOVInstructionHook{};
+static SafetyHookMid BlackBarsAdjustInstruction1Hook{};
+static SafetyHookMid BlackBarsAdjustInstruction2Hook{};
+static SafetyHookMid BlackBarsAdjustInstruction3Hook{};
+static SafetyHookMid BlackBarsAdjustInstruction4Hook{};
+
+void BlackBarsAdjustInstructionsMidHook(SafetyHookContext& ctx)
+{
+	float& fCurrentBlackBarsValue = Memory::ReadMem(ctx.esi + 0x610);
+
+	fNewBlackBarsValue = fCurrentBlackBarsValue * fAspectRatioScale;
+
+	FPU::FLD(fNewBlackBarsValue);
+}
+
 void WidescreenFix()
 {
 	if (eGameType == Game::KOTT2 && bFixActive == true)
@@ -199,196 +244,167 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		fNewAspectRatio2 = fOriginalGameplayAspectRatio / fAspectRatioScale;
-
-		std::uint8_t* ResolutionList1ScanResult = Memory::PatternScan(exeModule, "3D 80 02 00 00 75 15 81 7C 24 14 E0 01 00 00 0F 85 8B 00 00 00 B8 01 00 00 00 EB 76 3D 20 03 00 00 75 11 81 7C 24 14 58 02 00 00 75 73 B8 02 00 00 00 EB 5E 3D 00 04 00 00 75 11 81 7C 24 14 00 03 00 00 75 5B B8 03 00 00 00 EB 46 3D 00 05 00 00 75 11 81 7C 24 14 00 04 00 00 75 43 B8 04 00 00 00 EB 2E 3D 40 06 00 00 75 11 81 7C 24 14 B0 04 00 00 75 2B B8 05 00 00 00 EB 16 3D 80 07 00 00 75 1D 81 7C 24 14 A0 05 00 00");
-		if (ResolutionList1ScanResult)
+		std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(exeModule, "3D ?? ?? ?? ?? 75 ?? 81 7C 24 ?? ?? ?? ?? ?? 0F 85", "C7 86 44 C2 00 00 80 02 00 00");
+		if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
 		{
-			spdlog::info("Resolution List 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListsScansResult[List1] - (std::uint8_t*)exeModule);
 
+			spdlog::info("Resolution List 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListsScansResult[List2] - (std::uint8_t*)exeModule);
+
+			// Resolution List 1
 			// 640x480
-			Memory::Write(ResolutionList1ScanResult + 1, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List1] + 1, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 11, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List1] + 11, iCurrentResY);
 
 			// 800x600
-			Memory::Write(ResolutionList1ScanResult + 29, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List1] + 29, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 39, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List1] + 39, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionList1ScanResult + 53, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List1] + 53, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 63, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List1] + 63, iCurrentResY);
 
 			// 1280x1024
-			Memory::Write(ResolutionList1ScanResult + 77, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List1] + 77, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 87, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List1] + 87, iCurrentResY);
 
 			// 1600x1200
-			Memory::Write(ResolutionList1ScanResult + 101, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List1] + 101, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 111, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List1] + 111, iCurrentResY);
 
 			// 1920x1440
-			Memory::Write(ResolutionList1ScanResult + 125, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List1] + 125, iCurrentResX);
 
-			Memory::Write(ResolutionList1ScanResult + 135, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution list 1 memory address.");
-			return;
-		}
+			Memory::Write(ResolutionListsScansResult[List1] + 135, iCurrentResY);
 
-		std::uint8_t* ResolutionList2ScanResult = Memory::PatternScan(exeModule, "C7 86 44 C2 00 00 80 02 00 00 C7 86 5C C2 00 00 E0 01 00 00 C7 86 48 C2 00 00 20 03 00 00 C7 86 60 C2 00 00 58 02 00 00 C7 86 64 C2 00 00 00 03 00 00 C7 86 50 C2 00 00 00 05 00 00 C7 86 54 C2 00 00 40 06 00 00 C7 86 6C C2 00 00 B0 04 00 00 C7 86 58 C2 00 00 80 07 00 00 C7 86 70 C2 00 00 A0 05 00 00");
-		if (ResolutionList2ScanResult)
-		{
-			spdlog::info("Resolution List 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionList2ScanResult - (std::uint8_t*)exeModule);
-			
+			// Resolution List 2
 			// 640x480
-			Memory::Write(ResolutionList2ScanResult + 6, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List2] + 6, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 16, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List2] + 16, iCurrentResY);
 
 			// 800x600
-			Memory::Write(ResolutionList2ScanResult + 26, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List2] + 26, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 36, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List2] + 36, iCurrentResY);
 
 			// 1024x768
-			Memory::Write(ResolutionList2ScanResult + 46, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List2] + 46, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 56, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List2] + 56, iCurrentResY);
 
 			// 1280x1024
-			Memory::Write(ResolutionList2ScanResult + 66, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List2] + 66, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 76, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List2] + 76, iCurrentResY);
 
 			// 1600x1200
-			Memory::Write(ResolutionList2ScanResult + 86, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List2] + 86, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 96, iCurrentResY);
+			Memory::Write(ResolutionListsScansResult[List2] + 96, iCurrentResY);
 
 			// 1920x1440
-			Memory::Write(ResolutionList2ScanResult + 106, iCurrentResX);
+			Memory::Write(ResolutionListsScansResult[List2] + 106, iCurrentResX);
 
-			Memory::Write(ResolutionList2ScanResult + 116, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution list 2 memory address.");
-			return;
+			Memory::Write(ResolutionListsScansResult[List2] + 116, iCurrentResY);
 		}
 
-		std::uint8_t* MenuAndCutscenesAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 90 00 00 00 89 4E 60");
-		if (MenuAndCutscenesAspectRatioInstructionScanResult)
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "8B 88 ?? ?? ?? ?? 89 4E", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? D9 1C 24 8B 8C 24");
+
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 90 ?? ?? ?? ?? 89 56 ?? 8B 88 ?? ?? ?? ?? 89 4E", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? D9 1C 24 8B 8C 24");
+
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Menu & Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), MenuAndCutscenesAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Menu & Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[Menu_Cutscenes_AR] - (std::uint8_t*)exeModule);
 
-			static SafetyHookMid MenuAndCutscenesAspectRatioInstructionHook{};
+			spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[Gameplay_AR] - (std::uint8_t*)exeModule);
 
-			MenuAndCutscenesAspectRatioInstructionHook = safetyhook::create_mid(MenuAndCutscenesAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[Menu_Cutscenes_AR], 6);
+
+			MenuAndCutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[Menu_Cutscenes_AR], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuAndCutscenesAspectRatio = *reinterpret_cast<float*>(ctx.eax + 0x90);
+				float& fCurrentMenuAndCutscenesAspectRatio = Memory::ReadMem(ctx.eax + 0x90);
 
-				fCurrentMenuAndCutscenesAspectRatio = fNewAspectRatio2;
+				if (fCurrentMenuAndCutscenesAspectRatio == 0.75f)
+				{
+					fNewMenuAndCutscenesCameraAspectRatio = fCurrentMenuAndCutscenesAspectRatio / fAspectRatioScale;
+				}
+				else
+				{
+					fNewMenuAndCutscenesCameraAspectRatio = fCurrentMenuAndCutscenesAspectRatio;
+				}
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewMenuAndCutscenesCameraAspectRatio);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate menu & cutscenes aspect ratio instruction memory address.");
-			return;
-		}
 
-		std::uint8_t* MenuAndCutscenesCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 8C 00 00 00 89 56 50 8B 88 90 00 00 00");
-		if (MenuAndCutscenesCameraFOVInstructionScanResult)
-		{
-			spdlog::info("Menu & Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), MenuAndCutscenesCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			fNewAspectRatio2 = fOriginalGameplayAspectRatio / fAspectRatioScale;
 
-			Memory::PatchBytes(MenuAndCutscenesCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
-			
-			static SafetyHookMid MenuAndCutscenesCameraFOVInstructionHook{};
-			
-			MenuAndCutscenesCameraFOVInstructionHook = safetyhook::create_mid(MenuAndCutscenesCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::Write(AspectRatioInstructionsScansResult[Gameplay_AR] + 1, fNewAspectRatio2);
+		}
+		
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		{
+			spdlog::info("Menu & Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Menu_Cutscenes_FOV] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay_FOV] - (std::uint8_t*)exeModule);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Menu_Cutscenes_FOV], 6);
+
+			MenuAndCutscenesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Menu_Cutscenes_FOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMenuAndCutscenesCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x8C);
+				float& fCurrentMenuAndCutscenesCameraFOV = Memory::ReadMem(ctx.eax + 0x8C);
 
 				fNewMenuAndCutscenesCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentMenuAndCutscenesCameraFOV, fAspectRatioScale);
 
 				ctx.edx = std::bit_cast<uintptr_t>(fNewMenuAndCutscenesCameraFOV);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate menu & cutscenes camera FOV instruction memory address.");
-			return;
+
+			fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(fOriginalGameplayFOV, fAspectRatioScale) * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScansResult[Gameplay_FOV] + 1, fNewGameplayCameraFOV);
 		}
 
-		std::uint8_t* GameplayAspectRatioAndCameraFOVScanResult = Memory::PatternScan(exeModule, "68 00 00 40 3F 68 DB 0F C9 3F E8 E5 96 00 00");
-		if (GameplayAspectRatioAndCameraFOVScanResult)
+		std::vector<std::uint8_t*> BlackBarsAdjustInstructionsScansResult = Memory::PatternScan(exeModule, "D8 B6 ?? ?? ?? ?? D9 96 ?? ?? ?? ?? D9 44 24",
+		"D9 86 ?? ?? ?? ?? D8 B6 ?? ?? ?? ?? 74 ?? D8 0D ?? ?? ?? ?? 8B 4C 24", "D9 86 ?? ?? ?? ?? D8 B6 ?? ?? ?? ?? 74 ?? D8 0D ?? ?? ?? ?? D9 05",
+		"D9 86 ?? ?? ?? ?? D8 B6 ?? ?? ?? ?? 74 ?? D8 0D ?? ?? ?? ?? 8B 8E");
+		if (Memory::AreAllSignaturesValid(BlackBarsAdjustInstructionsScansResult) == true)
 		{
-			spdlog::info("Gameplay Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), GameplayAspectRatioAndCameraFOVScanResult + 1 - (std::uint8_t*)exeModule);
+			spdlog::info("Black Bars Adjust Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), BlackBarsAdjustInstructionsScansResult[BlackBars1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Gameplay Camera FOV: Address is {:s}+{:x}", sExeName.c_str(), GameplayAspectRatioAndCameraFOVScanResult + 6 - (std::uint8_t*)exeModule);
+			spdlog::info("Black Bars Adjust Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), BlackBarsAdjustInstructionsScansResult[BlackBars2] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Black Bars Adjust Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), BlackBarsAdjustInstructionsScansResult[BlackBars3] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Black Bars Adjust Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), BlackBarsAdjustInstructionsScansResult[BlackBars4] - (std::uint8_t*)exeModule);
 			
-			Memory::Write(GameplayAspectRatioAndCameraFOVScanResult + 1, fNewAspectRatio2);
-
-			fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(1.5707963268f, fAspectRatioScale) * fFOVFactor;
-
-			Memory::Write(GameplayAspectRatioAndCameraFOVScanResult + 6, fNewGameplayCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate gameplay aspect ratio and camera FOV instructions memory address.");
-			return;
-		}
-
-		std::uint8_t* BlackBarsAdjustInstructionScanResult = Memory::PatternScan(exeModule, "D9 86 10 06 00 00 D8 B6 24 06 00 00 74 06 D8 0D ?? ?? ?? ?? 8B 4C 24 24");
-		if (BlackBarsAdjustInstructionScanResult)
-		{
-			spdlog::info("Black Bars Adjust Instruction: Address is {:s}+{:x}", sExeName.c_str(), BlackBarsAdjustInstructionScanResult - (std::uint8_t*)exeModule);
+			Memory::WriteNOPs(BlackBarsAdjustInstructionsScansResult, BlackBars1, BlackBars4, 0, 6);
 			
-			static SafetyHookMid BlackBarsAdjustInstructionHook{};
-			
-			BlackBarsAdjustInstructionHook = safetyhook::create_mid(BlackBarsAdjustInstructionScanResult, [](SafetyHookContext& ctx)
+			BlackBarsAdjustInstruction1Hook = safetyhook::create_mid(BlackBarsAdjustInstructionsScansResult[BlackBars1], [](SafetyHookContext& ctx)
 			{
-				// Reference the current black bars value located at the memory address [ESI+0x610]
-				float& fCurrentBlackBarsValue = *reinterpret_cast<float*>(ctx.esi + 0x610);
+				float& fCurrentBlackBarsValue1 = Memory::ReadMem(ctx.esi + 0x610);
 
-				fCurrentBlackBarsValue *= fAspectRatioScale;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate black bars adjust instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CharacterDialogueCameraAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 B6 10 06 00 00 D9 96 98 06 00 00 D9 44 24 10");
-		if (CharacterDialogueCameraAspectRatioInstructionScanResult)
-		{
-			spdlog::info("Character Dialogue Camera Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), CharacterDialogueCameraAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid CharacterDialogueCameraAspectRatioInstructionHook{};
-
-			CharacterDialogueCameraAspectRatioInstructionHook = safetyhook::create_mid(CharacterDialogueCameraAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				// Reference the current character dialogue aspect ratio value located at the memory address [ESI+0x610]
-				float& fCurrentCharacterDialogueCameraAspectRatio = *reinterpret_cast<float*>(ctx.esi + 0x610);
-
-				if (fCurrentCharacterDialogueCameraAspectRatio == 0.9999999404f)
+				if (fCurrentBlackBarsValue1 == 0.9999999404f)
 				{
-					fCurrentCharacterDialogueCameraAspectRatio = 1.0f / fAspectRatioScale;
+					fNewBlackBarsValue1 = fCurrentBlackBarsValue1 / fAspectRatioScale;
 				}
+				else
+				{
+					fNewBlackBarsValue1 = fCurrentBlackBarsValue1;
+				}
+
+				FPU::FDIV(fNewBlackBarsValue1);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate character dialogue aspect ratio instruction memory address.");
-			return;
+
+			BlackBarsAdjustInstruction2Hook = safetyhook::create_mid(BlackBarsAdjustInstructionsScansResult[BlackBars2], BlackBarsAdjustInstructionsMidHook);
+
+			BlackBarsAdjustInstruction3Hook = safetyhook::create_mid(BlackBarsAdjustInstructionsScansResult[BlackBars3], BlackBarsAdjustInstructionsMidHook);
+
+			BlackBarsAdjustInstruction4Hook = safetyhook::create_mid(BlackBarsAdjustInstructionsScansResult[BlackBars4], BlackBarsAdjustInstructionsMidHook);
 		}
 	}
 }

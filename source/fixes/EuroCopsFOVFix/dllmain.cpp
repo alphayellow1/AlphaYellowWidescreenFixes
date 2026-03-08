@@ -247,7 +247,7 @@ void FOVFix()
 
 			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGeneralFOV = *reinterpret_cast<float*>(ctx.edi + 0x194);
+				float& fCurrentGeneralFOV = Memory::ReadMem(ctx.edi + 0x194);
 
 				fNewGeneralFOV = Maths::CalculateNewFOV_DegBased(fCurrentGeneralFOV, fAspectRatioScale);
 
@@ -268,7 +268,7 @@ void FOVFix()
 
 			ZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ZoomFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentZoomFOV = *reinterpret_cast<float*>(ctx.ecx + 0xEC);
+				float& fCurrentZoomFOV = Memory::ReadMem(ctx.ecx + 0xEC);
 
 				fNewZoomFOV = fCurrentZoomFOV / fZoomFactor;
 

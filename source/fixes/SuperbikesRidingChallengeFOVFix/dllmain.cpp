@@ -220,7 +220,7 @@ enum destInstruction
 
 void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, destInstruction destInstruction, bool isGeneralFOV, SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
 
 	if (isGeneralFOV == true)
 	{
@@ -268,7 +268,7 @@ void FOVFix()
 
 			HUDAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHUDAspectRatio = *reinterpret_cast<float*>(ctx.esp + 0x3C);
+				float& fCurrentHUDAspectRatio = Memory::ReadMem(ctx.esp + 0x3C);
 
 				fNewHUDAspectRatio = fCurrentHUDAspectRatio * fAspectRatioScale;
 
@@ -325,7 +325,7 @@ void FOVFix()
 
 			RacesCameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[RacesFOV3], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentRacesFOV3 = *reinterpret_cast<float*>(RacesFOVAddress3);
+				float& fCurrentRacesFOV3 = Memory::ReadMem(RacesFOVAddress3);
 
 				fNewRacesFOV3 = fCurrentRacesFOV3 * fFOVFactor;
 

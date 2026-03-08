@@ -223,7 +223,7 @@ void AspectRatioInstructionMidHook(SafetyHookContext& ctx)
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x9C);
+	float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x9C);
 
 	fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
@@ -303,7 +303,7 @@ void WidescreenFix()
 
 				CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 					{
-						float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x9C);
+						float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esi + 0x9C);
 
 						fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
 

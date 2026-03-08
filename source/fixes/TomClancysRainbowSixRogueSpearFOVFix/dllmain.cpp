@@ -217,11 +217,11 @@ void FOVFix()
 			{
 				if (eGameType == Game::R6_RS)
 				{
-					fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.edi + 0x74);
+					fCurrentCameraFOV = Memory::ReadMem(ctx.edi + 0x74);
 				}
 				else
 				{
-					fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x74);
+					fCurrentCameraFOV = Memory::ReadMem(ctx.ebx + 0x74);
 				}					
 
 				if (fCurrentCameraFOV == 1.8f)

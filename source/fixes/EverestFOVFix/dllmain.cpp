@@ -235,7 +235,7 @@ void FOVFix()
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentAspectRatio = *reinterpret_cast<float*>(AspectRatioAddress);
+				float& fCurrentAspectRatio = Memory::ReadMem(AspectRatioAddress);
 
 				fNewAspectRatio2 = fCurrentAspectRatio / fAspectRatioScale;
 
@@ -261,7 +261,7 @@ void FOVFix()
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+				float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 				fNewCameraFOV = (fCurrentCameraFOV / fAspectRatioScale) / fFOVFactor;
 

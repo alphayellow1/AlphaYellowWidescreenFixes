@@ -179,7 +179,7 @@ void FOVChanger()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x4);
 
 				if (fCurrentCameraFOV >= 106.7199936f && fCurrentCameraFOV < 135.8f)
 				{

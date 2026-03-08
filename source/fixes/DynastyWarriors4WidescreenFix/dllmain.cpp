@@ -227,7 +227,7 @@ void CameraFOVInstructionsMidHook(float& SourceAddress, uintptr_t DestAddress, a
 		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * fovFactor;
 	}
 
-	*reinterpret_cast<float*>(DestAddress) = fNewCameraFOV;
+	Memory::ReadMem(DestAddress) = fNewCameraFOV;
 }
 
 void WidescreenFix()

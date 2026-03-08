@@ -226,7 +226,7 @@ void FOVFix()
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				*reinterpret_cast<float*>(ctx.ecx + 0x224) = fNewCameraFOV;
+				Memory::ReadMem(ctx.ecx + 0x224) = fNewCameraFOV;
 			});
 		}
 		else

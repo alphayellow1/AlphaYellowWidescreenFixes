@@ -267,7 +267,7 @@ void WidescreenFix()
 
 			GroundCameraFOVInstructionHook = safetyhook::create_mid(GroundCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				fCurrentGroundCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+				fCurrentGroundCameraFOV = Memory::ReadMem(ctx.esp + 0x4);
 
 				fNewGroundCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGroundCameraFOV, fAspectRatioScale) * fFOVFactor;
 
@@ -289,7 +289,7 @@ void WidescreenFix()
 
 			OverviewCameraFOVInstruction1Hook = safetyhook::create_mid(OverviewCameraFOVInstruction1ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV1 = *reinterpret_cast<float*>(ctx.edx + 0x44);
+				float& fCurrentOverviewCameraFOV1 = Memory::ReadMem(ctx.edx + 0x44);
 
 				fNewOverviewCameraFOV1 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV1, fAspectRatioScale) * fFOVFactor;
 
@@ -311,7 +311,7 @@ void WidescreenFix()
 
 			OverviewCameraFOVInstruction2Hook = safetyhook::create_mid(OverviewCameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x44);
+				float& fCurrentOverviewCameraFOV2 = Memory::ReadMem(ctx.esi + 0x44);
 
 				if ((fCurrentOverviewCameraFOV2 > 2.23f && fCurrentOverviewCameraFOV2 < 3.22f) || fCurrentOverviewCameraFOV2 == 42.857639312744f || fCurrentOverviewCameraFOV2 == 43.261646270752f || fCurrentOverviewCameraFOV2 == 43.261707305908f || fCurrentOverviewCameraFOV2 == 42.857646942139f || fCurrentOverviewCameraFOV2 == 34.321136474609f)
 				{
@@ -340,7 +340,7 @@ void WidescreenFix()
 
 			OverviewCameraFOVInstruction3Hook = safetyhook::create_mid(OverviewCameraFOVInstruction3ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV3 = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+				float& fCurrentOverviewCameraFOV3 = Memory::ReadMem(ctx.ecx + 0x44);
 
 				fNewOverviewCameraFOV3 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV3, fAspectRatioScale) * fFOVFactor;
 
@@ -362,7 +362,7 @@ void WidescreenFix()
 
 			OverviewCameraFOVInstruction4Hook = safetyhook::create_mid(OverviewCameraFOVInstruction4ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV4 = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+				float& fCurrentOverviewCameraFOV4 = Memory::ReadMem(ctx.ecx + 0x44);
 
 				fNewOverviewCameraFOV4 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV4, fAspectRatioScale) * fFOVFactor;
 
@@ -384,7 +384,7 @@ void WidescreenFix()
 
 			OverviewCameraFOVInstruction5Hook = safetyhook::create_mid(OverviewCameraFOVInstruction5ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV5 = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+				float& fCurrentOverviewCameraFOV5 = Memory::ReadMem(ctx.ecx + 0x44);
 
 				fNewOverviewCameraFOV5 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV5, fAspectRatioScale) * fFOVFactor;
 
@@ -406,7 +406,7 @@ void WidescreenFix()
 			
 			OverviewCameraFOVInstruction6Hook = safetyhook::create_mid(OverviewCameraFOVInstruction6ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV6 = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+				float& fCurrentOverviewCameraFOV6 = Memory::ReadMem(ctx.ecx + 0x44);
 
 				fNewOverviewCameraFOV6 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV6, fAspectRatioScale) * fFOVFactor;
 
@@ -428,7 +428,7 @@ void WidescreenFix()
 
 			OverviewCameraFOVInstruction7Hook = safetyhook::create_mid(OverviewCameraFOVInstruction7ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV7 = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+				float& fCurrentOverviewCameraFOV7 = Memory::ReadMem(ctx.ecx + 0x44);
 
 				fNewOverviewCameraFOV7 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV7, fAspectRatioScale) * fFOVFactor;
 
@@ -450,7 +450,7 @@ void WidescreenFix()
 
 			OverviewCameraFOVInstruction8Hook = safetyhook::create_mid(OverviewCameraFOVInstruction8ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOverviewCameraFOV8 = *reinterpret_cast<float*>(ctx.ecx + 0x44);
+				float& fCurrentOverviewCameraFOV8 = Memory::ReadMem(ctx.ecx + 0x44);
 
 				fNewOverviewCameraFOV8 = Maths::CalculateNewFOV_MultiplierBased(fCurrentOverviewCameraFOV8, fAspectRatioScale) * fFOVFactor;
 

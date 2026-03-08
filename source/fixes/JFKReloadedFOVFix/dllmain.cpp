@@ -200,7 +200,7 @@ static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void CameraFOVInstructionMidHook(uintptr_t CameraFOVAddress)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 	// Computes the new FOV value
 	if (fCurrentCameraFOV == 40.0f)
