@@ -207,7 +207,7 @@ void WidescreenFix()
 			{
 				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90", 5);				
+				Memory::WriteNOPs(ResolutionInstructionsScanResult, 5);				
 
 				ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 				{
@@ -234,7 +234,7 @@ void WidescreenFix()
 			{
 				spdlog::info("Gameplay Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), GameplayCameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(GameplayCameraHFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(GameplayCameraHFOVInstructionScanResult, 6);
 
 				fNewAspectRatio2 = 1.125f * fNewAspectRatio - 0.75f;
 

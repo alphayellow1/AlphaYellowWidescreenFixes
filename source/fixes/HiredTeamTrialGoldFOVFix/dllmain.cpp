@@ -229,7 +229,7 @@ void FOVFix()
 
 			HipfireCameraFOVAddress = Memory::GetPointerFromAddress(HipfireCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(HipfireCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(HipfireCameraFOVInstructionScanResult, 6);
 
 			HipfireCameraFOVInstructionHook = safetyhook::create_mid(HipfireCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -253,7 +253,7 @@ void FOVFix()
 
 			ZoomCameraFOVAddress = Memory::GetPointerFromAddress(ZoomCameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
 			
-			Memory::PatchBytes(ZoomCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);			
+			Memory::WriteNOPs(ZoomCameraFOVInstructionScanResult, 5);			
 			
 			ZoomCameraFOVInstructionHook = safetyhook::create_mid(ZoomCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -277,7 +277,7 @@ void FOVFix()
 
 			MainMenuCameraFOVAddress = Memory::GetPointerFromAddress(MainMenuCameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 			
-			Memory::PatchBytes(MainMenuCameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(MainMenuCameraFOVInstructionScanResult, 6);
 			
 			MainMenuCameraFOVInstructionHook = safetyhook::create_mid(MainMenuCameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{

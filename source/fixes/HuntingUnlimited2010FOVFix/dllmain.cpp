@@ -45,12 +45,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
 float fNewWeaponFOV;
@@ -194,18 +194,13 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("game.dll")) == nullptr)
-	{
-		spdlog::warn("game.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for game.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("game.dll");
 
 	return true;
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid WeaponFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
@@ -234,12 +229,12 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 40 68 C3 CC CC CC CC CC CC CC 56");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 40 ?? C3 CC CC CC CC CC CC CC 56");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is game.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3); // NOP out the original instruction
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
@@ -254,11 +249,9 @@ void FOVFix()
 		{
 			spdlog::info("Weapon FOV Instruction: Address is game.dll+{:x}", WeaponFOVInstructionScanResult + 29 - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(WeaponFOVInstructionScanResult + 29, "\x90\x90\x90", 3); // NOP out the original instruction
+			Memory::WriteNOPs(WeaponFOVInstructionScanResult + 29, 3); // NOP out the original instruction			
 
-			static SafetyHookMid WeaponFOVInstructionMidHook{};
-
-			WeaponFOVInstructionMidHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 29, [](SafetyHookContext& ctx)
+			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult + 29, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentWeaponFOV = *reinterpret_cast<float*>(ctx.eax + 0x6C);
 

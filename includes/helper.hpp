@@ -42,6 +42,40 @@ concept Integral = std::is_integral_v<T>;
 
 namespace Memory
 {
+	struct RegisterProxy
+	{
+		uintptr_t value;
+
+		template<typename T>
+		operator T() const
+		{
+			static_assert(sizeof(T) <= sizeof(uintptr_t));
+			static_assert(std::is_trivially_copyable_v<T>);
+			return std::bit_cast<T>(value);
+		}
+	};
+
+	inline RegisterProxy ReadRegister(uintptr_t reg)
+	{
+		return RegisterProxy{ reg };
+	}
+
+	struct MemProxy
+	{
+		uintptr_t address;
+
+		template<typename T>
+		operator T& () const
+		{
+			return *reinterpret_cast<T*>(address);
+		}
+	};
+
+	inline MemProxy ReadMem(uintptr_t address)
+	{
+		return MemProxy{ address };
+	}
+
 	template<typename T> requires std::is_trivially_copyable_v<T>
 	inline void Write(std::uint8_t* writeAddress, T value)
 	{
@@ -481,191 +515,54 @@ namespace Memory
 
 	std::uint8_t* PatternScan(void* module, const char* signature)
 	{
-		if (!module || !signature) 
+		auto patternBytes = pattern_to_byte(signature);
+		size_t s = patternBytes.size();
+
+		auto dos = (PIMAGE_DOS_HEADER)module;
+		auto nt = (PIMAGE_NT_HEADERS)((uint8_t*)module + dos->e_lfanew);
+
+		size_t size = nt->OptionalHeader.SizeOfImage;
+
+		uint8_t* base = (uint8_t*)module;
+		uint8_t* end = base + size;
+
+		uint8_t* current = base;
+
+		while (current < end)
 		{
-			return nullptr;
-		}
-
-		auto patternBytes = get_pattern_bytes_cached(signature);
-
-		const std::size_t s = patternBytes.size();
-
-		if (s == 0)
-		{
-			return nullptr;
-		}
-
-		std::size_t anchor_index = SIZE_MAX;
-
-		int anchor_value = -1;
-
-		for (std::size_t i = 0; i < s; ++i)
-		{
-			if (patternBytes[i] != -1)
-			{
-				anchor_index = i; anchor_value = patternBytes[i];
+			MEMORY_BASIC_INFORMATION mbi{};
+			if (!VirtualQuery(current, &mbi, sizeof(mbi)))
 				break;
-			}
-		}
 
-		bool all_wildcards = (anchor_index == SIZE_MAX);
+			uint8_t* regionStart = (uint8_t*)mbi.BaseAddress;
+			uint8_t* regionEnd = regionStart + mbi.RegionSize;
 
-		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(module);
+			uint8_t* scanStart = (uint8_t*)std::max((uintptr_t)regionStart, (uintptr_t)base);
+			uint8_t* scanEnd = (uint8_t*)std::min((uintptr_t)regionEnd, (uintptr_t)end);
 
-		if (!dosHeader || dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
-		{
-			return nullptr;
-		}
-
-		auto ntHeaders = reinterpret_cast<IMAGE_NT_HEADERS_X*>(reinterpret_cast<std::uint8_t*>(module) + dosHeader->e_lfanew);
-
-		if (!ntHeaders || ntHeaders->Signature != IMAGE_NT_SIGNATURE)
-		{
-			return nullptr;
-		}
-
-		PIMAGE_SECTION_HEADER firstSection = IMAGE_FIRST_SECTION(ntHeaders);
-
-		unsigned numSections = ntHeaders->FileHeader.NumberOfSections;
-
-		std::vector<unsigned> order;
-
-		order.reserve(numSections);
-
-		for (unsigned i = 0; i < numSections; ++i)
-		{
-			PIMAGE_SECTION_HEADER sh = &firstSection[i];
-
-			if (std::strncmp(reinterpret_cast<const char*>(sh->Name), ".text", 5) == 0 || (sh->Characteristics & IMAGE_SCN_CNT_CODE))
+			if (mbi.State == MEM_COMMIT &&
+				!(mbi.Protect & PAGE_GUARD) &&
+				!(mbi.Protect & PAGE_NOACCESS))
 			{
-				order.push_back(i);
-			}
-		}
-
-		for (unsigned i = 0; i < numSections; ++i)
-		{
-			if (std::find(order.begin(), order.end(), i) == order.end())
-			{
-				order.push_back(i);
-			}
-		}
-
-		for (unsigned idx = 0; idx < order.size(); ++idx)
-		{
-			PIMAGE_SECTION_HEADER sh = &firstSection[order[idx]];
-
-			std::uint8_t* secBase = reinterpret_cast<std::uint8_t*>(module) + sh->VirtualAddress;
-
-			std::size_t secSize = static_cast<std::size_t>(sh->Misc.VirtualSize);
-
-			if (secSize == 0)
-			{
-				secSize = static_cast<std::size_t>(sh->SizeOfRawData);
-			}
-			if (secSize == 0)
-			{
-				continue;
-			}
-			if (secSize > 0x80000000u)
-			{
-				continue;
-			}
-			if (s > secSize)
-			{
-				continue;
-			}
-
-			std::uintptr_t secStart = reinterpret_cast<std::uintptr_t>(secBase);
-
-			std::uintptr_t secEnd = secStart + secSize;
-
-			std::uintptr_t queryPtr = secStart;
-
-			while (queryPtr < secEnd)
-			{
-				MEMORY_BASIC_INFORMATION mbi{};
-
-				if (VirtualQuery(reinterpret_cast<LPCVOID>(queryPtr), &mbi, sizeof(mbi)) == 0)
+				for (uint8_t* i = scanStart; i + s <= scanEnd; i++)
 				{
-					break;
-				}
+					bool found = true;
 
-				std::uintptr_t regionBase = reinterpret_cast<std::uintptr_t>(mbi.BaseAddress);
-
-				std::uintptr_t regionTop = regionBase + mbi.RegionSize;
-
-				std::uintptr_t scanStart = (std::max)(regionBase, secStart);
-
-				std::uintptr_t scanEnd = (std::min)(regionTop, secEnd);
-
-				if ((mbi.State & MEM_COMMIT) && scanEnd > scanStart)
-				{
-					std::uint8_t* rStart = reinterpret_cast<std::uint8_t*>(scanStart);
-
-					std::uint8_t* rEnd = reinterpret_cast<std::uint8_t*>(scanEnd);
-
-					if (all_wildcards)
+					for (size_t j = 0; j < s; j++)
 					{
-						return rStart;
-					}
-
-					std::uint8_t* lastPossible = rEnd - s;
-
-					if (lastPossible < rStart)
-					{
-
-					}
-					else 
-					{
-						std::uint8_t* memchr_search_start = rStart + anchor_index;
-
-						std::uint8_t* memchr_search_end = lastPossible + anchor_index;
-
-						std::uint8_t* p = memchr_search_start;
-
-						while (p <= memchr_search_end)
+						if (patternBytes[j] != -1 && i[j] != patternBytes[j])
 						{
-							void* found = std::memchr(p, static_cast<int>(anchor_value), static_cast<std::size_t>(memchr_search_end - p + 1));
-
-							if (!found)
-							{
-								break;
-							}
-
-							std::uint8_t* foundByte = reinterpret_cast<std::uint8_t*>(found);
-
-							std::uint8_t* candidate = foundByte - anchor_index;
-
-							bool ok = true;
-
-							for (std::size_t j = 0; j < s; ++j)
-							{
-								int pb = patternBytes[j];
-
-								if (pb != -1 && candidate[j] != static_cast<std::uint8_t>(pb))
-								{
-									ok = false;
-									break;
-								}
-							}
-
-							if (ok)
-							{
-								return candidate;
-							}
-
-							p = foundByte + 1;
+							found = false;
+							break;
 						}
 					}
-				}
 
-				if (regionTop <= queryPtr)
-				{
-					break;
+					if (found)
+						return i;
 				}
-
-				queryPtr = regionTop;
 			}
+
+			current = regionEnd;
 		}
 
 		return nullptr;
@@ -871,95 +768,6 @@ namespace Memory
 		}
 		
 		return false;
-	}
-
-	template<typename PartT, typename FullT = uintptr_t>
-	inline PartT ReadRegister(FullT full, unsigned start_bit, unsigned end_bit) noexcept
-	{
-		const unsigned full_bits = sizeof(FullT) * 8;
-
-		const unsigned width = end_bit - start_bit + 1u;
-
-		assert(start_bit <= end_bit && end_bit < full_bits);
-
-		assert(width <= sizeof(PartT) * 8u);
-
-		FullT mask = (width >= full_bits) ? ~FullT(0) : ((FullT(1) << width) - FullT(1));
-
-		FullT sliced = (full >> start_bit) & mask;
-
-		if constexpr (std::is_signed_v<PartT>)
-		{
-			using UnsignedPart = std::make_unsigned_t<PartT>;
-
-			UnsignedPart u = static_cast<UnsignedPart>(sliced);
-
-			if (width > 0)
-			{
-				UnsignedPart sign_bit = UnsignedPart(1) << (width - 1);
-
-				if (u & sign_bit)
-				{
-					UnsignedPart sign_mask = ~((UnsignedPart(1) << width) - UnsignedPart(1));
-					u |= sign_mask;
-				}
-			}
-
-			PartT out;
-
-			std::memcpy(&out, &u, sizeof(out));
-
-			return out;
-		}
-		else
-		{
-			return static_cast<PartT>(sliced);
-		}
-	}
-
-	template<typename PartT, typename FullT = uintptr_t>
-	inline PartT ReadRegister(FullT full) noexcept
-	{
-		constexpr unsigned full_bits = sizeof(FullT) * 8u;
-
-		static_assert(sizeof(PartT) * 8u >= full_bits, "PartT too small to hold full register");
-
-		if constexpr (std::is_signed_v<PartT>)
-		{
-			return static_cast<PartT>(full);
-		}
-		else
-		{
-			return static_cast<PartT>(full);
-		}
-	}
-
-	template<typename PartT, typename FullT = uintptr_t>
-	inline FullT WriteRegister(FullT full, PartT value, unsigned start_bit, unsigned end_bit) noexcept
-	{
-		const unsigned full_bits = sizeof(FullT) * 8u;
-
-		const unsigned width = end_bit - start_bit + 1u;
-
-		assert(start_bit <= end_bit && end_bit < full_bits);
-
-		assert(width <= sizeof(PartT) * 8u);
-
-		FullT field_mask = (width >= full_bits) ? ~FullT(0) : ((FullT(1) << width) - FullT(1));
-
-		field_mask <<= start_bit;
-
-		full &= ~field_mask;
-
-		using UnsignedPart = std::make_unsigned_t<PartT>;
-
-		UnsignedPart u;
-
-		std::memcpy(&u, &value, sizeof(u));
-
-		FullT shifted = (static_cast<FullT>(u) & ((FullT(1) << width) - 1u)) << start_bit;
-
-		return full | shifted;
 	}
 
 	std::uint32_t ModuleTimestamp(void* module)
