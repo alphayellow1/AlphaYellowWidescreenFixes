@@ -228,7 +228,7 @@ static SafetyHookMid GameplayFOVInstruction6Hook{};
 
 void GameplayFOVInstructionsMidHook(uintptr_t FOVAddress, uintptr_t& destInstruction)
 {
-	float& fCurrentGameplayFOV = *reinterpret_cast<float*>(FOVAddress);
+	float& fCurrentGameplayFOV = Memory::ReadMem(FOVAddress);
 
 	fNewGameplayFOV = fCurrentGameplayFOV * fFOVFactor;
 
@@ -284,7 +284,7 @@ void WidescreenFix()
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentResX = *reinterpret_cast<float*>(ctx.esi + 0x24);
+				float& fCurrentResX = Memory::ReadMem(ctx.esi + 0x24);
 
 				fNewResX = fCurrentResX * fAspectRatioScale;
 
@@ -319,7 +319,7 @@ void WidescreenFix()
 			// Instruction is located in the CAM_vAdjustCameraToViewport function
 			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGeneralFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+				float& fCurrentGeneralFOV = Memory::ReadMem(ctx.esp + 0xC);
 
 				fNewGeneralFOV = fCurrentGeneralFOV * fAspectRatioScale;
 

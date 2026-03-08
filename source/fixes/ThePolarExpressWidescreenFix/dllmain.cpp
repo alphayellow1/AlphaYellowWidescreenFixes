@@ -258,7 +258,7 @@ void WidescreenFix()
 
 				CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesARScan], [](SafetyHookContext& ctx)
 				{
-					float& fCurrentCutscenesAspectRatio = *reinterpret_cast<float*>(ctx.eax + 0x68);
+					float& fCurrentCutscenesAspectRatio = Memory::ReadMem(ctx.eax + 0x68);
 
 					fNewCutscenesAspectRatio = fCurrentCutscenesAspectRatio * fAspectRatioScale;
 
@@ -276,7 +276,7 @@ void WidescreenFix()
 
 				PauseMenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[PauseMenuARScan], [](SafetyHookContext& ctx)
 				{
-					*reinterpret_cast<float*>(ctx.eax) = *reinterpret_cast<float*>(ctx.eax) * fAspectRatioScale;
+					Memory::ReadMem(ctx.eax) = Memory::ReadMem(ctx.eax) * fAspectRatioScale;
 				});
 			}
 
@@ -289,7 +289,7 @@ void WidescreenFix()
 
 				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
-					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
+					float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x10);
 
 					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 

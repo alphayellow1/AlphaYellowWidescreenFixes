@@ -223,7 +223,7 @@ enum AngleMode
 
 void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, AngleMode angleMode, float fovFactor, DestInstruction destInstruction, SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
 
 	if (angleMode == DEG)
 	{

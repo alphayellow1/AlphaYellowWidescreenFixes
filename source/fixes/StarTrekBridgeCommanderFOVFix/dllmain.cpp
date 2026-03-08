@@ -385,7 +385,7 @@ void FOVFix()
 
 			ExteriorHFOVInstruction1Hook = safetyhook::create_mid(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV1Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentExteriorHFOV1 = *reinterpret_cast<float*>(ExteriorCameraFOVAddress);
+				float& fCurrentExteriorHFOV1 = Memory::ReadMem(ExteriorCameraFOVAddress);
 
 				fNewExteriorHFOV1 = fCurrentExteriorHFOV1 * fAspectRatioScale * fFOVFactor;
 
@@ -396,7 +396,7 @@ void FOVFix()
 
 			ExteriorHFOVInstruction2Hook = safetyhook::create_mid(ExteriorCameraFOVInstructionsScansResult[ExteriorHFOV2Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentExteriorHFOV2 = *reinterpret_cast<float*>(ExteriorCameraFOVAddress);
+				float& fCurrentExteriorHFOV2 = Memory::ReadMem(ExteriorCameraFOVAddress);
 
 				fNewExteriorHFOV2 = fCurrentExteriorHFOV2 * fAspectRatioScale * fFOVFactor;
 
@@ -407,7 +407,7 @@ void FOVFix()
 
 			ExteriorVFOVInstructionHook = safetyhook::create_mid(ExteriorCameraFOVInstructionsScansResult[ExteriorVFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentExteriorVFOV = *reinterpret_cast<float*>(ExteriorCameraFOVAddress);
+				float& fCurrentExteriorVFOV = Memory::ReadMem(ExteriorCameraFOVAddress);
 
 				fNewExteriorVFOV = fCurrentExteriorVFOV * fAspectRatioScale * fFOVFactor;
 

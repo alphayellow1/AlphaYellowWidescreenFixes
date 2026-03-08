@@ -194,7 +194,7 @@ static SafetyHookMid GroundCameraFOVInstructionHook{};
 
 void GroundCameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentGroundCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x4);
+	float& fCurrentGroundCameraFOV = Memory::ReadMem(ctx.esp + 0x4);
 
 	fNewGroundCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGroundCameraFOV, fAspectRatioScale) * fFOVFactor;
 

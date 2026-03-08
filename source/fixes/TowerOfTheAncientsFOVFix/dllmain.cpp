@@ -221,7 +221,7 @@ enum DestinationInstruction
 
 void CameraFOVInstructionsMidHook(uintptr_t SourceAddress, float fARScale, float fovFactor, DestinationInstruction destinationInstruction, SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(SourceAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(SourceAddress);
 
 	fNewCameraFOV = fCurrentCameraFOV * fARScale * fovFactor;
 

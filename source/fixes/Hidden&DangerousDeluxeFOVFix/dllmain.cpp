@@ -241,7 +241,7 @@ enum destInstruction
 
 void RenderingDistanceInstructions1MidHook(uintptr_t RendDistanceAddress, destInstruction DestInstruction)
 {
-	float& fCurrentRenderingDistance1 = *reinterpret_cast<float*>(RendDistanceAddress);
+	float& fCurrentRenderingDistance1 = Memory::ReadMem(RendDistanceAddress);
 
 	if (fCurrentCameraFOV1 == 1.483529806f * fFOVFactor && fCurrentRenderingDistance1 == 50.0f)
 	{
@@ -270,7 +270,7 @@ void RenderingDistanceInstructions1MidHook(uintptr_t RendDistanceAddress, destIn
 
 void RenderingDistanceInstructions2MidHook(uintptr_t RendDistanceAddress, uintptr_t& DestInstruction)
 {
-	float& fCurrentRenderingDistance2 = *reinterpret_cast<float*>(RendDistanceAddress);
+	float& fCurrentRenderingDistance2 = Memory::ReadMem(RendDistanceAddress);
 
 	fNewRenderingDistance2 = fCurrentRenderingDistance2 * fRenderingDistanceFactor;
 
@@ -311,7 +311,7 @@ void FOVFix()
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.ebp + 0xC);
+				fCurrentCameraFOV1 = Memory::ReadMem(ctx.ebp + 0xC);
 
 				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
 

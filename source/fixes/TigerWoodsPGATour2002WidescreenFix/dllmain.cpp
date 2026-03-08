@@ -257,7 +257,7 @@ void WidescreenFix()
 					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 				}
 				
-				*reinterpret_cast<float*>(ctx.esi + 0xAF) = fNewCameraFOV;
+				Memory::ReadMem(ctx.esi + 0xAF) = fNewCameraFOV;
 			});
 		}
 		else

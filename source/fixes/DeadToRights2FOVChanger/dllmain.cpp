@@ -178,7 +178,7 @@ void FOVChanger()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x10);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x10);
 
 				fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
 

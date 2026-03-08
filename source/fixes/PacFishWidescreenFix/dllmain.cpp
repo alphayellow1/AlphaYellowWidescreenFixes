@@ -310,7 +310,7 @@ void WidescreenFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+				float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 				if (fCurrentCameraFOV != fNewCameraFOV)
 				{
@@ -364,7 +364,7 @@ void WidescreenFix()
 					}
 				}
 
-				*reinterpret_cast<int*>(HorizontalHUDMarginAddress) = iNewHorizontalHUDMargin;
+				Memory::ReadMem(HorizontalHUDMarginAddress) = iNewHorizontalHUDMargin;
 			});
 
 			Memory::WriteNOPs(HUDInstructionsScansResult[HUD2Scan], 6);
@@ -390,7 +390,7 @@ void WidescreenFix()
 					iNewVerticalHUDMargin = iCurrentVerticalHUDMargin + ((iCurrentResY - 600) / 2);
 				}
 
-				*reinterpret_cast<int*>(VerticalHUDMarginAddress) = iNewVerticalHUDMargin;
+				Memory::ReadMem(VerticalHUDMarginAddress) = iNewVerticalHUDMargin;
 			});
 		}
 		*/

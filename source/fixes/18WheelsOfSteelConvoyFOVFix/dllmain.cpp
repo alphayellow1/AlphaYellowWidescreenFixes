@@ -222,7 +222,7 @@ static SafetyHookMid CameraFOVInstruction5Hook{};
 
 void CameraFOVInstruction2MidHook(uintptr_t CameraFOVAddress)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 	
 	if (fCurrentCameraFOV == 57.0f)
 	{

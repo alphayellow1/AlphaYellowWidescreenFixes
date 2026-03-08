@@ -203,7 +203,7 @@ void WidescreenFix()
 
 			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionWidthInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 70) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 70) = iCurrentResX;
 			});
 		}
 		else
@@ -221,7 +221,7 @@ void WidescreenFix()
 
 			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionHeightInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 74) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 74) = iCurrentResY;
 			});
 		}
 		else
@@ -239,7 +239,7 @@ void WidescreenFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult + 10, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.ecx);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.ecx);
 
 				if (fCurrentCameraHFOV == 1.538461566f || fCurrentCameraHFOV == 1.25f)
 				{

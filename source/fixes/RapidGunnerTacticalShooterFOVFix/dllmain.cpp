@@ -190,7 +190,7 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx);
+	float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx);
 
 	if (fCurrentCameraFOV == 90.0f)
 	{

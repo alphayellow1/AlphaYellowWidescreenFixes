@@ -207,7 +207,7 @@ static SafetyHookMid CameraHFOVInstruction1Hook{};
 
 void CameraHFOVInstruction1MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraHFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x54);
+	float& fCurrentCameraHFOV1 = Memory::ReadMem(ctx.esi + 0x54);
 
 	if (iIsPlayerOnARace == 1)
 	{
@@ -228,7 +228,7 @@ static SafetyHookMid CameraHFOVInstruction2Hook{};
 
 void CameraHFOVInstruction2MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.edi + 0x54);
+	float& fCurrentCameraHFOV2 = Memory::ReadMem(ctx.edi + 0x54);
 
 	if (iIsPlayerOnARace == 1)
 	{
@@ -249,7 +249,7 @@ static SafetyHookMid CameraHFOVInstruction3Hook{};
 
 void CameraHFOVInstruction3MidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraHFOV3 = *reinterpret_cast<float*>(ctx.eax + 0x54);
+	float& fCurrentCameraHFOV3 = Memory::ReadMem(ctx.eax + 0x54);
 
 	if (iIsPlayerOnARace == 1)
 	{
@@ -321,7 +321,7 @@ void FOVFix()
 
 			IsPlayerOnARaceTriggerInstructionMidHook = safetyhook::create_mid(IsPlayerOnARaceTriggerInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				iIsPlayerOnARace = *reinterpret_cast<int*>(IsPlayerOnARaceTriggerAddress);
+				iIsPlayerOnARace = Memory::ReadMem(IsPlayerOnARaceTriggerAddress);
 			});
 		}
 

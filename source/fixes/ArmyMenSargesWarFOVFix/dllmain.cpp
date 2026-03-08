@@ -198,7 +198,7 @@ static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void CameraFOVInstructionsMidHook(uintptr_t CameraFOVAddress)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 

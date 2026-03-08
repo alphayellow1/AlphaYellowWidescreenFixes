@@ -257,14 +257,14 @@ void WidescreenFix()
 
 			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructions1ScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionWidth1Address) = iCurrentResX;
+				Memory::ReadMem(ResolutionWidth1Address) = iCurrentResX;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructions1ScanResult + 16, 6);			
 
 			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructions1ScanResult + 16, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight1Address) = iCurrentResY;
+				Memory::ReadMem(ResolutionHeight1Address) = iCurrentResY;
 			});
 		}
 		else
@@ -286,14 +286,14 @@ void WidescreenFix()
 
 			ResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructions2ScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionWidth2Address) = iCurrentResX;
+				Memory::ReadMem(ResolutionWidth2Address) = iCurrentResX;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructions2ScanResult + 20, 6);			
 
 			ResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructions2ScanResult + 20, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ResolutionHeight2Address) = iCurrentResY;
+				Memory::ReadMem(ResolutionHeight2Address) = iCurrentResY;
 			});
 		}
 		else
@@ -311,13 +311,13 @@ void WidescreenFix()
 
 			ResolutionInstructions3Hook = safetyhook::create_mid(ResolutionInstructions3ScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0xAC) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 0xAC) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.esi + 0xB0) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 0xB0) = iCurrentResY;
 
-				*reinterpret_cast<int*>(ctx.esi + 0x68) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 0x68) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.esi + 0x6C) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 0x6C) = iCurrentResY;
 			});
 		}
 		else
@@ -337,7 +337,7 @@ void WidescreenFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 13, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+				float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 				
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 				

@@ -64,8 +64,8 @@ enum class Game
 
 enum CameraFOVInstructionsIndex
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1,
+	FOV2
 };
 
 struct GameInfo
@@ -225,15 +225,15 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 8E ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 96 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 F2 DD D8 DB 44 24 ?? DA 74 24 ?? DE C9 D9 E8 D9 F3 DC C0 D9 9E ?? ?? ?? ?? D9 86", "C7 83 A4 01 00 00 00 00 B4 42 8B 54 24 1C 8D 86 68 01 00 00 8B C8");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 6);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esi + 0x1A4);
+				float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.esi + 0x1A4);
 
 				fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV1, fAspectRatioScale);
 
@@ -242,7 +242,7 @@ void WidescreenFix()
 
 			fNewCameraFOV2 = fOriginalCameraFOV * fFOVFactor;
 
-			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 6, fNewCameraFOV2);
+			Memory::Write(CameraFOVInstructionsScansResult[FOV2] + 6, fNewCameraFOV2);
 		}
 	}
 }

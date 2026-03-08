@@ -198,7 +198,7 @@ void FOVFix()
 
 			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x16504);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x16504);
 
 				// Skip processing if a similar FOV (within tolerance) has already been computed
 				bool bFOVAlreadyComputed = std::any_of(vComputedFOVs.begin(), vComputedFOVs.end(),

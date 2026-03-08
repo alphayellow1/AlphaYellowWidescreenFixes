@@ -210,7 +210,7 @@ void FOVFix()
 
 				fNewCameraHFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraHFOV, fAspectRatioScale);
 
-				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewCameraHFOV;
+				Memory::ReadMem(ctx.esi + 0x68) = fNewCameraHFOV;
 			});
 		}
 		else
@@ -226,7 +226,7 @@ void FOVFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x40);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x40);
 
 				if (fCurrentCameraFOV == 1.570796371f)
 				{

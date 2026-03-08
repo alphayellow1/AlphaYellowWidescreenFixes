@@ -216,9 +216,9 @@ void FOVFix()
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CammeraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x138);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x138);
 
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);				
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x13C);				
 
 				if ((Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) || (fCurrentCameraHFOV > 1.5710f && fCurrentCameraHFOV < 1.57122f)) && (Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV) || (fCurrentCameraVFOV > 1.2561f && fCurrentCameraVFOV < 1.2564f)))
 				{
@@ -236,9 +236,9 @@ void FOVFix()
 
 			CameraVFOVInstructionHook = safetyhook::create_mid(CammeraFOVInstructionsScanResult + 13, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x138);
+				float& fCurrentCameraHFOV2 = Memory::ReadMem(ctx.eax + 0x138);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x13C);				
+				float& fCurrentCameraVFOV2 = Memory::ReadMem(ctx.eax + 0x13C);				
 
 				if ((Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) || (fCurrentCameraHFOV2 > 1.5710f && fCurrentCameraHFOV2 < 1.57122f)) && (Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV) || (fCurrentCameraVFOV2 > 1.2561f && fCurrentCameraVFOV2 < 1.2564f)))
 				{

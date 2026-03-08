@@ -280,9 +280,9 @@ void WidescreenFix()
 
 			ResolutionInstructions5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi) = iCurrentResX;
+				Memory::ReadMem(ctx.esi) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.esi + 0x4) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 0x4) = iCurrentResY;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res6], 5);
@@ -321,7 +321,7 @@ void WidescreenFix()
 
 			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV1 = *reinterpret_cast<float*>(ctx.esp + 0x4);
+				float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.esp + 0x4);
 
 				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
 
@@ -332,7 +332,7 @@ void WidescreenFix()
 
 			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.ecx + 0x4C);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.ecx + 0x4C);
 
 				fNewCameraFOV2 = fCurrentCameraFOV2 / fFOVFactor;
 
@@ -345,7 +345,7 @@ void WidescreenFix()
 
 			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV3], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV3 = *reinterpret_cast<float*>(CameraFOV3Address);
+				float& fCurrentCameraFOV3 = Memory::ReadMem(CameraFOV3Address);
 
 				fNewCameraFOV3 = fCurrentCameraFOV3 * fFOVFactor;
 

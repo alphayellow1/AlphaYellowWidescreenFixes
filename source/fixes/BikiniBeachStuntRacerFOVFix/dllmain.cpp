@@ -210,7 +210,7 @@ enum InstructionType
 
 void CameraFOVInstructionsMidHook(uintptr_t CameraFOVAddress, InstructionType DestinationInstruction)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 	fNewCameraFOV = fCurrentCameraFOV * fAspectRatioScale;
 
@@ -284,7 +284,7 @@ void FOVFix()
 
 			CameraHFOVInstruction4Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV4Scan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV4 = *reinterpret_cast<float*>(ctx.ebx + 0x158);
+				float& fCurrentCameraHFOV4 = Memory::ReadMem(ctx.ebx + 0x158);
 
 				fNewCameraHFOV4 = fCurrentCameraHFOV4 * fAspectRatioScale;
 
@@ -301,7 +301,7 @@ void FOVFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x1C);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x1C);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 

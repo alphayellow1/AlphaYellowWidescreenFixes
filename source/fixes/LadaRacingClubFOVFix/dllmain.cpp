@@ -215,7 +215,7 @@ void AspectRatioInstructionsMidHook(SafetyHookContext& ctx)
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 	fNewCameraFOV = fCurrentCameraFOV / fFOVFactor;
 

@@ -212,10 +212,10 @@ void FOVFix()
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x150
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x150);
 
 				// Access the VFOV value at the memory address EAX + 0x154
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x154);
 
 				if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale)) // Hipfire HFOV
 				{
@@ -245,10 +245,10 @@ void FOVFix()
 			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x150
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x150);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x150);
 
 				// Access the VFOV value at the memory address EAX + 0x154
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x154);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x154);
 
 				if (Maths::isClose(fCurrentCameraHFOV, fDefaultHFOV) && Maths::isClose(fCurrentCameraVFOV, fDefaultVFOV / fAspectRatioScale)) // Hipfire VFOV
 				{

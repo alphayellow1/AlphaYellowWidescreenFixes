@@ -222,7 +222,7 @@ enum DestInstruction
 
 void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, DestInstruction destInstruction, SafetyHookContext& ctx)
 {
-	int& iCurrentCameraFOV = *reinterpret_cast<int*>(FOVAddress);
+	int& iCurrentCameraFOV = Memory::ReadMem(FOVAddress);
 
 	iNewCameraFOV = (int)(iCurrentCameraFOV * fFOVFactor);
 

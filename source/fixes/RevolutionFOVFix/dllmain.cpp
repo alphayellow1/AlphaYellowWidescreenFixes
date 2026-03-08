@@ -264,7 +264,7 @@ void FOVFix()
 
 			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGeneralFOV = *reinterpret_cast<float*>(ctx.ebx + 0xD0);
+				float& fCurrentGeneralFOV = Memory::ReadMem(ctx.ebx + 0xD0);
 
 				fNewGeneralFOV = Maths::CalculateNewFOV_DegBased(fCurrentGeneralFOV, fAspectRatioScale) * fFOVFactor;
 
@@ -275,7 +275,7 @@ void FOVFix()
 
 			CutscenesFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV1], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCutscenesFOV1 = *reinterpret_cast<float*>(ctx.ebp + 0x10);
+				float& fCurrentCutscenesFOV1 = Memory::ReadMem(ctx.ebp + 0x10);
 
 				fNewCutscenesFOV1 = fCurrentCutscenesFOV1 / fFOVFactor;
 
@@ -286,7 +286,7 @@ void FOVFix()
 
 			CutscenesFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCutscenesFOV2 = *reinterpret_cast<float*>(ctx.ebp + 0x10);
+				float& fCurrentCutscenesFOV2 = Memory::ReadMem(ctx.ebp + 0x10);
 
 				fNewCutscenesFOV2 = fCurrentCutscenesFOV2 / fFOVFactor;
 

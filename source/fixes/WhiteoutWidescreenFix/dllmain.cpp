@@ -255,7 +255,7 @@ void WidescreenFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraAspectRatioAndFOVInstructionsScansResult[FOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax * 0x4 + 0x005E44A0);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.eax * 0x4 + 0x005E44A0);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
@@ -266,7 +266,7 @@ void WidescreenFix()
 
 			CameraHFOVInstructionHook = safetyhook::create_mid(CameraAspectRatioAndFOVInstructionsScansResult[HFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x50);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x50);
 
 				if (Maths::isClose(fCurrentCameraHFOV, 0.9336100817f) || Maths::isClose(fCurrentCameraHFOV, 0.9336093068f))
 				{

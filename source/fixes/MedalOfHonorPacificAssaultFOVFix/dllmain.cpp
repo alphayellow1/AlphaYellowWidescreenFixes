@@ -198,7 +198,7 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
 
@@ -212,7 +212,7 @@ static SafetyHookMid WeaponHFOVInstructionHook{};
 
 void WeaponHFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponHFOV = *reinterpret_cast<float*>(CameraFOV2Address);
+	float& fCurrentWeaponHFOV = Memory::ReadMem(CameraFOV2Address);
 
 	fNewWeaponHFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponHFOV, fAspectRatioScale);
 
@@ -226,7 +226,7 @@ static SafetyHookMid WeaponVFOVInstructionHook{};
 
 void WeaponVFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentWeaponVFOV = *reinterpret_cast<float*>(CameraFOV2Address);
+	float& fCurrentWeaponVFOV = Memory::ReadMem(CameraFOV2Address);
 
 	fNewWeaponVFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponVFOV, 1.0f / fAspectRatioScale);
 
@@ -251,7 +251,7 @@ void FOVFix()
 
 			CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
 		}
@@ -284,12 +284,12 @@ void FOVFix()
 			CameraFOV2Address = Memory::GetPointerFromAddress(WeaponFOVInstructionsScanResult + 57, Memory::PointerMode::Absolute);
 
 			/*
-			Memory::PatchBytes(WeaponFOVInstructionsScanResult + 55, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(WeaponFOVInstructionsScanResult + 55, 6);
 
 			WeaponHFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionsScanResult + 55, WeaponHFOVInstructionMidHook);
 			*/
 
-			Memory::PatchBytes(WeaponFOVInstructionsScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(WeaponFOVInstructionsScanResult, 6);
 
 			WeaponVFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionsScanResult, WeaponVFOVInstructionMidHook);
 		}

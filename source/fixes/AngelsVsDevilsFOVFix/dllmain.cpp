@@ -219,7 +219,7 @@ static SafetyHookMid CameraVFOVInstruction5Hook{};
 
 void CameraHFOVInstructionMidHook(uintptr_t CameraHFOVAddress)
 {
-	float& fCurrentCameraHFOV = *reinterpret_cast<float*>(CameraHFOVAddress);
+	float& fCurrentCameraHFOV = Memory::ReadMem(CameraHFOVAddress);
 
 	if (fCurrentCameraHFOV == 0.7853981853f)
 	{
@@ -235,7 +235,7 @@ void CameraHFOVInstructionMidHook(uintptr_t CameraHFOVAddress)
 
 void CameraVFOVInstructionMidHook(uintptr_t CameraVFOVAddress)
 {
-	float& fCurrentCameraVFOV = *reinterpret_cast<float*>(CameraVFOVAddress);
+	float& fCurrentCameraVFOV = Memory::ReadMem(CameraVFOVAddress);
 
 	if (Maths::isClose(fCurrentCameraVFOV, 0.589048624f / fAspectRatioScale))
 	{

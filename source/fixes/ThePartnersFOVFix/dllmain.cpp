@@ -225,7 +225,7 @@ void FOVFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x44);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.eax + 0x44);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 

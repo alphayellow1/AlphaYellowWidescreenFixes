@@ -278,7 +278,7 @@ void FOVFix()
 
 			CameraHFOVCullingInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HFOVCullingScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOVCulling = *reinterpret_cast<float*>(HorizontalCullingAddress);
+				float& fCurrentCameraHFOVCulling = Memory::ReadMem(HorizontalCullingAddress);
 
 				fNewCameraHFOVCulling = fCurrentCameraHFOVCulling / fAspectRatioScale;
 

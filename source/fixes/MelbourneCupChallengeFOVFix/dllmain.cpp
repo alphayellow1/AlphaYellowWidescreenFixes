@@ -202,7 +202,7 @@ static SafetyHookMid CameraVFOVInstructionHook{};
 
 void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fARScale)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
 
 	if (fCurrentCameraFOV != fNewCameraFOV)
 	{
@@ -229,7 +229,7 @@ void FOVFix()
 			
 			HUDAspectRatioInstructionHook = safetyhook::create_mid(HUDAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHUDAspectRatio = *reinterpret_cast<float*>(ctx.edi + 0x30);
+				float& fCurrentHUDAspectRatio = Memory::ReadMem(ctx.edi + 0x30);
 
 				fNewHUDAspectRatio = fCurrentHUDAspectRatio * fAspectRatioScale;
 

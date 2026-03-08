@@ -227,7 +227,7 @@ static SafetyHookMid BriefingScreenCameraFOVInstruction2Hook{};
 
 void BriefingScreenCameraFOVInstructionsMidHook(uint8_t* FOVAddress)
 {
-	double& dCurrentBriefingScreenCameraFOV = *reinterpret_cast<double*>(FOVAddress);
+	double& dCurrentBriefingScreenCameraFOV = Memory::ReadMem(FOVAddress);
 
 	dNewBriefingScreenCameraFOV = Maths::CalculateNewFOV_RadBased(dCurrentBriefingScreenCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle);
 
@@ -326,7 +326,7 @@ void WidescreenFix()
 
 			GameplayCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGameplayCameraFOV = *reinterpret_cast<float*>(ctx.eax + 0x8);
+				float& fCurrentGameplayCameraFOV = Memory::ReadMem(ctx.eax + 0x8);
 
 				fNewGameplayCameraFOV = fCurrentGameplayCameraFOV * fFOVFactor;
 

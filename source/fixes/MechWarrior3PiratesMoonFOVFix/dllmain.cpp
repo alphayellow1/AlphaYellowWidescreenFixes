@@ -200,16 +200,16 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 08 8B 4C 24 08 D8 B0 D8 00 00 00 89 88 E0 00 00 00 8B 4C 24 0C 89 88 E4 00 00 00 89 90 38 01 00 00 89 90 F8 00 00 00 D9 90 E8 00 00 00 D9 44 24 0C");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D9 44 24 08 8B 4C 24 08 D8 B0 D8 00 00 00 89 88 E0 00 00 00 8B 4C 24 0C 89 88 E4 00 00 00 89 90 38 01 00 00 89 90 F8 00 00 00 D9 90 E8 00 00 00 D9 44 24 0C");
+		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 4);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.esp + 0x8);
 
 				if (fCurrentCameraHFOV == 1.39626348f)
 				{
@@ -223,11 +223,11 @@ void FOVFix()
 				FPU::FLD(fNewCameraHFOV);
 			});
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult + 48, "\x90\x90\x90\x90", 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 48, 4);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 48, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 48, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.esp + 0xC);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.esp + 0xC);
 
 				if (fCurrentCameraVFOV == 1.04719758f)
 				{
@@ -243,7 +243,7 @@ void FOVFix()
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 			return;
 		}
 	}

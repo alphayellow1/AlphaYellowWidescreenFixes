@@ -198,7 +198,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(ResolutionInstructionsScanResult, "\x90\x90\x90\x90\x90\x90\x90\x90", 8);
+			Memory::WriteNOPs(ResolutionInstructionsScanResult, 8);
 
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
@@ -213,23 +213,18 @@ void WidescreenFix()
 			return;
 		}
 
-		while ((dllModule2 = GetModuleHandleA("CK2_3D.dll")) == nullptr)
-		{
-			spdlog::warn("CK2_3D.dll not loaded yet. Waiting...");
-		}
-
-		spdlog::info("Successfully obtained handle for CK2_3D.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+		dllModule2 = Memory::GetHandle("CK2_3D.dll");
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 33 C0");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is CK2_3D.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 			
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 			
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esi + 0x16C);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x16C);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 

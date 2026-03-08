@@ -230,7 +230,7 @@ void WidescreenFix()
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(fNewAspectRatio);
 
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ebx + 0x8);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ebx + 0x8);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 

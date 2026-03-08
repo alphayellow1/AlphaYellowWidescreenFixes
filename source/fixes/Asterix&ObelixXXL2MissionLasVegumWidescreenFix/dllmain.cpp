@@ -269,32 +269,32 @@ void WidescreenFix()
 
 			ResolutionWidthInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan] + 22, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0xC) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 0xC) = iCurrentResX;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution3Scan] + 55, 3);			
 
 			ResolutionHeightInstruction3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan] + 55, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0x10) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 0x10) = iCurrentResY;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution4Scan], 6);			
 
 			ResolutionInstructions4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution4Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esi + 0xC) = iCurrentResX;
+				Memory::ReadMem(ctx.esi + 0xC) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.esi + 0x10) = iCurrentResY;
+				Memory::ReadMem(ctx.esi + 0x10) = iCurrentResY;
 			});
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution5Scan], 8);
 			
 			ResolutionInstructions5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution5Scan], [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.ebp + 0x728) = iCurrentResX;
+				Memory::ReadMem(ctx.ebp + 0x728) = iCurrentResX;
 
-				*reinterpret_cast<int*>(ctx.esi) = iCurrentResY;
+				Memory::ReadMem(ctx.esi) = iCurrentResY;
 			});
 		}
 
@@ -340,7 +340,7 @@ void WidescreenFix()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x14);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x14);
 
 				fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 

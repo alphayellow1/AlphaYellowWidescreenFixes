@@ -207,7 +207,7 @@ void FOVFix()
 
 			CameraFOVTriggerInstructionMidHook = safetyhook::create_mid(CameraFOVTriggerInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				fCameraFOVTrigger = *reinterpret_cast<float*>(ctx.esi + 0x90);
+				fCameraFOVTrigger = Memory::ReadMem(ctx.esi + 0x90);
 			});
 		}
 		else
@@ -242,7 +242,7 @@ void FOVFix()
 					fNewCameraFOV = fCurrentCameraFOV;
 				}
 
-				*reinterpret_cast<float*>(ctx.ecx + 0x8C) = fNewCameraFOV;
+				Memory::ReadMem(ctx.ecx + 0x8C) = fNewCameraFOV;
 			});
 		}
 		else

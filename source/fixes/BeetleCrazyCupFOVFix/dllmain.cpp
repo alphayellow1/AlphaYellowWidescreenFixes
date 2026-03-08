@@ -231,7 +231,7 @@ void FOVFix()
 
 			RacesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[RacesCameraFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentRacesCameraFOV = *reinterpret_cast<float*>(RacesCameraFOVAddress);
+				float& fCurrentRacesCameraFOV = Memory::ReadMem(RacesCameraFOVAddress);
 
 				fNewRacesCameraFOV = (fCurrentRacesCameraFOV / fAspectRatioScale) / fFOVFactor;
 
@@ -245,7 +245,7 @@ void FOVFix()
 
 			PreRacesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[PreRacesCameraFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentPreRacesCameraFOV = *reinterpret_cast<float*>(ctx.ecx + PreRacesCameraFOVOffsetAddress);
+				float& fCurrentPreRacesCameraFOV = Memory::ReadMem(ctx.ecx + PreRacesCameraFOVOffsetAddress);
 
 				fNewPreRacesCameraFOV = fCurrentPreRacesCameraFOV / fAspectRatioScale;
 
@@ -264,7 +264,7 @@ void FOVFix()
 
 			ReplayCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ReplayCameraFOVScan], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentReplayCameraFOV = *reinterpret_cast<float*>(ReplayCameraFOVAddress);
+				float& fCurrentReplayCameraFOV = Memory::ReadMem(ReplayCameraFOVAddress);
 
 				fNewReplayCameraFOV = fCurrentReplayCameraFOV / fAspectRatioScale;
 

@@ -205,7 +205,7 @@ enum InstructionType
 
 void CameraFOVInstructionsMidHook(uintptr_t CameraFOVAddress, InstructionType instructionType, SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 	if (fCurrentCameraFOV == 1.5707963705062866f)
 	{

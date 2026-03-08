@@ -282,15 +282,15 @@ void WidescreenFix()
 			{
 				if (eGameType == Game::FLB_DX9)
 				{
-					*reinterpret_cast<int*>(ctx.esp + 0x40) = iCurrentResX;
+					Memory::ReadMem(ctx.esp + 0x40) = iCurrentResX;
 
-					*reinterpret_cast<int*>(ctx.esp + 0x44) = iCurrentResY;
+					Memory::ReadMem(ctx.esp + 0x44) = iCurrentResY;
 				}
 				else if (eGameType == Game::FLB_DX8)
 				{
-					*reinterpret_cast<int*>(ctx.esp + 0x10) = iCurrentResX;
+					Memory::ReadMem(ctx.esp + 0x10) = iCurrentResX;
 
-					*reinterpret_cast<int*>(ctx.esp + 0x14) = iCurrentResY;
+					Memory::ReadMem(ctx.esp + 0x14) = iCurrentResY;
 				}				
 			});
 

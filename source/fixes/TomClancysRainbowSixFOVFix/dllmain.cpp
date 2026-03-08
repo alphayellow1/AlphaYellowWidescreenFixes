@@ -204,7 +204,7 @@ static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void CameraFOVInstruction2MidHook(uintptr_t CameraFOVAddress)
 {
-	float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(CameraFOVAddress);
+	float& fCurrentCameraFOV2 = Memory::ReadMem(CameraFOVAddress);
 
 	if (fCurrentCameraFOV2 == 1.8f)
 	{
@@ -270,7 +270,7 @@ void FOVFix()
 					fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
 				}
 
-				*reinterpret_cast<float*>(ctx.ecx + 0x181C) = fNewCameraFOV1;
+				Memory::ReadMem(ctx.ecx + 0x181C) = fNewCameraFOV1;
 			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 6);

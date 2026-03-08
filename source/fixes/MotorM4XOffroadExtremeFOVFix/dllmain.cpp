@@ -215,7 +215,7 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.ecx + 0xD8);
+	float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + 0xD8);
 
 	if (fabsf(fCurrentCameraFOV - (1.047197699546814f / fAspectRatioScale)) < fTolerance)
 	{
@@ -276,7 +276,7 @@ void FOVFix()
 
 			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = *reinterpret_cast<float*>(ctx.esi + 0x64);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esi + 0x64);
 
 				fCurrentCameraFOV2 = 179.5f;
 			});

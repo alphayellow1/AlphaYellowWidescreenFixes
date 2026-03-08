@@ -211,7 +211,7 @@ void CameraFOVInstructionsMidHook(uintptr_t CameraFOVAddress, float fARScale, ui
 
 	fNewCameraFOV = fCurrentCameraFOV * fARScale * fFOVFactor;
 
-	*reinterpret_cast<float*>(DestinationAddress) = fNewCameraFOV;
+	Memory::ReadMem(DestinationAddress) = fNewCameraFOV;
 }
 
 void FOVFix()

@@ -41,8 +41,8 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fDefaultCameraHFOV = 1.5707963705062866f; // 90º in radians
-constexpr float fDefaultCameraVFOV = 1.3089969158172607f; // 75º in radians
+constexpr float fDefaultCameraHFOV = 1.5707963705062866f; // 90ï¿½ in radians
+constexpr float fDefaultCameraVFOV = 1.3089969158172607f; // 75ï¿½ in radians
 
 // Ini variables
 bool bFixActive;
@@ -208,9 +208,9 @@ void FOVFix()
 
 			CameraHFOVInstructionMidHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = *reinterpret_cast<float*>(ctx.eax + 0x13C);
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x13C);
 
-				float& fCurrentCameraVFOV = *reinterpret_cast<float*>(ctx.eax + 0x140);
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x140);
 
 				if (Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV))
 				{
@@ -241,9 +241,9 @@ void FOVFix()
 
 			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x13C);
+				float& fCurrentCameraHFOV2 = Memory::ReadMem(ctx.eax + 0x13C);
 
-				float& fCurrentCameraVFOV2 = *reinterpret_cast<float*>(ctx.eax + 0x140);				
+				float& fCurrentCameraVFOV2 = Memory::ReadMem(ctx.eax + 0x140);				
 
 				if (Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) && Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV))
 				{
