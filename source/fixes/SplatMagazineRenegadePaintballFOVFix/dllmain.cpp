@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "SplatMagazineRenegadePaintballFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -47,15 +47,13 @@ int iCurrentResX;
 int iCurrentResY;
 float fCameraFOVFactor;
 float fWeaponFOVFactor;
+float fZoomFactor;
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewBriefingCameraFOV;
-float fNewHipfireCameraFOV;
-float fNewCameraZoomFOV;
-float fNewWeaponFOV;
-uint8_t* CameraZoomAddress;
+float fNewCameraFOV;
+uintptr_t CameraZoomAddress;
 
 // Game detection
 enum class Game
@@ -66,26 +64,26 @@ enum class Game
 
 enum CameraFOVInstructionsIndex
 {
-	BriefingCameraFOVScan,
-	HipfireCameraFOV1Scan,
-	HipfireCameraFOV2Scan,
-	CameraZoomScan,
-	WeaponFOVScan
+	Briefing,
+	Hipfire1,
+	Hipfire2,
+	Zoom,
+	Weapon
 };
 
 enum AspectRatioInstructionsIndex
 {
-	AspectRatio1Scan,
-	AspectRatio2Scan,
-	AspectRatio3Scan,
-	AspectRatio4Scan,
-	AspectRatio5Scan,
-	AspectRatio6Scan,
-	AspectRatio7Scan,
-	AspectRatio8Scan,
-	AspectRatio9Scan,
-	AspectRatio10Scan,
-	AspectRatio11Scan
+	AR1,
+	AR2,
+	AR3,
+	AR4,
+	AR5,
+	AR6,
+	AR7,
+	AR8,
+	AR9,
+	AR10,
+	AR11
 };
 
 struct GameInfo
@@ -179,10 +177,12 @@ void Configuration()
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "CameraFOVFactor", fCameraFOVFactor);
 	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", fWeaponFOVFactor);
+	inipp::get_value(ini.sections["Settings"], "ZoomFactor", fZoomFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fCameraFOVFactor);
 	spdlog_confparse(fWeaponFOVFactor);
+	spdlog_confparse(fZoomFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -223,13 +223,32 @@ static SafetyHookMid HipfireCameraFOVInstruction2Hook{};
 static SafetyHookMid WeaponFOVInstructionHook{};
 static SafetyHookMid CameraZoomFOVInstructionHook{};
 
-void HipfireCameraFOVInstructionMidHook(SafetyHookContext& ctx)
+enum DestInstruction
 {
-	float& fCurrentHipfireCameraFOV = Memory::ReadMem(ctx.ebx + 0x19C);
+	FLD,
+	ECX
+};
 
-	fNewHipfireCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentHipfireCameraFOV, fAspectRatioScale) * fCameraFOVFactor;
+void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor, DestInstruction destInstruction, SafetyHookContext& ctx)
+{
+	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
 
-	FPU::FLD(fNewHipfireCameraFOV);
+	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
+
+	switch (destInstruction)
+	{
+		case FLD:
+		{
+			FPU::FLD(fNewCameraFOV);
+			break;
+		}
+
+		case ECX:
+		{
+			ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
+			break;
+		}
+	}
 }
 
 void FOVFix()
@@ -240,122 +259,98 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "89 48 58 8B 4A 5C 89 48 5C 8B 4A 60 89 48 60 8D 72 64", "D9 83 9C 01 00 00 8D 44 24 14", "D9 83 9C 01 00 00 50 D8 E1 51", "D9 05 ?? ?? ?? ?? D8 64 24 5C 5F D8 4C 24 68", "8B 48 04 33 C0 89 44 24 10 89 44 24 14 89 44 24 18 89 44 24 1C 89 44 24 20 89 44 24 24 89 44 24 28 89 44 24 2C 89 44 24 30 89 44 24 34 89 44 24 38 89 44 24 3C");
-
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 40 ?? 8B 86 ?? ?? ?? ?? D9 50", "D9 83 ?? ?? ?? ?? 8D 44 24 ?? D9 83 ?? ?? ?? ?? 50",
+			"D9 83 ?? ?? ?? ?? 50", "D9 05 ?? ?? ?? ?? D8 64 24 ?? 5F", "8B 48 ?? 33 C0 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 8B 44 F2");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Briefing Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[BriefingCameraFOVScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Briefing Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Briefing] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Hipfire Camera FOV Instruction 1: Address is{:s} + {:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HipfireCameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Hipfire Camera FOV Instruction 1: Address is{:s} + {:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Hipfire1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Hipfire Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HipfireCameraFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Hipfire Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Hipfire2] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera Zoom FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraZoomScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera Zoom FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Zoom] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[WeaponFOVScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Weapon] - (std::uint8_t*)exeModule);
 
 			// Briefing Camera FOV
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[BriefingCameraFOVScan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Briefing], 3);
 
-			BriefingCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[BriefingCameraFOVScan], [](SafetyHookContext& ctx)
+			BriefingCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Briefing], [](SafetyHookContext& ctx)
 			{
-				float fCurrentBriefingCameraFOV = std::bit_cast<float>(ctx.ecx);
-
-				if (fCurrentBriefingCameraFOV == 0.5142856836f) // 29.5 degrees in radians
-				{
-					fNewBriefingCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentBriefingCameraFOV, fAspectRatioScale);
-				}
-				else
-				{
-					fNewBriefingCameraFOV = fCurrentBriefingCameraFOV;
-				}
-
-				Memory::ReadMem(ctx.eax + 0x58) = fNewBriefingCameraFOV;
+				CameraFOVInstructionsMidHook(ctx.eax + 0x4, 1.0f, FLD, ctx);
 			});
 
 			// Hipfire Camera FOV 1
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[HipfireCameraFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Hipfire1], 6);
 
-			HipfireCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireCameraFOV1Scan], HipfireCameraFOVInstructionMidHook);
+			HipfireCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Hipfire1], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.ebx + 0x19C, fCameraFOVFactor, FLD, ctx);
+			});
 
 			// Hipfire Camera FOV 2
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[HipfireCameraFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Hipfire2], 6);
 
-			HipfireCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireCameraFOV2Scan], HipfireCameraFOVInstructionMidHook);
+			HipfireCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Hipfire2], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(ctx.ebx + 0x19C, fCameraFOVFactor, FLD, ctx);
+			});
 
 			// Camera Zoom FOV
-			CameraZoomAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[CameraZoomScan] + 2, Memory::PointerMode::Absolute);
+			CameraZoomAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[Zoom] + 2, Memory::PointerMode::Absolute);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[CameraZoomScan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Zoom], 6);
 
-			CameraZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraZoomScan], [](SafetyHookContext& ctx)
+			CameraZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Zoom], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraZoomFOV = Memory::ReadMem(CameraZoomAddress);
-
-				fNewCameraZoomFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraZoomFOV, fAspectRatioScale);
-
-				FPU::FLD(fNewCameraZoomFOV);
+				CameraFOVInstructionsMidHook(CameraZoomAddress, 1.0f / fZoomFactor, FLD, ctx);
 			});
 
 			// Weapon FOV
-			Memory::PatchBytes(CameraFOVInstructionsScansResult[WeaponFOVScan], "\x90\x90\x90", 3);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Weapon], 3);
 
-			WeaponFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[WeaponFOVScan], [](SafetyHookContext& ctx)
+			WeaponFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Weapon], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponFOV = Memory::ReadMem(ctx.eax + 0x4);
-
-				fNewWeaponFOV = Maths::CalculateNewFOV_RadBased(fCurrentWeaponFOV, fAspectRatioScale) * fWeaponFOVFactor;
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewWeaponFOV);
+				CameraFOVInstructionsMidHook(ctx.eax + 0x4, fWeaponFOVFactor, ECX, ctx);
 			});
 		}
 
-		std::vector<std::uint8_t*> AspectRatioScansResult = Memory::PatternScan(exeModule, "C7 40 64 AB AA AA 3F DD 05 B0 B7 8A", "00 C7 43 64 AB AA AA 3F 8B 80 00 01 00", "14 C7 42 64 AB AA AA 3F 8B 06 8B 54", "00 C7 41 64 AB AA AA 3F EB 16 A1 64 6C A0", "24 8C 00 00 00 AB AA AA 3F C6 84 24", "64 FC FF C7 40 64 AB AA AA 3F DD 05 F0 B4 8A", "4C C7 41 3C AB AA AA 3F 8B 55 4C 8D 86 EC", "00 C7 40 3C AB AA AA 3F 8B 45 50 8B 54 24", "74 C7 43 3C AB AA AA 3F D8 0D 38 B0 8A", "C7 42 3C AB AA AA 3F 8B C8 89 4A 48 89 4A", "6C 16 AD 3F AB AA AA 3F 35 58 A8 3F");
+		std::vector<std::uint8_t*> AspectRatioScansResult = Memory::PatternScan(exeModule, "C7 40 ?? ?? ?? ?? ?? DD 05 ?? ?? ?? ?? C7 40 ?? ?? ?? ?? ?? D9 F2 50 DD D8 D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FE D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FF D9 98 ?? ?? ?? ?? C7 40",
+		"C7 43 ?? ?? ?? ?? ?? 8B 80", "C7 42 ?? ?? ?? ?? ?? 8B 06 8B 54 24", "C7 41 ?? ?? ?? ?? ?? EB ?? A1", "C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C6 84 24 ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? E8",
+		"C7 40 ?? ?? ?? ?? ?? DD 05 ?? ?? ?? ?? C7 40 ?? ?? ?? ?? ?? D9 F2 50 DD D8 D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FE D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FF D9 98 ?? ?? ?? ?? 8B C5", "C7 41 ?? ?? ?? ?? ?? 8B 55 ?? 8D 86", "C7 40 ?? ?? ?? ?? ?? 8B 45 ?? 8B 54 24",
+		"C7 43 ?? ?? ?? ?? ?? D8 0D", "C7 42 ?? ?? ?? ?? ?? 8B C8", "6C 16 AD 3F AB AA AA 3F 35 58 A8 3F");
 		if (Memory::AreAllSignaturesValid(AspectRatioScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio1Scan] + 3 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio2Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR2] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio3Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR3] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio4Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR4] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio5Scan] + 5 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR5] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 6: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio6Scan] + 6 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR6] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio7Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR7] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio8Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR8] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio9Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR9] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio10Scan] + 3 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR10] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Aspect Ratio 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AspectRatio11Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR11] + 4 - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioScansResult[AspectRatio1Scan] + 3, fNewAspectRatio);
+			Memory::Write(AspectRatioScansResult, AR1, AR4, 3, fNewAspectRatio);
 
-			Memory::Write(AspectRatioScansResult[AspectRatio2Scan] + 4, fNewAspectRatio);
+			Memory::Write(AspectRatioScansResult[AR5] + 7, fNewAspectRatio);
 
-			Memory::Write(AspectRatioScansResult[AspectRatio3Scan] + 4, fNewAspectRatio);
+			Memory::Write(AspectRatioScansResult, AR6, AR10, 3, fNewAspectRatio);
 
-			Memory::Write(AspectRatioScansResult[AspectRatio4Scan] + 4, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AspectRatio5Scan] + 5, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AspectRatio6Scan] + 6, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AspectRatio7Scan] + 4, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AspectRatio8Scan] + 4, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AspectRatio9Scan] + 4, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AspectRatio10Scan] + 3, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AspectRatio11Scan] + 4, fNewAspectRatio);
+			Memory::Write(AspectRatioScansResult[AR11] + 4, fNewAspectRatio);
 		}
 	}
 }
