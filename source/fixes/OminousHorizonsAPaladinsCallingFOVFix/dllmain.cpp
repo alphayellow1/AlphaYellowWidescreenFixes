@@ -187,10 +187,7 @@ bool DetectGame()
 	return false;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return fCurrentFOV * fAspectRatioScale;
-}
+static SafetyHookMid CameraFOVInstructionMidHook{};
 
 void FOVFix()
 {
@@ -205,13 +202,11 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90", 5);
-			
-			static SafetyHookMid CameraFOVInstructionMidHook{};
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 5);			
 
-			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 5, [](SafetyHookContext& ctx)
+			CameraFOVInstructionMidHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				fNewCameraFOV = CalculateNewFOV(fOriginalCameraFOV) * fFOVFactor;
+				fNewCameraFOV = fOriginalCameraFOV * fAspectRatioScale * fFOVFactor;
 
 				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
 			});

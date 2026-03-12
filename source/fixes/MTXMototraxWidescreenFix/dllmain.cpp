@@ -196,7 +196,6 @@ bool DetectGame()
 
 static SafetyHookMid ResolutionWidthInstructionHook{};
 static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
 
 void WidescreenFix()
@@ -231,7 +230,7 @@ void WidescreenFix()
 
 			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionListScanResult + 38, [](SafetyHookContext& ctx)
 			{
-				Memory::ReadMem(ctx.esp + 0x20) = iCurrentResX;
+				*reinterpret_cast<int*>(ctx.esp + 0x20) = iCurrentResX;
 			});
 		}
 		else
@@ -245,12 +244,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FLD(fNewAspectRatio);
-			});
+			Memory::Write(AspectRatioInstructionScanResult, &fNewAspectRatio);
 		}
 		else
 		{
@@ -267,12 +261,7 @@ void WidescreenFix()
 
 			fNewCameraFOV1 = fAspectRatioScale;
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 6);
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
-			{
-				FPU::FLD(fNewCameraFOV1);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[FOV1] + 2, &fNewCameraFOV1);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 4);
 
