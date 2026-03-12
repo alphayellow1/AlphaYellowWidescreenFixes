@@ -287,28 +287,22 @@ void FOVFix()
 
 			HUDAspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioInstructionsScansResult[HUDAR1] + 2, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[HUDAR1], 6);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult, HUDAR1, HUDAR4, 0, 6);
 
 			HUDAspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR1], [](SafetyHookContext& ctx)
 			{
 				HUDAspectRatioInstructionsMidHook(HUDAspectRatioAddress, ECX, ctx);
 			});
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[HUDAR2], 6);
-
 			HUDAspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR2], [](SafetyHookContext& ctx)
 			{
 				HUDAspectRatioInstructionsMidHook(HUDAspectRatioAddress, FMUL, ctx);
 			});
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[HUDAR3], 6);
-
 			HUDAspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR3], [](SafetyHookContext& ctx)
 			{
 				HUDAspectRatioInstructionsMidHook(HUDAspectRatioAddress, FSUB, ctx);
 			});
-
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[HUDAR4], 6);
 
 			HUDAspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR4], [](SafetyHookContext& ctx)
 			{
@@ -335,15 +329,11 @@ void FOVFix()
 
 			fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(25.0f, fAspectRatioScale) * fFOVFactor;
 
-			Memory::Write(CameraFOVInstructionsScansResult[FOV1] + 1, fNewCameraFOV1);
-
-			Memory::Write(CameraFOVInstructionsScansResult[FOV2] + 1, fNewCameraFOV1);
-
-			Memory::Write(CameraFOVInstructionsScansResult[FOV3] + 1, fNewCameraFOV1);
+			Memory::Write(CameraFOVInstructionsScansResult, FOV1, FOV3, 1, fNewCameraFOV1);
 
 			Memory::Write(CameraFOVInstructionsScansResult[FOV4] + 1, fNewCameraFOV2);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV5], 3);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult, FOV5, FOV6, 0, 3);
 
 			CameraFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV5], [](SafetyHookContext& ctx)
 			{
@@ -353,8 +343,6 @@ void FOVFix()
 
 				FPU::FADD(fNewCameraFOV5);
 			});
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV6], 3);
 
 			CameraFOVInstruction6Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV6], [](SafetyHookContext& ctx)
 			{
