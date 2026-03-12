@@ -57,8 +57,8 @@ float fCurrentGameplayCameraFOV;
 float fNewMenuCameraFOVFactor;
 float fNewMenuCameraFOV;
 float fNewGameplayCameraFOV;
-uint8_t* MenuCameraFOVAddress;
-uint8_t* GameplayCameraFOVAddress;
+uintptr_t MenuFOVAddress;
+uintptr_t GameplayFOVAddress;
 
 // Game detection
 enum class Game
@@ -228,13 +228,13 @@ void FOVFix()
 
 			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansRsesult[GameplayFOVScan] - (std::uint8_t*)exeModule);
 
-			MenuCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansRsesult[MenuFOV1Scan] + 2, Memory::PointerMode::Absolute);
+			MenuFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansRsesult[MenuFOV1Scan] + 2, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansRsesult[MenuFOV1Scan], 6);
 
 			MenuCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansRsesult[MenuFOV1Scan], [](SafetyHookContext& ctx)
 			{
-				fCurrentMenuCameraFOVFactor = Memory::ReadMem(MenuCameraFOVAddress);
+				fCurrentMenuCameraFOVFactor = Memory::ReadMem(MenuFOVAddress);
 
 				fCurrentMenuCameraFOV = Maths::Pi<float> * fCurrentMenuCameraFOVFactor;
 
@@ -259,7 +259,7 @@ void FOVFix()
 				FPU::FMUL(fNewMenuCameraFOVFactor);
 			});
 
-			GameplayCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansRsesult[GameplayFOVScan] + 1, Memory::PointerMode::Absolute);
+			GameplayFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansRsesult[GameplayFOVScan] + 1, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansRsesult[GameplayFOVScan], 5);
 
@@ -269,7 +269,7 @@ void FOVFix()
 
 				fNewGameplayCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentGameplayCameraFOV, fAspectRatioScale) * fFOVFactor;
 
-				Memory::ReadMem(GameplayCameraFOVAddress) = fNewGameplayCameraFOV;
+				Memory::ReadMem(GameplayFOVAddress) = fNewGameplayCameraFOV;
 			});
 		}
 	}

@@ -55,7 +55,7 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOVProjection;
 float fNewCameraFOV;
-uint8_t* CameraFOVValueAddress;
+uintptr_t CameraFOVAddress;
 
 // Game detection
 enum class Game
@@ -235,13 +235,13 @@ void FOVFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is Entities.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule3);
 
-			CameraFOVValueAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
+			CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 1, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVInstructionScanResult, 5);			
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVValueAddress);
+				float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 

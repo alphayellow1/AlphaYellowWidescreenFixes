@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -22,11 +21,11 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
 HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "18WheelsOfSteelPedalToTheMetalFOVFix";
+std::string sFixName = "FreedomForceFOVFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -40,37 +39,27 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
 // Ini variables
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 float fFOVFactor;
 
+// Constants
+constexpr float fOldAspectRatio = 4.0f / 3.0f;
+
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewMainMenuFOV;
-float fNewGameplayFOV1;
-float fNewGameplayFOV2;
-float fNewGameplayFOV3;
+float fNewAspectRatio2;
+float fNewCameraFOV;
+uintptr_t CameraFOVAddress;
 
 // Game detection
 enum class Game
 {
-	WOSPTTM,
+	FF,
 	Unknown
-};
-
-enum CameraFOVInstructionsIndices
-{
-	MainMenu,
-	Gameplay1,
-	Gameplay2,
-	Gameplay3,
-	Gameplay4
 };
 
 struct GameInfo
@@ -80,7 +69,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::WOSPTTM, {"18 Wheels of Steel: Pedal to the Metal", "prism3d.exe"}},
+	{Game::FF, {"Freedom Force", "fforce.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -96,7 +85,7 @@ void Logging()
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
+	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
@@ -184,8 +173,6 @@ void Configuration()
 
 bool DetectGame()
 {
-	bool bGameFound = false;
-
 	for (const auto& [type, info] : kGames)
 	{
 		if (Util::stringcmp_caseless(info.ExeName, sExeName))
@@ -194,70 +181,65 @@ bool DetectGame()
 			spdlog::info("----------");
 			eGameType = type;
 			game = &info;
-			bGameFound = true;
-			break;
+			return true;
 		}
 	}
 
-	if (bGameFound == false)
-	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
-	}
-
-	dllModule2 = Memory::GetHandle("game.dll");
-
-	return true;
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-static SafetyHookMid MainMenuFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
-	if (eGameType == Game::WOSPTTM && bFixActive == true)
+	if (eGameType == Game::FF && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 85 ?? ?? ?? ?? 83 C4 ?? 51", "C7 86 ?? ?? ?? ?? ?? ?? ?? ?? A1 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? C7 86",
-		"C7 86 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C6 84 24", "C7 44 24 ?? ?? ?? ?? ?? C6 84 24");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 51 D9 1C 24 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? 51 D9 1C 24 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? 51");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Main Menu Camera FOV Instruction: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[MainMenu] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult + 27 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Gameplay Camera FOV Instruction 1: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay1] - (std::uint8_t*)dllModule2);
+			fNewAspectRatio2 = 0.75f / fAspectRatioScale;
 
-			spdlog::info("Gameplay Camera FOV Instruction 2: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay2] - (std::uint8_t*)dllModule2);
+			Memory::Write(AspectRatioInstructionScanResult + 29, &fNewAspectRatio2);
+		}
+		else
+		{
+			spdlog::info("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
 
-			spdlog::info("Gameplay Camera FOV Instruction 3: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay3] - (std::uint8_t*)dllModule2);
+		std::uint8_t* CameraFOVInstructionScanResult = AspectRatioInstructionScanResult;
+		if (CameraFOVInstructionScanResult)
+		{
+			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			spdlog::info("Gameplay Camera FOV Instruction 4: Address is game.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay4] - (std::uint8_t*)dllModule2);
+			CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MainMenu], 6);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
-			MainMenuFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenu], [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentMainMenuFOV = Memory::ReadMem(ctx.ebp + 0x1AC);
+				float& fCurrentFOVFactor = Memory::ReadMem(CameraFOVAddress);
 
-				fNewMainMenuFOV = Maths::CalculateNewFOV_DegBased(fCurrentMainMenuFOV, fAspectRatioScale);
+				const float& fCurrentCameraFOV = Maths::Pi<float> * fCurrentFOVFactor;
 
-				ctx.eax = std::bit_cast<uintptr_t>(fNewMainMenuFOV);
+				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+
+				const float& fNewCameraFOVFactor = fNewCameraFOV / Maths::Pi<float>;
+
+				FPU::FMUL(fNewCameraFOVFactor);
 			});
-
-			fNewGameplayFOV1 = Maths::CalculateNewFOV_DegBased(64.0f, fAspectRatioScale) * fFOVFactor;
-
-			fNewGameplayFOV2 = Maths::CalculateNewFOV_DegBased(50.0f, fAspectRatioScale) * fFOVFactor;
-
-			fNewGameplayFOV3 = Maths::CalculateNewFOV_DegBased(16.0f, fAspectRatioScale) * fFOVFactor;
-
-			Memory::Write(CameraFOVInstructionsScansResult[Gameplay1] + 6, fNewGameplayFOV1);
-
-			Memory::Write(CameraFOVInstructionsScansResult[Gameplay2] + 6, fNewGameplayFOV2);
-
-			Memory::Write(CameraFOVInstructionsScansResult[Gameplay3] + 4, fNewGameplayFOV3);
-
-			Memory::Write(CameraFOVInstructionsScansResult[Gameplay4] + 4, fNewGameplayFOV2);
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
 		}
 	}
 }
