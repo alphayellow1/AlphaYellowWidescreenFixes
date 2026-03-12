@@ -52,7 +52,7 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCharacterSelectionHFOV1;
 float fNewCharacterSelectionHFOV2;
-uint8_t* HUDAspectRatioAddress;
+uintptr_t HUDAspectRatioAddress;
 float fNewHUDAspectRatio;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
@@ -228,7 +228,7 @@ enum DestinationInstructions
 	FSUB
 };
 
-void HUDAspectRatioInstructionsMidHook(uint8_t* address, DestinationInstructions destinationInstruction, SafetyHookContext& ctx)
+void HUDAspectRatioInstructionsMidHook(uintptr_t address, DestinationInstructions destinationInstruction, SafetyHookContext& ctx)
 {
 	float& fCurrentHUDAspectRatio = Memory::ReadMem(address);
 	
