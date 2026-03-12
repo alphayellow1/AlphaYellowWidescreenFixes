@@ -42,9 +42,9 @@ std::string sExeName;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
+bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
-bool bFixActive;
 float fFOVFactor;
 
 // Variables
@@ -62,14 +62,14 @@ enum class Game
 
 enum CameraHFOVInstructionsIndex
 {
-	CameraHFOV1Scan,
-	CameraHFOV2Scan
+	HFOV1,
+	HFOV2
 };
 
 enum CameraVFOVInstructionsIndex
 {
-	CameraVFOV1Scan,
-	CameraVFOV2Scan
+	VFOV1,
+	VFOV2
 };
 
 struct GameInfo
@@ -228,20 +228,20 @@ void FOVFix()
 
 		if (Memory::AreAllSignaturesValid(CameraHFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionsScansResult[CameraHFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionsScansResult[HFOV1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionsScansResult[CameraHFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionsScansResult[HFOV2] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[HFOV1], 6);
 
-			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV1Scan], [](SafetyHookContext& ctx)
+			CameraHFOVInstruction1Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV1], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.edx, fAspectRatioScale, ctx.ecx + 0x144);
 			});
 
-			Memory::PatchBytes(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraHFOVInstructionsScansResult[HFOV2], 6);
 
-			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[CameraHFOV2Scan], [](SafetyHookContext& ctx)
+			CameraHFOVInstruction2Hook = safetyhook::create_mid(CameraHFOVInstructionsScansResult[HFOV2], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.eax, fAspectRatioScale, ctx.ecx + 0x148);
 			});
@@ -249,20 +249,20 @@ void FOVFix()
 
 		if (Memory::AreAllSignaturesValid(CameraVFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera VFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionsScansResult[CameraVFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera VFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionsScansResult[VFOV1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera VFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionsScansResult[CameraVFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera VFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionsScansResult[VFOV2] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[VFOV1], 6);
 
-			CameraVFOVInstruction1Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV1Scan], [](SafetyHookContext& ctx)
+			CameraVFOVInstruction1Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[VFOV1], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.edx, 1.0f, ctx.ecx + 0x14C);
 			});
 
-			Memory::PatchBytes(CameraVFOVInstructionsScansResult[CameraVFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(CameraVFOVInstructionsScansResult[VFOV2], 6);
 
-			CameraVFOVInstruction2Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[CameraVFOV2Scan], [](SafetyHookContext& ctx)
+			CameraVFOVInstruction2Hook = safetyhook::create_mid(CameraVFOVInstructionsScansResult[VFOV2], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.eax, 1.0f, ctx.ecx + 0x150);
 			});

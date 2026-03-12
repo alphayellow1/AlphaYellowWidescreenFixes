@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BrokenSword3TheSleepingDragonFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -51,15 +51,23 @@ float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
-float fNewAspectRatio2;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fNewAspectRatio2;
+float fNewCameraFOV1;
+float fNewCameraFOV3;
 
 // Game detection
 enum class Game
 {
 	BS3TSD,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	FOV1,
+	FOV2,
+	FOV3
 };
 
 struct GameInfo
@@ -189,8 +197,7 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid CameraFOVInstruction3Hook{};
 
 void FOVFix()
 {
@@ -200,19 +207,14 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 5C 24 14 EB 1A 83 F8 01 75 10");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 5C 24 ?? EB ?? 83 F8");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
 			fNewAspectRatio2 = fOriginalAspectRatio / fAspectRatioScale;
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FMUL(fNewAspectRatio2);
-			});
+			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio2);
 		}
 		else
 		{
@@ -220,27 +222,31 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 0C 8B 44 24 0C D8 0D ?? ?? ?? ?? 56 8B F1 89 46 68");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8B CE 89 5E", "68 ?? ?? ?? ?? 8B CE C6 44 24", "D9 47 ?? D8 0D ?? ?? ?? ?? 8B 4E");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV3] - (std::uint8_t*)exeModule);
+
+			fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(60.0f, fAspectRatioScale) * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScansResult[FOV1] + 1, fNewCameraFOV1);
+
+			Memory::Write(CameraFOVInstructionsScansResult[FOV2] + 1, fNewCameraFOV1);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV3], 3);
+
+			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV3], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0xC);
+				float& fCurrentCameraFOV3 = Memory::ReadMem(ctx.edi + 0x10);
 
-				// Computes the new FOV value
-				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
+				fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
 
-				FPU::FLD(fNewCameraFOV);
+				FPU::FLD(fNewCameraFOV3);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
 		}
 	}
 }

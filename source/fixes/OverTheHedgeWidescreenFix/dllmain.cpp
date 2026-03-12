@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "OverTheHedgeWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,6 +40,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalHUDAspectRatio = 1.428571463f;
 
 // Ini variables
 bool bFixActive;
@@ -63,11 +64,12 @@ enum class Game
 
 enum HUDAspectRatioInstructionsIndices
 {
-	HUDAR1Scan,
-	HUDAR2Scan,
-	HUDAR3Scan,
-	HUDAR4Scan,
-	HUDAR5Scan
+	Camera,
+	HUD1,
+	HUD2,
+	HUD3,
+	HUD4,
+	HUD5
 };
 
 struct GameInfo
@@ -250,14 +252,26 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 8E ?? ?? ?? ?? 52 8B 96");
-		if (CameraAspectRatioInstructionScanResult)
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "8B 8E ?? ?? ?? ?? 52 8B 96", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 50 ?? 8B 8E ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 44 24",
+		"68 ?? ?? ?? ?? 50 FF 52 ?? 8B 4E", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 52 ?? 8B 8E ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 89 5E", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 50 ?? 8B 8E ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 8E",
+		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 52 ?? 8B 8E ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 8E");
+		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[Camera] - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraAspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			spdlog::info("HUD Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUD1] - (std::uint8_t*)exeModule);
 
-			CameraAspectRatioInstructionHook = safetyhook::create_mid(CameraAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("HUD Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUD2] - (std::uint8_t*)exeModule);
+
+			spdlog::info("HUD Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUD3] - (std::uint8_t*)exeModule);
+
+			spdlog::info("HUD Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUD4] - (std::uint8_t*)exeModule);
+
+			spdlog::info("HUD Aspect Ratio Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUD5] - (std::uint8_t*)exeModule);
+
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[Camera], 6);
+
+			CameraAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[Camera], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraAspectRatio = Memory::ReadMem(ctx.esi + 0x2A88);
 
@@ -265,11 +279,18 @@ void WidescreenFix()
 
 				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraAspectRatio);
 			});
-		}
-		else
-		{
-			spdlog::info("Cannot locate the camera aspect ratio instruction memory address.");
-			return;
+
+			fNewHUDAspectRatio = fOriginalHUDAspectRatio * fAspectRatioScale;
+
+			Memory::Write(AspectRatioInstructionsScansResult[HUD1] + 1, fNewHUDAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[HUD2] + 1, fNewHUDAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[HUD3] + 1, fNewHUDAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[HUD4] + 1, fNewHUDAspectRatio);
+
+			Memory::Write(AspectRatioInstructionsScansResult[HUD5] + 1, fNewHUDAspectRatio);
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 96 ?? ?? ?? ?? 51 52 8B CE");
@@ -277,7 +298,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);			
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);			
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -292,33 +313,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Cannot locate the camera FOV instruction memory address.");
 			return;
-		}
-
-		std::vector<std::uint8_t*> HUDAspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 50 ?? 8B 8E ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 44 24", "68 ?? ?? ?? ?? 50 FF 52 ?? 8B 4E", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 52 ?? 8B 8E ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 89 5E", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 50 ?? 8B 8E ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 8E", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 52 ?? 8B 8E ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 8E");
-		if (Memory::AreAllSignaturesValid(HUDAspectRatioInstructionsScansResult) == true)
-		{
-			spdlog::info("HUD Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), HUDAspectRatioInstructionsScansResult[HUDAR1Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("HUD Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), HUDAspectRatioInstructionsScansResult[HUDAR2Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("HUD Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), HUDAspectRatioInstructionsScansResult[HUDAR3Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("HUD Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), HUDAspectRatioInstructionsScansResult[HUDAR4Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("HUD Aspect Ratio Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), HUDAspectRatioInstructionsScansResult[HUDAR5Scan] - (std::uint8_t*)exeModule);
-
-			fNewHUDAspectRatio = 1.428571463f * fAspectRatioScale;
-
-			Memory::Write(HUDAspectRatioInstructionsScansResult[HUDAR1Scan] + 1, fNewHUDAspectRatio);
-
-			Memory::Write(HUDAspectRatioInstructionsScansResult[HUDAR2Scan] + 1, fNewHUDAspectRatio);
-
-			Memory::Write(HUDAspectRatioInstructionsScansResult[HUDAR3Scan] + 1, fNewHUDAspectRatio);
-
-			Memory::Write(HUDAspectRatioInstructionsScansResult[HUDAR4Scan] + 1, fNewHUDAspectRatio);
-
-			Memory::Write(HUDAspectRatioInstructionsScansResult[HUDAR5Scan] + 1, fNewHUDAspectRatio);
-		}
+		}		
 	}
 }
 

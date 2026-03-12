@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "MotorM4XOffroadExtremeFOVFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,18 +42,17 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fTolerance = 0.000001f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
+
+// Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fFOVFactor;
-float fNewCameraFOV;
+float fNewGeneralFOV;
 float fNewArrowFOV;
 bool bInitializationFailed = false;
 
@@ -62,6 +61,12 @@ enum class Game
 {
 	HUMMER4X4,
 	Unknown
+};
+
+enum CameraFOVInstructions
+{
+	GeneralFOV,
+	ArrowFOV
 };
 
 struct GameInfo
@@ -196,53 +201,13 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("OgreMain.dll")) == nullptr)
-	{
-		spdlog::warn("OgreMain.dll not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for OgreMain.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("OgreMain.dll");
 
 	return true;
 }
 
-float CalculateNewFOV(float fCurrentFOV)
-{
-	return 2.0f * atanf(tanf(fCurrentFOV / 2.0f) * fAspectRatioScale);
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + 0xD8);
-
-	if (fabsf(fCurrentCameraFOV - (1.047197699546814f / fAspectRatioScale)) < fTolerance)
-	{
-		fNewCameraFOV = 1.047197699546814f * fFOVFactor;
-	}
-	else
-	{
-		fNewCameraFOV = fCurrentCameraFOV;
-	}
-
-	_asm
-	{
-		fld dword ptr ds:[fNewCameraFOV]
-	}
-}
-
+static SafetyHookMid GeneralFOVInstructionHook{};
 static SafetyHookMid ArrowFOVInstructionHook{};
-
-void ArrowFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	fNewArrowFOV = 1.047197699546814f * fFOVFactor;
-
-	_asm
-	{
-		fld dword ptr ds:[fNewArrowFOV]
-	}
-}
 
 void FOVFix()
 {
@@ -252,54 +217,35 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 81 D8 00 00 00 D8 0D ?? ?? ?? ?? D9 F2");
-		if (CameraFOVInstructionScanResult)
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 00 8B 11 8B 82", exeModule, "D9 00 8D 4C 24 ?? D9 5C 24 ?? 51");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is OgreMain.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("General FOV Instruction: Address is OgreMain.dll+{:x}", CameraFOVInstructionsScansResult[GeneralFOV] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6); // NOP out the original instruction
+			spdlog::info("Arrow FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[ArrowFOV] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GeneralFOV], 2); // NOP out the original instruction
 
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "D8 4E 64 DE CA D9 C9 D9 F2 DD D8 D8 4E 6C D9 5C 24 0C D9 1C 24");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
-
-			static SafetyHookMid CameraFOVInstruction2MidHook{};
-
-			CameraFOVInstruction2MidHook = safetyhook::create_mid(CameraFOVInstruction2ScanResult, [](SafetyHookContext& ctx)
+			// General FOV instruction is located in Ogre::Frustum::setFOVy
+			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esi + 0x64);
+				float& fCurrentGeneralFOV = Memory::ReadMem(ctx.eax);
 
-				fCurrentCameraFOV2 = 179.5f;
+				fNewGeneralFOV = Maths::CalculateNewFOV_RadBased(fCurrentGeneralFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * fFOVFactor;
+				
+				FPU::FLD(fNewGeneralFOV);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction 2 memory address.");
-			return;
-		}
 
-		std::uint8_t* ArrowFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 00 8D 4C 24 54 D9 5C 24 28 51 8B 8E A8 00 00 00 FF D3 8B 8E A8 00 00 00 8D 54 24 10 52");
-		if (ArrowFOVInstructionScanResult)
-		{
-			spdlog::info("Arrow FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), ArrowFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[ArrowFOV], 2); // NOP out the original instruction
 
-			Memory::PatchBytes(ArrowFOVInstructionScanResult, "\x90\x90", 2); // NOP out the original instruction
+			ArrowFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ArrowFOV], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentArrowFOV = Memory::ReadMem(ctx.eax);
 
-			ArrowFOVInstructionHook = safetyhook::create_mid(ArrowFOVInstructionScanResult, ArrowFOVInstructionMidHook);
-		}
-		else
-		{
-			spdlog::error("Failed to locate arrow FOV instruction memory address.");
-			return;
+				fNewArrowFOV = fCurrentArrowFOV * fFOVFactor;
+
+				FPU::FLD(fNewArrowFOV);
+			});
 		}
 	}
 }
