@@ -53,12 +53,12 @@ constexpr float fMaximumUnderwaterHFOV = 1.71f;
 
 // Ini variables
 bool bFixActive;
-
-// Variables
 int iCurrentResX;
 int iCurrentResY;
-float fNewAspectRatio;
 float fFOVFactor;
+
+// Variables
+float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
@@ -325,7 +325,7 @@ void FOVFix()
 
 			Memory::WriteNOPs(CameraVFOVInstructionScanResult, 6);
 
-			CameraVFOVInstructionMidHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				// Access the HFOV value at the memory address EAX + 0x150
 				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x150);
