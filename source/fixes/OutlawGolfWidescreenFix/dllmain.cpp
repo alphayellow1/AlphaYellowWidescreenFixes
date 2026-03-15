@@ -250,9 +250,9 @@ void FOVFix()
 
 			ViewportResolutionIntructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Viewport], [](SafetyHookContext& ctx)
 			{
-				Memory::ReadMem(ctx.esi + 0xC) = iCurrentResX;
+				*reinterpret_cast<int*>(ctx.esi + 0xC) = iCurrentResX;
 
-				Memory::ReadMem(ctx.esi + 0x10) = iCurrentResY;
+				*reinterpret_cast<int*>(ctx.esi + 0x10) = iCurrentResY;
 			});
 		}
 
