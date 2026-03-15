@@ -65,8 +65,8 @@ enum class Game
 
 enum CameraFOVInstructionsIndices
 {
-	GameplayFOV,
-	CutscenesFOV
+	Gameplay,
+	Cutscenes
 };
 
 struct GameInfo
@@ -216,13 +216,13 @@ void FOVFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D8 0D ?? ?? ?? ?? D9 1C 24 FF D2", "D9 83 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? D8 0D");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Gameplay Camera FOV Instruction: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV] - (std::uint8_t*)dllModule2);
+			spdlog::info("Gameplay Camera FOV Instruction: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Cutscenes Camera FOV Instruction: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[CutscenesFOV] - (std::uint8_t*)dllModule2);
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is engine_x86.dll+{:x}", CameraFOVInstructionsScansResult[Cutscenes] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV], 4);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay], 4);
 
-			GameplayFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], [](SafetyHookContext& ctx)
+			GameplayFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentGameplayFOV = Memory::ReadMem(ctx.esp + 0x10);
 
@@ -238,9 +238,9 @@ void FOVFix()
 				FPU::FLD(fNewGameplayFOV);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV], 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Cutscenes], 6);
 
-			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV], [](SafetyHookContext& ctx)
+			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cutscenes], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCutscenesFOV = Memory::ReadMem(ctx.ebx + 0x150);
 
