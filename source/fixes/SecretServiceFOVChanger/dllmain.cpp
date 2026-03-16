@@ -279,6 +279,11 @@ void FOVChanger()
 				CameraFOVInstructionsMidHook(ctx.esi + 0x34, 1.0f / fZoomFactor);
 			});
 
+			SprintFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Sprint], [](SafetyHookContext& ctx)
+			{
+				CameraFOVInstructionsMidHook(SprintFOVAddress, fFOVFactor);
+			});
+
 			ChangeWeaponFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ChangeWeapon1], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ChangeWeaponFOV1Address, fFOVFactor);
