@@ -54,12 +54,7 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
-uintptr_t HipfireFOVAddress;
-uintptr_t SprintFOVAddress;
-uintptr_t ChangeWeaponFOV1Address;
-uintptr_t ChangeWeaponFOV2Address;
-uintptr_t ChangeWeaponFOV3Address;
-uintptr_t WeaponShowAddress;
+float fNewZoomFOV;
 
 // Game detection
 enum class Game
@@ -70,13 +65,17 @@ enum class Game
 
 enum CameraFOVInstructionsIndices
 {
+	ActorInitialize,
 	Hipfire,
 	Zoom,
-	Sprint,
+	Sprint1,
+	Sprint2,
 	ChangeWeapon1,
 	ChangeWeapon2,
 	ChangeWeapon3,
-	WeaponShow
+	WeaponShow,
+	ResetWeapon1,
+	ResetWeapon2,
 };
 
 struct GameInfo
@@ -202,22 +201,7 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid HipfireFOVInstructionHook{};
 static SafetyHookMid ZoomFOVInstructionHook{};
-static SafetyHookMid SprintFOVInstructionHook{};
-static SafetyHookMid ChangeWeaponFOVInstruction1Hook{};
-static SafetyHookMid ChangeWeaponFOVInstruction2Hook{};
-static SafetyHookMid ChangeWeaponFOVInstruction3Hook{};
-static SafetyHookMid WeaponShowFOVInstructionHook{};
-
-void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor)
-{
-	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
-
-	fNewCameraFOV = fCurrentCameraFOV * fovFactor;
-
-	FPU::FLD(fNewCameraFOV);
-}
 
 void FOVChanger()
 {
@@ -227,17 +211,23 @@ void FOVChanger()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? D9 1C 24 D9 04 24 59 C3 CC", "D9 46 ?? D9 1C 24 E8 ?? ?? ?? ?? D9 EE D8 5C 24",
-		"D9 05 ?? ?? ?? ?? DC 05 ?? ?? ?? ?? C7 06 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? D9 5E ?? C6 46 ?? ?? 8B C6", "D9 05 ?? ?? ?? ?? D9 1C 24 E8 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? EB ?? 8B 46",
-		"DB 83 F9 ?? 0F 8C ?? ?? ?? ?? 83 F9 ?? 0F 8F ?? ?? ?? ?? 8B 80 ?? ?? ?? ?? D9 05 ?? ?? ?? ??", "D9 05 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 8B 4C 24 ?? 89 96 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? 8B 54 24 ?? 89 86",
-		"D9 05 ?? ?? ?? ?? D9 1C 24 E8 ?? ?? ?? ?? 8B 8E");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 05 ?? ?? ?? ?? 89 85 ?? ?? ?? ?? 8D 4D", "D9 05 ?? ?? ?? ?? D9 1C 24 D9 04 24 59 C3 CC",
+		"D9 46 ?? D9 1C 24 E8 ?? ?? ?? ?? D9 EE D8 5C 24", "D9 05 ?? ?? ?? ?? DC 05 ?? ?? ?? ?? C7 06 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? D9 5E ?? C6 46 ?? ?? 8B C6",
+		"D9 05 ?? ?? ?? ?? 8B 54 24 ?? D9 96", "D9 05 ?? ?? ?? ?? D9 1C 24 E8 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? EB ?? 8B 46", "DB 83 F9 ?? 0F 8C ?? ?? ?? ?? 83 F9 ?? 0F 8F ?? ?? ?? ?? 8B 80 ?? ?? ?? ?? D9 05 ?? ?? ?? ??",
+		"D9 05 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 8B 4C 24 ?? 89 96 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? 8B 54 24 ?? 89 86",
+		"D9 05 ?? ?? ?? ?? D9 1C 24 E8 ?? ?? ?? ?? 8B 8E", "88 ?? ?? ?? ?? 83 F9 ?? 0F 8C ?? ?? ?? ?? 83 F9 ?? 0F 8F ?? ?? ?? ?? 8B 80 ?? ?? ?? ?? D9 05 ?? ?? ?? ??",
+		"D9 05 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 8B 4C 24 ?? 89 96 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? 8B 54 24 ?? 33 DB");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
+			spdlog::info("Actor Initialize FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[ActorInitialize] - (std::uint8_t*)dllModule2);
+
 			spdlog::info("Hipfire FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[Hipfire] - (std::uint8_t*)dllModule2);
 
 			spdlog::info("Zoom FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[Zoom] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Sprint FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[Sprint] - (std::uint8_t*)dllModule2);
+			spdlog::info("Sprint FOV Instruction 1: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[Sprint1] - (std::uint8_t*)dllModule2);
+
+			spdlog::info("Sprint FOV Instruction 2: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[Sprint2] - (std::uint8_t*)dllModule2);
 
 			spdlog::info("Change Weapon FOV Instruction 1: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[ChangeWeapon1] - (std::uint8_t*)dllModule2);
 
@@ -247,62 +237,42 @@ void FOVChanger()
 
 			spdlog::info("Weapon Show FOV Instruction: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[WeaponShow] - (std::uint8_t*)dllModule2);
 
-			HipfireFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[Hipfire] + 2, Memory::PointerMode::Absolute);
+			spdlog::info("Reset Weapon FOV Instruction 1: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[ResetWeapon1] + 29 - (std::uint8_t*)dllModule2);
 
-			SprintFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[Sprint] + 2, Memory::PointerMode::Absolute);
+			spdlog::info("Reset Weapon FOV Instruction 2: Address is CloakNTEngine.dll+{:x}", CameraFOVInstructionsScansResult[ResetWeapon2] - (std::uint8_t*)dllModule2);
 
-			ChangeWeaponFOV1Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[ChangeWeapon1] + 2, Memory::PointerMode::Absolute);
+			fNewCameraFOV = 1.22173059f * fFOVFactor;
 
-			ChangeWeaponFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[ChangeWeapon2] + 27, Memory::PointerMode::Absolute);
+			Memory::Write(CameraFOVInstructionsScansResult[ActorInitialize] + 2, &fNewCameraFOV);
 
-			ChangeWeaponFOV3Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[ChangeWeapon3] + 2, Memory::PointerMode::Absolute);
-
-			WeaponShowAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[WeaponShow] + 2, Memory::PointerMode::Absolute);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Hipfire], 6);
+			Memory::Write(CameraFOVInstructionsScansResult[Hipfire] + 2, &fNewCameraFOV);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Zoom], 3);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult, Sprint, ChangeWeapon1, 0, 6);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[ChangeWeapon2] + 25, 6);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult, ChangeWeapon3, WeaponShow, 0, 6);
-
-			HipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Hipfire], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook(HipfireFOVAddress, fFOVFactor);
-			});
-
 			ZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Zoom], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esi + 0x34, 1.0f / fZoomFactor);
+				float& fCurrentZoomFOV = Memory::ReadMem(ctx.esi + 0x34);
+
+				fNewZoomFOV = fCurrentZoomFOV / fZoomFactor;
+
+				FPU::FLD(fNewZoomFOV);
 			});
 
-			SprintFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Sprint], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook(SprintFOVAddress, fFOVFactor);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[Sprint1] + 2, &fNewCameraFOV);
 
-			ChangeWeaponFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ChangeWeapon1], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook(ChangeWeaponFOV1Address, fFOVFactor);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[Sprint2] + 2, &fNewCameraFOV);
 
-			ChangeWeaponFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ChangeWeapon2], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook(ChangeWeaponFOV2Address, fFOVFactor);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[ChangeWeapon1] + 2, &fNewCameraFOV);
 
-			ChangeWeaponFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[ChangeWeapon3], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook(ChangeWeaponFOV3Address, fFOVFactor);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[ChangeWeapon2] + 27, &fNewCameraFOV);
 
-			WeaponShowFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[WeaponShow], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook(WeaponShowAddress, fFOVFactor);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[ChangeWeapon3] + 2, &fNewCameraFOV);
+
+			Memory::Write(CameraFOVInstructionsScansResult[WeaponShow] + 2, &fNewCameraFOV);
+
+			Memory::Write(CameraFOVInstructionsScansResult[ResetWeapon1] + 31, &fNewCameraFOV);
+
+			Memory::Write(CameraFOVInstructionsScansResult[ResetWeapon2] + 2, &fNewCameraFOV);
 		}
 	}
 }
