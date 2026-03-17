@@ -250,12 +250,7 @@ void WidescreenFix()
 
 			fNewAspectRatio2 = fOriginalAspectRatio / fAspectRatioScale;
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FMUL(fNewAspectRatio2);
-			});
+			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio2);
 		}
 		else
 		{
@@ -268,14 +263,9 @@ void WidescreenFix()
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fOriginalCameraFOV, fAspectRatioScale) * fFOVFactor;
+			fNewCameraFOV = fOriginalCameraFOV * fAspectRatioScale * fFOVFactor;
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FMUL(fNewCameraFOV);
-			});
+			Memory::Write(CameraFOVInstructionScanResult + 2, &fNewCameraFOV);
 		}
 		else
 		{
