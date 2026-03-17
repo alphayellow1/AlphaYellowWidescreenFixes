@@ -231,16 +231,9 @@ void FOVFix()
 
 			AspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
+			fNewAspectRatio2 = fOriginalAspectRatio / fAspectRatioScale;
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentAspectRatio = Memory::ReadMem(AspectRatioAddress);
-
-				fNewAspectRatio2 = fCurrentAspectRatio / fAspectRatioScale;
-
-				FPU::FMUL(fNewAspectRatio2);
-			});
+			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio2);
 		}
 		else
 		{
@@ -255,18 +248,9 @@ void FOVFix()
 
 			spdlog::info("Camera FOV Instruction 2: Address is {}+{:x}", sDllName, CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)dllModule2);
 
-			CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[FOV1Scan] + 2, Memory::PointerMode::Absolute);
+			fNewCameraFOV = (fOriginalCameraFOV / fAspectRatioScale) / fFOVFactor;
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1Scan], 6);
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1Scan], [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
-
-				fNewCameraFOV = (fCurrentCameraFOV / fAspectRatioScale) / fFOVFactor;
-
-				FPU::FDIVR(fNewCameraFOV);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[FOV1Scan] + 2, &fNewCameraFOV);
 
 			fNewCameraFOV2 = 15.0f / fFOVFactor;
 
