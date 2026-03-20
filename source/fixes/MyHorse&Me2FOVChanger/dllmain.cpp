@@ -25,8 +25,8 @@ HMODULE dllModule = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "SWAT3FOVChanger";
-std::string sFixVersion = "1.2";
+std::string sFixName = "MyHorse&Me2FOVChanger";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -41,13 +41,10 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
-
-// Constants
-constexpr float fDefaultCameraFOV = 1.0471975803375244f;
+float fFOVFactor;
 
 // Variables
 float fNewCameraFOV;
-float fFOVFactor;
 
 // Game detection
 enum class Game
@@ -184,7 +181,10 @@ void FOVChanger()
 			{
 				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x4);
 
-				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+				if (fCurrentCameraFOV != fNewCameraFOV)
+				{
+					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+				}
 
 				FPU::FLD(fNewCameraFOV);
 			});
