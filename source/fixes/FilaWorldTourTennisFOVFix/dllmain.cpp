@@ -359,7 +359,12 @@ void FOVFix()
 				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
 				FixARAndFOV();
-			});
+
+				// Since we only need the resolution width and height at startup and already give the correct AR and AR scale to the AR and FOV logic, these hooks don't need to be active anymore
+				ResolutionWidthInstructionHook.reset();
+
+				ResolutionHeightInstructionHook.reset();
+			});			
 		}
 		else
 		{
