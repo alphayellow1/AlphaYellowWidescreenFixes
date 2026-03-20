@@ -196,7 +196,7 @@ void WidescreenFix()
 	if (eGameType == Game::CL && bFixActive == true)
 	{
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "3D ?? ?? ?? ?? 0F 9E C1", "3D ?? ?? ?? ?? 7E ?? 4E", "3D ?? ?? ?? ?? 7E ?? 46",
-		"8b 0a 89 0d ?? ?? ?? ?? 8b 4a");
+		"8B 0A 89 0D ?? ?? ?? ?? 8B 4A");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
 			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1] - (std::uint8_t*)exeModule);
@@ -209,11 +209,7 @@ void WidescreenFix()
 			
 			iNewMaxHorizontalRes = 10000;
 
-			Memory::Write(ResolutionInstructionsScansResult[Res1] + 1, iNewMaxHorizontalRes);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res2] + 1, iNewMaxHorizontalRes);
-
-			Memory::Write(ResolutionInstructionsScansResult[Res3] + 1, iNewMaxHorizontalRes);
+			Memory::Write(ResolutionInstructionsScansResult, Res1, Res3, 1, iNewMaxHorizontalRes);
 
 			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4], [](SafetyHookContext& ctx)
 			{
