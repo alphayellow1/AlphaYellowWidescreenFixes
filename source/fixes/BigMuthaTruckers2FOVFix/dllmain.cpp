@@ -202,8 +202,8 @@ bool DetectGame()
 
 static SafetyHookMid AspectRatioInstruction1Hook{};
 static SafetyHookMid AspectRatioInstruction2Hook{};
-static SafetyHookMid ChaseCameraFOVInstructionHook{};
-static SafetyHookMid CockpitCameraFOVInstructionHook{};
+static SafetyHookMid ChaseCameraFOVInstructionsHook{};
+static SafetyHookMid CockpitCameraFOVInstructionsHook{};
 
 void FOVFix()
 {
@@ -231,7 +231,7 @@ void FOVFix()
 
 			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult + 8, [](SafetyHookContext& ctx)
 			{
-				FPU::FLD((float)iCurrentResY);
+				FPU::FDIV((float)iCurrentResY);
 			});
 		}
 		else
@@ -258,7 +258,7 @@ void FOVFix()
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Chase], 6);
 
-			ChaseCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Chase], [](SafetyHookContext& ctx)
+			ChaseCameraFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Chase], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentChaseFOV1 = Memory::ReadMem(ctx.edi + 0x28);
 
@@ -275,7 +275,7 @@ void FOVFix()
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Cockpit], 6);
 
-			CockpitCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cockpit], [](SafetyHookContext& ctx)
+			CockpitCameraFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cockpit], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCockpitFOV1 = Memory::ReadMem(ctx.edi + 0x28);
 
