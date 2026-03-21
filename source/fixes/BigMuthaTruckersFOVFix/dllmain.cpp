@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BigMuthaTruckersFOVFix";
-std::string sFixVersion = "1.1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,6 +40,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalRearViewFOV = 70.0f;
 
 // Ini variables
 bool bFixActive;
@@ -50,13 +51,26 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fNewGeneralFOV;
+float fNewChaseFOV1;
+float fNewChaseFOV2;
+float fNewCockpitFOV1;
+float fNewCockpitFOV2;
+float fNewRearViewFOV;
 
 // Game detection
 enum class Game
 {
 	BMT,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	General,
+	Chase,
+	Cockpit,
+	RearView
 };
 
 struct GameInfo
@@ -187,7 +201,8 @@ bool DetectGame()
 }
 
 static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid ChaseCameraFOVInstructionHook{};
+static SafetyHookMid CockpitCameraFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -195,18 +210,20 @@ void FOVFix()
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;		
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 42 ?? D9 42 ?? D8 EB");
-		if (AspectRatioInstructionScanResult)
+		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 74 24 ?? 8B 4C 24");
+		if (AspectRatioInstructionsScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 3);
+			Memory::WriteNOPs(AspectRatioInstructionsScanResult, 8);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				FPU::FLD(fNewAspectRatio);
+				FPU::FLD((float)iCurrentResX);
+
+				FPU::FDIV((float)iCurrentResY);
 			});
 		}
 		else
@@ -214,26 +231,61 @@ void FOVFix()
 			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8D B2 D4 00 00 00 33 C0 8B FE D9 42 1C D8 0D ?? ?? ?? ?? D9 F2 DD D8 D8 3D ?? ?? ?? ??");
-		if (CameraFOVInstructionScanResult)
+		
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 3D ?? ?? ?? ?? D9 42 ?? D9 42", "D8 4B ?? D9 43 ?? D8 8E",
+		"D8 4F ?? D9 47 ?? D8 8E", "68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 8E");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult + 23 - (std::uint8_t*)exeModule);
+			spdlog::info("General Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[General] - (std::uint8_t*)exeModule);
 
-			fNewCameraFOV = (1.0f / fAspectRatioScale) / fFOVFactor;
+			spdlog::info("Chase Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Chase] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult + 23, 6);
+			spdlog::info("Cockpit Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Cockpit] - (std::uint8_t*)exeModule);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult + 23, [](SafetyHookContext& ctx)
+			spdlog::info("Rear View Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[RearView] - (std::uint8_t*)exeModule);
+
+			fNewGeneralFOV = 1.0f / fAspectRatioScale;
+
+			Memory::Write(CameraFOVInstructionsScansResult[General] + 2, &fNewGeneralFOV);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Chase], 6);
+
+			ChaseCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Chase], [](SafetyHookContext& ctx)
 			{
-				FPU::FDIVR(fNewCameraFOV);
+				float& fCurrentChaseFOV1 = Memory::ReadMem(ctx.ebx + 0x28);
+
+				float& fCurrentChaseFOV2 = Memory::ReadMem(ctx.ebx + 0x2C);
+
+				fNewChaseFOV1 = fCurrentChaseFOV1 * fFOVFactor;
+
+				fNewChaseFOV2 = fCurrentChaseFOV2 * fFOVFactor;
+
+				FPU::FMUL(fNewChaseFOV1);
+
+				FPU::FLD(fNewChaseFOV2);
 			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Cockpit], 6);
+
+			CockpitCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cockpit], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCockpitFOV1 = Memory::ReadMem(ctx.edi + 0x28);
+
+				float& fCurrentCockpitFOV2 = Memory::ReadMem(ctx.edi + 0x2C);
+
+				fNewCockpitFOV1 = fCurrentCockpitFOV1 * fFOVFactor;
+
+				fNewCockpitFOV2 = fCurrentCockpitFOV2 * fFOVFactor;
+
+				FPU::FMUL(fNewCockpitFOV1);
+
+				FPU::FLD(fNewCockpitFOV2);
+			});
+
+			fNewRearViewFOV = fOriginalRearViewFOV * fFOVFactor;
+
+			Memory::Write(CameraFOVInstructionsScansResult[RearView] + 1, fNewRearViewFOV);
 		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}		
 	}
 }
 
