@@ -66,10 +66,10 @@ enum class Game
 
 enum CameraFOVInstructionsIndex
 {
-	MenuFOV,
-	GameplayFOV1,
-	GameplayFOV2,
-	CutscenesFOV
+	MainMenu,
+	Gameplay1,
+	Gameplay2,
+	Cutscenes
 };
 
 struct GameInfo
@@ -273,40 +273,40 @@ void WidescreenFix()
 		"F3 0F 11 85 ?? ?? ?? ?? 8B 17 89 10 8B 4F ??", "F3 0F 58 05 ?? ?? ?? ?? F3 0F 11 87 ?? ?? ?? ??", "C3 CC CC 8B 44 24 ?? F3 0F 10 44 24 ?? 8D 04 40 C1 E0 ?? F3 0F 11 80 ?? ?? ?? ?? C3 CC CC CC");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MenuFOV] - (std::uint8_t*)exeModule);
+			spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MainMenu] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOV1] - (std::uint8_t*)exeModule);			
+			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay1] - (std::uint8_t*)exeModule);			
 
-			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOV2] + 8 - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay2] + 8 - (std::uint8_t*)exeModule);
 
-			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CutscenesFOV] + 19 - (std::uint8_t*)exeModule);
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Cutscenes] + 19 - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MenuFOV], 8);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MainMenu], 8);
 
-			MenuFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MenuFOV], [](SafetyHookContext& ctx)
+			MenuFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenu], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.xmm3.f32[0], ctx.esi + 0x98, FullAngle);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV1], 8);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay1], 8);
 			
-			GameplayFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV1], [](SafetyHookContext& ctx)
+			GameplayFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay1], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.ebp + 0x98, FullAngle, fFOVFactor);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV2] + 8, 8);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay2] + 8, 8);
 
-			GameplayFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV2] + 8, [](SafetyHookContext& ctx)
+			GameplayFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay2] + 8, [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.edi + 0x98, FullAngle, fFOVFactor);
 			});
 
-			CutscenesFOVOffset = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[CutscenesFOV] + 23, Memory::PointerMode::Absolute);
+			CutscenesFOVOffset = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[Cutscenes] + 23, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV] + 19, 8);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Cutscenes] + 19, 8);
 
-			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV] + 19, [](SafetyHookContext& ctx)
+			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cutscenes] + 19, [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.eax + CutscenesFOVOffset, HalfAngle);
 			});
