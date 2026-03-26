@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DynastyWarriors4WidescreenFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -57,10 +57,10 @@ uintptr_t CutscenesFOVOffset;
 // Game detection
 enum class Game
 {
-	DW4_EN,
+	DW4_EU,
 	DW4_JPN,
-	DW4_KOREAN,
-	DW4_CHN,
+	//DW4_KN,
+	//DW4_CHN,
 	Unknown
 };
 
@@ -79,10 +79,10 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::DW4_EN, {"Dynasty Warriors 4 (English)", "Dynasty Warriors 4 Hyper.exe"}},
+	{Game::DW4_EU, {"Dynasty Warriors 4 (European)", "Dynasty Warriors 4 Hyper.exe"}},
 	{Game::DW4_JPN, {"Dynasty Warriors 4 (Japanese)", "Shin Sangokumusou 3.exe"}},
-	{Game::DW4_KOREAN, {"Dynasty Warriors 4 (Korean)", "Samgukmussang 3 Hyper.exe"}},
-	{Game::DW4_CHN, {"Dynasty Warriors 4 (Chinese)", "Zhen SanGuoWuShuang 3 Hyper.exe"}},
+	// {Game::DW4_KN, {"Dynasty Warriors 4 (Korean)", "Jin Samgukmussang 3 Hyper.exe"}},
+	// {Game::DW4_CHN, {"Dynasty Warriors 4 (Chinese)", "Zhen SanGuoWuShuang 3 Hyper.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -232,7 +232,7 @@ void CameraFOVInstructionsMidHook(float& SourceAddress, uintptr_t DestAddress, a
 
 void WidescreenFix()
 {
-	if ((eGameType == Game::DW4_EN || eGameType == Game::DW4_JPN || eGameType == Game::DW4_KOREAN || eGameType == Game::DW4_CHN) && bFixActive == true)
+	if ((eGameType == Game::DW4_EU || eGameType == Game::DW4_JPN) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 

@@ -54,8 +54,7 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
@@ -66,14 +65,14 @@ enum class Game
 
 enum AspectRatioInstructionsScansIndices
 {
-	AspectRatio1Scan,
-	AspectRatio2Scan
+	AR1,
+	AR2
 };
 
 enum CameraFOVInstructionsScansIndices
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1,
+	FOV2
 };
 
 struct GameInfo
@@ -213,21 +212,14 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid AspectRatioComparisonInstruction1Hook{};
-static SafetyHookMid AspectRatioComparisonInstruction2Hook{};
 static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void AspectRatioInstructionComparisonMidHook(SafetyHookContext& ctx)
-{
-	FPU::FCOMP(fAspectRatioToCompare);
-}
 
 void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor = 1.0f)
 {
 	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
 
-	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fovFactor;
+	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
 
 	FPU::FLD(fNewCameraFOV);
 }
@@ -246,35 +238,31 @@ void FOVFix()
 		
 		if (Memory::AreAllSignaturesValid(AspectRatioComparisonInstructionsScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Comparison Instruction 1: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstructionsScansResult[AspectRatio1Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Comparison Instruction 1: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstructionsScansResult[AR1] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Aspect Ratio Comparison Instruction 2: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstructionsScansResult[AspectRatio2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Aspect Ratio Comparison Instruction 2: Address is LS3DF.dll+{:x}", AspectRatioComparisonInstructionsScansResult[AR2] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(AspectRatioComparisonInstructionsScansResult[AspectRatio1Scan], 6);
+			Memory::Write(AspectRatioComparisonInstructionsScansResult[AR1] + 2, &fAspectRatioToCompare);
 
-			AspectRatioComparisonInstruction1Hook = safetyhook::create_mid(AspectRatioComparisonInstructionsScansResult[AspectRatio1Scan], AspectRatioInstructionComparisonMidHook);
-
-			Memory::WriteNOPs(AspectRatioComparisonInstructionsScansResult[AspectRatio2Scan], 6);
-
-			AspectRatioComparisonInstruction2Hook = safetyhook::create_mid(AspectRatioComparisonInstructionsScansResult[AspectRatio2Scan], AspectRatioInstructionComparisonMidHook);
+			Memory::Write(AspectRatioComparisonInstructionsScansResult[AR2] + 2, &fAspectRatioToCompare);
 		}
 
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult))
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV1Scan] + 17 - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 1: Address is LS3DF.dll+{:x}", CameraFOVInstructionsScansResult[FOV1] + 17 - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction 2: Address is LS3DF.dll+{:x}", CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 17, 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1] + 17, 6);
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan] + 17, [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1] + 17, [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.edx + 0x108, fFOVFactor);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
 				CameraFOVInstructionsMidHook(ctx.edx + 0x114);
 			});

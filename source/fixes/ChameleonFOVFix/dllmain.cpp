@@ -212,9 +212,6 @@ bool DetectGame()
 	return true;
 }
 
-static SafetyHookMid AspectRatioInstruction1Hook{};
-static SafetyHookMid AspectRatioInstruction2Hook{};
-static SafetyHookMid AspectRatioInstruction3Hook{};
 static SafetyHookMid CameraFOVInstruction1Hook{};
 static SafetyHookMid CameraFOVInstruction2Hook{};
 
@@ -245,26 +242,11 @@ void FOVFix()
 
 			spdlog::info("Aspect Ratio Instruction 3: Address is LS3DF.dll+{:x}", AspectRatioInstructionsScansResult[AR3] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR1], 6);
+			Memory::Write(AspectRatioInstructionsScansResult[AR1] + 2, &fAspectRatioToCompare);
 
-			AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR1], [](SafetyHookContext& ctx)
-			{
-				FPU::FCOMP(fAspectRatioToCompare);
-			});
+			Memory::Write(AspectRatioInstructionsScansResult[AR2] + 2, &fAspectRatioToCompare);
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR2], 6);
-			
-			AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR2], [](SafetyHookContext& ctx)
-			{
-				FPU::FCOMP(fAspectRatioToCompare);
-			});
-
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[AR3], 6);
-
-			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[AR3], [](SafetyHookContext& ctx)
-			{
-				FPU::FMUL(fNewAspectRatio);
-			});
+			Memory::Write(AspectRatioInstructionsScansResult[AR3] + 2, &fNewAspectRatio);
 		}
 		
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "D9 44 24 08 D8 15 ?? ?? ?? ?? DF E0 F6 C4 05 7B 0D D8 15 ?? ?? ?? ?? DF E0 F6 C4 01 75 1B D8 1D ?? ?? ?? ?? DF E0 F6 C4 05 7A 08 D9 05 ?? ?? ?? ?? EB 06 D9 05 ?? ?? ?? ?? 8B 4C 24 04 8A 81 24 01 00 00 D9 99 08 01 00 00",
