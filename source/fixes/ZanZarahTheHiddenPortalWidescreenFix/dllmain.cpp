@@ -5,6 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <inipp/inipp.h>
+#include <safetyhook.hpp>
 #include <vector>
 #include <map>
 #include <windows.h>
@@ -46,6 +47,7 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
+float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
@@ -59,6 +61,8 @@ float fNewValue6;
 float fNewValue7;
 float fNewValue8;
 float fNewValue9;
+float fNewCameraHFOV;
+float fNewCameraVFOV;
 
 // Game detection
 enum class Game
@@ -156,8 +160,10 @@ void Configuration()
 	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
 	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(iCurrentResX);
 	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
 	if (iCurrentResX <= 0 || iCurrentResY <= 0)
@@ -191,6 +197,11 @@ bool DetectGame()
 	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
 	return false;
 }
+
+static SafetyHookMid Pattern2Hook{};
+static SafetyHookMid Pattern3Hook{};
+static SafetyHookMid CameraHFOVInstructionHook{};
+static SafetyHookMid CameraVFOVInstructionHook{};
 
 void WidescreenFix()
 {
@@ -226,18 +237,25 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate pattern 1 memory address.");
+			return;
 		}
 
-		std::uint8_t* Pattern2ScanResult = Memory::PatternScan(exeModule, "8D 75 ?? F3 ?? 8D 73");
+		std::uint8_t* Pattern2ScanResult = Memory::PatternScan(exeModule, "E8 ?? ?? ?? ?? FF 35 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? D9 05");
 		if (Pattern2ScanResult)
 		{
 			spdlog::info("Pattern 2 detected.");
 
-			Memory::PatchBytes(Pattern2ScanResult + 5, "\xE9\x0E\x2C\x19\x00");
+			Pattern2Hook = safetyhook::create_mid(Pattern2ScanResult, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ctx.esp + 0x8) = iCurrentResX;
+				
+				*reinterpret_cast<int*>(ctx.esp + 0xC) = iCurrentResY;
+			});
 		}
 		else
 		{
 			spdlog::error("Failed to locate pattern 2 memory address.");
+			return;
 		}
 
 		std::uint8_t* Pattern3ScanResult = Memory::PatternScan(exeModule, "8B B0 ?? ?? ?? ?? 89 71 ?? 8B B0");
@@ -245,14 +263,26 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 3 detected.");
 
-			Memory::PatchBytes(Pattern3ScanResult, "\xE9\x87\xAA\x18\x00\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90");
+			Memory::WriteNOPs(Pattern3ScanResult, 30);
+
+			Pattern3Hook = safetyhook::create_mid(Pattern3ScanResult, [](SafetyHookContext& ctx)
+			{
+				*reinterpret_cast<int*>(ctx.ecx + 0x8) = iCurrentResX;
+				
+				*reinterpret_cast<int*>(ctx.ecx + 0xC) = iCurrentResY;
+				
+				*reinterpret_cast<int*>(ctx.ecx + 0x10) = 32;
+				
+				*reinterpret_cast<int*>(ctx.ecx + 0x14) = 0;
+			});
 		}
 		else
 		{
 			spdlog::error("Failed to locate pattern 3 memory address.");
+			return;
 		}
 
-		std::uint8_t* Pattern4ScanResult = Memory::PatternScan(exeModule, "33 C9 8B 30");
+		std::uint8_t* Pattern4ScanResult = Memory::PatternScan(exeModule, "33 C9 8B 30 89 14 24");
 		if (Pattern4ScanResult)
 		{
 			spdlog::info("Pattern 4 detected.");
@@ -266,18 +296,7 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate pattern 4 memory address.");
-		}
-
-		std::uint8_t* Pattern5ScanResult = Memory::PatternScan(exeModule, "E9 ?? ?? ?? ?? 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
-		if (Pattern5ScanResult)
-		{
-			spdlog::info("Pattern 5 detected.");
-
-			Memory::PatchBytes(Pattern5ScanResult + 5, "\x00\x8D\x73\x2C\x8B\xCE\xC7\x44\x24\x08\x80\x07\x00\x00\xC7\x44\x24\x0C\x38\x04\x00\x00\xE9\xD8\xD3\xE6\xFF\x00\x00\x00\xC7\x41\x08\x80\x07\x00\x00\xC7\x41\x0C\x38\x04\x00\x00\xC7\x41\x10\x20\x00\x00\x00\xC7\x41\x14\x00\x00\x00\x00\x5E\xC2\x04", 61);
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 5 memory address.");
+			return;
 		}
 
 		std::uint8_t* Pattern6ScanResult = Memory::PatternScan(exeModule, "DA E1 42 00 00 00 40 3F");
@@ -285,11 +304,12 @@ void WidescreenFix()
 		{
 			spdlog::info("Pattern 6 detected.");
 
-			Memory::Write(Pattern6ScanResult + 4, fNewValue1);
+			Memory::Write(Pattern6ScanResult + 4, fNewValue1);			
 		}
 		else
 		{
 			spdlog::error("Failed to locate pattern 6 memory address.");
+			return;
 		}
 
 		std::uint8_t* Pattern7ScanResult = Memory::PatternScan(exeModule, "7D 3F 66 66 26 3F 00 00");
@@ -302,6 +322,7 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate pattern 7 memory address.");
+			return;
 		}
 
 		std::uint8_t* Pattern8ScanResult = Memory::PatternScan(exeModule, "66 66 A6 3F 00 00 00 00 00 00 40 3F 00 00 80 3F");
@@ -314,6 +335,7 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate pattern 8 memory address.");
+			return;
 		}
 
 		std::uint8_t* Pattern9ScanResult = Memory::PatternScan(exeModule, "00 00 C0 BF AB AA AA 3E 66 66 E6 3F 8F C2 35 3F");
@@ -326,6 +348,7 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate pattern 9 memory address.");
+			return;
 		}
 
 		std::uint8_t* Pattern10ScanResult = Memory::PatternScan(exeModule, "EC 51 38 3F 7B 14 2E 3F C3 F5 08 3F A6 9B C4 3B 0A D7 23 3B CD CC 0C 3F 9A 99 39 3F 29 5C 2F 3F AD AC EF B7 17 B7 D1 37 7B 14 0E 3F 00 00 C0 3E E1 7A 14 3E D7 A3 30 3F");
@@ -346,38 +369,42 @@ void WidescreenFix()
 		else
 		{
 			spdlog::error("Failed to locate pattern 10 memory address.");
+			return;
 		}
 
-		std::uint8_t* Pattern11ScanResult = Memory::PatternScan(exeModule, "F9 FF 00 8D 73 2C 8B CE C7 44 24 08 80 07 00 00 C7 44 24 0C 38 04 00 00 E9 D8 D3 E6 FF 00 00 00 C7 41 08 80 07 00 00 C7 41 0C 38 04 00 00 C7 41 10 20 00 00 00 C7 41 14 00 00 00 00 5E C2 04");
-		if (Pattern11ScanResult)
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 45 ?? 89 45 ?? 8B 45 ?? 56 89 45");
+		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Pattern 11 detected.");
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::Write(Pattern11ScanResult + 12, iCurrentResX);
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult + 6 - (std::uint8_t*)exeModule);
 
-			Memory::Write(Pattern11ScanResult + 20, iCurrentResY);
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 3);
 
-			Memory::Write(Pattern11ScanResult + 35, iCurrentResX);
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.ebp + 0x8);
 
-			Memory::Write(Pattern11ScanResult + 42, iCurrentResY);
+				fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale * fFOVFactor;
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 6, 3);
+
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 6, [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.ebp + 0xC);
+
+				fNewCameraVFOV = fCurrentCameraVFOV * fAspectRatioScale * fFOVFactor;
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate pattern 11 memory address.");
-		}
-
-		std::uint8_t* Pattern12ScanResult = Memory::PatternScan(exeModule, "E1 42 00 DA E1 42 00 00 00 40 3F 00 00 00 00 00");
-		if (Pattern12ScanResult)
-		{
-			spdlog::info("Pattern 12 detected.");
-
-			fNewValue9 = 0.625f; // 750.0f / 1200.0f;
-
-			Memory::Write(Pattern12ScanResult + 7, fNewValue9);
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 12 memory address.");
+			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
+			return;
 		}
 	}
 }

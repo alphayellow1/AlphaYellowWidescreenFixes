@@ -42,9 +42,9 @@ std::string sExeName;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
+bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
-bool bFixActive;
 float fFOVFactor;
 
 // Variables
