@@ -1149,6 +1149,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MyHorse&Me2FOVChanger", "My
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TreasurePlanetBattleAtProcyonFOVChanger", "TreasurePlanetBattleAtProcyonFOVChanger.vcxproj", "{310603F9-EE9C-43EC-90B3-67F27434D416}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AdibooAndTheEnergyThievesFOVFix", "AdibooAndTheEnergyThievesFOVFix.vcxproj", "{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5725,6 +5727,14 @@ Global
 		{310603F9-EE9C-43EC-90B3-67F27434D416}.Release|x64.Build.0 = Release|x64
 		{310603F9-EE9C-43EC-90B3-67F27434D416}.Release|x86.ActiveCfg = Release|Win32
 		{310603F9-EE9C-43EC-90B3-67F27434D416}.Release|x86.Build.0 = Release|Win32
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}.Debug|x64.ActiveCfg = Debug|x64
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}.Debug|x64.Build.0 = Debug|x64
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}.Debug|x86.ActiveCfg = Debug|Win32
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}.Debug|x86.Build.0 = Debug|Win32
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}.Release|x64.ActiveCfg = Release|x64
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}.Release|x64.Build.0 = Release|x64
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}.Release|x86.ActiveCfg = Release|Win32
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6301,6 +6311,7 @@ Global
 		{BD4345BE-3C54-49CA-AC1B-8D133DDEBE50} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{7302827F-F94E-4771-8084-A0C12CD60D37} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{310603F9-EE9C-43EC-90B3-67F27434D416} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
