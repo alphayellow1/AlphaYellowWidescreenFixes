@@ -241,7 +241,7 @@ void WidescreenFix()
 				Memory::Write(AspectRatioInstructionsScansResult[AR3] + 6, fNewAspectRatio);
 			}
 
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 89 97 ?? ?? ?? ?? 51");
+			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 8B 54 24 ?? 50 51 52 8B CE");
 			if (CameraFOVInstructionScanResult)
 			{
 				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -250,9 +250,16 @@ void WidescreenFix()
 
 				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
-					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x40);
+					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x2C);
 
-					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+					if (fCurrentCameraFOV == 1.374446869f)
+					{
+						fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+					}
+					else
+					{
+						fNewCameraFOV = fCurrentCameraFOV;
+					}
 
 					ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 				});
