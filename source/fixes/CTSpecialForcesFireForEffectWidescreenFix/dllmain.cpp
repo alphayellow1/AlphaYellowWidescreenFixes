@@ -44,6 +44,8 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
+uint32_t iNewResX;
+uint32_t iNewResY;
 float fFOVFactor;
 
 // Variables
@@ -154,8 +156,24 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
+	inipp::get_value(ini.sections["Settings"], "Width", iNewResX);
+	inipp::get_value(ini.sections["Settings"], "Height", iNewResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	spdlog_confparse(iNewResX);
+	spdlog_confparse(iNewResY);
 	spdlog_confparse(fFOVFactor);
+
+	// If resolution not specified, use desktop resolution
+	if (iNewResX <= 0 || iNewResY <= 0)
+	{
+		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
+		// Implement Util::GetPhysicalDesktopDimensions() accordingly
+		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
+		iNewResX = desktopDimensions.first;
+		iNewResY = desktopDimensions.second;
+		spdlog_confparse(iNewResX);
+		spdlog_confparse(iNewResY);
+	}
 
 	spdlog::info("----------");
 }
@@ -202,7 +220,7 @@ void WidescreenFix()
 
 		if (eGameType == Game::CTSF_GAME)
 		{
-			// fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
+			fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
 
 			std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 89 01 C2 ?? ?? 85 C0",
 			"C7 05 ?? ?? ?? ?? ?? ?? ?? ?? B0 ?? C2", "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? DF E0");
@@ -214,13 +232,13 @@ void WidescreenFix()
 
 				spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR3] - (std::uint8_t*)exeModule);
 
-				Memory::Write(AspectRatioInstructionsScansResult[AR1] + 6, 5.0f);
+				Memory::Write(AspectRatioInstructionsScansResult[AR1] + 6, fNewAspectRatio);
 
-				Memory::Write(AspectRatioInstructionsScansResult[AR1] + 25, 5.0f);
+				Memory::Write(AspectRatioInstructionsScansResult[AR1] + 25, fNewAspectRatio);
 
-				Memory::Write(AspectRatioInstructionsScansResult[AR2] + 6, 5.0f);
+				Memory::Write(AspectRatioInstructionsScansResult[AR2] + 6, fNewAspectRatio);
 
-				Memory::Write(AspectRatioInstructionsScansResult[AR3] + 6, 5.0f);
+				Memory::Write(AspectRatioInstructionsScansResult[AR3] + 6, fNewAspectRatio);
 			}
 
 			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 89 97 ?? ?? ?? ?? 51");
@@ -238,6 +256,11 @@ void WidescreenFix()
 
 					ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
 				});
+			}
+			else
+			{
+				spdlog::error("Failed to find camera FOV instruction memory address.");
+				return;
 			}
 		}
 	}
