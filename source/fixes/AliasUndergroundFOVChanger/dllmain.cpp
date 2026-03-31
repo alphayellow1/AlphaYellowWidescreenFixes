@@ -12,7 +12,6 @@
 #include <psapi.h> // For GetModuleInformation
 #include <fstream>
 #include <filesystem>
-#include <cmath> // For atanf, tanf
 #include <sstream>
 #include <cstring>
 #include <iomanip>
@@ -22,11 +21,13 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
+HMODULE dllModule = nullptr;
+HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "TheDaVinciCodeFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixName = "AliasUndergroundFOVChanger";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -39,24 +40,17 @@ std::string sLogFile = sFixName + ".log";
 std::filesystem::path sExePath;
 std::string sExeName;
 
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
 // Ini variables
 bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
+double dFOVFactor;
 
 // Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewAspectRatio2;
+double dNewCameraFOV;
 
 // Game detection
 enum class Game
 {
-	TDVC,
+	AU,
 	Unknown
 };
 
@@ -67,7 +61,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::TDVC, {"The Da Vinci Code", "Slayer.exe"}},
+	{Game::AU, {"Alias: Underground", "javaw.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -83,7 +77,7 @@ void Logging()
 
 	// Get game name and exe path
 	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
+	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
 	sExePath = exePathW;
 	sExeName = sExePath.filename().string();
 	sExePath = sExePath.remove_filename();
@@ -143,26 +137,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["FOVChanger"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
+	inipp::get_value(ini.sections["Settings"], "FOVFactor", dFOVFactor);
+	spdlog_confparse(dFOVFactor);
 
 	spdlog::info("----------");
 }
@@ -185,26 +165,33 @@ bool DetectGame()
 	return false;
 }
 
-void FOVFix()
+static SafetyHookMid CameraFOVInstructionHook{};
+
+void FOVChanger()
 {
-	if (eGameType == Game::TDVC && bFixActive == true)
+	if (eGameType == Game::AU && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		dllModule2 = Memory::GetHandle("dmdx7.dll");
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 3D ?? ?? ?? ?? D9 C1 D8 25");
-		if (AspectRatioInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "DD 84 24 ?? ?? ?? ?? DC 0D");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);			
+			spdlog::info("Camera FOV Instruction: Address is dmdx7.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 
-			fNewAspectRatio2 = 1.0f / fAspectRatioScale;
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 7);
 
-			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio2);
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			{
+				double& dCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0xD4);
+
+				dNewCameraFOV = dCurrentCameraFOV * dFOVFactor;
+
+				FPU::FLD(dNewCameraFOV);
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
 	}
@@ -216,7 +203,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		FOVChanger();
 	}
 	return TRUE;
 }

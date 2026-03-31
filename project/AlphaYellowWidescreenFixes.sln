@@ -1153,6 +1153,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AdibooAndTheEnergyThievesFO
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CTSpecialForcesFireForEffectWidescreenFix", "CTSpecialForcesFireForEffectWidescreenFix.vcxproj", "{83F21A1B-8159-46D7-9004-989E27B1AEFE}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AliasUndergroundFOVChanger", "AliasUndergroundFOVChanger.vcxproj", "{836C4055-AC51-42EF-8398-3D7DF9460D77}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5745,6 +5747,14 @@ Global
 		{83F21A1B-8159-46D7-9004-989E27B1AEFE}.Release|x64.Build.0 = Release|x64
 		{83F21A1B-8159-46D7-9004-989E27B1AEFE}.Release|x86.ActiveCfg = Release|Win32
 		{83F21A1B-8159-46D7-9004-989E27B1AEFE}.Release|x86.Build.0 = Release|Win32
+		{836C4055-AC51-42EF-8398-3D7DF9460D77}.Debug|x64.ActiveCfg = Debug|x64
+		{836C4055-AC51-42EF-8398-3D7DF9460D77}.Debug|x64.Build.0 = Debug|x64
+		{836C4055-AC51-42EF-8398-3D7DF9460D77}.Debug|x86.ActiveCfg = Debug|Win32
+		{836C4055-AC51-42EF-8398-3D7DF9460D77}.Debug|x86.Build.0 = Debug|Win32
+		{836C4055-AC51-42EF-8398-3D7DF9460D77}.Release|x64.ActiveCfg = Release|x64
+		{836C4055-AC51-42EF-8398-3D7DF9460D77}.Release|x64.Build.0 = Release|x64
+		{836C4055-AC51-42EF-8398-3D7DF9460D77}.Release|x86.ActiveCfg = Release|Win32
+		{836C4055-AC51-42EF-8398-3D7DF9460D77}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6323,6 +6333,7 @@ Global
 		{310603F9-EE9C-43EC-90B3-67F27434D416} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{A695B3D9-74AF-431A-89C6-B0BF4FD31ED2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{83F21A1B-8159-46D7-9004-989E27B1AEFE} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{836C4055-AC51-42EF-8398-3D7DF9460D77} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
