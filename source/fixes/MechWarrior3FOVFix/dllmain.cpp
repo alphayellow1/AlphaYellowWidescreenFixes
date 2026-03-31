@@ -27,7 +27,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "MechWarrior3FOVFix";
-std::string sFixVersion = "1.4";
+std::string sFixVersion = "1.6";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,6 +52,7 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewAspectRatio2;
 float fNewCameraHFOV;
 float fNewCameraVFOV;
 
@@ -60,6 +61,12 @@ enum class Game
 {
 	MW3,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	HFOV,
+	VFOV
 };
 
 struct GameInfo
@@ -189,6 +196,7 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraHFOVInstructionHook{};
 static SafetyHookMid CameraVFOVInstructionHook{};
 
@@ -200,37 +208,54 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D9 44 24 14 D9 44 24 10 D8 B2 D8 00 00 00 D9 C9 33 C0 C7 82 38 01 00 00 01 00 00 00");
-		if (CameraFOVInstructionsScanResult)
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 B2");
+		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 4, 4);
+			Memory::WriteNOPs(AspectRatioInstructionScanResult, 4);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 4, [](SafetyHookContext& ctx)
+			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.esp + 0x10);
+				float& fCurrentAspectRatio = Memory::ReadMem(ctx.esp + 0x10);
 
-				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor);
+				fNewAspectRatio2 = Maths::CalculateNewHFOV_RadBased(fCurrentAspectRatio, fAspectRatioScale);
 
-				FPU::FLD(fNewCameraHFOV);
-			});
-
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 4);
-			
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.esp + 0x14);
-
-				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
-
-				FPU::FLD(fNewCameraVFOV);
-			});
+				FPU::FLD(fNewAspectRatio2);
+			});	
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
+		}
+
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 54 24 ?? 8B 4F ?? 52", "8B 4C 24 ?? 51 D8 4C 24");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		{
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HFOV] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[VFOV] - (std::uint8_t*)exeModule);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult, HFOV, VFOV, 0, 4);
+
+			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HFOV], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.esp + 0x10);
+
+				fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, 1.0f, fFOVFactor);
+
+				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
+			});
+
+			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[VFOV], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.esp + 0x8);
+
+				fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV, fFOVFactor);
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+			});
 		}
 	}
 }
