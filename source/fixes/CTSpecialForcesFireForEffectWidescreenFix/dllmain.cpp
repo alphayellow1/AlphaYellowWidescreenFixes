@@ -44,13 +44,9 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-uint32_t iNewResX;
-uint32_t iNewResY;
 float fFOVFactor;
 
 // Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
 float fNewCameraFOV;
 
 // Game detection
@@ -59,13 +55,6 @@ enum class Game
 	CTSF_CONFIG,
 	CTSF_GAME,
 	Unknown
-};
-
-enum AspectRatioInstructionsIndices
-{
-	AR1,
-	AR2,
-	AR3
 };
 
 struct GameInfo
@@ -156,24 +145,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iNewResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iNewResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iNewResX);
-	spdlog_confparse(iNewResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iNewResX <= 0 || iNewResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iNewResX = desktopDimensions.first;
-		iNewResY = desktopDimensions.second;
-		spdlog_confparse(iNewResX);
-		spdlog_confparse(iNewResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -220,27 +193,6 @@ void WidescreenFix()
 
 		if (eGameType == Game::CTSF_GAME)
 		{
-			fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
-
-			std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 89 01 C2 ?? ?? 85 C0",
-			"C7 05 ?? ?? ?? ?? ?? ?? ?? ?? B0 ?? C2", "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? DF E0");
-			if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
-			{
-				spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR1] - (std::uint8_t*)exeModule);
-
-				spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR2] - (std::uint8_t*)exeModule);
-
-				spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR3] - (std::uint8_t*)exeModule);
-
-				Memory::Write(AspectRatioInstructionsScansResult[AR1] + 6, fNewAspectRatio);
-
-				Memory::Write(AspectRatioInstructionsScansResult[AR1] + 25, fNewAspectRatio);
-
-				Memory::Write(AspectRatioInstructionsScansResult[AR2] + 6, fNewAspectRatio);
-
-				Memory::Write(AspectRatioInstructionsScansResult[AR3] + 6, fNewAspectRatio);
-			}
-
 			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 8B 54 24 ?? 50 51 52 8B CE");
 			if (CameraFOVInstructionScanResult)
 			{
@@ -250,7 +202,7 @@ void WidescreenFix()
 
 				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
-					float& fCurrentCameraFOV = *reinterpret_cast<float*>(ctx.esp + 0x2C);
+					float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x2C);
 
 					if (fCurrentCameraFOV == 1.374446869f)
 					{
@@ -302,6 +254,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
 	case DLL_PROCESS_DETACH:
+		spdlog::info("DLL is being unloaded.");
 		break;
 	}
 	return TRUE;

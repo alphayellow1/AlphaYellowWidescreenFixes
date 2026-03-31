@@ -185,8 +185,6 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
-
 void FOVFix()
 {
 	if (eGameType == Game::TDVC && bFixActive == true)
@@ -195,19 +193,32 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
+		std::uint8_t* ResScanResult = Memory::PatternScan(exeModule, "8b 15 ?? ?? ?? ?? 8b 3d ?? ?? ?? ?? 55");
+		if (ResScanResult)
+		{
+			Memory::WriteNOPs(ResScanResult, 12);
+
+			static SafetyHookMid ResHook = safetyhook::create_mid(ResScanResult, [](SafetyHookContext& ctx)
+			{
+				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
+
+				ctx.edi = std::bit_cast<uintptr_t>(iCurrentResY);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
+
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 3D ?? ?? ?? ?? D9 C1 D8 25");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);			
 
 			fNewAspectRatio2 = 1.0f / fAspectRatioScale;
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FDIVR(fNewAspectRatio2);
-			});
+			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio2);
 		}
 		else
 		{
