@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "StateOfEmergencyWidescreenFix";
-std::string sFixVersion = "1.6";
+std::string sFixVersion = "1.7";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -52,8 +52,7 @@ float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV1;
 float fNewCameraFOV2;
-uint8_t* HorizontalCullingAddress;
-float fNewCameraHFOVCulling;
+float fNewHFOVCulling;
 
 // Game detection
 enum class Game
@@ -64,10 +63,10 @@ enum class Game
 
 enum CameraFOVInstructionsIndices
 {
-	FOV1Scan,
-	FOV2Scan,
-	FOV3Scan,
-	HFOVCullingScan
+	FOV1,
+	FOV2,
+	FOV3,
+	HFOVCulling
 };
 
 struct GameInfo
@@ -199,7 +198,6 @@ bool DetectGame()
 
 static SafetyHookMid ResolutionWidthInstructionHook{};
 static SafetyHookMid ResolutionHeightInstructionHook{};
-static SafetyHookMid CameraHFOVCullingInstructionHook{};
 
 void FOVFix()
 {
@@ -209,7 +207,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 04 10 57 A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6B C0 ?? 8B 0E 8B 54 08 ??");
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 04 10 57 A3");
 		if (ResolutionInstructionsScanResult)
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
@@ -234,7 +232,7 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(exeModule, "C7 44 24 48 39 8E E3 3F 75 08 C7 44 24 48 00 00 A0 3F");
+		std::uint8_t* AspectRatioInstructionsScanResult = Memory::PatternScan(exeModule, "C7 44 24 ?? ?? ?? ?? ?? 75 ?? C7 44 24 ?? ?? ?? ?? ?? D9 44 24 ?? 8B 44 24");
 		if (AspectRatioInstructionsScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScanResult - (std::uint8_t*)exeModule);
@@ -251,39 +249,32 @@ void FOVFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 00 80 4A 44 68 00 00 80 47 68 00 00 80 3F 6A 00 E8 F8 8E 04 00", "68 00 80 4A 44 68 00 00 80 47 68 00 00 80 3F 6A 00 E8 9F 39 01 00 6A 01", "68 00 00 61 44 68 00 00 80 47 68 00 00 80 3F 53 C7 05 40 6E 4E 00 00 00 00 00 C7 05 3C 6E 4E 00 00 00 00 00", "D9 05 ?? ?? ?? ?? D8 4C 24 50 C7 05 F4 E4 4D 00 00 00 00 00 C7 05 F0 E4 4D 00 00 00 00 00 C7 05 DC E4 4D 00 00 00 00 00");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68",
+		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? E8 ?? ?? ?? ?? 6A ?? 68 ?? ?? ?? ?? E8", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 53 C7 05",
+		"D9 05 ?? ?? ?? ?? D8 4C 24 ?? C7 05");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult))
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV3] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera HFOV Culling Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HFOVCullingScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera HFOV Culling Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HFOVCulling] - (std::uint8_t*)exeModule);
 
 			fNewCameraFOV1 = 810.0f / fFOVFactor;
 
 			fNewCameraFOV2 = 900.0f / fFOVFactor;
 
-			Memory::Write(CameraFOVInstructionsScansResult[FOV1Scan] + 1, fNewCameraFOV1);
+			Memory::Write(CameraFOVInstructionsScansResult[FOV1] + 1, fNewCameraFOV1);
 
-			Memory::Write(CameraFOVInstructionsScansResult[FOV2Scan] + 1, fNewCameraFOV1);
+			Memory::Write(CameraFOVInstructionsScansResult[FOV2] + 1, fNewCameraFOV1);
 
-			Memory::Write(CameraFOVInstructionsScansResult[FOV3Scan] + 1, fNewCameraFOV2);
+			Memory::Write(CameraFOVInstructionsScansResult[FOV3] + 1, fNewCameraFOV2);
 
-			HorizontalCullingAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HFOVCullingScan] + 2, Memory::PointerMode::Absolute);
+			fNewHFOVCulling = 1.0f / fAspectRatioScale;
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HFOVCullingScan], 6);
-
-			CameraHFOVCullingInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HFOVCullingScan], [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOVCulling = Memory::ReadMem(HorizontalCullingAddress);
-
-				fNewCameraHFOVCulling = fCurrentCameraHFOVCulling / fAspectRatioScale;
-
-				FPU::FLD(fNewCameraHFOVCulling);
-			});
+			Memory::Write(CameraFOVInstructionsScansResult[HFOVCulling] + 2, &fNewHFOVCulling);
 		}
 	}
 }
