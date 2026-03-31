@@ -200,8 +200,8 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 14 D9 44 24 10 D8 B2 D8 00 00 00 D9 C9 33 C0 C7 82 38 01 00 00 01 00 00 00");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "D9 44 24 14 D9 44 24 10 D8 B2 D8 00 00 00 D9 C9 33 C0 C7 82 38 01 00 00 01 00 00 00");
+		if (CameraFOVInstructionsScanResult)
 		{
 			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
 
