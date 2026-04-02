@@ -48,9 +48,9 @@ constexpr float fOriginalPlayerSelectionHFOV1 = -0.55f;
 constexpr float fOriginalPlayerSelectionHFOV2 = 0.55f;
 
 // Ini variables
+bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
-bool bFixActive;
 float fFOVFactor;
 
 // Variables
