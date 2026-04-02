@@ -331,7 +331,7 @@ void WidescreenFix()
 		std::uint8_t* InsideComputerInstructionScanResult = Memory::PatternScan(exeModule, "A2 ?? ?? ?? ?? D9 5C 24 10 F3 A5 D9 E0 D9 44 24 0C D9 E0 D9 44 24 10 D9 E0 D9 44 24 1C D8 C9 D9 44 24 18 D8 CB DE C1 D9 44 24 14 D8 CC DE C1 D9 5C 24 08 D9 44 24 28 D8 C9 D9 44 24 24 D8 CB DE C1 D9 44 24 20 D8 CC DE C1 D9 5C 24 0C D9 44 24 34 D8 C9 D9 44 24 30 D8 CB DE C1 D9 44 24 2C D8 CC DE C1 D9 5C 24 10 8B 44 24 08 B9 0A 00 00 00 8D 74 24 14");
 		if (InsideComputerInstructionScanResult)
 		{
-			spdlog::info("Inside Computer Instruction: Address is{:s} + {:x}", sExeName.c_str(), InsideComputerInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Inside Computer Instruction: Address is {:s}+{:x}", sExeName.c_str(), InsideComputerInstructionScanResult - (std::uint8_t*)exeModule);
 
 			InsideComputerInstructionHook = safetyhook::create_mid(InsideComputerInstructionScanResult, [](SafetyHookContext& ctx)
 			{
