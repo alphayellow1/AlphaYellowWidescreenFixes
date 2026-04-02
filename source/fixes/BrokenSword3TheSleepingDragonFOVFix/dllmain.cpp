@@ -53,21 +53,13 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewAspectRatio2;
-float fNewCameraFOV1;
-float fNewCameraFOV3;
+float fNewCameraFOV;
 
 // Game detection
 enum class Game
 {
 	BS3TSD,
 	Unknown
-};
-
-enum CameraFOVInstructionsIndices
-{
-	FOV1,
-	FOV2,
-	FOV3
 };
 
 struct GameInfo
@@ -197,7 +189,7 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraFOVInstruction3Hook{};
+static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
@@ -222,30 +214,20 @@ void FOVFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8B CE 89 5E", "68 ?? ?? ?? ?? 8B CE C6 44 24", "D9 47 ?? D8 0D ?? ?? ?? ?? 8B 4E");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? 8B 44 24 ?? D8 0D ?? ?? ?? ?? 56");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV3] - (std::uint8_t*)exeModule);
-
-			fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(60.0f, fAspectRatioScale) * fFOVFactor;
-
-			Memory::Write(CameraFOVInstructionsScansResult[FOV1] + 1, fNewCameraFOV1);
-
-			Memory::Write(CameraFOVInstructionsScansResult[FOV2] + 1, fNewCameraFOV1);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV3], 3);
-
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV3], [](SafetyHookContext& ctx)
+			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV3 = Memory::ReadMem(ctx.edi + 0x10);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0xC);
 
-				fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale) * fFOVFactor;
+				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
 
-				FPU::FLD(fNewCameraFOV3);
+				FPU::FLD(fNewCameraFOV);
 			});
 		}
 	}
