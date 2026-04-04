@@ -213,8 +213,6 @@ void FOVFix()
 				fNewAspectRatio2 = fCurrentAspectRatio / fAspectRatioScale;
 
 				FPU::FMUL(fNewAspectRatio2);
-
-				spdlog::info("AR: Hit!");
 			});
 		}
 		else
@@ -237,8 +235,6 @@ void FOVFix()
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
 				FPU::FLD(fNewCameraFOV);
-
-				spdlog::info("FOV: Hit!");
 			});
 		}
 		else
