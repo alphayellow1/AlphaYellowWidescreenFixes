@@ -26,7 +26,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "TheLordOfTheRingsTheFellowshipOfTheRingWidescreenFix";
-std::string sFixVersion = "1.4";
+std::string sFixVersion = "1.5";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -49,21 +49,20 @@ bool bFixActive;
 int iCurrentResX;
 int iCurrentResY;
 double dFOVFactor;
+float fViewDistanceFactor;
 
 // Variables
 float fNewAspectRatio;
-float fNewCameraFOV;
-float fNewCutscenesCameraFOV2;
-float fNewGameplayCameraFOV2;
-float fViewDistanceFactor;
 float fAspectRatioScale;
+float fNewAspectRatio2;
+uintptr_t CameraFOV1Address;
+uintptr_t CameraFOV2Address;
 double dNewCutscenesCameraFOV1;
+float fNewCutscenesCameraFOV2;
 double dNewGameplayCameraFOV1;
+float fNewGameplayCameraFOV2;
+float fNewGameplayCameraFOV3;
 float fNewViewDistance;
-uint8_t* CutscenesCameraFOV1Address;
-uint8_t* CutscenesCameraFOV2Address;
-uint8_t* GameplayCameraFOV1Address;
-uint8_t* GameplayCameraFOV2Address;
 
 // Game detection
 enum class Game
@@ -74,10 +73,11 @@ enum class Game
 
 enum CameraFOVInstrucionsIndex
 {
-	CutscenesFOV1Scan,
-	CutscenesFOV2Scan,
-	GameplayFOV1Scan,
-	GameplayFOV2Scan
+	Cutscenes1,
+	Cutscenes2,
+	Gameplay1,
+	Gameplay2,
+	Gameplay3
 };
 
 struct GameInfo
@@ -214,21 +214,16 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("Fellowship.rfl")) == nullptr)
-	{
-		spdlog::warn("Fellowship.rfl not loaded yet. Waiting...");
-	}
-
-	spdlog::info("Successfully obtained handle for Fellowship.rfl: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
+	dllModule2 = Memory::GetHandle("Fellowship.rfl");
 
 	return true;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CutscenesCameraFOVInstruction1Hook{};
 static SafetyHookMid CutscenesCameraFOVInstruction2Hook{};
 static SafetyHookMid GameplayCameraFOVInstruction1Hook{};
 static SafetyHookMid GameplayCameraFOVInstruction2Hook{};
+static SafetyHookMid GameplayCameraFOVInstruction3Hook{};
 static SafetyHookMid ViewDistanceInstructionHook{};
 
 void WidescreenFix()
@@ -239,96 +234,97 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 1D ?? ?? ?? ?? Df E0 F6 C4 ?? 7A ?? 81 FA");
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 7A ?? 81 FA");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::PatchBytes(AspectRatioInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			fNewAspectRatio2 = 16.0f;
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FCOMP(fNewAspectRatio);
-			});
+			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio2);
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio instructionmemory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResults = Memory::PatternScan(exeModule, "DC 3D ?? ?? ?? ?? D9 99 48 02 00 00 FF 50 3C C2 04 00 90 90", "D9 05 ?? ?? ?? ?? D8 B1 ?? ?? ?? ?? D9 E8 D9 F3 DC 0D ?? ?? ?? ??", "DC 3D ?? ?? ?? ?? D9 59 54 C2 04 00 90 90 90 90 90 90", "D9 05 ?? ?? ?? ?? D8 71 54 D9 E8 D9 F3 DC 0D ?? ?? ?? ?? C3 90");
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResults = Memory::PatternScan(exeModule, "DC 3D ?? ?? ?? ?? D9 99", "D9 05 ?? ?? ?? ?? D8 B1", "DC 3D ?? ?? ?? ?? D9 59",
+		"D9 05 ?? ?? ?? ?? D8 71 ?? D9 E8", dllModule2, "8B 00 50 89 44 24 ?? 8B 11 FF 52 ?? 8B 0D ?? ?? ?? ?? 6A");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResults) == true)
 		{
-			spdlog::info("Cutscenes Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[CutscenesFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Cutscenes Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[Cutscenes1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[CutscenesFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[Cutscenes2] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[GameplayFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[Gameplay1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[GameplayFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResults[Gameplay2] - (std::uint8_t*)exeModule);
 
-			CutscenesCameraFOV1Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[CutscenesFOV1Scan] + 2, Memory::PointerMode::Absolute);
+			spdlog::info("Gameplay Camera FOV Instruction 3: Address is Fellowship.rfl+{:x}", CameraFOVInstructionsScansResults[Gameplay3] - (std::uint8_t*)dllModule2);
 
-			Memory::PatchBytes(CameraFOVInstructionsScansResults[CutscenesFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
+			CameraFOV1Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[Cutscenes1] + 2, Memory::PointerMode::Absolute);
 
-			CutscenesCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[CutscenesFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[Cutscenes2] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResults, Cutscenes1, Gameplay2, 0, 6);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResults[Gameplay3], 2);
+
+			CutscenesCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[Cutscenes1], [](SafetyHookContext& ctx)
 			{
-				double& dCurrentCutscenesCameraFOV1 = Memory::ReadMem(CutscenesCameraFOV1Address);
+				double& dCurrentCutscenesCameraFOV1 = Memory::ReadMem(CameraFOV1Address);
 
 				dNewCutscenesCameraFOV1 = dCurrentCutscenesCameraFOV1 / (double)fAspectRatioScale;
 
 				FPU::FDIVR(dNewCutscenesCameraFOV1);
-			});
+			});			
 
-			CutscenesCameraFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[CutscenesFOV2Scan] + 2, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResults[CutscenesFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[CutscenesFOV2Scan], [](SafetyHookContext& ctx)
+			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[Cutscenes2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCutscenesCameraFOV2 = Memory::ReadMem(CutscenesCameraFOV2Address);
+				float& fCurrentCutscenesCameraFOV2 = Memory::ReadMem(CameraFOV2Address);
 
 				fNewCutscenesCameraFOV2 = fCurrentCutscenesCameraFOV2 / fAspectRatioScale;
 
 				FPU::FLD(fNewCutscenesCameraFOV2);
 			});
 
-			GameplayCameraFOV1Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[GameplayFOV1Scan] + 2, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResults[GameplayFOV1Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			GameplayCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[GameplayFOV1Scan], [](SafetyHookContext& ctx)
+			GameplayCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[Gameplay1], [](SafetyHookContext& ctx)
 			{
-				double& dCurrentGameplayCameraFOV1 = Memory::ReadMem(GameplayCameraFOV1Address);
+				double& dCurrentGameplayCameraFOV1 = Memory::ReadMem(CameraFOV1Address);
 
 				dNewGameplayCameraFOV1 = (dCurrentGameplayCameraFOV1 / (double)fAspectRatioScale) / dFOVFactor;
 
 				FPU::FDIVR(dNewGameplayCameraFOV1);
 			});
 
-			GameplayCameraFOV2Address = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResults[GameplayFOV2Scan] + 2, Memory::PointerMode::Absolute);
-
-			Memory::PatchBytes(CameraFOVInstructionsScansResults[GameplayFOV2Scan], "\x90\x90\x90\x90\x90\x90", 6);
-
-			GameplayCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[GameplayFOV2Scan], [](SafetyHookContext& ctx)
+			GameplayCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[Gameplay2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentGameplayCameraFOV2 = Memory::ReadMem(GameplayCameraFOV2Address);
+				float& fCurrentGameplayCameraFOV2 = Memory::ReadMem(CameraFOV2Address);
 
 				fNewGameplayCameraFOV2 = fCurrentGameplayCameraFOV2 / fAspectRatioScale;
 
 				FPU::FLD(fNewGameplayCameraFOV2);
-			});		
+			});
+
+			GameplayCameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResults[Gameplay3], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentGameplayCameraFOV2 = Memory::ReadMem(ctx.eax);
+
+				fNewGameplayCameraFOV3 = fCurrentGameplayCameraFOV2 * (float)dFOVFactor;
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewGameplayCameraFOV3);
+			});
 		}
 
-		std::uint8_t* ViewDistanceInstructionScanResult = Memory::PatternScan(dllModule2, "D9 80 A4 00 00 00 EB 06 D9 05 ?? ?? ?? ??");
+		std::uint8_t* ViewDistanceInstructionScanResult = Memory::PatternScan(dllModule2, "D9 80 ?? ?? ?? ?? EB ?? D9 05 ?? ?? ?? ?? 85 C0");
 		if (ViewDistanceInstructionScanResult)
 		{
 			spdlog::info("View Distance Instruction: Address is Fellowship.rfl+{:x}", ViewDistanceInstructionScanResult - (std::uint8_t*)dllModule2);			
 
 			fNewViewDistance = 100.0f * fViewDistanceFactor;
 
-			Memory::PatchBytes(ViewDistanceInstructionScanResult, "\x90\x90\x90\x90\x90\x90", 6);
+			Memory::WriteNOPs(ViewDistanceInstructionScanResult, 6);
 
 			ViewDistanceInstructionHook = safetyhook::create_mid(ViewDistanceInstructionScanResult, [](SafetyHookContext& ctx)
 			{
