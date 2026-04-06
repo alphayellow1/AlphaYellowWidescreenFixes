@@ -56,8 +56,8 @@ float fNewGameplayAspectRatio;
 float fNewGameplayCameraFOV;
 float fNewBriefingScreenAspectRatio;
 double dNewBriefingScreenCameraFOV;
-uint8_t* BriefingScreenFOV1Address;
-uint8_t* BriefingScreenFOV2Address;
+uintptr_t BriefingScreenFOV1Address;
+uintptr_t BriefingScreenFOV2Address;
 
 // Game detection
 enum class Game
@@ -225,7 +225,7 @@ static SafetyHookMid GameplayCameraFOVInstructionHook{};
 static SafetyHookMid BriefingScreenCameraFOVInstruction1Hook{};
 static SafetyHookMid BriefingScreenCameraFOVInstruction2Hook{};
 
-void BriefingScreenCameraFOVInstructionsMidHook(uint8_t* FOVAddress)
+void BriefingScreenCameraFOVInstructionsMidHook(uintptr_t FOVAddress)
 {
 	double& dCurrentBriefingScreenCameraFOV = Memory::ReadMem(FOVAddress);
 
@@ -293,7 +293,8 @@ void WidescreenFix()
 			Memory::Write(ResolutionInstructionsScansResult[Res7] + 15, iCurrentResY);
 		}
 
-		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 30 D8 48 ?? D8 F9 D9 1C ?? D8 70 ?? D9 5C 24 ?? 74 ?? 8D 04 ?? 50 51 E8 ?? ?? ?? ?? 83 C4 ?? 83 C4 ?? C2 ?? ?? CC CC CC CC CC", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? 74 ?? 8D 4C 24", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? E8 ?? ?? ?? ?? 83 C4 ?? 5F");
+		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 30 D8 48 ?? D8 F9 D9 1C ?? D8 70 ?? D9 5C 24 ?? 74 ?? 8D 04 ?? 50 51 E8 ?? ?? ?? ?? 83 C4 ?? 83 C4 ?? C2 ?? ?? CC CC CC CC CC",
+		"D8 0D ?? ?? ?? ?? D9 5C 24 ?? 74 ?? 8D 4C 24", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? E8 ?? ?? ?? ?? 83 C4 ?? 5F");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
 			spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[GameplayAR] - (std::uint8_t*)exeModule);

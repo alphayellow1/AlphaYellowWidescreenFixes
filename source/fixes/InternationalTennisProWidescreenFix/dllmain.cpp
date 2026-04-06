@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "InternationalTennisProWidescreenFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,8 +40,6 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
 float fFOVFactor;
 
 // Constants
@@ -50,10 +48,10 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewAspectRatio2;
 float fNewCutscenesAspectRatio;
-float* fNewCutscenesAspectRatioPtr;
 float fNewGameplayAspectRatio;
-float fNewCameraFOV;
+float fNewGameplayFOV;
 float fNewCutscenesFOV;
 
 // Game detection
@@ -65,20 +63,20 @@ enum class Game
 
 enum ResolutionInstructionsIndices
 {
-	RendererResolutionScan,
-	ViewportResolutionScan
+	ResListUnlock,
+	Res_Width_Height
 };
 
 enum AspectRatioInstructionsIndices
 {
-	CutscenesARScan,
-	GameplayARScan
+	CutscenesAR,
+	GameplayAR
 };
 
 enum CameraFOVInstructionsIndices
 {
-	GameplayFOVScan,
-	CutscenesFOVScan
+	GameplayFOV,
+	CutscenesFOV
 };
 
 struct GameInfo
@@ -168,24 +166,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -208,76 +190,73 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid RendererResolutionInstructionsHook{};
-static SafetyHookMid ViewportResolutionInstructionsHook{};
+static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid CutscenesAspectRatioInstructionHook{};
 static SafetyHookMid GameplayAspectRatioInstructionHook{};
 static SafetyHookMid GameplayCameraFOVInstruction1Hook{};
 static SafetyHookMid GameplayCameraFOVInstruction2Hook{};
 static SafetyHookMid CutscenesCameraFOVInstructionHook{};
 
-
-void CameraFOVInstructionsMidHook(SafetyHookContext& ctx)
+void GameplayFOVInstructionsMidHook(SafetyHookContext& ctx)
 {
-	float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + ctx.eax * 0x4 + 0xC0);
+	float& fCurrentGameplayFOV = Memory::ReadMem(ctx.ecx + ctx.eax * 0x4 + 0xC0);
 
-	if (fCurrentCameraFOV == 0.4149999917f || fCurrentCameraFOV == 0.283769995f || fCurrentCameraFOV == 0.3048000038f)
+	if (fCurrentGameplayFOV == 0.4149999917f || fCurrentGameplayFOV == 0.283769995f || fCurrentGameplayFOV == 0.3048000038f)
 	{
-		fNewCameraFOV = fCurrentCameraFOV * fAspectRatioScale * fFOVFactor;
+		fNewGameplayFOV = fCurrentGameplayFOV * fAspectRatioScale * fFOVFactor;
 	}
 	else
 	{
-		fNewCameraFOV = fCurrentCameraFOV * fAspectRatioScale;
+		fNewGameplayFOV = fCurrentGameplayFOV * fAspectRatioScale;
 	}
 
-	FPU::FMUL(fNewCameraFOV);
+	FPU::FMUL(fNewGameplayFOV);
 }
 
 void WidescreenFix()
 {
 	if (eGameType == Game::ITP && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8b 0f 89 0d", "8B 4E ?? 89 54 24 ?? 8B 56 ?? 89 44 24 ?? A1");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "81 FA ?? ?? ?? ?? 0F 8F", "8B 0F 89 0D");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Renderer Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResolutionScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResolutionScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Comparison Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListUnlock] + 65 - (std::uint8_t*)exeModule);
 
-			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResolutionScan], [](SafetyHookContext& ctx)
+			Memory::Write(ResolutionInstructionsScansResult[ResListUnlock] + 2, 20000);
+
+			fNewAspectRatio2 = 16.0f;
+
+			Memory::Write(ResolutionInstructionsScansResult[ResListUnlock] + 67, &fNewAspectRatio2);
+
+			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res_Width_Height], [](SafetyHookContext& ctx)
 			{
-				Memory::ReadMem(ctx.edi) = iCurrentResX;
+				int& iCurrentResX = Memory::ReadMem(ctx.edi);
 
-				Memory::ReadMem(ctx.edi + 0x4) = iCurrentResY;
+				int& iCurrentResY = Memory::ReadMem(ctx.edi + 0x4);
+
+				fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+
+				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 			});
-
-			ViewportResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResolutionScan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ctx.esi + 0xC) = iCurrentResX;
-
-				Memory::ReadMem(ctx.esi + 0x10) = iCurrentResY;
-			});			
 		}
 
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "8D 54 24 ?? 52 56 E8 ?? ?? ?? ?? 8D 44 24", "D8 B4 81");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
-			spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CutscenesARScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CutscenesAR] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[GameplayARScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[GameplayAR] - (std::uint8_t*)exeModule);
 
-			CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesARScan], [](SafetyHookContext& ctx)
+			CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesAR], [](SafetyHookContext& ctx)
 			{
-				Memory::ReadMem(ctx.esp + 0x14) = Memory::ReadMem(ctx.esp + 0x14) * fAspectRatioScale;
+				*reinterpret_cast<float*>(ctx.esp + 0x14) = *reinterpret_cast<float*>(ctx.esp + 0x14) * fAspectRatioScale;
 			});
 
-			Memory::WriteNOPs(AspectRatioInstructionsScansResult[GameplayARScan], 7);
+			Memory::WriteNOPs(AspectRatioInstructionsScansResult[GameplayAR], 7);
 
-			GameplayAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[GameplayARScan], [](SafetyHookContext& ctx)
+			GameplayAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[GameplayAR], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentGameplayAspectRatio = Memory::ReadMem(ctx.ecx + ctx.eax * 0x4 + 0x11C);
 
@@ -290,21 +269,21 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 8C 81 ?? ?? ?? ?? 52", "D9 86 ?? ?? ?? ?? 8B 85");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Gameplay Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOVScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOV] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CutscenesFOVScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CutscenesFOV] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOVScan], 7);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV], 7);
 
-			GameplayCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOVScan], CameraFOVInstructionsMidHook);
+			GameplayCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV], GameplayFOVInstructionsMidHook);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOVScan] + 19, 7);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV] + 19, 7);
 
-			GameplayCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOVScan] + 19, CameraFOVInstructionsMidHook);
+			GameplayCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV] + 19, GameplayFOVInstructionsMidHook);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOVScan], 6);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CutscenesFOV], 6);
 
-			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOVScan], [](SafetyHookContext& ctx)
+			CutscenesCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CutscenesFOV], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCutscenesFOV = Memory::ReadMem(ctx.esi + 0xA4);
 
