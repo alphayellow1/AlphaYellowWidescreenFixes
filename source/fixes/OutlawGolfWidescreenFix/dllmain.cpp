@@ -28,7 +28,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "OutlawGolfWidescreenFix";
-std::string sFixVersion = "1.3";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,6 +43,8 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
+uint32_t iNewWindowedWidth;
+uint32_t iNewWindowedHeight;
 float fFOVFactor;
 
 // Constants
@@ -64,8 +66,12 @@ enum class Game
 
 enum ResolutionInstructionsIndex
 {
-	ResListUnlock,
-	ResWidthHeight
+	FullscreenResListUnlock,
+	ResWidthHeight,
+	WindowedRes1,
+	WindowedRes2,
+	WindowedRes3,
+	WindowedRes4
 };
 
 enum AspectRatioInstructionsIndex
@@ -176,8 +182,24 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
+	inipp::get_value(ini.sections["Settings"], "WindowedWidth", iNewWindowedWidth);
+	inipp::get_value(ini.sections["Settings"], "WindowedHeight", iNewWindowedHeight);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
+	spdlog_confparse(iNewWindowedWidth);
+	spdlog_confparse(iNewWindowedHeight);
 	spdlog_confparse(fFOVFactor);
+
+	// If resolution not specified, use desktop resolution
+	if (iNewWindowedWidth <= 0 || iNewWindowedHeight <= 0)
+	{
+		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
+		// Implement Util::GetPhysicalDesktopDimensions() accordingly
+		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
+		iNewWindowedWidth = desktopDimensions.first;
+		iNewWindowedHeight = desktopDimensions.second;
+		spdlog_confparse(iNewWindowedWidth);
+		spdlog_confparse(iNewWindowedHeight);
+	}
 
 	spdlog::info("----------");
 }
@@ -282,18 +304,30 @@ void FOVFix()
 {
 	if (eGameType == Game::OG && bFixActive == true)
 	{
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "74 ?? 81 F9 ?? ?? ?? ?? 7C", "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "74 ?? 81 F9 ?? ?? ?? ?? 7C", "8B 02 A3 ?? ?? ?? ?? 8B 42",
+		"C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 33 C0", 
+		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0", "C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? 5F 5E 5B", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8D 44 24");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)exeModule);
+			spdlog::info("Fullscreen Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[FullscreenResListUnlock] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResWidthHeight] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Windowed Resolution Instructions 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[WindowedRes1] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Windowed Resolution Instructions 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[WindowedRes2] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Windowed Resolution Instructions 3: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[WindowedRes3] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Windowed Resolution Instructions 4: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[WindowedRes4] - (std::uint8_t*)exeModule);
 			
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ResListUnlock], "\xEB");
+			Memory::PatchBytes(ResolutionInstructionsScansResult[FullscreenResListUnlock], "\xEB");
 
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-				const int& iCurrentWidth = Memory::ReadRegister(ctx.ecx);
+				int& iCurrentWidth = Memory::ReadMem(ctx.edx);
 
-				const int& iCurrentHeight = Memory::ReadRegister(ctx.edx);
+				int& iCurrentHeight = Memory::ReadMem(ctx.edx + 0x4);
 
 				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 
@@ -303,19 +337,24 @@ void FOVFix()
 
 				ResolutionInstructionsHook.reset();
 			});
+
+			Memory::Write(ResolutionInstructionsScansResult[WindowedRes1] + 6, iNewWindowedWidth);
+
+			Memory::Write(ResolutionInstructionsScansResult[WindowedRes1] + 16, iNewWindowedHeight);
+
+			Memory::Write(ResolutionInstructionsScansResult[WindowedRes2] + 6, iNewWindowedWidth);
+
+			Memory::Write(ResolutionInstructionsScansResult[WindowedRes2] + 1, iNewWindowedHeight);
+
+			Memory::Write(ResolutionInstructionsScansResult[WindowedRes3] + 10, iNewWindowedWidth);
+
+			Memory::Write(ResolutionInstructionsScansResult[WindowedRes3] + 3, iNewWindowedHeight);
+
+			Memory::Write(ResolutionInstructionsScansResult[WindowedRes4] + 6, iNewWindowedWidth);
+
+			Memory::Write(ResolutionInstructionsScansResult[WindowedRes4] + 1, iNewWindowedHeight);
 		}		
 	}
-}
-
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
-	}
-	return TRUE;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -325,11 +364,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		Logging();
+		Configuration();
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			FOVFix();
 		}
 		break;
 	}
