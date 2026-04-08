@@ -28,7 +28,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "OutlawGolfWidescreenFix";
-std::string sFixVersion = "1.4";
+std::string sFixVersion = "1.4.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -304,7 +304,7 @@ void FOVFix()
 {
 	if (eGameType == Game::OG && bFixActive == true)
 	{
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "74 ?? 81 F9 ?? ?? ?? ?? 7C", "8B 02 A3 ?? ?? ?? ?? 8B 42",
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "74 ?? 81 F9 ?? ?? ?? ?? 7C", "8B 54 24 ?? 8B 44 24 ?? 89 15",
 		"C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 33 C0", 
 		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0", "C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? 5F 5E 5B", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8D 44 24");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
@@ -325,9 +325,9 @@ void FOVFix()
 
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-				int& iCurrentWidth = Memory::ReadMem(ctx.edx);
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x28);
 
-				int& iCurrentHeight = Memory::ReadMem(ctx.edx + 0x4);
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x2C);
 
 				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 
@@ -335,7 +335,7 @@ void FOVFix()
 
 				SetARAndFOV();
 
-				ResolutionInstructionsHook.reset(); // It's safe to reset the hook, since it's not needed anymore at this stage
+				ResolutionInstructionsHook.reset();
 			});
 
 			Memory::Write(ResolutionInstructionsScansResult[WindowedRes1] + 6, iNewWindowedWidth);
