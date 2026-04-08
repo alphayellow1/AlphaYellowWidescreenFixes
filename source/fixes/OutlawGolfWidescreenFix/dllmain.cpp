@@ -335,7 +335,7 @@ void FOVFix()
 
 				SetARAndFOV();
 
-				ResolutionInstructionsHook.reset();
+				ResolutionInstructionsHook.reset(); // It's safe to reset the hook, since it's not needed anymore at this stage
 			});
 
 			Memory::Write(ResolutionInstructionsScansResult[WindowedRes1] + 6, iNewWindowedWidth);
@@ -364,6 +364,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
+		// We need the fix logic to start inside of DLLMain instead of its own thread (I know this is risky since the loader lock is still held),
+		// since creating a thread takes long enough that when the game initializes, it goes through the windowed mode code before it's even patched
 		Logging();
 		Configuration();
 		if (DetectGame())
