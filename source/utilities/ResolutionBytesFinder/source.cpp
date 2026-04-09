@@ -96,19 +96,29 @@ void findPairs(const std::vector<char>& buffer, T firstValue, T secondValue, siz
 
     auto drawBar = [&](bool force = false)
     {
-        if (totalSteps == 0) return;
+        if (totalSteps == 0)
+        {
+            return;
+        }
+
         double frac = double(workDone) / double(totalSteps);
+
         size_t pos = size_t(frac * BAR_WIDTH + 0.5);
-        if (force || pos != lastPos) {
+
+        if (force || pos != lastPos)
+        {
             std::cout << '\r' << PREFIX << '[';
+
             for (int x = 0; x < BAR_WIDTH; ++x)
-                std::cout << (x < pos ? '=' : ' ');
-            std::cout << "] "
-                << std::setw(3) << int(frac * 100 + 0.5)
-                << '%' << std::flush;
+            {
+                std::cout << (static_cast<size_t>(x) < pos ? '=' : ' ');
+            }
+
+            std::cout << "] " << std::setw(3) << int(frac * 100 + 0.5) << '%' << std::flush;
+
             lastPos = pos;
         }
-        };
+    };
 
     // one-line prefix+bar
     std::cout << '\n';
@@ -238,7 +248,7 @@ template<typename T> T readInput(T minValue, T maxValue)
 
 std::vector<char> readFileBuffer(const std::string& prompt)
 {
-    const int    BAR_WIDTH = 40;
+    const int BAR_WIDTH = 40;
     const size_t CHUNK_SIZE = 1 << 20;  // 1 MiB
     const std::string LOADING_TEXT = "Loading file... ";
 
@@ -275,29 +285,24 @@ std::vector<char> readFileBuffer(const std::string& prompt)
 
         auto drawBar = [&](bool force = false)
         {
-            if (totalSteps == 0)
-            {
-                return; // nothing to do
-            }
+                if (totalSteps == 0)
+                    return;
 
-            double frac = double(bytesRead) / totalSteps;
+                double frac = double(bytesRead) / totalSteps;
+                size_t pos = size_t(frac * BAR_WIDTH + 0.5);
 
-            size_t pos = size_t(frac * BAR_WIDTH + 0.5);
-
-            if (force || pos != lastPos)
-            {
-                // print prefix + bar + percent
-                std::cout << '\r' << LOADING_TEXT << '[';
-
-                for (int i = 0; i < BAR_WIDTH; ++i)
+                if (force || pos != lastPos)
                 {
-                    std::cout << (i < pos ? '=' : ' ');
+                    std::cout << '\r' << LOADING_TEXT << '[';
+
+                    for (size_t i = 0; i < static_cast<size_t>(BAR_WIDTH); ++i)
+                    {
+                        std::cout << (i < pos ? '=' : ' ');
+                    }
 
                     std::cout << "] " << std::setw(3) << int(frac * 100 + 0.5) << '%' << std::flush;
-
                     lastPos = pos;
                 }
-            }
         };
 
         // 5) initial draw at 0%
@@ -336,11 +341,11 @@ std::vector<char> readFileBuffer(const std::string& prompt)
 
 int main()
 {
-    std::cout << "==== Resolution Bytes Finder v1.1 by AlphaYellow, 2025 ====\n\n";
+    std::cout << "==== Resolution Bytes Finder v1.2 by AlphaYellow, 2026 ====\n\n";
 
     auto buffer = readFileBuffer("- Enter file name: ");
 
-    char again = '2';
+    int again = 2;
 
     do
     {
@@ -406,10 +411,10 @@ int main()
         // 3) ask to try again or exit
         std::cout << "\n- Do you want to exit the program (1) or try another value (2)?: ";
         
-        again = readInput<char>('1', '2');
+        again = readInput<int>(1, 2);
 
         std::cout << "\n";
-    } while (again == '2');
+    } while (again == 2);
 
     std::cout << "Press Enter to exit...";
 
