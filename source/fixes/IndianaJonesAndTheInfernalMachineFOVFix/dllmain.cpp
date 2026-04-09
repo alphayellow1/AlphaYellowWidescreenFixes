@@ -27,7 +27,7 @@ HMODULE dllModule2 = nullptr;
 
 // Fix details
 std::string sFixName = "IndianaJonesAndTheInfernalMachineFOVFix";
-std::string sFixVersion = "1.1";
+std::string sFixVersion = "1.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,23 +42,34 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalPauseMenuFOV = 10.0f;
+constexpr float fOriginalGameplayFOV = 90.0f;
 
 // Ini variables
 bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
 float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
+uint32_t iCurrentWidth;
+uint32_t iCurrentHeight;
+float fNewGeneralFOV;
+float fNewGameplayFOV;
+float fNewPauseMenuFOV;
 
 // Game detection
 enum class Game
 {
 	IJATIM,
 	Unknown
+};
+
+enum CameraFOVInstructionsIndices
+{
+	General,
+	Gameplay,
+	PauseMenu
 };
 
 struct GameInfo
@@ -148,24 +159,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -188,35 +183,78 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid ResolutionWidthInstructionHook{};
+static SafetyHookMid ResolutionHeightInstructionHook{};
+static SafetyHookMid GeneralFOVInstructionHook{};
+static SafetyHookMid PauseMenuFOVInstructionHook{};
+
+void SetFOV()
+{
+	std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 74 ?? D9 44 24 ?? EB ?? D9 05 ?? ?? ?? ?? EB ?? D9 05 ?? ?? ?? ?? 8B 44 24 ?? 50",
+	"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 89 0D ?? ?? ?? ?? 89 15", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? A3 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? ?? 75 ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8");
+	if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+	{
+		spdlog::info("General FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[General] - (std::uint8_t*)exeModule);
+
+		spdlog::info("Gameplay FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay] - (std::uint8_t*)exeModule);
+
+		spdlog::info("Pause Menu FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[2] - (std::uint8_t*)exeModule);
+
+		Memory::WriteNOPs(CameraFOVInstructionsScansResult[General] + 4, 50);
+
+		Memory::WriteNOPs(CameraFOVInstructionsScansResult[General], 4);
+
+		GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[General], [](SafetyHookContext& ctx)
+		{
+			float& fCurrentGeneralFOV = Memory::ReadMem(ctx.esp + 0x8);
+
+			fNewGeneralFOV = Maths::CalculateNewFOV_DegBased(fCurrentGeneralFOV, fAspectRatioScale);
+
+			FPU::FLD(fNewGeneralFOV);
+		});
+
+		fNewGameplayFOV = fOriginalGameplayFOV * fFOVFactor;
+
+		Memory::Write(CameraFOVInstructionsScansResult[Gameplay] + 1, fNewGameplayFOV);
+
+		fNewPauseMenuFOV = Maths::CalculateNewFOV_DegBased(fOriginalPauseMenuFOV, fAspectRatioScale);
+
+		Memory::Write(CameraFOVInstructionsScansResult[PauseMenu] + 1, fNewPauseMenuFOV);
+	}
+}
 
 void FOVFix()
 {
 	if (eGameType == Game::IJATIM && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D9 C9 D9 5C 24 ?? D8 74 24");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x10);
+				iCurrentWidth = Memory::ReadRegister(ctx.eax);
+			});
 
-				fNewCameraFOV = (fCurrentCameraFOV / fAspectRatioScale) / fFOVFactor;
+			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 23, [](SafetyHookContext& ctx)
+			{
+				iCurrentHeight = Memory::ReadRegister(ctx.eax);
 
-				FPU::FLD(fNewCameraFOV);
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+
+				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+				SetFOV();
+
+				ResolutionWidthInstructionHook.reset();
+
+				ResolutionHeightInstructionHook.reset();
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to find resolution instructions scan memory address.");
 			return;
 		}
 	}
