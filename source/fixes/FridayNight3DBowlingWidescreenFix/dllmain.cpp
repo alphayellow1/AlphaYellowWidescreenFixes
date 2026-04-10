@@ -28,7 +28,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "FridayNight3DBowlingWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -43,26 +43,46 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
+constexpr float fOriginalPlayerSelectionHFOV1 = 0.4699999988f;
+constexpr float fOriginalPlayerSelectionHFOV2 = 0.4600000083f;
+constexpr float fOriginalPlayerSelectionVFOV1 = 0.9399999976f;
+constexpr float fOriginalPlayerSelectionVFOV2 = 0.9200000167f;
 
 // Ini variables
 bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
 double dFOVFactor;
 
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+uintptr_t CameraFOVAddress;
 double dNewCameraFOV;
-uint8_t* ResolutionWidthAddress;
-uint8_t* ResolutionHeightAddress;
-uint8_t* CameraFOVAddress;
+float fNewHUDAspectRatio;
+float fNewPlayerSelectionHFOV1;
+float fNewPlayerSelectionHFOV2;
+float fNewPlayerSelectionVFOV1;
+float fNewPlayerSelectionVFOV2;
 
 // Game detection
 enum class Game
 {
 	FN3DB,
 	Unknown
+};
+
+enum ResolutionInstructionsIndices
+{
+	ResListUnlock,
+	ResWidthHeight
+};
+
+enum AspectRatioInstructionsIndices
+{
+	CameraAR,
+	HUDAR,
+	PlayerSelectionAR1,
+	PlayerSelectionAR2,
+	PlayerSelectionAR3
 };
 
 struct GameInfo
@@ -152,24 +172,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", dFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(dFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -192,235 +196,113 @@ bool DetectGame()
 	return false;
 }
 
-void StartFocusToggleWatcherEnhanced(bool useAltTab = true, int maxWaitMs = 30000, int pollIntervalMs = 100, int delayMs = 300)
-{
-	std::thread([useAltTab, maxWaitMs, pollIntervalMs, delayMs]() {
-		// Helper type for EnumWindows
-		struct Finder { DWORD pid; HWND result; };
-		Finder finder{};
-		finder.pid = GetCurrentProcessId();
-		finder.result = nullptr;
-
-		auto enumProc = [](HWND hwnd, LPARAM lParam) -> BOOL
-			{
-				Finder* f = reinterpret_cast<Finder*>(lParam);
-				DWORD wndPid = 0;
-				GetWindowThreadProcessId(hwnd, &wndPid);
-				if (wndPid != f->pid) return TRUE;               // not our process
-				if (GetWindow(hwnd, GW_OWNER) != NULL) return TRUE; // owned window, skip
-				if (!IsWindowVisible(hwnd)) return TRUE;         // not visible
-				int len = GetWindowTextLengthW(hwnd);
-				if (len == 0) return TRUE;                       // skip empty-title windows
-				f->result = hwnd;
-				return FALSE; // stop enumerating
-			};
-
-		auto findMainWindow = [&](DWORD /*pid*/) -> HWND {
-			finder.result = nullptr;
-			EnumWindows(enumProc, reinterpret_cast<LPARAM>(&finder));
-			return finder.result;
-			};
-
-		auto SendOneAltTab = []() {
-			INPUT inputs[4] = {};
-			// Alt down
-			inputs[0].type = INPUT_KEYBOARD;
-			inputs[0].ki.wVk = VK_MENU;
-			// Tab down
-			inputs[1].type = INPUT_KEYBOARD;
-			inputs[1].ki.wVk = VK_TAB;
-			// Tab up
-			inputs[2].type = INPUT_KEYBOARD;
-			inputs[2].ki.wVk = VK_TAB;
-			inputs[2].ki.dwFlags = KEYEVENTF_KEYUP;
-			// Alt up
-			inputs[3].type = INPUT_KEYBOARD;
-			inputs[3].ki.wVk = VK_MENU;
-			inputs[3].ki.dwFlags = KEYEVENTF_KEYUP;
-			SendInput(4, inputs, sizeof(INPUT));
-			};
-
-		auto AltTabOutThenBack = [&](int dms) {
-			SendOneAltTab();
-			std::this_thread::sleep_for(std::chrono::milliseconds(dms));
-			SendOneAltTab();
-			};
-
-		auto MinimizeThenRestoreWindow = [&](HWND hWnd, int dms) {
-			if (!hWnd) return;
-			ShowWindow(hWnd, SW_MINIMIZE);
-			std::this_thread::sleep_for(std::chrono::milliseconds(dms));
-			ShowWindow(hWnd, SW_RESTORE);
-			};
-
-		// Robust foreground / focus helper
-		auto ForceForeground = [&](HWND hWnd) {
-			if (!hWnd) return;
-
-			// If already foreground, still try to ensure focus
-			HWND hForeground = GetForegroundWindow();
-			if (hForeground == hWnd) {
-				SetActiveWindow(hWnd);
-				SetFocus(hWnd);
-				return;
-			}
-
-			DWORD foregroundThread = 0;
-			DWORD targetThread = 0;
-			HWND currentForeground = GetForegroundWindow();
-			if (currentForeground)
-				foregroundThread = GetWindowThreadProcessId(currentForeground, NULL);
-			targetThread = GetWindowThreadProcessId(hWnd, NULL);
-
-			// Try AttachThreadInput between the foreground thread and the target window's thread
-			BOOL attached = FALSE;
-			if (foregroundThread != 0 && targetThread != 0)
-			{
-				attached = AttachThreadInput(foregroundThread, targetThread, TRUE);
-			}
-
-			// Try to show/raise and set foreground
-			ShowWindow(hWnd, SW_RESTORE);
-			// Give the window a chance to be visible
-			std::this_thread::sleep_for(std::chrono::milliseconds(20));
-			SetForegroundWindow(hWnd);
-			BringWindowToTop(hWnd);
-			SetActiveWindow(hWnd);
-			SetFocus(hWnd);
-
-			if (attached)
-			{
-				// detach
-				AttachThreadInput(foregroundThread, targetThread, FALSE);
-			}
-
-			// If still not foreground, do temporary topmost trick as fallback
-			if (GetForegroundWindow() != hWnd)
-			{
-				// temporarily make it topmost
-				SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-				std::this_thread::sleep_for(std::chrono::milliseconds(50));
-				SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-				std::this_thread::sleep_for(std::chrono::milliseconds(20));
-				// final attempts
-				SetForegroundWindow(hWnd);
-				BringWindowToTop(hWnd);
-				SetActiveWindow(hWnd);
-				SetFocus(hWnd);
-			}
-			};
-
-		int elapsed = 0;
-		while (elapsed < maxWaitMs)
-		{
-			HWND h = findMainWindow(finder.pid);
-			if (h)
-			{
-#ifdef SPDLOG_ACTIVE_LEVEL
-				spdlog::info("StartFocusToggleWatcherEnhanced: detected main window HWND=0x{0:X}", (uintptr_t)h);
-#endif
-				// grace period so the window finishes initialization
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-				if (useAltTab) {
-					// perform Alt+Tab out/back
-					AltTabOutThenBack(delayMs);
-
-					// After the synthetic Alt+Tab, aggressively force foreground to ensure focus returns.
-					// Small sleep to give the system a moment after the second Alt+Tab send.
-					std::this_thread::sleep_for(std::chrono::milliseconds(40));
-					ForceForeground(h);
-				}
-				else {
-					// minimize/restore and then ensure foreground
-					MinimizeThenRestoreWindow(h, delayMs);
-					std::this_thread::sleep_for(std::chrono::milliseconds(40));
-					ForceForeground(h);
-				}
-
-				return; // done
-			}
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(pollIntervalMs));
-			elapsed += pollIntervalMs;
-		}
-
-#ifdef SPDLOG_ACTIVE_LEVEL
-		spdlog::warn("StartFocusToggleWatcherEnhanced: timed out waiting for main window ({} ms)", maxWaitMs);
-#endif
-		}).detach();
-}
-
-static SafetyHookMid ResolutionInstructions1Hook{};
-static SafetyHookMid ResolutionInstructions2Hook{};
+static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid HUDAspectRatioInstructionHook{};
+
+void SetARAndFOV()
+{
+	std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 51 8B 4C 24",
+	"D9 40 ?? DC C0 D9 1D ?? ?? ?? ?? D9 40 ?? DC C0 D9 1D ?? ?? ?? ?? 8B 48 ?? 81 F9 ?? ?? ?? ?? 74 ?? 39 05 ?? ?? ?? ?? 74 ?? 89 0D ?? ?? ?? ?? C7 40 ?? ?? ?? ?? ?? A3 ?? ?? ?? ?? 89 15",
+	"C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 8B 16", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB ?? D8 0D", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4E");
+	if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
+	{
+		spdlog::info("Camera Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CameraAR] - (std::uint8_t*)exeModule);
+
+		spdlog::info("HUD Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUDAR] - (std::uint8_t*)exeModule);
+
+		spdlog::info("Player Selection HFOV & VFOV Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[PlayerSelectionAR1] - (std::uint8_t*)exeModule);
+
+		spdlog::info("Player Selection HFOV & VFOV Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[PlayerSelectionAR2] - (std::uint8_t*)exeModule);
+
+		spdlog::info("Player Selection HFOV & VFOV Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[PlayerSelectionAR3] - (std::uint8_t*)exeModule);
+
+		Memory::Write(AspectRatioInstructionsScansResult[CameraAR] + 1, fNewAspectRatio);
+
+		Memory::WriteNOPs(AspectRatioInstructionsScansResult[HUDAR], 3);
+
+		HUDAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR], [](SafetyHookContext& ctx)
+		{
+			float& fCurrentHUDAspectRatio = Memory::ReadMem(ctx.eax + 0x68);
+
+			fNewHUDAspectRatio = fCurrentHUDAspectRatio / fAspectRatioScale;
+
+			FPU::FLD(fNewHUDAspectRatio);
+		});
+
+		fNewPlayerSelectionHFOV1 = fOriginalPlayerSelectionHFOV1 * powf(fAspectRatioScale, 4.0f);
+
+		fNewPlayerSelectionHFOV2 = fOriginalPlayerSelectionHFOV2 * powf(fAspectRatioScale, 4.0f);
+
+		fNewPlayerSelectionVFOV1 = fOriginalPlayerSelectionVFOV1 * fAspectRatioScale;
+
+		fNewPlayerSelectionVFOV2 = fOriginalPlayerSelectionVFOV2 * fAspectRatioScale;
+
+		Memory::Write(AspectRatioInstructionsScansResult[PlayerSelectionAR1] + 4, fNewPlayerSelectionHFOV1);
+
+		Memory::Write(AspectRatioInstructionsScansResult[PlayerSelectionAR1] + 12, fNewPlayerSelectionVFOV1);
+
+		Memory::Write(AspectRatioInstructionsScansResult[PlayerSelectionAR2] + 4, fNewPlayerSelectionHFOV2);
+
+		Memory::Write(AspectRatioInstructionsScansResult[PlayerSelectionAR2] + 12, fNewPlayerSelectionVFOV2);
+
+		Memory::Write(AspectRatioInstructionsScansResult[PlayerSelectionAR3] + 4, fNewPlayerSelectionHFOV2);
+
+		Memory::Write(AspectRatioInstructionsScansResult[PlayerSelectionAR3] + 12, fNewPlayerSelectionVFOV2);
+	}
+
+	std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D9 F2");
+	if (CameraFOVInstructionScanResult)
+	{
+		spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+
+		CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+
+		Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
+
+		CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+		{
+			double& dCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
+
+			dNewCameraFOV = Maths::CalculateNewFOV_RadBased(dCurrentCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dFOVFactor;
+
+			FPU::FLD(dNewCameraFOV);
+		});
+	}
+	else
+	{
+		spdlog::error("Failed to locate camera FOV instruction memory address.");
+		return;
+	}
+}
 
 void WidescreenFix()
 {
 	if (eGameType == Game::FN3DB && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8b 0d ?? ?? ?? ?? 8b 15 ?? ?? ?? ?? c7 05");
-		if (ResolutionInstructionsScanResult)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "81 F9 ?? ?? ?? ?? 0F 8C", "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)exeModule);
 
-			ResolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScanResult + 24, Memory::PointerMode::Absolute);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResWidthHeight] - (std::uint8_t*)exeModule);
 
-			ResolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScanResult + 30, Memory::PointerMode::Absolute);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock], 40);
 
-			Memory::WriteNOPs(ResolutionInstructionsScanResult, 12);			
-
-			ResolutionInstructions1Hook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
+				const int& iCurrentWidth = Memory::ReadRegister(ctx.ecx);
 
-				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
+				const int& iCurrentHeight = Memory::ReadRegister(ctx.edx);
+
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+
+				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+				SetARAndFOV();
+
+				ResolutionInstructionsHook.disable();
 			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScanResult + 22, 12);			
-
-			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScanResult + 22, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionWidthAddress) = iCurrentResX;
-
-				Memory::ReadMem(ResolutionHeightAddress) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions scan memory address.");
-			return;
-		}
-
-		std::uint8_t* AspectRatioAndCameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D9 F2 68 AB AA AA 3F 51 8B 4C 24 0C DD D8 D9 1C 24 51");
-		if (AspectRatioAndCameraFOVInstructionsScanResult)
-		{
-			spdlog::info("Aspect Ratio & Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
-
-			Memory::Write(AspectRatioAndCameraFOVInstructionsScanResult + 9, fNewAspectRatio);
-
-			CameraFOVAddress = Memory::GetPointerFromAddress(AspectRatioAndCameraFOVInstructionsScanResult + 2, Memory::PointerMode::Absolute);
-
-			Memory::WriteNOPs(AspectRatioAndCameraFOVInstructionsScanResult, 6);
-
-			CameraFOVInstructionHook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
-			{
-				double& dCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
-				
-				// Computes the new FOV value
-				dNewCameraFOV = Maths::CalculateNewFOV_RadBased(dCurrentCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * dFOVFactor;
-				
-				FPU::FLD(dNewCameraFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio and camera FOV instructions scan memory address.");
-			return;
 		}
 	}
 }
@@ -432,9 +314,6 @@ DWORD __stdcall Main(void*)
 	if (DetectGame())
 	{
 		WidescreenFix();
-
-		// Start watcher: true = Alt+Tab out/back, false = Minimize & Restore
-		StartFocusToggleWatcherEnhanced(true /*useAltTab*/, 30000, 100, 300);
 	}
 	return TRUE;
 }
