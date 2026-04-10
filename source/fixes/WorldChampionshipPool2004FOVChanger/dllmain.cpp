@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "WorldChampionshipPool2004FOVChanger";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.0.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -173,7 +173,7 @@ void FOVChanger()
 {
 	if (eGameType == Game::WCP2004 && bFixActive == true)
 	{
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 83 D0 00 00 00 D9 83 D0 00 00 00 51");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 83 ?? ?? ?? ?? D9 83");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
@@ -182,11 +182,11 @@ void FOVChanger()
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				const float& fCurrentCameraFOV = Memory::ReadRegister(ctx.eax);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				Memory::ReadMem(ctx.ebx + 0xD0) = fNewCameraFOV;
+				*reinterpret_cast<float*>(ctx.ebx + 0xD0) = fNewCameraFOV;
 			});
 		}
 		else
