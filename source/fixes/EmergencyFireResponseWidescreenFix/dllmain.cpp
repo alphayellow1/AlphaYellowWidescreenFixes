@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "EmergencyFireResponseWidescreenFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,13 +44,12 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
+uint32_t iNewMenuWidth;
+uint32_t iNewMenuHeight;
 float fFOVFactor;
 
 // Variables
 float fNewAspectRatio;
-float fAspectRatioScale;
 float fNewCameraFOV;
 
 // Game detection
@@ -62,20 +61,19 @@ enum class Game
 
 enum ResolutionInstructionsIndices
 {
-	Res1,
-	Res2,
-	Res3,
-	Res4,
-	Res5,
+	ResListUnlock,
+	ResWidthHeight,
 	MainMenu1,
-	MainMenu2
+	MainMenu2,
+	LoadingScreen
 };
 
 enum AspectRatioInstructionsIndices
 {
 	AR1,
 	AR2,
-	AR3
+	AR3,
+	AR4
 };
 
 struct GameInfo
@@ -165,23 +163,23 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
+	inipp::get_value(ini.sections["Settings"], "MainMenuWidth", iNewMenuWidth);
+	inipp::get_value(ini.sections["Settings"], "MainMenuHeight", iNewMenuHeight);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
+	spdlog_confparse(iNewMenuWidth);
+	spdlog_confparse(iNewMenuHeight);
 	spdlog_confparse(fFOVFactor);
 
 	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	if (iNewMenuWidth <= 0 || iNewMenuHeight <= 0)
 	{
 		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
 		// Implement Util::GetPhysicalDesktopDimensions() accordingly
 		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
+		iNewMenuWidth = desktopDimensions.first;
+		iNewMenuHeight = desktopDimensions.second;
+		spdlog_confparse(iNewMenuWidth);
+		spdlog_confparse(iNewMenuHeight);
 	}
 
 	spdlog::info("----------");
@@ -205,111 +203,58 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid ResolutionWidthInstruction1Hook{};
-static SafetyHookMid ResolutionHeightInstruction1Hook{};
-static SafetyHookMid ResolutionInstructions2Hook{};
-static SafetyHookMid ResolutionInstructions3Hook{};
-static SafetyHookMid ResolutionWidthInstruction4Hook{};
-static SafetyHookMid ResolutionHeightInstruction4Hook{};
-static SafetyHookMid ResolutionWidthInstruction5Hook{};
-static SafetyHookMid ResolutionHeightInstruction5Hook{};
-static SafetyHookMid AspectRatioInstruction1Hook{};
-static SafetyHookMid AspectRatioInstruction2Hook{};
-static SafetyHookMid AspectRatioInstruction3Hook{};
+static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
 	if (eGameType == Game::EFR && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 75 ?? 57 8B 7D ?? 53", "8B 8E ?? ?? ?? ?? 8B 07 D9 E8", "8B 55 ?? 8B 45 ?? 81 C1", "89 46 ?? E8 ?? ?? ?? ?? 89 46 ?? 8B 45", "8B 08 89 4E ?? 8B 48 ?? 89 4E ?? 8B 40 ?? 89 46 ?? 74", "C7 45 ?? ?? ?? ?? ?? C7 45 ?? ?? ?? ?? ?? 53", "BE ?? ?? ?? ?? BF ?? ?? ?? ?? 56 57");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "81 FA ?? ?? ?? ?? 72 ?? 8B 4E", "8B 75 ?? 57 8B 7D ?? 53",
+		"C7 45 ?? ?? ?? ?? ?? C7 45 ?? ?? ?? ?? ?? 53", "BE ?? ?? ?? ?? BF ?? ?? ?? ?? 56 57", "BF ?? ?? ?? ?? 6A ?? BE ?? ?? ?? ?? 57 56 E8");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 5 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res5] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResWidthHeight] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Main Menu Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenu1] - (std::uint8_t*)exeModule);
 
 			spdlog::info("Main Menu Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenu2] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1] + 4, 3);
+			spdlog::info("Loading Screen Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[LoadingScreen] - (std::uint8_t*)exeModule);
 
-			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1] + 4, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 6, 2);
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 17, 2);
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 50, 2);
+
+			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-				ctx.edi = std::bit_cast<uintptr_t>(iCurrentResX);
+				int& iCurrentWidth = Memory::ReadMem(ctx.ebp + 0x8);
+
+				int& iCurrentHeight = Memory::ReadMem(ctx.ebp + 0xC);
+
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);				
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1], 3);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenu1] + 3, iNewMenuWidth);
 
-			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1], [](SafetyHookContext& ctx)
-			{
-				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
+			Memory::Write(ResolutionInstructionsScansResult[MainMenu1] + 10, iNewMenuHeight);
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res2], 8);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenu2] + 6, iNewMenuWidth);
 
-			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2], [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[MainMenu2] + 1, iNewMenuHeight);
 
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
+			Memory::Write(ResolutionInstructionsScansResult[LoadingScreen] + 8, iNewMenuWidth);
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3], 6);
-
-			ResolutionInstructions3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3], [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
-
-				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			ResolutionWidthInstruction4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4], [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			ResolutionHeightInstruction4Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res4] + 8, [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res5], 2);
-
-			ResolutionWidthInstruction5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5], [](SafetyHookContext& ctx)
-			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res5] + 5, 3);
-
-			ResolutionHeightInstruction5Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res5] + 5, [](SafetyHookContext& ctx)
-			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			Memory::Write(ResolutionInstructionsScansResult[MainMenu1] + 3, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[MainMenu1] + 10, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[MainMenu2] + 6, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[MainMenu2] + 1, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[LoadingScreen] + 1, iNewMenuHeight);
 		}
 
 		std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? 51 D9 1C ?? D9 86 ?? ?? ?? ?? 51 8B CE D9 1C ?? E8 ?? ?? ?? ?? 5E C9 C3 55",
-		"D9 05 ?? ?? ?? ?? 51 D9 1C ?? D9 86 ?? ?? ?? ?? 51 8B CE D9 1C ?? E8 ?? ?? ?? ?? 5E C9 C3 D9 44 24", "D9 05 ?? ?? ?? ?? 51 D9 1C ?? D9 45 ?? 51 8B CE");
+		"D9 05 ?? ?? ?? ?? 51 D9 1C ?? D9 86 ?? ?? ?? ?? 51 8B CE D9 1C ?? E8 ?? ?? ?? ?? 5E C9 C3 D9 44 24", "D9 05 ?? ?? ?? ?? 51 D9 1C ?? D9 45 ?? 51 8B CE",
+		"D9 05 ?? ?? ?? ?? 51 D9 1C ?? D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 51 D9 1C ?? E8 ?? ?? ?? ?? D9 EE 8D 45 ?? 68 ?? ?? ?? ?? D9 5D ?? D9 EE 50 8D 45 ?? D9 5D ?? D9 EE 50 8B CE D9 5D ?? D9 05 ?? ?? ?? ?? D9 55 ?? D9 55 ?? D9 5D ?? E8 ?? ?? ?? ?? 5E C9 C2");
 		if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 		{
 			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR1] - (std::uint8_t*)exeModule);
@@ -318,7 +263,9 @@ void WidescreenFix()
 
 			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR3] - (std::uint8_t*)exeModule);
 
-			Memory::Write(AspectRatioInstructionsScansResult, AR1, AR3, 2, &fNewAspectRatio);
+			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[AR4] - (std::uint8_t*)exeModule);
+
+			Memory::Write(AspectRatioInstructionsScansResult, AR1, AR4, 2, &fNewAspectRatio);
 		}
 
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 45 ?? 51 8B CE D9 1C ?? E8 ?? ?? ?? ?? 5E C9 C2 ?? ?? 55 8B EC 83 EC ?? A1");
@@ -345,6 +292,17 @@ void WidescreenFix()
 	}
 }
 
+DWORD __stdcall Main(void*)
+{
+	Logging();
+	Configuration();
+	if (DetectGame())
+	{
+		WidescreenFix();
+	}
+	return TRUE;
+}
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
@@ -352,11 +310,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		Logging();
-		Configuration();
-		if (DetectGame())
+		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
+		if (mainHandle)
 		{
-			WidescreenFix();
+			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
+			CloseHandle(mainHandle);
 		}
 		break;
 	}

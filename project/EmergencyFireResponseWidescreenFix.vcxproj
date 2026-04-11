@@ -109,7 +109,8 @@
       <LanguageStandard_C>stdclatest</LanguageStandard_C>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
-      <Optimization>Disabled</Optimization>
+      <Optimization>MaxSpeed</Optimization>
+      <DebugInformationFormat>None</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
