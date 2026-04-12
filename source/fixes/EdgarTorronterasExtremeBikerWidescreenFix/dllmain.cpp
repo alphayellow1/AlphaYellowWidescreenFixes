@@ -248,7 +248,7 @@ void WidescreenFix()
 
 				SetFOV();
 			});
-		}		
+		}
 	}	
 }
 
