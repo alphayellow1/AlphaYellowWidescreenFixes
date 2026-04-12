@@ -223,14 +223,14 @@ void WidescreenFix()
 
 				spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionHeightScan] - (std::uint8_t*)exeModule);
 				
-				Memory::PatchBytes(ResolutionInstructionsScansResult[ResolutionWidthScan], "\x90\x90", 2);
+				Memory::WriteNOPs(ResolutionInstructionsScansResult[ResolutionWidthScan], 2);
 
 				ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResolutionWidthScan], [](SafetyHookContext& ctx)
 				{
 					ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
 				});
 				
-				Memory::PatchBytes(ResolutionInstructionsScansResult[ResolutionHeightScan], "\x90\x90\x90", 3);
+				Memory::WriteNOPs(ResolutionInstructionsScansResult[ResolutionHeightScan], 3);
 
 				ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResolutionHeightScan], [](SafetyHookContext& ctx)
 				{
@@ -254,7 +254,7 @@ void WidescreenFix()
 
 				spdlog::info("Pause Menu Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[PauseMenuARScan] - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(AspectRatioInstructionsScansResult[CutscenesARScan], "\x90\x90\x90", 3);
+				Memory::WriteNOPs(AspectRatioInstructionsScansResult[CutscenesARScan], 3);
 
 				CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesARScan], [](SafetyHookContext& ctx)
 				{
@@ -265,7 +265,7 @@ void WidescreenFix()
 					ctx.edx = std::bit_cast<uintptr_t>(fNewCutscenesAspectRatio);
 				});
 
-				Memory::PatchBytes(AspectRatioInstructionsScansResult[GameplayARScan], "\x90\x90\x90\x90\x90\x90", 6);
+				Memory::WriteNOPs(AspectRatioInstructionsScansResult[GameplayARScan], 6);
 
 				fNewGameplayAspectRatio = 0.75f / fAspectRatioScale;
 
@@ -276,7 +276,7 @@ void WidescreenFix()
 
 				PauseMenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[PauseMenuARScan], [](SafetyHookContext& ctx)
 				{
-					Memory::ReadMem(ctx.eax) = Memory::ReadMem(ctx.eax) * fAspectRatioScale;
+					*reinterpret_cast<float*>(ctx.eax) = *reinterpret_cast<float*>(ctx.eax) * fAspectRatioScale;
 				});
 			}
 
