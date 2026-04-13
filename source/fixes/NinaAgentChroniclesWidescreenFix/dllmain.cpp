@@ -23,11 +23,12 @@
 
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
+HMODULE dllModule2 = nullptr;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "NinaAgentChroniclesFOVFix";
-std::string sFixVersion = "1.6";
+std::string sFixName = "NinaAgentChroniclesWidescreenFix";
+std::string sFixVersion = "1.7";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -44,25 +45,35 @@ std::string sExeName;
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 constexpr float fDefaultCameraHFOV = 1.5707963705062866f;
 constexpr float fDefaultCameraVFOV = 1.3613568544387817f;
-constexpr float fPauseMenuVFOV = 1.3089970350265503f;
 
 // Ini variables
 bool bFixActive;
+float fFOVFactor;
 
 // Variables
-int iCurrentResX;
-int iCurrentResY;
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fFOVFactor;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
+float fNewGameplayHFOV;
+float fNewGameplayVFOV;
+float fNewMenuVFOV;
 
 // Game detection
 enum class Game
 {
 	NAC,
 	Unknown
+};
+
+enum ResolutionsInstructionsIndices
+{
+	ResListUnlock,
+	ResWidthHeight
+};
+
+enum CameraFOVInstructionsIndices
+{
+	Gameplay,
+	Menu
 };
 
 struct GameInfo
@@ -148,28 +159,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -192,85 +187,92 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
-static SafetyHookMid CameraVFOVInstructionHook{};
+static SafetyHookMid ResolutionInstructionsHook{};
+static SafetyHookMid GameplayFOVInstructionsHook{};
+static SafetyHookMid MenuVFOVInstructionHook{};
 
-void FOVFix()
+void WidescreenFix()
 {
 	if (eGameType == Game::NAC && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		dllModule2 = Memory::GetHandle("cshell.dll");
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::uint8_t* CameraHFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 88 C0 01 00 00 89 94 24 10 01 00 00");
-		if (CameraHFOVInstructionScanResult)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(dllModule2, "0F 82 ?? ?? ?? ?? 8B 85 ?? ?? ?? ?? 3D", 
+		exeModule, "8B 48 ?? 89 0D ?? ?? ?? ?? 8B 50 ?? 89 15 ?? ?? ?? ?? FF 90");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Unlock Scan: Address is cshell.dll+{:x}", ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)dllModule2);
 
-			Memory::WriteNOPs(CameraHFOVInstructionScanResult, 6);			
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResWidthHeight] - (std::uint8_t*)exeModule);
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraHFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock], 6);
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 17, 6);
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 30, 6);
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[ResListUnlock] + 54, "\xEB");
+
+			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.eax + 0x1C0);
+				int& iCurrentWidth = Memory::ReadMem(ctx.eax + 0x3C);
 
-				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.eax + 0x1C4);
+				int& iCurrentHeight = Memory::ReadMem(ctx.eax + 0x40);
 
-				if (Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && Maths::isClose(fCurrentCameraVFOV, fDefaultCameraVFOV))
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+
+				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+			});
+		}
+
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 83 ?? ?? ?? ?? 8B 8B ?? ?? ?? ?? 8B 53", exeModule, "D9 44 24 ?? D8 0D ?? ?? ?? ?? 51 8B 87");
+		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		{
+			spdlog::info("Gameplay FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay] - (std::uint8_t*)exeModule);
+
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Menu] - (std::uint8_t*)exeModule);
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay], 12);
+
+			GameplayFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentGameplayHFOV = Memory::ReadMem(ctx.ebx + 0x1B4);
+
+				float& fCurrentGameplayVFOV = Memory::ReadMem(ctx.ebx + 0x1B8);
+
+				if (Maths::isClose(fCurrentGameplayHFOV, fDefaultCameraHFOV) && Maths::isClose(fCurrentGameplayVFOV, fDefaultCameraVFOV))
 				{
-					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale, fFOVFactor); // Hipfire HFOV
-				}
-				else if (Maths::isClose(fCurrentCameraHFOV, fDefaultCameraHFOV) && fCurrentCameraVFOV == fPauseMenuVFOV)
-				{
-					fNewCameraHFOV = fCurrentCameraHFOV; // Leave the pause menu HFOV alone since the game scales it somewhere else
+					fNewGameplayHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentGameplayHFOV, fAspectRatioScale, fFOVFactor); // Hipfire HFOV
 				}
 				else
 				{
-					fNewCameraHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale); // All the other HFOVs during gameplay
+					fNewGameplayHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentGameplayHFOV, fAspectRatioScale); // All the other HFOVs during gameplay
 				}
 
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraHFOV);
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera HFOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraVFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 90 C4 01 00 00 3B CD 89 94 24 F8 00 00 00");
-		if (CameraHFOVInstructionScanResult)
-		{
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraVFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(CameraVFOVInstructionScanResult, 6);			
-
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraVFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV2 = Memory::ReadMem(ctx.eax + 0x1C0);
-
-				float& fCurrentCameraVFOV2 = Memory::ReadMem(ctx.eax + 0x1C4);				
-
-				if (Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) && Maths::isClose(fCurrentCameraVFOV2, fDefaultCameraVFOV))
+				if (Maths::isClose(fCurrentGameplayHFOV, fDefaultCameraHFOV) && Maths::isClose(fCurrentGameplayVFOV, fDefaultCameraVFOV))
 				{
-					fNewCameraVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentCameraVFOV2, fFOVFactor); // Hipfire VFOV
-				}
-				else if (Maths::isClose(fCurrentCameraHFOV2, fDefaultCameraHFOV) && fCurrentCameraVFOV2 == fPauseMenuVFOV)
-				{
-					fNewCameraVFOV = fCurrentCameraVFOV2 / fAspectRatioScale; // Pause Menu VFOV
+					fNewGameplayVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentGameplayVFOV, fFOVFactor); // Hipfire VFOV
 				}
 				else
 				{
-					fNewCameraVFOV = fCurrentCameraVFOV2; // All other gameplay VFOVs
+					fNewGameplayVFOV = fCurrentGameplayVFOV; // All other gameplay VFOVs
 				}
 
-				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewGameplayHFOV);
+
+				ctx.eax = std::bit_cast<uintptr_t>(fNewGameplayVFOV);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera VFOV instruction memory address.");
-			return;
+
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Menu], 4);
+
+			MenuVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Menu], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentMenuVFOV = Memory::ReadMem(ctx.esp + 0xC);
+
+				fNewMenuVFOV = fCurrentMenuVFOV / fAspectRatioScale;
+
+				FPU::FLD(fNewMenuVFOV);
+			});
 		}
 	}
 }
@@ -281,7 +283,7 @@ DWORD __stdcall Main(void*)
 	Configuration();
 	if (DetectGame())
 	{
-		FOVFix();
+		WidescreenFix();
 	}
 	return TRUE;
 }

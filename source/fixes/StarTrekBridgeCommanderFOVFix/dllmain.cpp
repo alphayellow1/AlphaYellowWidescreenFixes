@@ -250,7 +250,7 @@ void FOVFix()
 
 			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 8, [](SafetyHookContext& ctx)
 			{
-				iCurrentWidth = *(int*)(ctx.esp + 0x5D8);
+				iCurrentWidth = Memory::ReadMem(ctx.esp + 0x5D8);
 
 				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 
@@ -263,7 +263,7 @@ void FOVFix()
 
 			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				iCurrentHeight = *(int*)(ctx.esp + 0x5D8);				
+				iCurrentHeight = Memory::ReadMem(ctx.esp + 0x5D8);
 			});
 		}
 		else
