@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "StarTrekBridgeCommanderFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -46,12 +46,12 @@ constexpr float fOriginalVFOV1 = 0.375f;
 constexpr float fOriginalVFOV2 = -0.375f;
 
 // Ini variables
-int iCurrentResX;
-int iCurrentResY;
 bool bFixActive;
 float fFOVFactor;
 
 // Variables
+int iCurrentWidth;
+int iCurrentHeight;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewInteriorHFOV1;
@@ -174,24 +174,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -214,6 +198,8 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid ResolutionWidthInstructionHook{};
+static SafetyHookMid ResolutionHeightInstructionHook{};
 static SafetyHookMid SpaceshipExteriorHFOVInstruction1Hook{};
 static SafetyHookMid SpaceshipExteriorHFOVInstruction2Hook{};
 static SafetyHookMid SpaceshipExteriorVFOVInstructionHook{};
@@ -257,9 +243,34 @@ void FOVFix()
 {
 	if (eGameType == Game::STBC && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 94 24 ?? ?? ?? ?? 52 8B 94 24 ?? ?? ?? ?? 52 51");
+		if (ResolutionInstructionsScanResult)
+		{
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 8, [](SafetyHookContext& ctx)
+			{
+				iCurrentWidth = *(int*)(ctx.esp + 0x5D8);
+
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+
+				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+				fNewInteriorHFOV1 = fOriginalHFOV1 * fAspectRatioScale * fFOVFactor;
+
+				fNewInteriorHFOV2 = fOriginalHFOV2 * fAspectRatioScale * fFOVFactor;
+			});
+
+			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			{
+				iCurrentHeight = *(int*)(ctx.esp + 0x5D8);				
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to find resolution instructions scan memory address.");
+			return;
+		}
 
 		std::vector<std::uint8_t*> SpaceshipFOVInstructionsScansResult = Memory::PatternScan(exeModule, 
 		/*Interior HFOV*/
