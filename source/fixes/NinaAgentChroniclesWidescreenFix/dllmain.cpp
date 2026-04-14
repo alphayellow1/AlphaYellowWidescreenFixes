@@ -197,11 +197,13 @@ void WidescreenFix()
 	{
 		dllModule2 = Memory::GetHandle("cshell.dll");
 
+		dllModule2Name = Memory::GetModuleName(dllModule2);
+
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(dllModule2, "0F 82 ?? ?? ?? ?? 8B 85 ?? ?? ?? ?? 3D", 
 		exeModule, "8B 48 ?? 89 0D ?? ?? ?? ?? 8B 50 ?? 89 15 ?? ?? ?? ?? FF 90");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is cshell.dll+{:x}", ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", dllModule2Name.c_str(), ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)dllModule2);
 
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResWidthHeight] - (std::uint8_t*)exeModule);
 
@@ -228,9 +230,9 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 83 ?? ?? ?? ?? 8B 8B ?? ?? ?? ?? 8B 53", "D9 44 24 ?? D8 0D ?? ?? ?? ?? 51 8B 87");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Gameplay FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay] - (std::uint8_t*)dllModule2);
+			spdlog::info("Gameplay FOV Instructions Scan: Address is {:s}+{:x}", dllModule2Name.c_str(), CameraFOVInstructionsScansResult[Gameplay] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Menu] - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", dllModule2Name.c_str(), CameraFOVInstructionsScansResult[Menu] - (std::uint8_t*)dllModule2);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay], 12);
 
