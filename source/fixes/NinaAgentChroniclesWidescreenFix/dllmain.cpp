@@ -240,7 +240,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Gameplay FOV Instructions Scan: Address is {:s}+{:x}", dllModule2Name.c_str(), CameraFOVInstructionsScansResult[Gameplay] - (std::uint8_t*)dllModule2);
 
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", dllModule2Name.c_str(), CameraFOVInstructionsScansResult[Menu] - (std::uint8_t*)dllModule2);
+			spdlog::info("Menu VFOV Instruction: Address is {:s}+{:x}", dllModule2Name.c_str(), CameraFOVInstructionsScansResult[Menu] - (std::uint8_t*)dllModule2);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay], 12);
 
