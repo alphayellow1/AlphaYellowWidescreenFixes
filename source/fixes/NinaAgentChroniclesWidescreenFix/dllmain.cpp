@@ -24,11 +24,12 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
 HMODULE dllModule2 = nullptr;
+std::string dllModule2Name;
 HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "NinaAgentChroniclesWidescreenFix";
-std::string sFixVersion = "1.7";
+std::string sFixVersion = "1.7.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -211,9 +212,16 @@ void WidescreenFix()
 
 			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 17, 6);
 
-			//Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 30, 6);
+			if (*(ResolutionInstructionsScansResult[ResListUnlock] + 23) == 0x83)
+			{
+				Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 30, 6);
 
-			Memory::PatchBytes(ResolutionInstructionsScansResult[ResListUnlock] + 41, "\xEB");
+				Memory::PatchBytes(ResolutionInstructionsScansResult[ResListUnlock] + 54, "\xEB");
+			}
+			else
+			{
+				Memory::PatchBytes(ResolutionInstructionsScansResult[ResListUnlock] + 41, "\xEB");
+			}
 
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
