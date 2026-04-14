@@ -40,14 +40,14 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
 float fFOVFactor;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Variables
+int iCurrentWidth;
+int iCurrentHeight;
 float fNewAspectRatio;
 float fAspectRatioScale;
 double dNewAspectRatio2;
@@ -59,12 +59,6 @@ enum class Game
 {
 	PSPBV,
 	Unknown
-};
-
-enum ResolutionInstructionsIndex
-{
-	Renderer,
-	Viewport
 };
 
 struct GameInfo
@@ -154,24 +148,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -194,10 +172,7 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid RendererResolutionWidthInstructionHook{};
-static SafetyHookMid RendererResolutionHeightInstructionHook{};
-static SafetyHookMid ViewportResolutionWidthInstructionHook{};
-static SafetyHookMid ViewportResolutionHeightInstructionHook{};
+static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
@@ -205,53 +180,41 @@ void WidescreenFix()
 {
 	if (eGameType == Game::PSPBV && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 4A ?? 8B 85 ?? ?? ?? ?? 8B 8D ?? ?? ?? ?? 8B 50", "8B 54 11 ?? 89 15");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 4A ?? 2B 48 ?? 8B 95");
+		if (ResolutionInstructionsScanResult)
 		{
-			spdlog::info("Renderer Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Renderer] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Viewport] - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Renderer], 3);
-
-			RendererResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Renderer], [](SafetyHookContext& ctx)
+			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.edx + 0xC) = iCurrentResX;
+				iCurrentWidth = Memory::ReadMem(ctx.edx + 0x1C);
+
+				iCurrentHeight = Memory::ReadMem(ctx.eax + 0x20);
+
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+
+				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+				dNewAspectRatio2 = (0.7 / (double)fAspectRatioScale) / (double)fAspectRatioScale;
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Renderer] + 27, 3);
+			Memory::WriteNOPs((uint8_t*)exeModule + 0x65D5, 54);
 
-			RendererResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Renderer] + 27, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.eax + 0x10) = iCurrentResY;
-			});
+			Memory::WriteNOPs((uint8_t*)exeModule + 0x67C7, 54);
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Viewport], 4);
-
-			ViewportResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Viewport], [](SafetyHookContext& ctx)
-			{
-				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Viewport] + 28, 4);
-
-			ViewportResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Viewport] + 28, [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
+			Memory::WriteNOPs((uint8_t*)exeModule + 0x6391E, 54);
+		}
+		else
+		{
+			spdlog::error("Failed to located resolution instructions scan memory address.");
+			return;
 		}
 
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "DC 0D ?? ?? ?? ?? DB 05");
 		if (AspectRatioInstructionScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);			
-
-			dNewAspectRatio2 = (0.7 / (double)fAspectRatioScale) / (double)fAspectRatioScale;
-
+			
 			Memory::Write(AspectRatioInstructionScanResult + 2, &dNewAspectRatio2);
 		}
 		else
@@ -263,7 +226,7 @@ void WidescreenFix()
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 04 95 ?? ?? ?? ?? DC 0D");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
 			CameraFOVOffset = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 3, Memory::PointerMode::Absolute);
 
@@ -286,17 +249,6 @@ void WidescreenFix()
 	}
 }
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
@@ -304,11 +256,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		Logging();
+		Configuration();
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			WidescreenFix();
 		}
 		break;
 	}
