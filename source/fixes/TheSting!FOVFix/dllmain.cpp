@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "TheSting!FOVFix";
-std::string sFixVersion = "1.0.1";
+std::string sFixVersion = "1.0.2";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -59,6 +59,7 @@ enum class Game
 {
 	TS_ENG,
 	TS_RU,
+	TS_GER,
 	Unknown
 };
 
@@ -69,8 +70,9 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::TS_ENG, {"The Sting! (English)", "Sting.exe"}},
+	{Game::TS_ENG, {"The Sting! (English & Polish)", "Sting.exe"}},
 	{Game::TS_RU, {"The Sting! / Va-Bank! (Russian)", "VaBank.exe"}},
+	{Game::TS_GER, {"The Sting! / Der Clou! 2 (German)", "Clou2.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -195,7 +197,7 @@ static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
-	if ((eGameType == Game::TS_ENG || eGameType == Game::TS_RU) && bFixActive == true)
+	if ((eGameType == Game::TS_ENG || eGameType == Game::TS_RU || eGameType == Game::TS_GER) && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
