@@ -62,18 +62,18 @@ enum class Game
 	Unknown
 };
 
-enum ResolutionInstructionsIndex
+enum ResolutionInstructionsIndices
 {
-	Resolution1Scan,
-	Resolution2Scan,
-	Resolution3Scan,
-	Resolution4Scan
+	Res1,
+	Res2,
+	Res3,
+	Res4
 };
 
-enum CameraFOVInstructionsIndex
+enum CameraFOVInstructionsIndices
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1,
+	FOV2
 };
 
 struct GameInfo
@@ -207,7 +207,6 @@ static SafetyHookMid ResolutionWidthInstruction1Hook{};
 static SafetyHookMid ResolutionHeightInstruction1Hook{};
 static SafetyHookMid ResolutionWidthInstruction2Hook{};
 static SafetyHookMid ResolutionHeightInstruction2Hook{};
-static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstruction1Hook{};
 
 void WidescreenFix()
@@ -221,47 +220,47 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "A3 ?? ?? ?? ?? A1 ?? ?? ?? ?? 57", "A3 ?? ?? ?? ?? 7D ?? D8 05 ?? ?? ?? ?? 85 C0", "8B 86 ?? ?? ?? ?? 85 C0 A3", "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB ?? 68 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? 83 C4 ?? 85 C0 75 ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB ?? 68 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? 83 C4 ?? 85 C0 75 ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB ?? 68 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? 83 C4 ?? 85 C0 75 ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution Width Instruction 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width Instruction 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Height Instruction 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Height Instruction 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution4Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4] - (std::uint8_t*)exeModule);
 
-			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution2Scan], [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution3Scan], 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3], 6);
 
-			ResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan], [](SafetyHookContext& ctx)
+			ResolutionWidthInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3], [](SafetyHookContext& ctx)
 			{
 				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution3Scan] + 13, 6);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3] + 13, 6);
 
-			ResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution3Scan] + 13, [](SafetyHookContext& ctx)
+			ResolutionHeightInstruction2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3] + 13, [](SafetyHookContext& ctx)
 			{
 				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
 			});
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 6, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 6, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 36, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 36, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 66, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 66, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 96, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 96, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution4Scan] + 126, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 126, iCurrentResX);
 		}
 
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 C9 89 51");
@@ -269,12 +268,7 @@ void WidescreenFix()
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FLD(fNewAspectRatio);
-			});
+			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio);
 		}
 		else
 		{
@@ -285,13 +279,13 @@ void WidescreenFix()
 		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 56 ?? 50 68 ?? ?? ?? ?? 51 8B 0E 52 E8 ?? ?? ?? ?? D9 46 ?? D8 0D ?? ?? ?? ?? D9 F2 DD D8 DD 05 ?? ?? ?? ?? D9 F2 DD D8 D9 C9 D9 C9 DE F9 D8 15 ?? ?? ?? ?? DF E0 F6 C4 ?? 7A ?? D8 0D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 25 ?? ?? ?? ?? DE C1 8B 06 D9 98 ?? ?? ?? ?? 8B 0E E8 ?? ?? ?? ?? 8B 36 56 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 5E C2 ?? ?? CC", "C7 43 ?? ?? ?? ?? ?? 89 43");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 3); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 3); // NOP out the original instruction
 
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x1C);
 
@@ -302,7 +296,7 @@ void WidescreenFix()
 
 			fNewCameraFOV2 = 1.04719758033752f / fFOVFactor;
 
-			Memory::Write(CameraFOVInstructionsScansResult[CameraFOV2Scan] + 3, fNewCameraFOV2);
+			Memory::Write(CameraFOVInstructionsScansResult[FOV2] + 3, fNewCameraFOV2);
 		}
 	}
 }

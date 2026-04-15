@@ -70,7 +70,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::TS_ENG, {"The Sting! (English & Polish)", "Sting.exe"}},
+	{Game::TS_ENG, {"The Sting! (English/Polish/Spanish)", "Sting.exe"}},
 	{Game::TS_RU, {"The Sting! / Va-Bank! (Russian)", "VaBank.exe"}},
 	{Game::TS_GER, {"The Sting! / Der Clou! 2 (German)", "Clou2.exe"}},
 };
