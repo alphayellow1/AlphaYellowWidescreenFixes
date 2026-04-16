@@ -233,11 +233,11 @@ void WidescreenFix()
 
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWidth = Memory::ReadMem(ctx.esp + 0x8);
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x8);
 
-				float& fCurrentHeight = Memory::ReadMem(ctx.esp + 0xC);
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0xC);
 
-				fNewAspectRatio = fCurrentWidth / fCurrentHeight;
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 
 				SetARAndFOV();
 
