@@ -1165,6 +1165,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MotocrossManiaWidescreenFix
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NinaAgentChroniclesWidescreenFix", "NinaAgentChroniclesWidescreenFix.vcxproj", "{2227F023-26F3-4513-88CD-F26A93DC48BB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PoolShark2WidescreenFix", "PoolShark2WidescreenFix.vcxproj", "{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5805,6 +5807,14 @@ Global
 		{2227F023-26F3-4513-88CD-F26A93DC48BB}.Release|x64.Build.0 = Release|x64
 		{2227F023-26F3-4513-88CD-F26A93DC48BB}.Release|x86.ActiveCfg = Release|Win32
 		{2227F023-26F3-4513-88CD-F26A93DC48BB}.Release|x86.Build.0 = Release|Win32
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}.Debug|x64.ActiveCfg = Debug|x64
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}.Debug|x64.Build.0 = Debug|x64
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}.Debug|x86.ActiveCfg = Debug|Win32
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}.Debug|x86.Build.0 = Debug|Win32
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}.Release|x64.ActiveCfg = Release|x64
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}.Release|x64.Build.0 = Release|x64
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}.Release|x86.ActiveCfg = Release|Win32
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6389,6 +6399,7 @@ Global
 		{05DCA5FC-79D1-4C7F-91AF-29BBEBBEF3B1} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{3EB9B679-BC7A-475E-A9AA-07899ABE527C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{2227F023-26F3-4513-88CD-F26A93DC48BB} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{CD3B9275-F3EA-4D52-96FC-181C0DE8FABC} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
