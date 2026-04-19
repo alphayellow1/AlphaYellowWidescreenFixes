@@ -55,16 +55,6 @@ float fFOVFactor;
 float fNewAspectRatio;
 float fAspectRatioScale;
 float fNewCameraFOV;
-uint8_t* ResolutionWidth3Address;
-uint8_t* ResolutionHeight3Address;
-uint8_t* ResolutionWidth4Address;
-uint8_t* ResolutionHeight4Address;
-uint8_t* ResolutionWidth5Address;
-uint8_t* ResolutionHeight5Address;
-
-std::atomic<bool> bD3DPatched{ false };
-std::atomic<HMODULE> g_lastD3DModule{ nullptr };
-std::mutex g_patchMutex;
 
 // Game detection
 enum class Game
@@ -73,17 +63,13 @@ enum class Game
 	Unknown
 };
 
-enum ResolutionInstructions1Index
+enum ResolutionInstructionsScansIndices
 {
-	Resolution1Scan,
-	Resolution2Scan
-};
-
-enum ResolutionInstructions2Index
-{
-	Resolution3Scan,
-	Resolution4Scan,
-	Resolution5Scan
+	Res1,
+	Res2,
+	Res3,
+	Res4,
+	Res5
 };
 
 struct GameInfo
@@ -195,8 +181,6 @@ void Configuration()
 	spdlog::info("----------");
 }
 
-static DWORD __stdcall D3DWatcherThread(void*);
-
 bool DetectGame()
 {
 	bool bGameFound = false;
@@ -219,15 +203,6 @@ bool DetectGame()
 		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
 		return false;
 	}
-	
-	DWORD watcherThreadId = 0;
-
-	HANDLE hWatcher = CreateThread(nullptr, 0, D3DWatcherThread, nullptr, 0, &watcherThreadId);
-	if (hWatcher)
-	{
-		SetThreadPriority(hWatcher, THREAD_PRIORITY_NORMAL);
-		CloseHandle(hWatcher);
-	}
 
 	return true;
 }
@@ -240,160 +215,51 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "C7 05 ?? ?? ?? ?? 20 03 00 00 C7 05 ?? ?? ?? ?? 58 02 00 00 E8 ?? ?? ?? ?? 83 C4 0C 85 C0 75 1A", "C7 05 ?? ?? ?? ?? 80 02 00 00 C7 05 ?? ?? ?? ?? E0 01 00 00 C7 05 ?? ?? ?? ?? 03 00 00 00 83 C4 08 C3 C7 05 ?? ?? ?? ?? 9A 99 99 3E C7 05 ?? ?? ?? ?? 20 03 00 00 C7 05 ?? ?? ?? ?? 58 02 00 00 C7 05 ?? ?? ?? ?? 02 00 00 00 83 C4 08 C3 C7 05 ?? ?? ?? ?? 9A 99 99 3E C7 05 ?? ?? ?? ?? 00 04 00 00 C7 05 ?? ?? ?? ?? 00 03 00 00");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "7f ?? 74 ?? 83 f8", "c7 44 24 ?? ?? ?? ?? ?? 89 6c 24 ?? c7 44 24 ?? ?? ?? ?? ?? 8d 4c 24",
+		"75 ?? 81 fa ?? ?? ?? ?? 75", "74 ?? 48 74 ?? 48 74 ?? 68 ?? ?? ?? ?? e8 ?? ?? ?? ?? 83 c4 ?? 83 c4", "eb ?? 3d ?? ?? ?? ?? 75 ?? 81 7c 24 ?? ?? ?? ?? ?? 74 ?? eb ?? 3d");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2] - (std::uint8_t*)exeModule);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 6, iCurrentResX);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1], 2);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 16, iCurrentResY);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1] + 14, 2);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 6, iCurrentResX);
+			Memory::Write(ResolutionInstructionsScansResult[Res2] + 4, iCurrentResX);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 16, iCurrentResY);
+			Memory::Write(ResolutionInstructionsScansResult[Res2] + 16, iCurrentResY);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 50, iCurrentResX);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3], 2);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 60, iCurrentResY);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3] + 8, 2);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 94, iCurrentResX);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3] + 25, 2);
 
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 104, iCurrentResY);
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3] + 42, 2);
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Res4], "\xEB\x6F");
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Res4] + 3, "\xEB\x6C");
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Res4] + 6, "\xEB\x69");
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 129, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 139, iCurrentResY);
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Res5], "\xEB\x32");
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Res5] + 19, "\xEB\x1F");
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Res5] + 36, "\x90\x90");
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Res5] + 38, "\xEB\x0C");
+
+			Memory::PatchBytes(ResolutionInstructionsScansResult[Res5] + 50, "\xEB\x00");
 		}
 	}
-}
-
-void ApplyD3DFix(HMODULE dllModule)
-{
-	std::lock_guard<std::mutex> lock(g_patchMutex);
-
-	if (bD3DPatched.load())
-	{
-		// Already applied � skip.
-		return;
-	}
-
-	if (!dllModule) return;
-
-	spdlog::info("Applying D3D fixes on module 0x{:X}", reinterpret_cast<uintptr_t>(dllModule));
-
-	std::vector<std::uint8_t*> ResolutionInstructionsScans2Result = Memory::PatternScan(dllModule, "89 2D ?? ?? ?? ?? B8 01 00 00 00 5E 89 1D ?? ?? ?? ??", "89 15 ?? ?? ?? ?? 8B 86 0C 06 00 00 A3 ?? ?? ?? ??", "89 0D ?? ?? ?? ?? 89 15");
-	if (Memory::AreAllSignaturesValid(ResolutionInstructionsScans2Result) == true)
-	{
-		spdlog::info("Resolution Instructions 3 Scan: Address is D3DDRV.DLL+{:x}", ResolutionInstructionsScans2Result[Resolution3Scan] - (std::uint8_t*)dllModule);
-		
-		spdlog::info("Resolution Instructions 4 Scan: Address is D3DDRV.DLL+{:x}", ResolutionInstructionsScans2Result[Resolution4Scan] - (std::uint8_t*)dllModule);
-
-		spdlog::info("Resolution Instructions 5 Scan: Address is D3DDRV.DLL+{:x}", ResolutionInstructionsScans2Result[Resolution5Scan] - (std::uint8_t*)dllModule);
-
-		ResolutionWidth3Address = Memory::GetPointerFromAddress(ResolutionInstructionsScans2Result[Resolution3Scan] + 2, Memory::PointerMode::Absolute);
-
-		ResolutionHeight3Address = Memory::GetPointerFromAddress(ResolutionInstructionsScans2Result[Resolution3Scan] + 14, Memory::PointerMode::Absolute);
-		
-		ResolutionWidth4Address = Memory::GetPointerFromAddress(ResolutionInstructionsScans2Result[Resolution4Scan] + 2, Memory::PointerMode::Absolute);
-		
-		ResolutionHeight4Address = Memory::GetPointerFromAddress(ResolutionInstructionsScans2Result[Resolution4Scan] + 13, Memory::PointerMode::Absolute);
-
-		ResolutionWidth5Address = Memory::GetPointerFromAddress(ResolutionInstructionsScans2Result[Resolution5Scan] + 2, Memory::PointerMode::Absolute);
-
-		ResolutionHeight5Address = Memory::GetPointerFromAddress(ResolutionInstructionsScans2Result[Resolution5Scan] + 8, Memory::PointerMode::Absolute);
-
-		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution3Scan], 6);
-
-		static SafetyHookMid g_ResolutionWidthInstruction3MidHook{};
-
-		g_ResolutionWidthInstruction3MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution3Scan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionWidth3Address) = iCurrentResX;
-			});
-
-		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution3Scan] + 12, 6);
-
-		static SafetyHookMid g_ResolutionHeightInstruction3MidHook{};
-
-		g_ResolutionHeightInstruction3MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution3Scan] + 12, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionHeight3Address) = iCurrentResY;
-			});
-
-		Memory::PatchBytes(ResolutionInstructionsScans2Result[Resolution4Scan], 6);
-
-		static SafetyHookMid g_ResolutionWidthInstruction4MidHook{};
-
-		g_ResolutionWidthInstruction4MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution4Scan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionWidth4Address) = iCurrentResX;
-			});
-
-		Memory::WriteNOPs(ResolutionInstructionsScans2Result[Resolution4Scan] + 12, 5);
-
-		static SafetyHookMid g_ResolutionHeightInstruction4MidHook{};
-
-		g_ResolutionHeightInstruction4MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution4Scan] + 12, [](SafetyHookContext& ctx)
-		{
-			Memory::ReadMem(ResolutionHeight4Address) = iCurrentResY;
-		});
-
-		Memory::WriteNOPs(ResolutionInstructionsScans2Result[Resolution5Scan], 12);
-
-		static SafetyHookMid g_ResolutionInstructions5MidHook{};
-
-		g_ResolutionInstructions5MidHook = safetyhook::create_mid(ResolutionInstructionsScans2Result[Resolution5Scan], [](SafetyHookContext& ctx)
-		{
-			Memory::ReadMem(ResolutionWidth5Address) = iCurrentResX;
-
-			Memory::ReadMem(ResolutionHeight5Address) = iCurrentResY;
-		});
-
-		bD3DPatched.store(true);
-
-		g_lastD3DModule.store(dllModule);
-
-		spdlog::info("D3D patches/hooks applied successfully.");
-	}
-}
-
-void CleanupD3DFix()
-{
-	std::lock_guard<std::mutex> lock(g_patchMutex);
-
-	if (!bD3DPatched.load()) return;
-
-	bD3DPatched.store(false);
-
-	g_lastD3DModule.store(nullptr);
-
-	spdlog::info("Detected D3DDRV.DLL unload - leaving patched bytes, marking as unapplied.");
-}
-
-DWORD __stdcall D3DWatcherThread(void*)
-{
-	while (true)
-	{
-		HMODULE cur = GetModuleHandleA("D3DDRV.DLL");
-
-		if (cur && !bD3DPatched.load())
-		{
-			ApplyD3DFix(cur);
-		}			
-		else if (!cur && bD3DPatched.load())
-		{
-			CleanupD3DFix();
-		}			
-		else if (cur && g_lastD3DModule.load() && cur != g_lastD3DModule.load())
-		{
-			// new base, mark as unapplied and reapply
-			CleanupD3DFix();
-			ApplyD3DFix(cur);
-		}
-
-		Sleep(200);
-	}
-
-	return 0;
 }
 
 DWORD __stdcall Main(void*)

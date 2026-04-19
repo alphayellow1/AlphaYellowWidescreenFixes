@@ -25,7 +25,7 @@ HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "HospitalTycoonFOVFix";
+std::string sFixName = "HospitalTycoonWidescreenFix";
 std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
@@ -44,8 +44,6 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 
 // Ini variables
 bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
 float fFOVFactor;
 
 // Variables
@@ -58,6 +56,12 @@ enum class Game
 {
 	HT,
 	Unknown
+};
+
+enum ResolutionInstructionsScansIndices
+{
+	ResListUnlock,
+	ResWidthHeight
 };
 
 struct GameInfo
@@ -143,28 +147,12 @@ void Configuration()
 	spdlog::info("----------");
 
 	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
+	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -187,28 +175,44 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid AspectRatioInstructionHook{};
+static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
-void FOVFix()
+void WidescreenFix()
 {
 	if (eGameType == Game::HT && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "0F 82 ?? ?? ?? ?? 8B 5A", "8B 54 24 ?? 8B 44 24 ?? 89 6E");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		{
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)exeModule);
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D8 C9 D9 5C 24 40 D9 86 E4 01 00 00 D9 5C 24 14 D9 44 24 44 D9 5C 24 10 D9 C0 D9 E0");
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResWidthHeight] - (std::uint8_t*)exeModule);
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock], 6);
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 15, 6);
+
+			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 26, 6);
+
+			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+			{
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x30);
+
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x34);
+
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+
+				dNewAspectRatio = (double)fNewAspectRatio;
+			});
+		}
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D8 C9 D9 5C 24 ?? D9 86");
 		if (AspectRatioInstructionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);			
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
-
-			dNewAspectRatio = (double)fNewAspectRatio;
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FLD(dNewAspectRatio);
-			});
+			Memory::Write(AspectRatioInstructionScanResult + 2, &dNewAspectRatio);
 		}
 		else
 		{
@@ -216,22 +220,19 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 81 E8 01 00 00 C3 CC CC CC CC CC CC CC CC CC 51 D9 81 00 02 00 00 D9 1C 24");
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 81 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC 51 D9 81 ?? ?? ?? ?? D9 1C 24");
 		if (CameraFOVInstructionScanResult)
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 			
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6); // NOP out the original instruction
+			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				// Store a float reference to the current FOV value located in the [ECX+1E8] memory address
 				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + 0x1E8);
 
-				// Compute the new FOV value
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 
-				// Store the new FOV value in the FPU stack with an FLD instruction
 				FPU::FLD(fNewCameraFOV);
 			});
 		}
@@ -243,17 +244,6 @@ void FOVFix()
 	}
 }
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
-	}
-	return TRUE;
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
@@ -261,11 +251,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		Logging();
+		Configuration();
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			WidescreenFix();
 		}
 		break;
 	}
