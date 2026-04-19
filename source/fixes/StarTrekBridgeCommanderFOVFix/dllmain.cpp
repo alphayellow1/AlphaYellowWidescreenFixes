@@ -259,6 +259,10 @@ void FOVFix()
 				fNewInteriorHFOV1 = fOriginalHFOV1 * fAspectRatioScale * fFOVFactor;
 
 				fNewInteriorHFOV2 = fOriginalHFOV2 * fAspectRatioScale * fFOVFactor;
+
+				fNewInteriorVFOV1 = fOriginalVFOV1 * fFOVFactor;
+
+				fNewInteriorVFOV2 = fOriginalVFOV2 * fFOVFactor;
 			});
 
 			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)

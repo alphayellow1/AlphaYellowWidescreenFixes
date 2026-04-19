@@ -7,6 +7,7 @@
 #include <inipp/inipp.h>
 #include <safetyhook.hpp>
 #include <vector>
+#include <algorithm>
 #include <map>
 #include <windows.h>
 #include <psapi.h> // For GetModuleInformation
@@ -22,12 +23,12 @@
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
 HMODULE thisModule;
+HMODULE dllModule2 = nullptr;
 
 // Fix details
-std::string sFixName = "AnneMcCaffreysFreedomFirstResistanceFOVFix";
-std::string sFixVersion = "1.3";
+std::string sFixName = "ERacerFOVFix";
+std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -42,7 +43,7 @@ std::string sExeName;
 
 // Constants
 constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 1.5707963268f;
+constexpr float fOriginalMenuHFOV = 0.9424778223f;
 
 // Ini variables
 bool bFixActive;
@@ -51,25 +52,22 @@ float fFOVFactor;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
-float fNewCameraFOV;
+float fNewGameplayHFOV;
+float fNewGameplayVFOV;
+float fNewCarSelectionHFOV;
 
 // Game detection
 enum class Game
 {
-	AMCFFR,
+	ERACER,
 	Unknown
 };
 
 enum CameraFOVInstructionsIndices
 {
-	FOV1,
-	FOV2,
-	FOV3,
-	FOV4,
-	FOV5,
-	FOV6,
-	FOV7,
-	FOV8
+	GameplayHFOV,
+	GameplayVFOV,
+	MenuHFOV
 };
 
 struct GameInfo
@@ -79,7 +77,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::AMCFFR, {"Anne McCaffrey's Freedom: First Resistance", "Freedom.exe"}},
+	{Game::ERACER, {"E-Racer", "ERACER.EXE"}},
 };
 
 const GameInfo* game = nullptr;
@@ -158,7 +156,7 @@ void Configuration()
 	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
 	spdlog_confparse(bFixActive);
 
-	// Load FOV factor from ini
+	// Load resolution from ini
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
 	spdlog_confparse(fFOVFactor);
 
@@ -184,49 +182,30 @@ bool DetectGame()
 }
 
 static SafetyHookMid ResolutionInstructionsHook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-static SafetyHookMid CameraFOVInstruction3Hook{};
-static SafetyHookMid CameraFOVInstruction4Hook{};
-static SafetyHookMid CameraFOVInstruction5Hook{};
-static SafetyHookMid CameraFOVInstruction6Hook{};
-static SafetyHookMid CameraFOVInstruction7Hook{};
-static SafetyHookMid CameraFOVInstruction8Hook{};
-
-static bool bResolutionReady = false;
-
-void CameraFOVInstructionsMidHook(float fovFactor = 1.0f)
-{
-	if (bResolutionReady == false)
-	{
-		return;
-	}
-
-	FPU::FLD(fNewCameraFOV * fovFactor);
-}
+static SafetyHookMid GameplayHFOVInstructionHook{};
+static SafetyHookMid GameplayVFOVInstructionHook{};
+static SafetyHookMid CarSelectionHFOVInstructionHook{};
 
 void FOVFix()
 {
-	if (eGameType == Game::AMCFFR && bFixActive == true)
+	if (bFixActive == true && eGameType == Game::ERACER)
 	{
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 5C 24 ?? 55 8B 6C 24 ?? 56 8B F1 8D 45");
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 8B 4C 24 ?? A3 ?? ?? ?? ?? 48");
 		if (ResolutionInstructionsScanResult)
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
-			
+
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x28);
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x4);
 
-				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x2C);
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x8);
 
 				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 
 				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fOriginalCameraFOV, fAspectRatioScale);
-
-				bResolutionReady = true;
+				ResolutionInstructionsHook.disable();
 			});
 		}
 		else
@@ -234,71 +213,46 @@ void FOVFix()
 			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
-		
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 9E ?? ?? ?? ?? FF 50 ?? 8B 16 8B CE FF 52 ?? A1",
-		"D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 9E ?? ?? ?? ?? FF 50 ?? 8B 16 8B CE FF 52 ?? 89 35", "D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 98",
-		"D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 9A ?? ?? ?? ?? 8B 4E ?? 8B 01 FF 50 ?? 8B 4E ?? 8B 11 FF 52 ?? 8B 46 ?? 8B 0D ?? ?? ?? ?? 5E 89 88 ?? ?? ?? ?? 8B 4C 24 ?? 64 89 0D ?? ?? ?? ?? 83 C4 ?? C3 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 64 A1",
-		"D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 9A ?? ?? ?? ?? 8B 4E ?? 8B 01 FF 50 ?? 8B 4E ?? 8B 11 FF 52 ?? 8B 46 ?? 8B 0D ?? ?? ?? ?? 5E 89 88 ?? ?? ?? ?? 8B 4C 24 ?? 64 89 0D ?? ?? ?? ?? 83 C4 ?? C3 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 6A",
-		"D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 9A ?? ?? ?? ?? 8B 4E ?? 8B 01 FF 50 ?? 8B 4E ?? 8B 11 FF 52 ?? 8B 46 ?? 8B 0D ?? ?? ?? ?? 5E 89 88 ?? ?? ?? ?? 8B 4C 24 ?? 64 89 0D ?? ?? ?? ?? 83 C4 ?? C3 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 8A 0D",
-		"D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 99", "DD 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? C7 86");
+
+		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "8B 4C 24 0C 8B 86 98 00 00 00", "8B 4C 24 0C 8B 86 9C 00 00 00",
+		"C7 86 ?? ?? ?? ?? ?? ?? ?? ?? C7 86 ?? ?? ?? ?? ?? ?? ?? ?? C7 86 ?? ?? ?? ?? ?? ?? ?? ?? 89 ?? ?? ?? ?? ?? 89 ?? ?? ?? ?? ?? 89 ?? ?? ?? ?? ?? 89");
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayHFOV] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
+			spdlog::info("Gameplay VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayVFOV] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV3] - (std::uint8_t*)exeModule);
+			spdlog::info("Car Selection HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MenuHFOV] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV4] - (std::uint8_t*)exeModule);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayHFOV], 4);
 
-			spdlog::info("Camera FOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV5] - (std::uint8_t*)exeModule);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayVFOV], 4);
 
-			spdlog::info("Camera FOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV6] - (std::uint8_t*)exeModule);
+			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MenuHFOV], 10);
 
-			spdlog::info("Camera FOV Instruction 7: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV7] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Camera FOV Instruction 8: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV8] - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult, FOV1, FOV8, 0, 12);
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
+			GameplayHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayHFOV], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(fFOVFactor);
+				float& fCurrentGameplayHFOV = Memory::ReadMem(ctx.esp + 0xC);
+
+				fNewGameplayHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentGameplayHFOV, fAspectRatioScale, fFOVFactor);
+
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewGameplayHFOV);
 			});
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
+			GameplayVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayVFOV], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook();
+				float& fCurrentGameplayVFOV = Memory::ReadMem(ctx.esp + 0xC);
+
+				fNewGameplayVFOV = Maths::CalculateNewVFOV_RadBased(fCurrentGameplayVFOV, fFOVFactor);
+				
+				ctx.ecx = std::bit_cast<uintptr_t>(fNewGameplayVFOV);
 			});
 
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
+			CarSelectionHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MenuHFOV], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook();
-			});
+				fNewCarSelectionHFOV = Maths::CalculateNewFOV_RadBased(fOriginalMenuHFOV, fAspectRatioScale);
 
-			CameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook();
-			});
-
-			CameraFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook();
-			});
-
-			CameraFOVInstruction6Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook();
-			});
-
-			CameraFOVInstruction7Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook();
-			});
-
-			CameraFOVInstruction8Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
-			{
-				CameraFOVInstructionsMidHook();
+				*reinterpret_cast<float*>(ctx.esi + 0x98) = fNewCarSelectionHFOV;
 			});
 		}
 	}

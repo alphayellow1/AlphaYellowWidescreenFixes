@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "BeyondNormandyAssignmentBerlinWidescreenFix";
-std::string sFixVersion = "1.3";
+std::string sFixVersion = "1.4";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -51,6 +51,7 @@ constexpr float fOldAspectRatio = 4.0f / 3.0f;
 // Variables
 float fNewAspectRatio;
 float fAspectRatioScale;
+float fNewCameraFOV;
 float fCompassNeedleWidth;
 float fLoadingBarX;
 float fRedCrossAndMenuTextWidth;
@@ -63,14 +64,8 @@ float fWeaponsListWidth;
 float fAmmoX;
 float fAmmoWidth;
 float fUnknownHUDElement1;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
 double dObjectiveDirectionWidth;
 double dHUDTextWidth;
-uint8_t newWidthSmall;
-uint8_t newWidthBig;
-uint8_t newHeightSmall;
-uint8_t newHeightBig;
 
 // Game detection
 enum class Game
@@ -79,20 +74,27 @@ enum class Game
 	Unknown
 };
 
-enum ResolutionInstructionsIndex
+enum ResolutionInstructionsIndices
 {
-	Resolution1Scan,
-	Resolution2Scan
+	ResList1,
+	ResList2
 };
 
-enum HUDElementsIndex
+enum HUDElementsIndices
 {
-	HUD1Scan,
-	HUD2Scan,
-	HUD3Scan,
-	HUD4Scan,
-	HUD5Scan,
-	HUD6Scan
+	HUD1,
+	HUD2,
+	HUD3,
+	HUD4,
+	HUD5,
+	HUD6,
+	HUD7,
+	HUD8,
+	HUD9,
+	HUD10,
+	HUD11,
+	HUD12,
+	HUD13
 };
 
 struct GameInfo
@@ -224,11 +226,6 @@ bool DetectGame()
 	return false;
 }
 
-static SafetyHookMid CameraHFOVInstructionHook{};
-static SafetyHookMid CameraVFOVInstructionHook{};
-static SafetyHookMid CompassNeedleWidthInstructionHook{};
-static SafetyHookMid UnknownHUDElement1InstructionHook{};
-
 void WidescreenFix()
 {
 	if (eGameType == Game::BNAB && bFixActive == true)
@@ -237,191 +234,150 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "?? ?? ?? ?? C7 44 24 40 ?? ?? ?? ?? E8 6F 2C FF", "C7 44 24 50 ?? ?? ?? ?? C7 44 24 54 ?? ?? ?? ?? 89 B4 24");
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 50",
+		"C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 89 B4 24");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResList1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResList2] - (std::uint8_t*)exeModule);
 
-			newWidthSmall = iCurrentResX % 256;
+			Memory::Write(ResolutionInstructionsScansResult[ResList1] + 4, iCurrentResX);
 
-			newWidthBig = (iCurrentResX - newWidthSmall) / 256;
+			Memory::Write(ResolutionInstructionsScansResult[ResList1] + 12, iCurrentResY);
 
-			newHeightSmall = iCurrentResY % 256;
+			Memory::Write(ResolutionInstructionsScansResult[ResList2] + 4, iCurrentResX);
 
-			newHeightBig = (iCurrentResY - newHeightSmall) / 256;
-
-			// Resolution 1 Scan
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan], iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 8, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan], newWidthSmall);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 1, newWidthBig);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 8, newHeightSmall);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 9, newHeightBig);
-
-			// Resolution 2 Scan
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 4, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 12, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 4, newWidthSmall);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 5, newWidthBig);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 12, newHeightSmall);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 13, newHeightBig);
+			Memory::Write(ResolutionInstructionsScansResult[ResList2] + 12, iCurrentResY);
 		}
 
-		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 44 24 0C 56 8B F1 8B 4C 24 14 8B 16 89 4E 0C");
-		if (CameraFOVInstructionsScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 44 24 ?? ?? ?? ?? ?? 74 ?? D9 86");
+		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 4);
+			fNewCameraFOV = 0.8f * fAspectRatioScale * fFOVFactor;
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.esp + 0xC);
-
-				if (fCurrentCameraHFOV != fNewCameraHFOV)
-				{
-					fNewCameraHFOV = (fCurrentCameraHFOV * fAspectRatioScale) * fFOVFactor;
-				}
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
-			});
-
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 7, 4);
-
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 7, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.esp + 0x14);
-
-				if (fCurrentCameraVFOV != fNewCameraVFOV)
-				{
-					fNewCameraVFOV = (fCurrentCameraVFOV * fAspectRatioScale) * fFOVFactor;
-				}
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraVFOV);
-			});
+			Memory::Write(CameraFOVInstructionScanResult + 4, fNewCameraFOV);
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera FOV instructions scan memory address.");
+			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			return;
 		}
 
-		std::vector<std::uint8_t*> HUDElementsScansResult = Memory::PatternScan(exeModule, "00 00 1C 42 00 80 B1 43 00 00 50 42 00 00 5E 43 0E 74 DA 3A 0A D7 A3 3A 23 20 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 2D 20 25 73 0A 00 00", "00 00 00 89 88 08 3D CD CC CC 3C 89 88 88 3C CD CC 4C 3C AB AA 6A 3F 00 00 80 3E 67 61 6D 65", "DA 0F 49 40 52 B8 66 3F 00 00 D0 41 00 00 F0 40 00 00 00 00 4F 1B E8 B4 81 4E 5B 3F 00 00 5C 42 00 00 00 00 7B 14 AE 47 E1 7A 54 3F 00 00 FA C3 71 3D 5A 3F DA 40 27 3E 48 E1 FA 3D 00 00 48 42 00 00 98 41 00 00 C8 43 5C 8F 02 3E 6F 12 83 3D", "D8 45 3F FC A9 F1 D2 4D 62 40 3F 00 00 11 44 00 80 85 43 00 00 50 41 00 00 C4 43 00 00 30 41 00 00 D1 43 25 64 2F 25 64 00 00 00 3A 6D 60 3F EC 51 68 3F 4B 7E B1 3D 33 33 B3 3D 00 00 C8 41", "D9 44 24 0C D8 0D ?? ?? ?? ?? 8B 44 24 2C 50 51", "D9 44 24 1C D8 0D ?? ?? ?? ?? D8 44 24 28");
-		if (Memory::AreAllSignaturesValid(HUDElementsScansResult) == true)
+		std::vector<std::uint8_t*> HUDInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 83 C4 ?? E8 ?? ?? ?? ?? D9 44 24",
+		"D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 44 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24 ?? E8 ?? ?? ?? ?? 8B C8", "D8 0D ?? ?? ?? ?? D8 44 24 ?? D9 5C 24 ?? D9 44 24",
+		"D8 0D ?? ?? ?? ?? 51 8D 4C 24 ?? D9 1C 24", "DC 0D ?? ?? ?? ?? D9 C9 D9 C9 DE C9 D8 0D ?? ?? ?? ?? D8 44 24", "D8 0D ?? ?? ?? ?? 50 51 8D 4C 24 ?? D9 5C 24 ?? 8B 44 24",
+		"D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 44 24 ?? 8B 4C 24 ?? D8 0D ?? ?? ?? ?? D9 54 24", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? DB 44 24 ?? D8 0D ?? ?? ?? ?? D8 2D",
+		"DC 0D ?? ?? ?? ?? D9 58 ?? D9 44 24 ?? DC 0D ?? ?? ?? ?? D9 58", "D8 0D ?? ?? ?? ?? 50 51 8D 4C 24 ?? D9 5C 24 ?? D9 44 24",
+		"D8 0D ?? ?? ?? ?? D9 5C 24 ?? D9 44 24 ?? 8B 4C 24 ?? D8 0D ?? ?? ?? ?? D9 5C 24", "D8 0D ?? ?? ?? ?? 8B 44 24 ?? 50", "D8 0D ?? ?? ?? ?? D8 44 24 ?? D9 5C 24 ?? D9 44 24");
+		if (Memory::AreAllSignaturesValid(HUDInstructionsScansResult) == true)
 		{
-			spdlog::info("(HUD) Loading Bar X Address: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD1Scan] + 12 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Loading Bar X Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD1] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Red Cross and Menu Text Width Address: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD1Scan] + 20 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Red Cross and Menu Text Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD2] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Left Margin: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD2Scan] + 7 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Left Margin: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD3] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Compass Needle X: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD3Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Compass Needle X: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD4] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Objective Direction Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD3Scan] + 36 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Objective Direction Width: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD5] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Compass X: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD3Scan] + 48 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Compass X: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD6] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Compass Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD3Scan] + 56 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Compass Width: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD7] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Weapons List Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD3Scan] + 72 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Weapons List Width: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD8] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Text Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD4Scan] + 3 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Text Width: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD9] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Ammo X: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD4Scan] + 47 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Ammo X: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD10] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Ammo Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD4Scan] + 55 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Ammo Width: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD11] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Compass Needle Width: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD5Scan] + 2 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Compass Needle Width: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD12] - (std::uint8_t*)exeModule);
 
-			spdlog::info("(HUD) Unknown Element 1 Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDElementsScansResult[HUD6Scan] + 4 - (std::uint8_t*)exeModule);
+			spdlog::info("(HUD) Unknown Element 1 Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDInstructionsScansResult[HUD13] - (std::uint8_t*)exeModule);
+
+			static uintptr_t LoadingBarXAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD1] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t RedCrossAndMenuTextWidthAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD2] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t LeftMarginAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD3] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t CompassNeedleXAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD4] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t ObjectiveDirectionWidthAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD5] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t CompassXAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD6] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t CompassWidthAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD7] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t WeaponsListWidthAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD8] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t TextWidthAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD9] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t AmmoXAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD10] + 2, Memory::PointerMode::Absolute);
+			static uintptr_t AmmoWidthAddress = Memory::GetPointerFromAddress(HUDInstructionsScansResult[HUD11] + 2, Memory::PointerMode::Absolute);
 
 			fHUDWidth = 600.0f * fNewAspectRatio;
 
 			// Loading bar X
 			fLoadingBarX = 222.0f + (fHUDWidth - 800.0f) / 2.0f;
 
-			Memory::Write(HUDElementsScansResult[HUD1Scan] + 12, fLoadingBarX);
+			Memory::Write(LoadingBarXAddress, fLoadingBarX);
 
 			// Red cross and menu text width
 			fRedCrossAndMenuTextWidth = 0.001666f / fNewAspectRatio;
 
-			Memory::Write(HUDElementsScansResult[HUD1Scan] + 20, fRedCrossAndMenuTextWidth);
+			Memory::Write(RedCrossAndMenuTextWidthAddress, fRedCrossAndMenuTextWidth);
 
 			// HUD left margin
 			fHUDLeftMargin = 0.0333333f / fNewAspectRatio + fHUDMargin / fHUDWidth;
 
-			Memory::Write(HUDElementsScansResult[HUD2Scan] + 7, fHUDLeftMargin);
+			Memory::Write(LeftMarginAddress, fHUDLeftMargin);
 
 			// Compass needle X
 			fCompassNeedleX = (fHUDWidth - 79.0f - fHUDMargin) / fHUDWidth;
 
-			Memory::Write(HUDElementsScansResult[HUD3Scan] + 4, fCompassNeedleX);
+			Memory::Write(CompassNeedleXAddress, fCompassNeedleX);
 
 			// Objective direction width
 			dObjectiveDirectionWidth = 0.001666 / static_cast<double>(fNewAspectRatio);
 
-			Memory::Write(HUDElementsScansResult[HUD3Scan] + 36, dObjectiveDirectionWidth);
+			Memory::Write(ObjectiveDirectionWidthAddress, dObjectiveDirectionWidth);
 
 			// Compass X
 			fCompassX = (fHUDWidth - 118.0f - fHUDMargin) / fHUDWidth;
 
-			Memory::Write(HUDElementsScansResult[HUD3Scan] + 48, fCompassX);
+			Memory::Write(CompassXAddress, fCompassX);
 
 			// Compass width
 			fCompassWidth = 0.163333f / fNewAspectRatio;
 
-			Memory::Write(HUDElementsScansResult[HUD3Scan] + 56, fCompassWidth);
+			Memory::Write(CompassWidthAddress, fCompassWidth);
 
 			// Weapons list width
 			fWeaponsListWidth = 0.17f / fNewAspectRatio;
 
-			Memory::Write(HUDElementsScansResult[HUD3Scan] + 72, fWeaponsListWidth);
+			Memory::Write(WeaponsListWidthAddress, fWeaponsListWidth);
 
 			// HUD text width
 			dHUDTextWidth = 0.0006666666666 / static_cast<double>(fNewAspectRatio);
 
-			Memory::Write(HUDElementsScansResult[HUD4Scan] + 3, dHUDTextWidth);
+			Memory::Write(TextWidthAddress, dHUDTextWidth);
 
 			// Ammo X
 			fAmmoX = (fHUDWidth - 74.0f - fHUDMargin) / fHUDWidth;
 
-			Memory::Write(HUDElementsScansResult[HUD4Scan] + 47, fAmmoX);
+			Memory::Write(AmmoXAddress, fAmmoX);
 
 			// Ammo width
 			fAmmoWidth = 0.116666f / fNewAspectRatio;
 
-			Memory::Write(HUDElementsScansResult[HUD4Scan] + 55, fAmmoWidth);			
+			Memory::Write(AmmoWidthAddress, fAmmoWidth);
 
 			// Compass needle width
-			Memory::WriteNOPs(HUDElementsScansResult[HUD5Scan] + 4, 6);
-
 			fCompassNeedleWidth = 0.0333333f / fNewAspectRatio;
 
-			CompassNeedleWidthInstructionHook = safetyhook::create_mid(HUDElementsScansResult[HUD5Scan] + 4, [](SafetyHookContext& ctx)
-			{
-				FPU::FMUL(fCompassNeedleWidth);
-			});
+			Memory::Write(HUDInstructionsScansResult[HUD12] + 2, &fCompassNeedleWidth);
 
 			// Unknown HUD element #1
-			Memory::WriteNOPs(HUDElementsScansResult[HUD6Scan] + 4, 6);
-
 			fUnknownHUDElement1 = 0.025000000372529f;
 
-			UnknownHUDElement1InstructionHook = safetyhook::create_mid(HUDElementsScansResult[HUD6Scan] + 4, [](SafetyHookContext& ctx)
-			{
-				FPU::FMUL(fUnknownHUDElement1);
-			});
+			Memory::Write(HUDInstructionsScansResult[HUD13] + 2, &fUnknownHUDElement1);
 		}
 	}
 }

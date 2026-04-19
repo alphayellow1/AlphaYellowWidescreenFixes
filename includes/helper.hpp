@@ -76,52 +76,70 @@ namespace Memory
 		return MemProxy{ address };
 	}
 
-	template<typename T> requires std::is_trivially_copyable_v<T>
-	inline void Write(std::uint8_t* writeAddress, T value)
-	{
-		DWORD oldProtect = 0;
+	template<typename A>
+	concept AddressLike = std::is_pointer_v<std::remove_reference_t<A>> || std::is_integral_v<std::remove_reference_t<A>>;
 
-		if (VirtualProtect(writeAddress, sizeof(T), PAGE_EXECUTE_READWRITE, &oldProtect) == false)
+	template<AddressLike A>
+	[[nodiscard]] inline std::uint8_t* ToBytePtr(A address) noexcept
+	{
+		using Decayed = std::remove_cvref_t<A>;
+
+		if constexpr (std::is_pointer_v<Decayed>)
+		{
+			return reinterpret_cast<std::uint8_t*>(const_cast<std::remove_const_t<std::remove_pointer_t<Decayed>>*>(address));
+		}
+		else
+		{
+			return reinterpret_cast<std::uint8_t*>(static_cast<std::uintptr_t>(address));
+		}
+	}
+
+	template<typename Address, typename T> requires AddressLike<Address>&& std::is_trivially_copyable_v<T>
+	inline void Write(Address writeAddress, const T& value)
+	{
+		std::uint8_t* dst = ToBytePtr(writeAddress);
+
+		DWORD oldProtect = 0;
+		if (!VirtualProtect(dst, sizeof(T), PAGE_EXECUTE_READWRITE, &oldProtect))
 		{
 			spdlog::error("VirtualProtect failed in Memory::Write");
 			return;
 		}
 
-		std::memcpy(writeAddress, &value, sizeof(T));
-
-		FlushInstructionCache(GetCurrentProcess(), writeAddress, sizeof(T));
+		std::memcpy(dst, &value, sizeof(T));
+		FlushInstructionCache(GetCurrentProcess(), dst, sizeof(T));
 
 		DWORD dummy = 0;
-
-		VirtualProtect(writeAddress, sizeof(T), oldProtect, &dummy);
+		VirtualProtect(dst, sizeof(T), oldProtect, &dummy);
 	}
 
-	template<typename Range> requires std::ranges::contiguous_range<Range>&& std::is_trivial_v<std::ranges::range_value_t<Range>>
-	inline void Write(std::uint8_t* writeAddress, const Range& r)
+	template<typename Address, typename Range> requires AddressLike<Address>&&std::ranges::contiguous_range<Range>&&std::is_trivial_v<std::ranges::range_value_t<Range>>
+	inline void Write(Address writeAddress, const Range& r)
 	{
 		using CharT = std::ranges::range_value_t<Range>;
 
-		const size_t charSize = sizeof(CharT);
+		std::uint8_t* dst = ToBytePtr(writeAddress);
 
-		const size_t totalSize = (std::ranges::size(r) + 1) * charSize;
+		const std::size_t charSize = sizeof(CharT);
+		const std::size_t dataSize = std::ranges::size(r) * charSize;
+		const std::size_t totalSize = dataSize + charSize;
 
 		DWORD oldProtect = 0;
-
-		if (!VirtualProtect(writeAddress, totalSize, PAGE_EXECUTE_READWRITE, &oldProtect))
+		if (!VirtualProtect(dst, totalSize, PAGE_EXECUTE_READWRITE, &oldProtect))
 		{
 			spdlog::error("VirtualProtect failed in Memory::Write (strings)");
 			return;
-		}			
+		}
 
-		std::memcpy(writeAddress, std::ranges::data(r), std::ranges::size(r) * charSize);
+		std::memcpy(dst, std::ranges::data(r), dataSize);
+		std::memset(dst + dataSize, 0, charSize);
 
-		std::memset(writeAddress + std::ranges::size(r) * charSize, 0, charSize);
-
-		VirtualProtect(writeAddress, totalSize, oldProtect, &oldProtect);
+		DWORD dummy = 0;
+		VirtualProtect(dst, totalSize, oldProtect, &dummy);
 	}
 
-	template<typename T>
-	inline void Write(const std::vector<std::uint8_t*>& addresses, std::size_t startIndex, std::size_t endIndex, std::ptrdiff_t offset, T value)
+	template<typename Address, typename T> requires AddressLike<Address>&& std::is_trivially_copyable_v<T>
+	inline void Write(const std::vector<Address>& addresses, std::size_t startIndex, std::size_t endIndex, std::ptrdiff_t offset, const T& value)
 	{
 		if (addresses.empty())
 		{
@@ -131,20 +149,19 @@ namespace Memory
 		if (startIndex > endIndex || endIndex >= addresses.size())
 		{
 			spdlog::error("Memory::Write(range): invalid range [{}..{}] (size={})", startIndex, endIndex, addresses.size());
-
 			return;
 		}
 
 		for (std::size_t i = startIndex; i <= endIndex; ++i)
 		{
-			std::uint8_t* address = addresses[i];
+			auto* address = ToBytePtr(addresses[i]);
 
 			if (!address)
 			{
 				continue;
 			}
 
-			Memory::Write(address + offset, value);
+			Write(address + offset, value);
 		}
 	}
 
