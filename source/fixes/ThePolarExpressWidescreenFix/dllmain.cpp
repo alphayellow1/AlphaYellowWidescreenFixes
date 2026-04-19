@@ -25,7 +25,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "ThePolarExpressWidescreenFix";
-std::string sFixVersion = "1.0";
+std::string sFixVersion = "1.1";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -40,8 +40,6 @@ std::string sExeName;
 
 // Ini variables
 bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
 float fFOVFactor;
 
 // Constants
@@ -62,17 +60,11 @@ enum class Game
 	Unknown
 };
 
-enum ResolutionInstructionsIndices
-{
-	ResolutionWidthScan,
-	ResolutionHeightScan
-};
-
 enum AspectRatioInstructionsIndices
 {
-	CutscenesARScan,
-	GameplayARScan,
-	PauseMenuARScan
+	CutscenesAR,
+	GameplayAR,
+	PauseMenuAR
 };
 
 struct GameInfo
@@ -163,24 +155,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -203,8 +179,7 @@ bool DetectGame()
 	return false;	
 }
 
-static SafetyHookMid ResolutionWidthInstructionHook{};
-static SafetyHookMid ResolutionHeightInstructionHook{};
+static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid CutscenesAspectRatioInstructionHook{};
 static SafetyHookMid GameplayAspectRatioInstructionHook{};
 static SafetyHookMid PauseMenuAspectRatioInstructionHook{};
@@ -216,47 +191,60 @@ void WidescreenFix()
 	{
 		if (eGameType == Game::TPE_CONFIG)
 		{
-			std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 10 8B 8E", "8B 40 ?? 68 ?? ?? ?? ?? 51");
-			if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+			std::uint8_t* ResolutionListUnlockScanResult = Memory::PatternScan(exeModule, "0F 8B ?? ?? ?? ?? 8B 55");
+			if (ResolutionListUnlockScanResult)
 			{
-				spdlog::info("Resolution Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionWidthScan] - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)exeModule);
 
-				spdlog::info("Resolution Height Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResolutionHeightScan] - (std::uint8_t*)exeModule);
-				
-				Memory::WriteNOPs(ResolutionInstructionsScansResult[ResolutionWidthScan], 2);
+				Memory::WriteNOPs(ResolutionListUnlockScanResult, 6);
 
-				ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResolutionWidthScan], [](SafetyHookContext& ctx)
-				{
-					ctx.edx = std::bit_cast<uintptr_t>(iCurrentResX);
-				});
-				
-				Memory::WriteNOPs(ResolutionInstructionsScansResult[ResolutionHeightScan], 3);
+				Memory::WriteNOPs(ResolutionListUnlockScanResult + 28, 6);
 
-				ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResolutionHeightScan], [](SafetyHookContext& ctx)
-				{
-					ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
-				});
+				Memory::WriteNOPs(ResolutionListUnlockScanResult + 45, 2);
+
+				Memory::PatchBytes(ResolutionListUnlockScanResult + 47, "\xEB");
 			}
 		}
 
 		if (eGameType == Game::TPE_GAME)
-		{
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		{			
+			std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 08 89 0D ?? ?? ?? ?? 8B 50");
+			if (ResolutionInstructionsScanResult)
+			{
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+				ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+				{
+					int& iCurrentWidth = Memory::ReadMem(ctx.eax);
 
-			std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "8B 50 68 8B 4C 24 04 83 C0 68 89 11 8B 40 04", "D8 0D ?? ?? ?? ?? D9 5C 24 10 E8 ?? ?? ?? ?? 83 C4 08 5E 83 C4 08 C2 04 00", "89 51 60 8B 8E 98 01 00 00 50 51");
+					int& iCurrentHeight = Memory::ReadMem(ctx.eax + 0x4);
+
+					fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+
+					fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+					ResolutionInstructionsHook.disable();
+				});
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution instructions scan memory address.");
+				return;
+			}
+
+			std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "8B 50 ?? 8B 4C 24 ?? 83 C0 ?? 89 11 8B 40", 
+			"D8 0D ?? ?? ?? ?? D9 5C 24 ?? E8 ?? ?? ?? ?? 83 C4 ?? 5E", "89 51 ?? 8B 8E ?? ?? ?? ?? 50");
 			if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
 			{
-				spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CutscenesARScan] - (std::uint8_t*)exeModule);
+				spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CutscenesAR] - (std::uint8_t*)exeModule);
 
-				spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[GameplayARScan] - (std::uint8_t*)exeModule);
+				spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[GameplayAR] - (std::uint8_t*)exeModule);
 
-				spdlog::info("Pause Menu Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[PauseMenuARScan] - (std::uint8_t*)exeModule);
+				spdlog::info("Pause Menu Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[PauseMenuAR] - (std::uint8_t*)exeModule);
 
-				Memory::WriteNOPs(AspectRatioInstructionsScansResult[CutscenesARScan], 3);
+				Memory::WriteNOPs(AspectRatioInstructionsScansResult[CutscenesAR], 3);
 
-				CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesARScan], [](SafetyHookContext& ctx)
+				CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesAR], [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCutscenesAspectRatio = Memory::ReadMem(ctx.eax + 0x68);
 
@@ -265,27 +253,27 @@ void WidescreenFix()
 					ctx.edx = std::bit_cast<uintptr_t>(fNewCutscenesAspectRatio);
 				});
 
-				Memory::WriteNOPs(AspectRatioInstructionsScansResult[GameplayARScan], 6);
+				Memory::WriteNOPs(AspectRatioInstructionsScansResult[GameplayAR], 6);				
 
-				fNewGameplayAspectRatio = 0.75f / fAspectRatioScale;
-
-				GameplayAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[GameplayARScan], [](SafetyHookContext& ctx)
+				GameplayAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[GameplayAR], [](SafetyHookContext& ctx)
 				{
+					fNewGameplayAspectRatio = 0.75f / fAspectRatioScale;
+
 					FPU::FMUL(fNewGameplayAspectRatio);
 				});
 
-				PauseMenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[PauseMenuARScan], [](SafetyHookContext& ctx)
+				PauseMenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[PauseMenuAR], [](SafetyHookContext& ctx)
 				{
 					*reinterpret_cast<float*>(ctx.eax) = *reinterpret_cast<float*>(ctx.eax) * fAspectRatioScale;
 				});
 			}
 
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 10 D8 0D ?? ?? ?? ?? 8B 8E 80 00 00 00 8D 44 24 04 50 D9 F2");
+			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 0D ?? ?? ?? ?? 8B 8E");
 			if (CameraFOVInstructionScanResult)
 			{
 				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
-				Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90", 4);
+				Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
 
 				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 				{
