@@ -47,7 +47,6 @@ bool bFixActive;
 float fFOVFactor;
 
 // Variables
-float fNewAspectRatio;
 double dNewAspectRatio;
 float fNewCameraFOV;
 
@@ -201,9 +200,7 @@ void WidescreenFix()
 
 				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x34);
 
-				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
-
-				dNewAspectRatio = (double)fNewAspectRatio;
+				dNewAspectRatio = static_cast<double>(iCurrentWidth) / static_cast<double>(iCurrentHeight);
 			});
 		}
 
