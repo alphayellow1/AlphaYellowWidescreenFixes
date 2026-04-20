@@ -23,10 +23,11 @@
 HMODULE exeModule = GetModuleHandle(NULL);
 HMODULE dllModule = nullptr;
 HMODULE dllModule2 = nullptr;
+std::string dllModule2Name;
 HMODULE thisModule;
 
 // Fix details
-std::string sFixName = "MichaelSchumacherRacingWorldKart2002WidescreenFix";
+std::string sFixName = "BarbieFashionShowAnEyeForStyleWidescreenFix";
 std::string sFixVersion = "1.0";
 std::filesystem::path sFixPath;
 
@@ -53,9 +54,16 @@ float fNewAspectRatio;
 // Game detection
 enum class Game
 {
-	MSWTK2004_1,
-	MSWTK2004_2,
+	BFS,
 	Unknown
+};
+
+enum ResolutionInstructionsScansIndices
+{
+	Res1,
+	Res2,
+	Res3,
+	Res4
 };
 
 struct GameInfo
@@ -65,8 +73,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::MSWTK2004_1, {"Michael Schumacher Racing World: Kart 2002", "msrw_cd.exe"}},
-	{Game::MSWTK2004_2, {"Michael Schumacher Racing World: Kart 2002", "msrw_cd3.exe"}},
+	{Game::BFS, {"Barbie Fashion Show: An Eye for Style", "BarbieFashionShow.exe"}}
 };
 
 const GameInfo* game = nullptr;
@@ -186,47 +193,93 @@ bool DetectGame()
 	return false;	
 }
 
-static SafetyHookMid ResolutionInstructionsHook{};
+static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void WidescreenFix()
 {
-	if ((eGameType == Game::MSWTK2004_1 || eGameType == Game::MSWTK2004_2) && bFixActive == true)
+	if (eGameType == Game::BFS && bFixActive == true)
 	{
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 8B 44 24 ?? 8B 54 24");
-		if (ResolutionInstructionsScanResult)
+		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "c7 00 ?? ?? ?? ?? 8a 41",
+		"c7 46 ?? ?? ?? ?? ?? c7 46 ?? ?? ?? ?? ?? ff 12 38 5e ?? 74 ?? 8b 46 ?? eb ?? 8b 46 ?? 39 28 75 ?? 38 5e ?? 74 ?? 8b 46 ?? eb ?? 8b 46 ?? 39 78 ?? 75 ?? 8b ce e8 ?? ?? ?? ?? 8b ce e8 ?? ?? ?? ?? eb ?? 8b ce e8 ?? ?? ?? ?? 8b ce e8 ?? ?? ?? ?? 5f 3b c3 5d 88 9e ?? ?? ?? ?? 7d ?? 8b 06",
+		"c7 81 ?? ?? ?? ?? ?? ?? ?? ?? c7 81 ?? ?? ?? ?? ?? ?? ?? ?? c3",
+		"3d ?? ?? ?? ?? 75 ?? 81 79 ?? ?? ?? ?? ?? 75 ?? b8 ?? ?? ?? ?? c3 3d ?? ?? ?? ?? 75 ?? 81 79 ?? ?? ?? ?? ?? 75 ?? b8 ?? ?? ?? ?? c3 3d ?? ?? ?? ?? 75 ?? 81 79 ?? ?? ?? ?? ?? 75 ?? b8 ?? ?? ?? ?? c3 3d ?? ?? ?? ?? 75 ?? 81 79 ?? ?? ?? ?? ?? 75 ?? b8 ?? ?? ?? ?? c3 3d");
+		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1] - (std::uint8_t*)exeModule);
 
-			Memory::WriteNOPs(ResolutionInstructionsScanResult, 8);
+			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2] - (std::uint8_t*)exeModule);
 
-			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
-			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
+			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3] - (std::uint8_t*)exeModule);
 
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
+			spdlog::info("Resolution Instructions 4 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res4] - (std::uint8_t*)exeModule);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res1] + 2, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res1] + 12, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res2] + 3, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res2] + 10, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res3] + 6, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res3] + 16, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 1, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 10, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 23, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 32, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 45, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 54, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 67, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 76, iCurrentResY);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 89, iCurrentResX);
+
+			Memory::Write(ResolutionInstructionsScansResult[Res4] + 98, iCurrentResY);
+		}		
+
+		dllModule2 = Memory::GetHandle("PremierRenderDll.dll");
+
+		dllModule2Name = Memory::GetModuleName(dllModule2);
+
+		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 56");
+
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 D9 81 ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 56");
+
+		if (AspectRatioInstructionScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", dllModule2Name.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);
+
+			Memory::PatchBytes(AspectRatioInstructionScanResult + 1, "\x05");
+
+			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio);
 		}
 		else
 		{
-			spdlog::error("Failed to locate resolution instructions scan memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
-		}		
-
-		dllModule2 = Memory::GetHandle("CK2_3D.dll");
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 33 C0");
+		}	
+		
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is CK2_3D.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", dllModule2Name.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
 			
 			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
 			
 			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x16C);
+				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + 0x104);
 
 				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
 

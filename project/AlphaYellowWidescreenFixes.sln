@@ -1175,6 +1175,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TheCatInTheHatWidescreenFix
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HospitalTycoonWidescreenFix", "HospitalTycoonWidescreenFix.vcxproj", "{90D5540F-9F44-4FC2-A02B-D92CE685A143}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BarbieFashionShowAnEyeForStyleWidescreenFix", "BarbieFashionShowAnEyeForStyleWidescreenFix.vcxproj", "{07A97062-97F8-4BBD-835B-42AE6497D9C2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5855,6 +5857,14 @@ Global
 		{90D5540F-9F44-4FC2-A02B-D92CE685A143}.Release|x64.Build.0 = Release|x64
 		{90D5540F-9F44-4FC2-A02B-D92CE685A143}.Release|x86.ActiveCfg = Release|Win32
 		{90D5540F-9F44-4FC2-A02B-D92CE685A143}.Release|x86.Build.0 = Release|Win32
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2}.Debug|x64.ActiveCfg = Debug|x64
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2}.Debug|x64.Build.0 = Debug|x64
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2}.Debug|x86.ActiveCfg = Debug|Win32
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2}.Debug|x86.Build.0 = Debug|Win32
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2}.Release|x64.ActiveCfg = Release|x64
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2}.Release|x64.Build.0 = Release|x64
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2}.Release|x86.ActiveCfg = Release|Win32
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6444,6 +6454,7 @@ Global
 		{2758814F-9F11-48FC-95A9-7295136C6B76} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{5E2BD997-31D0-4DC4-B697-6F5A8A1ABF75} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{90D5540F-9F44-4FC2-A02B-D92CE685A143} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{07A97062-97F8-4BBD-835B-42AE6497D9C2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
