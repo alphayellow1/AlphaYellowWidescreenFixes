@@ -226,9 +226,9 @@ void WidescreenFix()
 
 			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				Memory::ReadMem(ctx.ecx + 0xC) = iCurrentResX;
+				*reinterpret_cast<int*>(ctx.ecx + 0xC) = iCurrentResX;
 
-				Memory::ReadMem(ctx.ecx + 0x10) = iCurrentResY;
+				*reinterpret_cast<int*>(ctx.ecx + 0x10) = iCurrentResY;
 			});
 		}
 		else
@@ -269,17 +269,6 @@ void WidescreenFix()
 	}
 }
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
@@ -287,11 +276,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		Logging();
+		Configuration();
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			WidescreenFix();
 		}
 		break;
 	}

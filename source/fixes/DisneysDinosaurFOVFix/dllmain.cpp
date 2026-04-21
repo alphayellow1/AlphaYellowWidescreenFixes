@@ -26,7 +26,7 @@ HMODULE thisModule;
 
 // Fix details
 std::string sFixName = "DisneysDinosaurFOVFix";
-std::string sFixVersion = "1.2";
+std::string sFixVersion = "1.3";
 std::filesystem::path sFixPath;
 
 // Ini
@@ -57,7 +57,7 @@ float fNewCameraFOV;
 // Game detection
 enum class Game
 {
-	DD,
+	DINOSAUR,
 	Unknown
 };
 
@@ -68,7 +68,7 @@ struct GameInfo
 };
 
 const std::map<Game, GameInfo> kGames = {
-	{Game::DD, {"Disney's Dinosaur", "Dinosaur.exe"}},
+	{Game::DINOSAUR, {"Disney's Dinosaur", "Dinosaur.exe"}},
 };
 
 const GameInfo* game = nullptr;
@@ -148,24 +148,8 @@ void Configuration()
 	spdlog_confparse(bFixActive);
 
 	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
 	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
 	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
 
 	spdlog::info("----------");
 }
@@ -188,16 +172,37 @@ bool DetectGame()
 	return false;
 }
 
+static SafetyHookMid ResolutionInstructionsHook{};
 static SafetyHookMid AspectRatioInstructionHook{};
 static SafetyHookMid CameraFOVInstructionHook{};
 
 void FOVFix()
 {
-	if (eGameType == Game::DD && bFixActive == true)
+	if (eGameType == Game::DINOSAUR && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 8B 4C 24 ?? A3 ?? ?? ?? ?? 89 0D ?? ?? ?? ?? C3 90 90 90 90 90 90 90 90 90 90 90 90 A1");
+		if (ResolutionInstructionsScanResult)
+		{
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			{
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x4);
+
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x8);
+
+				fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+
+				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+
+				ResolutionInstructionsHook.disable();
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
+			return;
+		}
 
 		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? 8B 4C 24 ?? D9 58 ?? D9 44 24");
 		if (AspectRatioInstructionScanResult)
@@ -208,7 +213,7 @@ void FOVFix()
 
 			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHFOV = *(float*)(ctx.esp + 0x8);
+				float& fCurrentHFOV = Memory::ReadMem(ctx.esp + 0x8);
 
 				fNewHFOV = Maths::CalculateNewHFOV_RadBased(fCurrentHFOV, fAspectRatioScale);
 
