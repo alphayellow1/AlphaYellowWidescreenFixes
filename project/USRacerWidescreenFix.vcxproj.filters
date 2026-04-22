@@ -20,13 +20,13 @@
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\fixes\USRacerFOVFix\dllmain.cpp">
-      <Filter>Arquivos de Recurso</Filter>
-    </ClCompile>
-    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
+    <ClCompile Include="..\source\fixes\USRacerWidescreenFix\dllmain.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
   </ItemGroup>

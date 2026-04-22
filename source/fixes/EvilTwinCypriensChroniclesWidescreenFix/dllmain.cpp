@@ -64,20 +64,20 @@ enum class Game
 
 enum ResolutionInstructionsIndices
 {
-	ResolutionListUnlock1Scan,
-	ResolutionListUnlock2Scan
+	ResListUnlock1,
+	ResListUnlock2
 };
 
 enum AspectRatioInstructionsIndices
 {
-	AspectRatio1Scan,
-	AspectRatio2Scan
+	AR1,
+	AR2
 };
 
 enum CameraFOVInstructionsIndices
 {
-	CameraFOV1Scan,
-	CameraFOV2Scan
+	FOV1,
+	FOV2
 };
 
 struct GameInfo
@@ -232,16 +232,16 @@ void WidescreenFix()
 	{
 		if (eGameType == Game::ETCC_VIDEOCONFIG)
 		{
-			std::vector<std::uint8_t*> ResolutionListUnlockScansResult = Memory::PatternScan(exeModule, "3D ?? ?? ?? ?? 7F", "81 39");
+			std::vector<std::uint8_t*> ResolutionListUnlockScansResult = Memory::PatternScan(exeModule, "7F ?? 3B 44 24", "7F ?? 46 83 C1");
 			if (Memory::AreAllSignaturesValid(ResolutionListUnlockScansResult) == true)
 			{
-				spdlog::info("Resolution List Unlock Scan 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScansResult[ResolutionListUnlock1Scan] - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution List Unlock Scan 1: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScansResult[ResListUnlock1] - (std::uint8_t*)exeModule);
 
-				spdlog::info("Resolution List Unlock Scan 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScansResult[ResolutionListUnlock2Scan] - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution List Unlock Scan 2: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScansResult[ResListUnlock2] - (std::uint8_t*)exeModule);
 
-				Memory::Write(ResolutionListUnlockScansResult[ResolutionListUnlock1Scan] + 1, iNewResX);
+				Memory::WriteNOPs(ResolutionListUnlockScansResult[ResListUnlock1], 2);
 
-				Memory::Write(ResolutionListUnlockScansResult[ResolutionListUnlock2Scan] + 2, iNewResX);
+				Memory::WriteNOPs(ResolutionListUnlockScansResult[ResListUnlock2], 2);
 			}
 		}
 
@@ -254,20 +254,20 @@ void WidescreenFix()
 			std::vector<std::uint8_t*> AspectRatioInstructionsScanResult = Memory::PatternScan(dllModule2, "8B 8E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 8B 86", "D8 B7");
 			if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScanResult) == true)
 			{
-				spdlog::info("Aspect Ratio Instruction 1: Address is fnx_dx7.dll+{:x}", AspectRatioInstructionsScanResult[AspectRatio1Scan] - (std::uint8_t*)dllModule2);
+				spdlog::info("Aspect Ratio Instruction 1: Address is fnx_dx7.dll+{:x}", AspectRatioInstructionsScanResult[AR1] - (std::uint8_t*)dllModule2);
 
-				spdlog::info("Aspect Ratio Instruction 2: Address is fnx_dx7.dll+{:x}", AspectRatioInstructionsScanResult[AspectRatio2Scan] - (std::uint8_t*)dllModule2);
+				spdlog::info("Aspect Ratio Instruction 2: Address is fnx_dx7.dll+{:x}", AspectRatioInstructionsScanResult[AR2] - (std::uint8_t*)dllModule2);
 
-				Memory::WriteNOPs(AspectRatioInstructionsScanResult[AspectRatio1Scan], 6);
+				Memory::WriteNOPs(AspectRatioInstructionsScanResult[AR1], 6);
 
-				AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AspectRatio1Scan], [](SafetyHookContext& ctx)
+				AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AR1], [](SafetyHookContext& ctx)
 				{
 					ctx.ecx = std::bit_cast<uintptr_t>(fNewAspectRatio);
 				});
 
-				Memory::WriteNOPs(AspectRatioInstructionsScanResult[AspectRatio2Scan], 6);
+				Memory::WriteNOPs(AspectRatioInstructionsScanResult[AR2], 6);
 
-				AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AspectRatio2Scan], [](SafetyHookContext& ctx)
+				AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AR2], [](SafetyHookContext& ctx)
 				{
 					FPU::FDIV(fNewAspectRatio);
 				});
@@ -276,13 +276,13 @@ void WidescreenFix()
 			std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "8B 8E ?? ?? ?? ?? 52", "D9 87 ?? ?? ?? ?? 8D 4C 24");
 			if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
 			{
-				spdlog::info("Camera FOV Instruction 1: Address is fnx_dx7.dll+{:x}", CameraFOVInstructionsScanResult[CameraFOV1Scan] - (std::uint8_t*)dllModule2);
+				spdlog::info("Camera FOV Instruction 1: Address is fnx_dx7.dll+{:x}", CameraFOVInstructionsScanResult[FOV1] - (std::uint8_t*)dllModule2);
 
-				spdlog::info("Camera FOV Instruction 2: Address is fnx_dx7.dll+{:x}", CameraFOVInstructionsScanResult[CameraFOV2Scan] - (std::uint8_t*)dllModule2);
+				spdlog::info("Camera FOV Instruction 2: Address is fnx_dx7.dll+{:x}", CameraFOVInstructionsScanResult[FOV2] - (std::uint8_t*)dllModule2);
 
-				Memory::WriteNOPs(CameraFOVInstructionsScanResult[CameraFOV1Scan], 6);
+				Memory::WriteNOPs(CameraFOVInstructionsScanResult[FOV1], 6);
 
-				CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+				CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[FOV1], [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.esi + 0xCC);
 
@@ -298,9 +298,9 @@ void WidescreenFix()
 					ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
 				});
 
-				Memory::WriteNOPs(CameraFOVInstructionsScanResult[CameraFOV2Scan], 6);
+				Memory::WriteNOPs(CameraFOVInstructionsScanResult[FOV2], 6);
 
-				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[FOV2], [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.edi + 0xCC);
 
