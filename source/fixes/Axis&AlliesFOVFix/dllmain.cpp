@@ -48,7 +48,7 @@ protected:
     {
         inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
 
-        spdlog::info("Config Parse: FOVFactor = {}", m_fovFactor);
+        spdlog_confparse(m_fovFactor);
     }
 
     void ApplyFix() override

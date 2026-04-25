@@ -16,6 +16,8 @@
 #include <string>
 #include <cstdint>
 
+#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
+
 class FixBase
 {
 public:
@@ -154,6 +156,18 @@ protected:
     }
 
     bool enabled_ = true;
+
+    virtual void FallbackToDesktopResolution(int& width, int& height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
+
+            auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
+            width = desktopDimensions.first;
+            height = desktopDimensions.second;
+        }
+    }
 
 private:
     static DWORD WINAPI ThreadProc(LPVOID param)
