@@ -188,7 +188,23 @@ void FOVFix()
 {
 	if (eGameType == Game::CL && bFixActive == true)
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);		
+
+		static std::string NewString = std::to_string(iCurrentResX) + "X" + std::to_string(iCurrentResY) + "X16(FULL)";
+
+		const char* NewStringPtr = NewString.c_str();
+
+		Memory::Write((uint8_t*)0x0040596F + 2, NewStringPtr);
+
+		/*
+		Memory::Write((uint8_t*)0x005D634C, 1920);
+
+		Memory::Write((uint8_t*)0x005D634C + 4, 1080);
+
+		Memory::Write((uint8_t*)0x00630BA0, 1920);
+
+		Memory::Write((uint8_t*)0x00630BA0 + 4, 1080);
+		
 
 		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "20 03 00 00 58 02 00 00");
 		if (ResolutionScanResult)
@@ -204,18 +220,9 @@ void FOVFix()
 			spdlog::error("Failed to locate resolution memory address.");
 			return;
 		}
-	}
-}
+		*/
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
 	}
-	return TRUE;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -225,11 +232,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		Logging();
+		Configuration();
+		if (DetectGame())
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			FOVFix();
 		}
 		break;
 	}
