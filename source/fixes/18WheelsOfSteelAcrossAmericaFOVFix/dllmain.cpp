@@ -1,14 +1,14 @@
 #include "..\..\common\FixBase.hpp"
 
-class WoSSteelAcrossAmericaFix final : public FixBase
+class WoSAcrossAmericaFix final : public FixBase
 {
 public:
-	explicit WoSSteelAcrossAmericaFix(HMODULE selfModule) : FixBase(selfModule)
+	explicit WoSAcrossAmericaFix(HMODULE selfModule) : FixBase(selfModule)
 	{
 		s_instance_ = this;
 	}
 
-	~WoSSteelAcrossAmericaFix() override
+	~WoSAcrossAmericaFix() override
 	{
 		if (s_instance_ == this)
 		{
@@ -79,11 +79,6 @@ protected:
 
 			Memory::Write(CameraFOVScansResult[FOV2] + 4, m_newCameraFOV * m_fovFactor);
 		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}
 	}
 
 private:
@@ -101,10 +96,10 @@ private:
 
 	static constexpr float m_originalCameraFOV = 70.0f;
 
-	inline static WoSSteelAcrossAmericaFix* s_instance_ = nullptr;
+	inline static WoSAcrossAmericaFix* s_instance_ = nullptr;
 };
 
-static std::unique_ptr<WoSSteelAcrossAmericaFix> g_fix;
+static std::unique_ptr<WoSAcrossAmericaFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -116,7 +111,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 		DisableThreadLibraryCalls(hModule);
 
-		g_fix = std::make_unique<WoSSteelAcrossAmericaFix>(hModule);
+		g_fix = std::make_unique<WoSAcrossAmericaFix>(hModule);
 
 		g_fix->Start();
 
