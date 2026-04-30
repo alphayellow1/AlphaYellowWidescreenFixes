@@ -1,32 +1,37 @@
 ﻿#pragma once
-#include "stdafx.h"
-#include <cmath>
-#include <string>
-#include <cstdint>
-#include <charconv>
-#include <type_traits>
-#include <cstring>
-#include <array>
-#include <climits>
-#include <cstdlib>
-#include <iostream>
-#include <spdlog/spdlog.h>
-#include <variant>
-#include <bit>
-#include <chrono>
-#include <cctype>
-#include <future>
-#include <unordered_map>
-#include <mutex>
-#include <shared_mutex>
-#include <initializer_list>
-#include <thread>
-#include <filesystem>
-#include <stdexcept>
-#include <cassert>
-#include <limits>
+
+#include <windows.h>
+
 #include <algorithm>
+#include <bit>
+#include <charconv>
+#include <chrono>
+#include <cmath>
+#include <concepts>
+#include <cctype>
+#include <cstdint>
+#include <cstring>
+#include <filesystem>
+#include <future>
+#include <initializer_list>
+#include <limits>
+#include <memory>
+#include <mutex>
 #include <numeric>
+#include <optional>
+#include <ranges>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <variant>
+#include <vector>
+#include <climits>
+
+#include <spdlog/spdlog.h>
 
 #if defined(_WIN64)
 using IMAGE_NT_HEADERS_X = IMAGE_NT_HEADERS64;

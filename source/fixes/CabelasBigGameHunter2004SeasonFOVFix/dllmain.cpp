@@ -195,21 +195,9 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("EngineDll.dll")) == nullptr)
-	{
-		spdlog::warn("EngineDll.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
+	dllModule2 = Memory::GetHandle("EngineDll.dll");
 
-	spdlog::info("Successfully obtained handle for EngineDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	while ((dllModule3 = GetModuleHandleA("GameDll.dll")) == nullptr)
-	{
-		spdlog::warn("GameDll.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for GameDll.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+	dllModule3 = Memory::GetHandle("GameDll.dll");
 
 	return true;
 }

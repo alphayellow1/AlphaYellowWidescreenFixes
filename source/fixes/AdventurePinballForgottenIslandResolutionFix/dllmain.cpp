@@ -185,21 +185,9 @@ bool DetectGame()
 		return false;
 	}
 
-	while ((dllModule2 = GetModuleHandleA("D3DDrv.dll")) == nullptr)
-	{
-		spdlog::warn("D3DDrv.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
+	dllModule2 = Memory::GetHandle("D3DDrv.dll");
 
-	spdlog::info("Successfully obtained handle for D3DDrv.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	while ((dllModule3 = GetModuleHandleA("WinDrv.dll")) == nullptr)
-	{
-		spdlog::warn("WinDrv.dll not loaded yet. Waiting...");
-		Sleep(100);
-	}
-
-	spdlog::info("Successfully obtained handle for WinDrv.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule3));
+	dllModule3 = Memory::GetHandle("WinDrv.dll");
 
 	return true;
 }

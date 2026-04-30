@@ -15,14 +15,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\source\fixes\25ToLifeFOVChanger\dllmain.cpp">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp">
-      <Filter>Arquivos de Origem</Filter>
+      <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
     <ClCompile Include="..\external\safetyhook\Zydis.c">
-      <Filter>Arquivos de Origem</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\fixes\25ToLifeFOVChanger\dllmain.cpp">
-      <Filter>Arquivos de Origem</Filter>
+      <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

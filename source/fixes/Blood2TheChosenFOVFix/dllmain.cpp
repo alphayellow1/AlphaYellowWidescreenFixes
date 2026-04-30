@@ -203,7 +203,7 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		Sleep(3000);
+		std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
 		std::uint8_t* CammeraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B B0 38 01 00 00 89 B4 24 D0 00 00 00 8B B0 3C 01 00 00");
 		if (CammeraFOVInstructionsScanResult)

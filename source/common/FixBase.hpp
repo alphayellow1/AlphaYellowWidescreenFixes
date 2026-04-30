@@ -21,7 +21,7 @@
 class FixBase
 {
 public:
-    explicit FixBase(HMODULE selfModule) : thisModule_(selfModule), exeModule_(GetModuleHandleW(nullptr))
+    explicit FixBase(HMODULE selfModule) : m_thisModule(selfModule), m_exeModule(GetModuleHandleW(nullptr))
     {
     }
 
@@ -47,11 +47,11 @@ public:
 
     virtual void Shutdown()
     {
-        if (logger_)
+        if (m_logger)
         {
-            logger_->flush();
+            m_logger->flush();
             spdlog::drop(FixName());
-            logger_.reset();
+            m_logger.reset();
         }
     }
 
@@ -60,13 +60,13 @@ public:
         Logging();
         LoadConfiguration();
 
-        if (enabled_ == false)
+        if (m_enabled == false)
         {
             spdlog::info("Fix disabled in config.");
             return;
         }
 
-        if (!IsCompatibleExecutable(exeName_))
+        if (!IsCompatibleExecutable(m_exeName))
         {
             OnIncompatibleExecutable();
             return;
@@ -122,40 +122,40 @@ protected:
 
     virtual void OnIncompatibleExecutable()
     {
-        spdlog::error("Executable '{}' is not supported by the fix.", exeName_);
+        spdlog::error("Executable '{}' is not supported by the fix.", m_exeName);
     }
 
     HMODULE SelfModule() const
     {
-        return thisModule_;
+        return m_thisModule;
     }
 
     HMODULE ExeModule() const
     {
-        return exeModule_;
+        return m_exeModule;
     }
 
     const std::filesystem::path& FixPath() const
     {
-        return fixPath_;
+        return m_fixPath;
     }
 
     const std::filesystem::path& ExePath() const
     {
-        return exePath_;
+        return m_exePath;
     }
 
     const std::string& ExeName() const
     {
-        return exeName_;
+        return m_exeName;
     }
 
     std::shared_ptr<spdlog::logger> Logger() const
     {
-        return logger_;
+        return m_logger;
     }
 
-    bool enabled_ = true;
+    bool m_enabled = true;
 
     virtual void FallbackToDesktopResolution(int& width, int& height)
     {
@@ -193,30 +193,30 @@ private:
     virtual void Logging()
     {
         WCHAR dllPath[MAX_PATH] = {};
-        GetModuleFileNameW(thisModule_, dllPath, MAX_PATH);
-        fixPath_ = std::filesystem::path(dllPath).remove_filename();
+        GetModuleFileNameW(m_thisModule, dllPath, MAX_PATH);
+        m_fixPath = std::filesystem::path(dllPath).remove_filename();
 
         WCHAR exePathW[MAX_PATH] = {};
-        GetModuleFileNameW(exeModule_, exePathW, MAX_PATH);
-        exePath_ = std::filesystem::path(exePathW).remove_filename();
-        exeName_ = std::filesystem::path(exePathW).filename().string();
+        GetModuleFileNameW(m_exeModule, exePathW, MAX_PATH);
+        m_exePath = std::filesystem::path(exePathW).remove_filename();
+        m_exeName = std::filesystem::path(exePathW).filename().string();
 
-        logFile_ = std::string(FixName()) + ".log";
+        m_logFile = std::string(FixName()) + ".log";
 
         try
         {
-            logger_ = spdlog::basic_logger_st(FixName(), (exePath_ / logFile_).string(), true);
-            spdlog::set_default_logger(logger_);
+            m_logger = spdlog::basic_logger_st(FixName(), (m_exePath / m_logFile).string(), true);
+            spdlog::set_default_logger(m_logger);
             spdlog::flush_on(spdlog::level::debug);
             spdlog::set_level(spdlog::level::debug);
 
             spdlog::info("----------");
             spdlog::info("{} v{} loaded.", FixName(), FixVersion());
             spdlog::info("----------");
-            spdlog::info("Log file: {}", (exePath_ / logFile_).string());
-            spdlog::info("Module Name: {}", exeName_);
-            spdlog::info("Module Path: {}", exePath_.string());
-            spdlog::info("Module Address: 0x{:X}", reinterpret_cast<uintptr_t>(exeModule_));
+            spdlog::info("Log file: {}", (m_exePath / m_logFile).string());
+            spdlog::info("Module Name: {}", m_exeName);
+            spdlog::info("Module Path: {}", m_exePath.string());
+            spdlog::info("Module Address: 0x{:X}", reinterpret_cast<uintptr_t>(m_exeModule));
             spdlog::info("----------");
         }
         catch (const spdlog::spdlog_ex& ex)
@@ -225,15 +225,15 @@ private:
             FILE* dummy = nullptr;
             freopen_s(&dummy, "CONOUT$", "w", stdout);
             std::cout << "Log initialization failed: " << ex.what() << std::endl;
-            FreeLibraryAndExitThread(thisModule_, 1);
+            FreeLibraryAndExitThread(m_thisModule, 1);
         }
     }
 
     virtual void LoadConfiguration()
     {
-        configFile_ = ConfigFileName();
+        m_configFile = ConfigFileName();
 
-        std::ifstream iniFile((fixPath_ / configFile_).string());
+        std::ifstream iniFile((m_fixPath / m_configFile).string());
         if (!iniFile)
         {
             AllocConsole();
@@ -241,36 +241,35 @@ private:
             freopen_s(&dummy, "CONOUT$", "w", stdout);
             std::cout << FixName() << " v" << FixVersion() << " loaded.\n";
             std::cout << "ERROR: Could not locate config file.\n";
-            std::cout << "ERROR: Make sure " << configFile_ << " is located in " << fixPath_.string() << "\n";
+            std::cout << "ERROR: Make sure " << m_configFile << " is located in " << m_fixPath.string() << "\n";
             spdlog::shutdown();
-            FreeLibraryAndExitThread(thisModule_, 1);
+            FreeLibraryAndExitThread(m_thisModule, 1);
         }
 
-        spdlog::info("Config file: {}", (fixPath_ / configFile_).string());
+        spdlog::info("Config file: {}", (m_fixPath / m_configFile).string());
 
-        ini_.parse(iniFile);
-        ini_.strip_trailing_comments();
+        m_ini.parse(iniFile);
+        m_ini.strip_trailing_comments();
 
         spdlog::info("----------");
 
-        inipp::get_value(ini_.sections["Fix"], "Enabled", enabled_);
+        inipp::get_value(m_ini.sections["Fix"], "Enabled", m_enabled);
 
-        ParseFixConfig(ini_);
+        ParseFixConfig(m_ini);
 
         spdlog::info("----------");
     }
 
 private:
-    HMODULE thisModule_ = nullptr;
-    HMODULE exeModule_ = nullptr;
+    HMODULE m_thisModule = nullptr;
+    HMODULE m_exeModule = nullptr;
 
-    std::filesystem::path fixPath_;
-    std::filesystem::path exePath_;
+    std::filesystem::path m_fixPath;
+    std::filesystem::path m_exePath;
+    std::string m_exeName;
+    std::string m_configFile;
+    std::string m_logFile;
 
-    std::string exeName_;
-    std::string configFile_;
-    std::string logFile_;
-
-    inipp::Ini<char> ini_;
-    std::shared_ptr<spdlog::logger> logger_;
+    inipp::Ini<char> m_ini;
+    std::shared_ptr<spdlog::logger> m_logger;
 };

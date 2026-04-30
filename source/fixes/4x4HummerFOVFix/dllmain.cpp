@@ -1,222 +1,88 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-
-// Fix details
-std::string sFixName = "4x4HummerFOVFix";
-std::string sFixVersion = "1.2";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
-uint8_t* TriggerValueAddress;
-uint32_t* pInRaceFlag;
-static bool bInRace;
-
-// Game detection
-enum class Game
+class HummerFix final : public FixBase
 {
-	HUMMER4X4,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::HUMMER4X4, {"4x4 Hummer", "Hummer.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit HummerFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~HummerFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	bool bGameFound = false;
-
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			bGameFound = true;
-			break;
+			s_instance_ = nullptr;
 		}
 	}
 
-	if (bGameFound == false)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		return "4x4HummerFOVFix";
 	}
 
-	dllModule2 = Memory::GetHandle("ChromeEngine2.dll");
-
-	return true;
-}
-
-static SafetyHookMid CameraHFOVInstructionHook{};
-static SafetyHookMid CameraVFOVInstructionHook{};
-
-void FOVFix()
-{
-	if (eGameType == Game::HUMMER4X4 && bFixActive == true)
+	const char* FixVersion() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "1.3";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* TargetName() const override
+	{
+		return "4x4 Hummer";
+	}
 
-		std::uint8_t* InARaceTriggerInstructionScanResult = Memory::PatternScan(dllModule2, "39 1D ?? ?? ?? ?? 75 66 8B 0D ?? ?? ?? ?? 53");
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Hummer.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		gameDll = Memory::GetHandle("ChromeEngine2.dll");
+		gameDllName = Memory::GetModuleName(gameDll);
+
+		auto resolutionScanResult = Memory::PatternScan(gameDll, "8B 74 24 ?? 57 8B 7C 24 ?? 56 57 68");
+		if (resolutionScanResult)
+		{
+			spdlog::info("Resolution Scan: Address is {:s}+{:x}", gameDllName.c_str(), resolutionScanResult - (std::uint8_t*)gameDll);
+
+			m_resolutionWidthHook = safetyhook::create_mid(resolutionScanResult + 5, [](SafetyHookContext& ctx)
+			{
+				s_instance_->iCurrentWidth = Memory::ReadMem(ctx.esp + 0xC);
+
+				s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->iCurrentWidth) / static_cast<float>(s_instance_->iCurrentHeight);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
+			});
+
+			m_resolutionHeightHook = safetyhook::create_mid(resolutionScanResult, [](SafetyHookContext& ctx)
+			{
+				s_instance_->iCurrentHeight = Memory::ReadMem(ctx.esp + 0xC);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution scan memory address.");
+			return;
+		}
+
+		auto InARaceTriggerInstructionScanResult = Memory::PatternScan(gameDll, "39 1D ?? ?? ?? ?? 75 66 8B 0D ?? ?? ?? ?? 53");
 		if (InARaceTriggerInstructionScanResult)
 		{
-			spdlog::info("In A Race Trigger Instruction: Address is ChromeEngine2.dll+{:x}", InARaceTriggerInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("In A Race Trigger Instruction: Address is {:s}+{:x}", gameDllName.c_str(), InARaceTriggerInstructionScanResult - (std::uint8_t*)gameDll);
 
 			TriggerValueAddress = Memory::GetPointerFromAddress(InARaceTriggerInstructionScanResult + 2, Memory::PointerMode::Absolute);
 
@@ -228,49 +94,49 @@ void FOVFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D8 C9 D9 5C 24 ?? D8 C9 D8 4C 24");
+		auto CameraFOVInstructionsScanResult = Memory::PatternScan(gameDll, "D9 44 24 ?? D8 C9 D9 5C 24 ?? D8 C9 D8 4C 24");
 		if (CameraFOVInstructionsScanResult)
 		{
-			spdlog::info("Camera FOV Instructions Scan: Address is ChromeEngine2.dll+{:x}", CameraFOVInstructionsScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instructions Scan: Address is {:s}+{:x}", gameDllName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)gameDll);
 
 			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 4); // NOP out the original instruction
 
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
+			m_cameraHFOVHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.esp + 0xC);
 
-				bInRace = (*pInRaceFlag == 1);
+				s_instance_->bInRace = (*s_instance_->pInRaceFlag == 1);
 
-				if (bInRace == 1)
+				if (s_instance_->bInRace == 1)
 				{
-					fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale * fFOVFactor;
+					s_instance_->m_newCameraHFOV = fCurrentCameraHFOV * s_instance_->m_aspectRatioScale * s_instance_->m_fovFactor;
 				}
 				else
 				{
-					fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale;
+					s_instance_->m_newCameraHFOV = fCurrentCameraHFOV * s_instance_->m_aspectRatioScale;
 				}
 
-				FPU::FLD(fNewCameraHFOV);
+				FPU::FLD(s_instance_->m_newCameraHFOV);
 			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 12, 4); // NOP out the original instruction
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 12, [](SafetyHookContext& ctx)
+			m_cameraVFOVHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 12, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.esp + 0xC);
 
-				bInRace = (*pInRaceFlag == 1);
+				s_instance_->bInRace = (*s_instance_->pInRaceFlag == 1);
 
-				if (bInRace == 1)
+				if (s_instance_->bInRace == 1)
 				{
-					fNewCameraVFOV = fCurrentCameraVFOV * fAspectRatioScale * fFOVFactor;
+					s_instance_->m_newCameraVFOV = fCurrentCameraVFOV * s_instance_->m_aspectRatioScale * s_instance_->m_fovFactor;
 				}
 				else
 				{
-					fNewCameraVFOV = fCurrentCameraVFOV * fAspectRatioScale;
+					s_instance_->m_newCameraVFOV = fCurrentCameraVFOV * s_instance_->m_aspectRatioScale;
 				}
 
-				FPU::FMUL(fNewCameraVFOV);
+				FPU::FMUL(s_instance_->m_newCameraVFOV);
 			});
 		}
 		else
@@ -279,38 +145,62 @@ void FOVFix()
 			return;
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
-	}
-	return TRUE;
-}
+private:
+	HMODULE gameDll = nullptr;
+	std::string gameDllName;
+
+	uintptr_t TriggerValueAddress;
+	uint32_t* pInRaceFlag;
+	bool bInRace;
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	SafetyHookMid m_resolutionWidthHook;
+	SafetyHookMid m_resolutionHeightHook;
+	SafetyHookMid m_cameraHFOVHook;
+	SafetyHookMid m_cameraVFOVHook;
+
+	int iCurrentWidth = 0;
+	int iCurrentHeight = 0;
+
+	float m_newCameraHFOV = 0.0f;
+	float m_newCameraVFOV = 0.0f;
+
+	inline static HummerFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<HummerFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+
+		g_fix = std::make_unique<HummerFix>(hModule);
+
+		g_fix->Start();
+
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
