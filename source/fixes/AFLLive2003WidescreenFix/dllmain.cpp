@@ -209,42 +209,20 @@ void WidescreenFix()
 		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? 02 00 00 00 EB 54", "89 4A 0C 74 05 8B 48 10 EB 06 8B 4D 08 8B 49 08 85 F6 89 4A 08");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		
+		auto ResolutionListScanResult = Memory::PatternScan(exeModule, "b8 ?? ?? ?? ?? 56 57 89 45");
+		if (ResolutionListScanResult)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[RendererResScan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListScanResult - (std::uint8_t*)exeModule);
 
-			spdlog::info("Viewport Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ViewportResScan] - (std::uint8_t*)exeModule);
-			
-			ResolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[RendererResScan] + 2, Memory::PointerMode::Absolute);
+			// 1024
+			Memory::Write(ResolutionListScanResult + 33, iCurrentResX);
 
-			ResolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[RendererResScan] + 8, Memory::PointerMode::Absolute);
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[RendererResScan], 12);
-
-			RendererResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[RendererResScan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionWidthAddress) = iCurrentResX;
-
-				Memory::ReadMem(ResolutionHeightAddress) = iCurrentResY;
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResScan], 3);
-
-			ViewportResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResScan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ctx.edx + 0xC) = iCurrentResX;
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[ViewportResScan] + 18, 3);
-
-			ViewportResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ViewportResScan] + 18, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ctx.edx + 0x8) = iCurrentResY;
-			});
+			// 1280
+			Memory::Write(ResolutionListScanResult + 98, iCurrentResX);
 		}
 
+		/*
 		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 45 ?? 5F 89 45");
 		if (CameraFOVInstructionsScanResult)
 		{
@@ -277,6 +255,7 @@ void WidescreenFix()
 			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 			return;
 		}
+		*/
 	}
 }
 
