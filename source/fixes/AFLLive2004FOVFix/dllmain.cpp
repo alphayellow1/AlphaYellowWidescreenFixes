@@ -1,14 +1,14 @@
 #include "..\..\common\FixBase.hpp"
 
-class AFLLive2003Fix final : public FixBase
+class AFLLive2004Fix final : public FixBase
 {
 public:
-	explicit AFLLive2003Fix(HMODULE selfModule) : FixBase(selfModule)
+	explicit AFLLive2004Fix(HMODULE selfModule) : FixBase(selfModule)
 	{
 		s_instance_ = this;
 	}
 
-	~AFLLive2003Fix() override
+	~AFLLive2004Fix() override
 	{
 		if (s_instance_ == this)
 		{
@@ -19,17 +19,17 @@ public:
 protected:
 	const char* FixName() const override
 	{
-		return "AFLLive2003FOVFix";
+		return "AFLLive2004FOVFix";
 	}
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.1";
 	}
 
 	const char* TargetName() const override
 	{
-		return "AFL Live 2003";
+		return "AFL Live 2004";
 	}
 
 	InitMode GetInitMode() const override
@@ -41,7 +41,7 @@ protected:
 
 	bool IsCompatibleExecutable(const std::string& exeName) const override
 	{
-		return Util::stringcmp_caseless(exeName, "AFL2003.exe");
+		return Util::stringcmp_caseless(exeName, "AFL2004.exe");
 	}
 
 	void ParseFixConfig(inipp::Ini<char>& ini) override
@@ -64,6 +64,8 @@ protected:
 
 				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+
+				spdlog::info("Current Resolution: {}x{}", iCurrentWidth, iCurrentHeight);
 			});
 		}
 		else
@@ -81,14 +83,14 @@ protected:
 
 			m_CameraHFOVHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
 			{
-				s_instance_->CameraFOVMidHook(EAX, ctx);
+				s_instance_->CameraFOVMidHook(ctx.esp + 0x1C, s_instance_->m_aspectRatioScale, s_instance_->m_fovFactor, ECX, ctx);
 			});
 
 			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 10, 3);
 
 			m_CameraVFOVHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 10, [](SafetyHookContext& ctx)
 			{
-				s_instance_->CameraFOVMidHook(FLD, ctx);
+				s_instance_->CameraFOVMidHook(ctx.esi + 0x2E0, 1.0f / s_instance_->m_aspectRatioScale, 1.0f / s_instance_->m_fovFactor, FDIV, ctx);
 			});
 		}
 	}
@@ -109,36 +111,36 @@ private:
 
 	enum DestInstruction
 	{
-		FLD,
-		EAX
+		FDIV,
+		ECX
 	};
 
-	void CameraFOVMidHook(DestInstruction destInstruction, SafetyHookContext& ctx)
+	void CameraFOVMidHook(uintptr_t FOVAddress, float arScale, float fovFactor, DestInstruction destInstruction, SafetyHookContext& ctx)
 	{
-		float& fCurrentCameraFOV = Memory::ReadMem(ctx.ebp + 0x10);
+		float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
 
-		m_newCameraFOV = fCurrentCameraFOV * m_aspectRatioScale * m_fovFactor;
+		m_newCameraFOV = fCurrentCameraFOV * arScale * fovFactor;
 
 		switch (destInstruction)
 		{
-			case FLD:
+			case FDIV:
 			{
-				FPU::FLD(m_newCameraFOV);
+				FPU::FDIV(m_newCameraFOV);
 				break;
 			}
 
-			case EAX:
-			 {
-				ctx.eax = std::bit_cast<uintptr_t>(m_newCameraFOV);
+			case ECX:
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(m_newCameraFOV);
 				break;
-			 }
+			}
 		}
 	}
 
-	inline static AFLLive2003Fix* s_instance_ = nullptr;
+	inline static AFLLive2004Fix* s_instance_ = nullptr;
 };
 
-static std::unique_ptr<AFLLive2003Fix> g_fix;
+static std::unique_ptr<AFLLive2004Fix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -149,7 +151,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<AFLLive2003Fix>(hModule);
+		g_fix = std::make_unique<AFLLive2004Fix>(hModule);
 		g_fix->Start();
 		break;
 	}
