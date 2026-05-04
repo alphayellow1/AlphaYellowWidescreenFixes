@@ -110,6 +110,9 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <MASM>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -152,9 +155,6 @@
     <ClCompile Include="..\external\safetyhook\safetyhook.cpp" />
     <ClCompile Include="..\external\safetyhook\Zydis.c" />
     <ClCompile Include="..\source\fixes\DeadRisingFOVChanger\dllmain.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <MASM Include="..\includes\fpu_ops_x64.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

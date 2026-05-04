@@ -81,6 +81,9 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
       <AdditionalOptions />
     </Link>
+    <MASM>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </MASM>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
