@@ -1,349 +1,253 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "DynastyWarriors4WidescreenFix";
-std::string sFixVersion = "1.2";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-uintptr_t CutscenesFOVOffset;
-
-// Game detection
-enum class Game
+class DW4Fix final : public FixBase
 {
-	DW4_EU,
-	DW4_JPN,
-	//DW4_KN,
-	//DW4_CHN,
-	Unknown
-};
-
-enum CameraFOVInstructionsIndex
-{
-	MainMenu,
-	Gameplay1,
-	Gameplay2,
-	Cutscenes
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::DW4_EU, {"Dynasty Warriors 4 (European)", "Dynasty Warriors 4 Hyper.exe"}},
-	{Game::DW4_JPN, {"Dynasty Warriors 4 (Japanese)", "Shin Sangokumusou 3.exe"}},
-	// {Game::DW4_KN, {"Dynasty Warriors 4 (Korean)", "Jin Samgukmussang 3 Hyper.exe"}},
-	// {Game::DW4_CHN, {"Dynasty Warriors 4 (Chinese)", "Zhen SanGuoWuShuang 3 Hyper.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit DW4Fix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~DW4Fix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid CharactersNameAspectRatioInstructionHook{};
-static SafetyHookMid MenuFOVInstructionHook{};
-static SafetyHookMid GameplayFOVInstruction1Hook{};
-static SafetyHookMid GameplayFOVInstruction2Hook{};
-static SafetyHookMid CutscenesFOVInstructionHook{};
-
-enum angleMode
-{
-	FullAngle,
-	HalfAngle
-};
-
-void CameraFOVInstructionsMidHook(float& SourceAddress, uintptr_t DestAddress, angleMode AngleMode, float fovFactor = 1.0f)
-{
-	float& fCurrentCameraFOV = SourceAddress;
-
-	if (AngleMode == FullAngle)
+protected:
+	const char* FixName() const override
 	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
-	}
-	else
-	{
-		fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale, Maths::AngleMode::HalfAngle) * fovFactor;
+		return "DynastyWarriors4WidescreenFix";
 	}
 
-	*reinterpret_cast<float*>(DestAddress) = fNewCameraFOV;
-}
-
-void WidescreenFix()
-{
-	if ((eGameType == Game::DW4_EU || eGameType == Game::DW4_JPN) && bFixActive == true)
+	const char* FixVersion() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "1.3";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* TargetName() const override
+	{
+		return "Dynasty Warriors 4";
+	}
 
-		std::uint8_t* ResolutionListUnlockScanResult = Memory::PatternScan(exeModule, "0F 82 ?? ?? ?? ?? 8B 53");
-		if (ResolutionListUnlockScanResult)
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Dynasty Warriors 4 Hyper.exe") ||
+		Util::stringcmp_caseless(exeName, "Shin Sangokumusou 3.exe") ||
+		// Util::stringcmp_caseless(exeName, "Jin Samgukmussang 3 Hyper.exe") ||
+		// Util::stringcmp_caseless(exeName, "Zhen SanGuoWuShuang 3 Hyper.exe") ||
+		Util::stringcmp_caseless(exeName, "DW4Config.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		if (Util::stringcmp_caseless(ExeName(), "DW4Config.exe"))
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)exeModule);
-
-			Memory::PatchBytes(ResolutionListUnlockScanResult, "\xEB\x2F"); // jump unconditionally rather than if it's below 640 to always allow custom resolutions
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution list unlock scan memory address.");
-			return;
-		}
-
-		std::uint8_t* CharactersNameAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 44 24 ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB");
-		if (CharactersNameAspectRatioInstructionScanResult)
-		{
-			spdlog::info("Characters Name Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), CharactersNameAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::WriteNOPs(CharactersNameAspectRatioInstructionScanResult, 8); // NOP out the original instruction
-			
-			CharactersNameAspectRatioInstructionHook = safetyhook::create_mid(CharactersNameAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "0F 82 ?? ?? ?? ?? 8B 44 24");
+			if (ResolutionScanResult)
 			{
-				ctx.xmm0.f32[0] = fNewAspectRatio;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate character name aspect ratio instruction memory address.");
-			return;
+				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(ResolutionScanResult, 6);
+				Memory::WriteNOPs(ResolutionScanResult + 15, 6);
+				Memory::WriteNOPs(ResolutionScanResult + 33, 2);
+				Memory::WriteNOPs(ResolutionScanResult + 47, 2);
+			}
+			else
+			{
+				spdlog::info("Failed to locate the resolution list unlock scan memory address.");
+				return;
+			}
 		}
 		
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ??",
-		"F3 0F 11 85 ?? ?? ?? ?? 8B 17 89 10 8B 4F ??", "F3 0F 58 05 ?? ?? ?? ?? F3 0F 11 87 ?? ?? ?? ??", "C3 CC CC 8B 44 24 ?? F3 0F 10 44 24 ?? 8D 04 40 C1 E0 ?? F3 0F 11 80 ?? ?? ?? ?? C3 CC CC CC");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		if (Util::stringcmp_caseless(ExeName(), "Dynasty Warriors 4 Hyper.exe") || Util::stringcmp_caseless(ExeName(), "Shin Sangokumusou 3.exe"))
 		{
-			spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[MainMenu] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay1] - (std::uint8_t*)exeModule);			
-
-			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay2] + 8 - (std::uint8_t*)exeModule);
-
-			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Cutscenes] + 19 - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MainMenu], 8);
-
-			MenuFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenu], [](SafetyHookContext& ctx)
+			auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "8B 54 24 ?? 57 8B 7C 24 ?? 89 50", "0F 82 ?? ?? ?? ?? 8B 53");
+			if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 			{
-				CameraFOVInstructionsMidHook(ctx.xmm3.f32[0], ctx.esi + 0x98, FullAngle);
-			});
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay1], 8);
-			
-			GameplayFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay1], [](SafetyHookContext& ctx)
+				m_resolutionWidthHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight] + 5, [](SafetyHookContext& ctx)
+				{
+					s_instance_->m_currentWidth = Memory::ReadMem(ctx.esp + 0x28);
+
+					s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_currentWidth) / static_cast<float>(s_instance_->m_currentHeight);
+					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
+				});
+
+				m_resolutionHeightHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+				{
+					s_instance_->m_currentHeight = Memory::ReadMem(ctx.esp + 0x28);
+				});
+
+				Memory::WriteNOPs(ResolutionScansResult[ResListUnlock], 6);
+				Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 15, 6);
+				Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 33, 2);
+				Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 47, 2);
+			}
+
+			auto CharactersNameAspectRatioScanResult = Memory::PatternScan(ExeModule(), "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 44 24 ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB");
+			if (CharactersNameAspectRatioScanResult)
 			{
-				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.ebp + 0x98, FullAngle, fFOVFactor);
-			});
+				spdlog::info("Characters Name Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), CharactersNameAspectRatioScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay2] + 8, 8);
+				Memory::WriteNOPs(CharactersNameAspectRatioScanResult, 8); // NOP out the original instruction
 
-			GameplayFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay2] + 8, [](SafetyHookContext& ctx)
+				m_charactersNameAspectRatioHook = safetyhook::create_mid(CharactersNameAspectRatioScanResult, [](SafetyHookContext& ctx)
+					{
+						ctx.xmm0.f32[0] = s_instance_->m_newAspectRatio;
+					});
+			}
+			else
 			{
-				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.edi + 0x98, FullAngle, fFOVFactor);
-			});
+				spdlog::error("Failed to locate character name aspect ratio instruction memory address.");
+				return;
+			}
 
-			CutscenesFOVOffset = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[Cutscenes] + 23, Memory::PointerMode::Absolute);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Cutscenes] + 19, 8);
-
-			CutscenesFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cutscenes] + 19, [](SafetyHookContext& ctx)
+			auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ?? F3 0F 10 1D ?? ?? ?? ?? F3 0F 11 9E ?? ?? ?? ??",
+			"F3 0F 11 85 ?? ?? ?? ?? 8B 17 89 10 8B 4F ??", "F3 0F 58 05 ?? ?? ?? ?? F3 0F 11 87 ?? ?? ?? ??", "C3 CC CC 8B 44 24 ?? F3 0F 10 44 24 ?? 8D 04 40 C1 E0 ?? F3 0F 11 80 ?? ?? ?? ?? C3 CC CC CC");
+			if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 			{
-				CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.eax + CutscenesFOVOffset, HalfAngle);
-			});
-		}
+				spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[MainMenu] - (std::uint8_t*)ExeModule());
+
+				spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay1] - (std::uint8_t*)ExeModule());
+
+				spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay2] + 8 - (std::uint8_t*)ExeModule());
+
+				spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Cutscenes] + 19 - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(CameraFOVScansResult[MainMenu], 8);
+
+				m_mainMenuFOVHook = safetyhook::create_mid(CameraFOVScansResult[MainMenu], [](SafetyHookContext& ctx)
+				{
+					s_instance_->CameraFOVInstructionsMidHook(ctx.xmm3.f32[0], ctx.esi + 0x98, FullAngle);
+				});
+
+				Memory::WriteNOPs(CameraFOVScansResult[Gameplay1], 8);
+
+				m_gameplayFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay1], [](SafetyHookContext& ctx)
+				{
+					s_instance_->CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.ebp + 0x98, FullAngle, s_instance_->m_fovFactor);
+				});
+
+				Memory::WriteNOPs(CameraFOVScansResult[Gameplay2] + 8, 8);
+
+				m_gameplayFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay2] + 8, [](SafetyHookContext& ctx)
+				{
+					s_instance_->CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.edi + 0x98, FullAngle, s_instance_->m_fovFactor);
+				});
+
+				m_cutscenesFOVOffset = Memory::GetPointerFromAddress(CameraFOVScansResult[Cutscenes] + 23, Memory::PointerMode::Absolute);
+
+				Memory::WriteNOPs(CameraFOVScansResult[Cutscenes] + 19, 8);
+
+				m_cutscenesFOVHook = safetyhook::create_mid(CameraFOVScansResult[Cutscenes] + 19, [](SafetyHookContext& ctx)
+				{
+					s_instance_->CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.eax + s_instance_->m_cutscenesFOVOffset, HalfAngle);
+				});
+			}
+		}		
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	SafetyHookMid m_resolutionWidthHook{};
+	SafetyHookMid m_resolutionHeightHook{};
+	SafetyHookMid m_charactersNameAspectRatioHook{};
+	SafetyHookMid m_mainMenuFOVHook{};
+	SafetyHookMid m_gameplayFOV1Hook{};
+	SafetyHookMid m_gameplayFOV2Hook{};
+	SafetyHookMid m_cutscenesFOVHook{};
+
+	enum ResolutionInstructionsIndex
 	{
-		WidescreenFix();
+		ResWidthHeight,
+		ResListUnlock
+	};
+
+	enum CameraFOVInstructionsIndex
+	{
+		MainMenu,
+		Gameplay1,
+		Gameplay2,
+		Cutscenes
+	};
+
+	uintptr_t m_cutscenesFOVOffset = 0;
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	int m_currentWidth = 0;
+	int m_currentHeight = 0;
+
+	enum angleMode
+	{
+		FullAngle,
+		HalfAngle
+	};
+
+	void CameraFOVInstructionsMidHook(float& SourceAddress, uintptr_t DestAddress, angleMode AngleMode, float fovFactor = 1.0f)
+	{
+		float& fCurrentCameraFOV = SourceAddress;
+
+		if (AngleMode == FullAngle)
+		{
+			m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale) * fovFactor;
+		}
+		else
+		{
+			m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale, Maths::AngleMode::HalfAngle) * fovFactor;
+		}
+
+		*reinterpret_cast<float*>(DestAddress) = m_newCameraFOV;
 	}
-	return TRUE;
-}
+
+	inline static DW4Fix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<DW4Fix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<DW4Fix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
