@@ -52,7 +52,7 @@ protected:
 
 	void ApplyFix() override
 	{
-		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "8B 4C 24 ?? 81 F9 ?? ?? ?? ?? 56", "8b 0a 89 0d ?? ?? ?? ?? 8b 4a");
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "8B 4C 24 ?? 81 F9 ?? ?? ?? ?? 56", "8B 0A 89 0D ?? ?? ?? ?? 8B 4A");
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
 			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
@@ -76,9 +76,7 @@ protected:
 		BikeSelectionAspectRatioScanResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 56");
 		if (BikeSelectionAspectRatioScanResult)
 		{
-			spdlog::info("Bike Selection Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), BikeSelectionAspectRatioScanResult - (std::uint8_t*)ExeModule());			
-
-			WriteAR();
+			spdlog::info("Bike Selection Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), BikeSelectionAspectRatioScanResult - (std::uint8_t*)ExeModule());
 		}
 		else
 		{
@@ -134,7 +132,13 @@ private:
 	{
 		ResListUnlock,
 		ResWidthHeight
-	};
+	};	
+
+	void WriteAR()
+	{
+		m_newBikeSelectionAspectRatio = 1.0f * m_aspectRatioScale;
+		Memory::Write(BikeSelectionAspectRatioScanResult + 1, m_newBikeSelectionAspectRatio);
+	}
 
 	enum CameraFOVInstructionsIndices
 	{
@@ -149,12 +153,6 @@ private:
 		EAX,
 		ECX
 	};
-
-	void WriteAR()
-	{
-		m_newBikeSelectionAspectRatio = 1.0f * m_aspectRatioScale;
-		Memory::Write(BikeSelectionAspectRatioScanResult + 1, m_newBikeSelectionAspectRatio);
-	}
 
 	void CameraFOVMidHook(uintptr_t FOVAddress, destInstruction DestInstruction, SafetyHookContext& ctx)
 	{
