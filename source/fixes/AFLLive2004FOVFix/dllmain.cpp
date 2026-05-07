@@ -61,11 +61,8 @@ protected:
 			{
 				int& iCurrentWidth = Memory::ReadMem(ctx.edx);
 				int& iCurrentHeight = Memory::ReadMem(ctx.edx + 0x4);
-
 				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
-
-				spdlog::info("Current Resolution: {}x{}", iCurrentWidth, iCurrentHeight);
 			});
 		}
 		else
