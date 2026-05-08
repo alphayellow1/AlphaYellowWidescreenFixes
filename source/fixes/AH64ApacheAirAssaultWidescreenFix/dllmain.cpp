@@ -1,234 +1,407 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-#include <locale>
-#include <string>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "AH64ApacheAirAssaultWidescreenFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class ApacheAirAssaultFix final : public FixBase
 {
-	AH64AAA,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::AH64AAA, {"AH-64 Apache Air Assault", "Apache.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit ApacheAirAssaultFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~ApacheAirAssaultFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::AH64AAA && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "AH64ApacheAirAssaultWidescreenFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.2";
+	}
 
-		std::uint8_t* Resolution1600x1200ScanResult = Memory::PatternScan(exeModule, "BB ?? ?? ?? ?? E8 ?? ?? ?? ?? A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 15");
-		if (Resolution1600x1200ScanResult)
+	const char* TargetName() const override
+	{
+		return "AH-64 Apache Air Assault";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Apache.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "6A ?? BB ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 35 ?? ?? ?? ?? 6A ?? BB ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 35 ?? ?? ?? ?? 6A ?? BB ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 35 ?? ?? ?? ?? 6A ?? BB ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 35 ?? ?? ?? ?? 55",
+		"8B 46 ?? 83 EC ?? 85 C0", "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? EB");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution 1600x1200 Scan: Address is {:s}+{:x}", sExeName.c_str(), Resolution1600x1200ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution List Scroll Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListScroll] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
 
-			static std::string sNewResString = std::to_string(iCurrentResX) + " x " + std::to_string(iCurrentResY) + " x 32";
-
-			const char* cNewResolutionString = sNewResString.c_str();
-
-			Memory::Write(Resolution1600x1200ScanResult + 1, cNewResolutionString);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution 1600x1200 scan memory address.");
-			return;
-		}
-		
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 01 D8 0D ?? ?? ?? ?? DF E0");
-		if (CameraFOVInstructionScanResult)
-		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 2);
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			m_resolutionListUnlockHook = safetyhook::create_mid(ResolutionScansResult[ResListUnlock], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.ecx);
+				constexpr uintptr_t COMBO_PTR_ADDRESS = 0x00588A94;
+				constexpr uintptr_t RETURN_ADDRESS = 0x00471748;
+				constexpr uintptr_t SCAN_CMP_IMM_ADDRESS = 0x004717BC;
+				constexpr int ITEM_STRIDE = 0x100;
+				constexpr int MAX_MODES = 0x7F;
+				constexpr int ITEM_BUFFER_SIZE = MAX_MODES * ITEM_STRIDE;
 
-				fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraHFOV, fAspectRatioScale) * fFOVFactor;
+				constexpr int MAX_VISIBLE_ROWS = 16;
 
-				FPU::FLD(fNewCameraFOV);
+				struct Mode
+				{
+					DWORD width;
+					DWORD height;
+					DWORD bpp;
+				};
+
+				static void* s_item_buffer = nullptr;
+				static int s_resolution_count = 0;
+
+				void* combo = *reinterpret_cast<void**>(COMBO_PTR_ADDRESS);
+
+				if (combo == nullptr)
+				{
+					s_resolution_count = 0;
+					ctx.eip = RETURN_ADDRESS;
+					return;
+				}
+
+				if (!s_item_buffer)
+				{
+					s_item_buffer = VirtualAlloc(nullptr, ITEM_BUFFER_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+				}
+
+				if (!s_item_buffer)
+				{
+					s_resolution_count = 0;
+					ctx.eip = RETURN_ADDRESS;
+					return;
+				}
+
+				std::memset(s_item_buffer, 0, ITEM_BUFFER_SIZE);
+
+				const uintptr_t combo_addr = reinterpret_cast<uintptr_t>(combo);
+
+				// Apache.exe+6B920 uses [esi+10] as the item text buffer
+				*reinterpret_cast<void**>(combo_addr + 0x10) = s_item_buffer;
+
+				std::vector<Mode> modes;
+				modes.reserve(128);
+
+				DEVMODEA dm{};
+				DWORD mode_index = 0;
+
+				while (static_cast<int>(modes.size()) < MAX_MODES)
+				{
+					std::memset(&dm, 0, sizeof(dm));
+					dm.dmSize = sizeof(dm);
+
+					if (EnumDisplaySettingsA(nullptr, mode_index, &dm) == false)
+					{
+						break;
+					}
+
+					++mode_index;
+
+					if (dm.dmPelsWidth == 0 || dm.dmPelsHeight == 0 || dm.dmBitsPerPel == 0)
+					{
+						continue;
+					}
+
+					bool duplicate = false;
+
+					for (const Mode& existing : modes)
+					{
+						if (existing.width == dm.dmPelsWidth && existing.height == dm.dmPelsHeight && existing.bpp == dm.dmBitsPerPel)
+						{
+							duplicate = true;
+							break;
+						}
+					}
+
+					if (duplicate == true)
+					{
+						continue;
+					}
+
+					modes.push_back({dm.dmPelsWidth, dm.dmPelsHeight, dm.dmBitsPerPel});
+				}
+
+				std::sort(modes.begin(), modes.end(), [](const Mode& a, const Mode& b)
+				{
+					if (a.width != b.width)
+					{
+						return a.width < b.width;
+					}
+
+					if (a.height != b.height)
+					{
+						return a.height < b.height;
+					}
+
+					return a.bpp < b.bpp;
+				});
+
+				int index = 0;
+
+				for (const Mode& mode : modes)
+				{
+					if (index >= MAX_MODES)
+					{
+						break;
+					}
+
+					char text[64]{};
+
+					// Matches the game's original parsing format, which is "%i x %i x %i"
+					std::snprintf(text, sizeof(text), "%u x %u x %u", mode.width, mode.height, mode.bpp);
+
+					uint8_t* item_base = *reinterpret_cast<uint8_t**>(combo_addr + 0x10);
+					uint8_t* slot = item_base + index * ITEM_STRIDE;
+
+					std::memset(slot, 0, ITEM_STRIDE);
+
+					strncpy_s(reinterpret_cast<char*>(slot), ITEM_STRIDE, text, _TRUNCATE);
+
+					++index;
+				}
+
+				// If EnumDisplaySettingsA somehow returns nothing, add the currently configured game resolution
+				if (index == 0)
+				{
+					DWORD width = *reinterpret_cast<DWORD*>(0x0058B698);
+					DWORD height = *reinterpret_cast<DWORD*>(0x0058B69C);
+					DWORD bpp = *reinterpret_cast<DWORD*>(0x0058B6A0);
+
+					char text[64]{};
+
+					std::snprintf(text, sizeof(text), "%u x %u x %u", width, height, bpp);
+
+					uint8_t* item_base = *reinterpret_cast<uint8_t**>(combo_addr + 0x10);
+					uint8_t* slot = item_base;
+
+					std::memset(slot, 0, ITEM_STRIDE);
+
+					strncpy_s(reinterpret_cast<char*>(slot), ITEM_STRIDE, text, _TRUNCATE);
+
+					index = 1;
+				}
+
+				s_resolution_count = index;
+
+				*reinterpret_cast<int*>(combo_addr + 0x0C) = s_resolution_count;
+
+				const int visible_rows = std::min(s_resolution_count, MAX_VISIBLE_ROWS);
+				*reinterpret_cast<int*>(combo_addr + 0x1C) = visible_rows;
+
+				// Preserve scroll/start index instead of resetting it every frame.
+				int old_scroll_start = *reinterpret_cast<int*>(combo_addr + 0x14);
+
+				const int max_scroll = std::max(0, s_resolution_count - visible_rows);
+
+				if (old_scroll_start < 0)
+				{
+					old_scroll_start = 0;
+				}
+
+				if (old_scroll_start > max_scroll)
+				{
+					old_scroll_start = max_scroll;
+				}
+
+				*reinterpret_cast<int*>(combo_addr + 0x14) = old_scroll_start;
+
+				const int row_height = *reinterpret_cast<int*>(combo_addr + 0x18);
+				const int top_y = *reinterpret_cast<int*>(combo_addr + 0x28);
+				*reinterpret_cast<int*>(combo_addr + 0x30) = top_y + row_height * visible_rows;
+
+				*reinterpret_cast<int*>(combo_addr + 0x48) = -1;
+
+				int* selected_index = reinterpret_cast<int*>(combo_addr + 0x4C);
+
+				if (*selected_index >= s_resolution_count)
+				{
+					*selected_index = -1;
+				}
+
+				for (int i = 0; i < s_resolution_count; ++i)
+				{
+					const char* entry = reinterpret_cast<const char*>(reinterpret_cast<uintptr_t>(s_item_buffer) + i * ITEM_STRIDE);
+				}
+
+				DWORD old_protect = 0;
+
+				if (VirtualProtect(reinterpret_cast<void*>(SCAN_CMP_IMM_ADDRESS), 1, PAGE_EXECUTE_READWRITE, &old_protect))
+				{
+					*reinterpret_cast<uint8_t*>(SCAN_CMP_IMM_ADDRESS) = static_cast<uint8_t>(s_resolution_count);
+
+					FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(SCAN_CMP_IMM_ADDRESS), 1);
+
+					DWORD ignored = 0;
+
+					VirtualProtect(reinterpret_cast<void*>(SCAN_CMP_IMM_ADDRESS), 1, old_protect, &ignored);
+				}
+
+				ctx.eip = RETURN_ADDRESS; // This skips the original hardcoded 12 resolution block
+			});
+
+			m_resolutionListScrollHook = safetyhook::create_mid(ResolutionScansResult[ResListScroll], [](SafetyHookContext& ctx)
+			{
+				constexpr uintptr_t COMBO_PTR_ADDR = 0x00588A94;
+
+				void* resolution_combo = *reinterpret_cast<void**>(COMBO_PTR_ADDR);
+
+				if (!resolution_combo)
+				{
+					return;
+				}
+
+				if (reinterpret_cast<void*>(ctx.esi) != resolution_combo)
+				{
+					return;
+				}
+
+				const uintptr_t combo_addr = reinterpret_cast<uintptr_t>(resolution_combo);
+
+				int* total_count = reinterpret_cast<int*>(combo_addr + 0x0C);
+				int* scroll_start = reinterpret_cast<int*>(combo_addr + 0x14);
+				int* visible_rows = reinterpret_cast<int*>(combo_addr + 0x1C);
+
+				if (*total_count <= *visible_rows)
+				{
+					return;
+				}
+
+				static DWORD s_last_scroll_tick = 0;
+
+				const DWORD now = GetTickCount();
+
+				if (now - s_last_scroll_tick < 100)
+				{
+					return;
+				}
+
+				int delta = 0;
+				bool jump_top = false;
+				bool jump_bottom = false;
+
+				if (GetAsyncKeyState(VK_UP) & 0x8000)
+				{
+					delta -= 1;
+				}
+
+				if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+				{
+					delta += 1;
+				}
+
+				if (GetAsyncKeyState(VK_PRIOR) & 0x8000)
+				{
+					delta -= *visible_rows;
+				}
+
+				if (GetAsyncKeyState(VK_NEXT) & 0x8000)
+				{
+					delta += *visible_rows;
+				}
+
+				if (GetAsyncKeyState(VK_HOME) & 0x8000)
+				{
+					jump_top = true;
+				}
+
+				if (GetAsyncKeyState(VK_END) & 0x8000)
+				{
+					jump_bottom = true;
+				}
+
+				if (delta == 0 && !jump_top && !jump_bottom)
+				{
+					return;
+				}
+
+				const int max_scroll = std::max(0, *total_count - *visible_rows);
+
+				int new_scroll = *scroll_start;
+
+				if (jump_top)
+				{
+					new_scroll = 0;
+				}
+				else if (jump_bottom)
+				{
+					new_scroll = max_scroll;
+				}
+				else
+				{
+					new_scroll += delta;
+
+					if (new_scroll < 0)
+					{
+						new_scroll = 0;
+					}
+
+					if (new_scroll > max_scroll)
+					{
+						new_scroll = max_scroll;
+					}
+				}
+
+				if (new_scroll != *scroll_start)
+				{
+					*scroll_start = new_scroll;
+
+					*reinterpret_cast<int*>(combo_addr + 0x48) = -1;
+				}
+
+				s_last_scroll_tick = now;
+			});
+
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+			{
+				const int& iCurrentWidth = Memory::ReadRegister(ctx.ecx);
+				const int& iCurrentHeight = Memory::ReadRegister(ctx.edx);
+				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+
+				spdlog::info("Current resolution: {}x{}", iCurrentWidth, iCurrentHeight);
+			});
+		}
+
+		auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "D9 01 D8 0D ?? ?? ?? ?? DF E0");
+		if (CameraFOVScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
+
+			Memory::WriteNOPs(CameraFOVScanResult, 2);
+
+			m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
+			{
+				s_instance_->CameraFOVMidHook(ctx);
 			});
 		}
 		else
@@ -237,38 +410,63 @@ void WidescreenFix()
 			return;
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:	
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	float m_aspectRatioScale = 1.0f;
+
+	SafetyHookMid m_resolutionListUnlockHook{};
+	SafetyHookMid m_resolutionListScrollHook{};
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_cameraFOVHook{};
+
+	enum ResolutionInstructionsIndex
 	{
-		WidescreenFix();
+		ResListUnlock,
+		ResListScroll,
+		ResWidthHeight
+	};
+
+	void CameraFOVMidHook(SafetyHookContext& ctx)
+	{
+		float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx);
+
+		m_newCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, m_aspectRatioScale) * m_fovFactor;
+
+		FPU::FLD(m_newCameraFOV);
 	}
-	return TRUE;
-}
+
+	inline static ApacheAirAssaultFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<ApacheAirAssaultFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<ApacheAirAssaultFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }

@@ -8,10 +8,7 @@
 #include <inipp/inipp.h>
 #include <safetyhook.hpp>
 
-#include <windows.h>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <cstdint>
