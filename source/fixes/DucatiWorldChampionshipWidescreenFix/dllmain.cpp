@@ -84,33 +84,33 @@ protected:
 			return;
 		}
 
-		auto CameraFOVInstructionsScansResult = Memory::PatternScan(ExeModule(), "8B 8E ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? 51",
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "8B 8E ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? 51",
 		"D9 44 24 ?? D8 25 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 25 ?? ?? ?? ?? DE F9 D9 5C 24 ?? D9 05", "8B 86 ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 50");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV1] - (std::uint8_t*)ExeModule());
 
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV2] - (std::uint8_t*)ExeModule());
 
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[FOV3] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV3] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[FOV1], 6);
 
-			m_cameraFOV1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
+			m_cameraFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[FOV1], [](SafetyHookContext& ctx)
 			{
 				s_instance_->CameraFOVMidHook(ctx.esi + 0x1E0, ECX, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 4);
+			Memory::WriteNOPs(CameraFOVScansResult[FOV2], 4);
 
-			m_cameraFOV2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
+			m_cameraFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
 				s_instance_->CameraFOVMidHook(ctx.esp + 0x18, FLD, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV3], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[FOV3], 6);
 
-			m_cameraFOV3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV3], [](SafetyHookContext& ctx)
+			m_cameraFOV3Hook = safetyhook::create_mid(CameraFOVScansResult[FOV3], [](SafetyHookContext& ctx)
 			{
 				s_instance_->CameraFOVMidHook(ctx.esi + 0x1E0, EAX, ctx);
 			});
