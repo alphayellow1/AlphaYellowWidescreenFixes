@@ -1,332 +1,286 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
+#include <shlobj.h>
+#pragma comment(lib, "Shell32.lib")
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "Athens2004WidescreenFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fCurrentCameraFOV;
-float fNewCameraFOV;
-uint8_t* MainMenuResolutionWidthAddress;
-uint8_t* MainMenuResolutionHeightAddress;
-uint8_t* MainMenuBitDepthAddress;
-uint8_t* GameplayResolutionWidthAddress;
-uint8_t* GameplayResolutionHeightAddress;
-uint8_t* GameplayBitDepthAddress;
-
-// Game detection
-enum class Game
+class Athens2004Fix final : public FixBase
 {
-	ATHENS2004,
-	Unknown
-};
-
-enum ResolutionInstructionsIndex
-{
-	MainMenuResolutionScan,
-	GameplayResolutionScan
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::ATHENS2004, {"Athens 2004", "Athens.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
-	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
-	}
-
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+	public:
+		explicit Athens2004Fix(HMODULE selfModule) : FixBase(selfModule)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
-		}
-	}
-
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;		
-}
-
-static SafetyHookMid MainMenuResolutionWidthInstructionHook{};
-static SafetyHookMid MainMenuResolutionHeightInstructionHook{};
-static SafetyHookMid MainMenuBitDepthInstructionHook{};
-static SafetyHookMid GameplayResolutionWidthInstructionHook{};
-static SafetyHookMid GameplayResolutionHeightInstructionHook{};
-static SafetyHookMid GameplayBitDepthInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::ATHENS2004 && bFixActive == true)
-	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "66 A1 ?? ?? ?? ?? 66 8B 0D ?? ?? ?? ?? 66 8B 15 ?? ?? ?? ??", "66 8B 0D ?? ?? ?? ?? 66 A1 ?? ?? ?? ?? 66 8B 15 ?? ?? ?? ??");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
-		{
-			spdlog::info("Main Menu Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuResolutionScan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Gameplay Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[GameplayResolutionScan] - (std::uint8_t*)exeModule);
-
-			MainMenuResolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 2, Memory::PointerMode::Absolute);
-
-			MainMenuResolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 9, Memory::PointerMode::Absolute);
-
-			MainMenuBitDepthAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 16, Memory::PointerMode::Absolute);
-
-			GameplayResolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[GameplayResolutionScan] + 9, Memory::PointerMode::Absolute);
-
-			GameplayResolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[GameplayResolutionScan] + 3, Memory::PointerMode::Absolute);
-
-			GameplayBitDepthAddress = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[GameplayResolutionScan] + 16, Memory::PointerMode::Absolute);			
-
-			MainMenuResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(MainMenuResolutionWidthAddress) = (int16_t)iCurrentResX;
-			});			
-
-			MainMenuResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 6, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(MainMenuResolutionHeightAddress) = (int16_t)iCurrentResY;
-			});			
-
-			MainMenuBitDepthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[MainMenuResolutionScan] + 13, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(MainMenuBitDepthAddress) = (int16_t)32;
-			});			
-
-			GameplayResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan] + 7, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(GameplayResolutionWidthAddress) = (int16_t)iCurrentResX;
-			});			
-
-			GameplayResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(GameplayResolutionHeightAddress) = (int16_t)iCurrentResY;
-			});			
-
-			GameplayBitDepthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScansResult[GameplayResolutionScan] + 13, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(GameplayBitDepthAddress) = (int16_t)32;
-			});
+			s_instance_ = this;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 47 18 E8 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 C1 DA E9 59 59 DF E0");
-		if (CameraFOVInstructionScanResult)
+		~Athens2004Fix() override
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);			
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			if (s_instance_ == this)
 			{
-				float fCurrentCameraFOV = std::bit_cast<float>(ctx.eax);
+				s_instance_ = nullptr;
+			}
+		}
 
-				if (fCurrentCameraFOV == 0.1003965363f || fCurrentCameraFOV == 0.2991908491f || fCurrentCameraFOV == 0.37890625f || fCurrentCameraFOV == 0.3966405988f || fCurrentCameraFOV == 0.7853981853f)
+	protected:
+		const char* FixName() const override
+		{
+			return "Athens2004WidescreenFix";
+		}
+
+		const char* FixVersion() const override
+		{
+			return "1.1";
+		}
+
+		const char* TargetName() const override
+		{
+			return "Athens 2004";
+		}
+
+		InitMode GetInitMode() const override
+		{
+			return InitMode::Direct;
+			// return InitMode::WorkerThread;
+			// return InitMode::ExportedOnly;
+		}
+
+		bool IsCompatibleExecutable(const std::string& exeName) const override
+		{
+			return Util::stringcmp_caseless(exeName, "Athens.exe");
+		}
+
+		void ParseFixConfig(inipp::Ini<char>& ini) override
+		{
+			inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+			spdlog_confparse(m_fovFactor);
+		}
+
+		void ApplyFix() override
+		{
+			auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "56 8B 74 24 ?? 66 8B 06", "83 EC ?? 8B 0D ?? ?? ?? ?? 8B 01", "75 ?? 81 7D ?? ?? ?? ?? ?? 0F 84",
+			"66 89 0D ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 6A");
+			if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
+			{
+				spdlog::info("Resolution Limit Unlock 1 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResLimitUnlock1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution Limit Unlock 2 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResLimitUnlock2] - (std::uint8_t*)ExeModule());
+				spdlog::info("Frontend Resolution Limit Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[FrontendResLimitUnlock] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs((uint8_t*)ResolutionScansResult[ResLimitUnlock1], 95);
+
+				Memory::PatchBytes((uint8_t*)ResolutionScansResult[ResLimitUnlock1], "\xC3");
+
+				Memory::WriteNOPs((uint8_t*)ResolutionScansResult[ResLimitUnlock2], 3);
+
+				Memory::PatchBytes((uint8_t*)ResolutionScansResult[ResLimitUnlock2], "\xC3");
+
+				ReadAthensIniFrontendResolution();
+
+				m_startupFrontendWidthBranchHook = safetyhook::create_mid(ResolutionScansResult[FrontendResLimitUnlock], [](SafetyHookContext& ctx)
 				{
-					fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
-				else
+					uint32_t enumeratedWidth = Memory::ReadMem(ctx.ebp - 0x1C);
+
+					bool widthMatchesIni = enumeratedWidth == static_cast<uint32_t>(s_instance_->m_frontendResX);
+
+					SetZeroFlag(ctx, widthMatchesIni);
+				});
+
+				m_startupFrontendHeightBranchHook = safetyhook::create_mid(ResolutionScansResult[FrontendResLimitUnlock] + 9, [](SafetyHookContext& ctx)
 				{
-					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+					uint32_t enumeratedHeight = Memory::ReadMem(ctx.ebp - 0x18);
+
+					bool heightMatchesIni = enumeratedHeight == static_cast<uint32_t>(s_instance_->m_frontendResY);
+
+					SetZeroFlag(ctx, heightMatchesIni);
+				});
+
+				m_mainMenuResolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+				{
+					uint16_t iCurrentMenuWidth = ctx.eax & 0xFFFF;
+					uint16_t iCurrentMenuHeight = ctx.ecx & 0xFFFF;
+					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentMenuWidth) / static_cast<float>(iCurrentMenuHeight);
+					s_instance_->m_aspectRatioScale = static_cast<float>(s_instance_->m_newAspectRatio) / static_cast<float>(s_instance_->m_oldAspectRatio);
+
+					s_instance_->WriteGlobeFOV();
+				});
+			}
+
+			CameraFOVScanResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 53 8B CE");
+			if (CameraFOVScanResult)
+			{
+				spdlog::info("Globe FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
+				spdlog::info("Gameplay FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), (uint8_t*)ExeModule() + 0x222C - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs((uint8_t*)ExeModule() + 0x222C, 3);
+
+				m_cameraFOVHook = safetyhook::create_mid((uint8_t*)ExeModule() + 0x222C, [](SafetyHookContext& ctx)
+				{
+					s_instance_->CameraFOVMidHook(ctx);
+				});
+			}
+			else
+			{
+				spdlog::error("Failed to locate camera FOV instruction memory address.");
+				return;
+			}
+		}
+
+	private:
+		static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+		float m_aspectRatioScale = 1.0f;
+
+		SafetyHookMid m_startupFrontendWidthBranchHook{};
+		SafetyHookMid m_startupFrontendHeightBranchHook{};
+		SafetyHookMid m_mainMenuResolutionHook{};
+		SafetyHookMid m_cameraFOVHook{};
+
+		int m_frontendResX = 0;
+		int m_frontendResY = 0;
+		static constexpr uint32_t ZF_FLAG = 0x40;
+
+		static constexpr float m_originalGlobeFOV = 0.5235987902f;
+		float m_newGlobeFOV = 0.0f;
+		float m_newGameplayFOV = 0.0f;
+
+		uint8_t* CameraFOVScanResult;
+
+		enum ResolutionInstructionsIndex
+		{		
+			ResLimitUnlock1,
+			ResLimitUnlock2,
+			FrontendResLimitUnlock,
+			ResWidthHeight
+		};
+
+		std::filesystem::path GetAthensIniPath()
+		{
+			PWSTR documentsPath = nullptr;
+
+			HRESULT hr = SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &documentsPath);
+
+			if (FAILED(hr) || documentsPath == nullptr)
+			{
+				spdlog::warn("SHGetKnownFolderPath failed. Falling back to USERPROFILE.");
+
+				char userProfile[MAX_PATH] = {};
+				DWORD result = GetEnvironmentVariableA("USERPROFILE", userProfile, MAX_PATH);
+
+				if (result == 0 || result >= MAX_PATH)
+				{
+					return {};
 				}
 
-				Memory::ReadMem(ctx.edi + 0x18) = fNewCameraFOV;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}
-	}
-}
+				return std::filesystem::path(userProfile) / "Documents" / "ATHENS 2004" / "Athens.ini";
+			}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
+			std::filesystem::path athensIniPath = std::filesystem::path(documentsPath) / "ATHENS 2004" / "Athens.ini";
+
+			CoTaskMemFree(documentsPath);
+
+			return athensIniPath;
+		}
+
+		void ReadAthensIniFrontendResolution()
+		{
+			std::filesystem::path athensIniPath = GetAthensIniPath();
+
+			if (athensIniPath.empty() == true)
+			{
+				spdlog::warn("Could not resolve Athens.ini path. Falling back to default resolution.");
+				m_frontendResX = 640;
+				m_frontendResY = 480;
+				return;
+			}
+
+			if (std::filesystem::exists(athensIniPath) == false)
+			{
+				spdlog::warn("Athens.ini not found at {}. Falling back to default resolution.", athensIniPath.string());
+				m_frontendResX = 640;
+				m_frontendResY = 480;
+				return;
+			}
+
+			inipp::Ini<char> athensIni;
+
+			std::ifstream athensIniFile(athensIniPath);
+			if (!athensIniFile)
+			{
+				spdlog::warn("Could not resolve Athens.ini path. Falling back to default resolution.");
+				m_frontendResX = 640;
+				m_frontendResY = 480;
+				return;
+			}
+
+			athensIni.parse(athensIniFile);
+			athensIni.strip_trailing_comments();
+
+			bool gotWidth = inipp::get_value(athensIni.sections["Video"], "Frontend Width", m_frontendResX);
+			bool gotHeight = inipp::get_value(athensIni.sections["Video"], "Frontend Height", m_frontendResY);
+
+			if (!gotWidth || !gotHeight || m_frontendResX <= 0 || m_frontendResY <= 0)
+			{
+				spdlog::warn("Could not resolve Athens.ini path. Falling back to default resolution.");
+				m_frontendResX = 640;
+				m_frontendResY = 480;
+			}
+		}
+
+		static void SetZeroFlag(SafetyHookContext& ctx, bool value)
+		{
+			if (value)
+			{
+				ctx.eflags |= ZF_FLAG;
+			}
+			else
+			{
+				ctx.eflags &= ~ZF_FLAG;
+			}
+		}
+
+		void CameraFOVMidHook(SafetyHookContext& ctx)
+		{
+			float& fCurrentCameraFOV = Memory::ReadMem(ctx.edi + 0x70);
+
+			m_newGameplayFOV = fCurrentCameraFOV * m_fovFactor;
+
+			FPU::FLD(m_newGameplayFOV);
+		}
+
+		void WriteGlobeFOV()
+		{
+			m_newGlobeFOV = Maths::CalculateNewFOV_RadBased(m_originalGlobeFOV, m_aspectRatioScale, Maths::AngleMode::FullAngle);
+
+			Memory::Write(CameraFOVScanResult + 1, m_newGlobeFOV);
+		}
+
+		inline static Athens2004Fix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<Athens2004Fix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<Athens2004Fix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
