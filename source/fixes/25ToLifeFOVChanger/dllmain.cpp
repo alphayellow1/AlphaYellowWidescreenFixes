@@ -65,7 +65,7 @@ protected:
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult, Hipfire, Zoom, 0, 3);
 
-			HipfireFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Hipfire], [](SafetyHookContext& ctx)
+			m_hipfireFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Hipfire], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentHipfireFOV = Memory::ReadMem(ctx.eax + 0x1C);
 
@@ -74,7 +74,7 @@ protected:
 				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newHipfireFOV);
 			});
 
-			ZoomFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Zoom], [](SafetyHookContext& ctx)
+			m_zoomFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Zoom], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentZoomFOV = Memory::ReadMem(ctx.eax + 0x1C);
 
@@ -92,8 +92,8 @@ private:
 		Zoom
 	};
 
-	SafetyHookMid HipfireFOVHook{};
-	SafetyHookMid ZoomFOVHook{};
+	SafetyHookMid m_hipfireFOVHook{};
+	SafetyHookMid m_zoomFOVHook{};
 
 	float m_hipfireFOVFactor = 0.0f;
 	float m_zoomFactor = 0.0f;
@@ -114,11 +114,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		DisableThreadLibraryCalls(hModule);
-
 		g_fix = std::make_unique<TwentyFiveToLifeFix>(hModule);
-
 		g_fix->Start();
-
 		break;
 	}
 

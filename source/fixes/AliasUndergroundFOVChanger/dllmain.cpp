@@ -1,192 +1,73 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE dllModule2 = nullptr;
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "AliasUndergroundFOVChanger";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-double dFOVFactor;
-
-// Variables
-double dNewCameraFOV;
-
-// Game detection
-enum class Game
+class AliasUndergroundFix final : public FixBase
 {
-	AU,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::AU, {"Alias: Underground", "javaw.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit AliasUndergroundFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVChanger"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", dFOVFactor);
-	spdlog_confparse(dFOVFactor);
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
+	~AliasUndergroundFix() override
 	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void FOVChanger()
-{
-	if (eGameType == Game::AU && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		dllModule2 = Memory::GetHandle("dmdx7.dll");
+		return "AliasUndergroundFOVChanger";
+	}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "DD 84 24 ?? ?? ?? ?? DC 0D");
+	const char* FixVersion() const override
+	{
+		return "1.1";
+	}
+
+	const char* TargetName() const override
+	{
+		return "Alias: Underground";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "javaw.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		m_dllModule = Memory::GetHandle("dmdx7.dll");
+
+		auto CameraFOVInstructionScanResult = Memory::PatternScan(m_dllModule, "DD 84 24 ?? ?? ?? ?? DC 0D");
 		if (CameraFOVInstructionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is dmdx7.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is dmdx7.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)m_dllModule);
 
 			Memory::WriteNOPs(CameraFOVInstructionScanResult, 7);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			m_cameraFOVHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
 			{
 				double& dCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0xD4);
 
-				dNewCameraFOV = dCurrentCameraFOV * dFOVFactor;
+				s_instance_->m_newCameraFOV = dCurrentCameraFOV * s_instance_->m_fovFactor;
 
-				FPU::FLD(dNewCameraFOV);
+				FPU::FLD(s_instance_->m_newCameraFOV);
 			});
 		}
 		else
@@ -195,38 +76,46 @@ void FOVChanger()
 			return;
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVChanger();
-	}
-	return TRUE;
-}
+private:
+	HMODULE m_dllModule = nullptr;
+
+	SafetyHookMid m_cameraFOVHook{};
+
+	double m_newCameraFOV = 0.0;
+	double m_fovFactor = 0.0;
+
+	inline static AliasUndergroundFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<AliasUndergroundFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<AliasUndergroundFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
