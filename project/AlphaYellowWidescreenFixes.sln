@@ -1179,6 +1179,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AFLLivePremiershipEditionFO
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AirportTycoon3WidescreenFix", "AirportTycoon3WidescreenFix.vcxproj", "{92CE65B7-D4A7-4FA4-BC63-6223D9D44311}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TigerHuntWidescreenFix", "TigerHuntWidescreenFix.vcxproj", "{18212280-9C12-4E20-8187-06ED3DAF90E0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5875,6 +5877,14 @@ Global
 		{92CE65B7-D4A7-4FA4-BC63-6223D9D44311}.Release|x64.Build.0 = Release|x64
 		{92CE65B7-D4A7-4FA4-BC63-6223D9D44311}.Release|x86.ActiveCfg = Release|Win32
 		{92CE65B7-D4A7-4FA4-BC63-6223D9D44311}.Release|x86.Build.0 = Release|Win32
+		{18212280-9C12-4E20-8187-06ED3DAF90E0}.Debug|x64.ActiveCfg = Debug|x64
+		{18212280-9C12-4E20-8187-06ED3DAF90E0}.Debug|x64.Build.0 = Debug|x64
+		{18212280-9C12-4E20-8187-06ED3DAF90E0}.Debug|x86.ActiveCfg = Debug|Win32
+		{18212280-9C12-4E20-8187-06ED3DAF90E0}.Debug|x86.Build.0 = Debug|Win32
+		{18212280-9C12-4E20-8187-06ED3DAF90E0}.Release|x64.ActiveCfg = Release|x64
+		{18212280-9C12-4E20-8187-06ED3DAF90E0}.Release|x64.Build.0 = Release|x64
+		{18212280-9C12-4E20-8187-06ED3DAF90E0}.Release|x86.ActiveCfg = Release|Win32
+		{18212280-9C12-4E20-8187-06ED3DAF90E0}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6466,6 +6476,7 @@ Global
 		{F2D91BF6-12E2-4E57-82E3-4C3FAA97CB26} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{E5DEC37B-03AA-4B91-9D4E-4A8225FDA4BD} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{92CE65B7-D4A7-4FA4-BC63-6223D9D44311} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{18212280-9C12-4E20-8187-06ED3DAF90E0} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
