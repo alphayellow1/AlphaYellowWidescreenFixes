@@ -1,274 +1,208 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-#include <cmath>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-
-// Fix details
-std::string sFixName = "AlphaBlackZeroIntrepidProtocolFOVFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class AlphaBlackZeroFix final : public FixBase
 {
-	ABZIP,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::ABZIP, {"Alpha Black Zero: Intrepid Protocol", "Abz.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit AlphaBlackZeroFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~AlphaBlackZeroFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	bool bGameFound = false;
-
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			bGameFound = true;
-			break;
+			s_instance_ = nullptr;
 		}
 	}
 
-	if (bGameFound == false)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		return "AlphaBlackZeroIntrepidProtocolFOVFix";
 	}
 
-	dllModule2 = Memory::GetHandle("Engine.dll");
-
-	return true;
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void FOVFix()
-{
-	if (eGameType == Game::ABZIP && bFixActive == true)
+	const char* FixVersion() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "1.2";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* TargetName() const override
+	{
+		return "Alpha Black Zero: Intrepid Protocol";
+	}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 83 94 01 00 00 D8 0D ?? ?? ?? ?? 89 8B 28 01 00 00 8B 4D E0 8D 93 28 01 00 00 89 4A 04");
-		if (CameraFOVInstructionScanResult)
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Abz.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "HipfireFOVFactor", m_hipfireFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "ZoomFactor", m_zoomFactor);
+		spdlog_confparse(m_hipfireFOVFactor);
+		spdlog_confparse(m_zoomFactor);
+	}
+
+	void ApplyFix() override
+	{
+		m_dllModule2 = Memory::GetHandle("Engine.dll");
+		m_dllModule3 = Memory::GetHandle("EntitiesMP.dll");
+		m_dllModule2Name = Memory::GetModuleName(m_dllModule2);
+		m_dllModule3Name = Memory::GetModuleName(m_dllModule3);
+
+		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 45 ?? 8B 55 ?? 8B 4D ?? A3");
+		if (ResolutionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is Engine.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);			
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ebx + 0x194);
-
-				if (fCurrentCameraFOV == 78.0f)
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-				}
-				else
-				{
-					fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale);
-				}
-
-				FPU::FLD(fNewCameraFOV);
+				int& iCurrentWidth = Memory::ReadMem(ctx.ebp + 0x10);
+				int& iCurrentHeight = Memory::ReadMem(ctx.ebp + 0x14);
+				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
-	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
+		auto CameraFOVScansResult = Memory::PatternScan(m_dllModule2, "8B 8A 94 01 00 00 89 88 94 01 00 00 8B 8A 98 01 00 00 89 88 98 01 00 00 8B 8A 9C 01 00 00 89 88 9C 01 00 00 8B 8A A0 01 00 00 89 88 A0 01 00 00 8B 8A A4 01 00 00 89 88 A4 01 00 00 8B 8A A8 01 00 00 89 88 A8 01 00 00 81 C2 AC 01 00 00 8B 32 8D 88 AC 01 00 00 89 31 8B 72 04 89 71 04 8B 72 08 89 71 08 8B 52 0C 5F 89 51 0C 5E 5D C2 04 00 90 90 90 90 90 90 90 90 90 90 90 90 90 56",
+		m_dllModule3, "68 ?? ?? ?? ?? 8D B3", "C7 45 ?? ?? ?? ?? ?? EB ?? 8B CE E8 ?? ?? ?? ?? D9 5D", "68 ?? ?? ?? ?? 8D 8B ?? ?? ?? ?? E8", "A1 ?? ?? ?? ?? 89 46 ?? 5F",
+		"D9 81 ?? ?? ?? ?? E8");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
+		{
+			spdlog::info("Overall FOV Instruction: Address is {:s}+{:x}", m_dllModule2Name.c_str(), CameraFOVScansResult[Overall] - (std::uint8_t*)m_dllModule2);
+			spdlog::info("Hipfire FOV Instruction 1: Address is {:s}+{:x}", m_dllModule3Name.c_str(), CameraFOVScansResult[Hipfire1] - (std::uint8_t*)m_dllModule3);
+			spdlog::info("Hipfire FOV Instruction 2: Address is {:s}+{:x}", m_dllModule3Name.c_str(), CameraFOVScansResult[Hipfire2] - (std::uint8_t*)m_dllModule3);
+			spdlog::info("Hipfire FOV Instruction 3: Address is {:s}+{:x}", m_dllModule3Name.c_str(), CameraFOVScansResult[Hipfire3] - (std::uint8_t*)m_dllModule3);
+			spdlog::info("Hipfire FOV Instruction 4: Address is {:s}+{:x}", m_dllModule3Name.c_str(), CameraFOVScansResult[Hipfire4] - (std::uint8_t*)m_dllModule3);
+			spdlog::info("Weapon Zoom Instruction: Address is {:s}+{:x}", m_dllModule3Name.c_str(), CameraFOVScansResult[Zoom] - (std::uint8_t*)m_dllModule3);
+
+			Memory::WriteNOPs(CameraFOVScansResult[Overall], 6);
+
+			m_overallFOVHook = safetyhook::create_mid(CameraFOVScansResult[Overall], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentOverallFOV = Memory::ReadMem(ctx.edx + 0x194);
+
+				if (fCurrentOverallFOV != s_instance_->m_newOverallFOV)
+				{
+					s_instance_->m_newOverallFOV = Maths::CalculateNewFOV_DegBased(fCurrentOverallFOV, s_instance_->m_aspectRatioScale);
+				}				
+
+				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newOverallFOV);
+			});
+
+			m_newHipfireFOV = m_originalHipfireFOV * m_hipfireFOVFactor;
+
+			Memory::Write(CameraFOVScansResult[Hipfire1] + 1, m_newHipfireFOV);
+			Memory::Write(CameraFOVScansResult[Hipfire2] + 3, m_newHipfireFOV);
+			Memory::Write(CameraFOVScansResult[Hipfire3] + 1, m_newHipfireFOV);
+
+			HipfireFOV4Address = Memory::GetPointerFromAddress(CameraFOVScansResult[Hipfire4] + 1, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVScansResult[Hipfire4], 5);
+
+			m_hipfireFOV4Hook = safetyhook::create_mid(CameraFOVScansResult[Hipfire4], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentHipfireFOV4 = Memory::ReadMem(s_instance_->HipfireFOV4Address);
+
+				s_instance_->m_newHipfireFOV4 = fCurrentHipfireFOV4 * s_instance_->m_hipfireFOVFactor;
+
+				ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newHipfireFOV4);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[Zoom], 6);
+
+			m_zoomFOVHook = safetyhook::create_mid(CameraFOVScansResult[Zoom], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentZoomFOV = Memory::ReadMem(ctx.ecx + 0xD8);
+
+				s_instance_->m_newZoomFOV = fCurrentZoomFOV / s_instance_->m_zoomFactor;
+
+				FPU::FLD(s_instance_->m_newZoomFOV);
+			});
+		}
 	}
-	return TRUE;
-}
+
+private:
+	HMODULE m_dllModule2 = nullptr;
+	HMODULE m_dllModule3 = nullptr;
+	std::string m_dllModule2Name;
+	std::string m_dllModule3Name;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_overallFOVHook{};
+	SafetyHookMid m_hipfireFOV4Hook{};
+	SafetyHookMid m_zoomFOVHook{};
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	
+	float m_aspectRatioScale = 1.0f;
+	float m_newAspectRatio2 = 0.0f;	
+
+	static constexpr float m_originalHipfireFOV = 78.0f;
+	uintptr_t HipfireFOV4Address = 0;
+	float m_newOverallFOV = 0.0f;
+	float m_newHipfireFOV = 0.0f;
+	float m_newHipfireFOV4 = 0.0f;
+	float m_newZoomFOV = 0.0f;
+
+	float m_hipfireFOVFactor = 0.0f;
+	float m_zoomFactor = 0.0f;
+
+	enum CameraFOVInstructionsIndices
+	{
+		Overall,
+		Hipfire1,
+		Hipfire2,
+		Hipfire3,
+		Hipfire4,
+		Zoom
+	};	
+
+	inline static AlphaBlackZeroFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<AlphaBlackZeroFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<AlphaBlackZeroFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }

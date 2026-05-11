@@ -66,14 +66,14 @@ protected:
 			});
 		}
 
-		auto AspectRatioInstructionScanResult = Memory::PatternScan(ExeModule(), "D9 05 ?? ?? ?? ?? D8 35");
-		if (AspectRatioInstructionScanResult)
+		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "D9 05 ?? ?? ?? ?? D8 35");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);			
+			Memory::WriteNOPs(AspectRatioScanResult, 6);			
 
-			m_aspectRatioHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_newAspectRatio2 = 1.0f / s_instance_->m_aspectRatioScale;
 
@@ -86,14 +86,14 @@ protected:
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? B9");
-		if (CameraFOVInstructionScanResult)
+		auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? B9");
+		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
 			m_newCameraFOV = (uint32_t)(m_originalCameraFOV / m_fovFactor);
 
-			Memory::Write(CameraFOVInstructionScanResult + 1, m_newCameraFOV);
+			Memory::Write(CameraFOVScanResult + 1, m_newCameraFOV);
 		}
 		else
 		{
