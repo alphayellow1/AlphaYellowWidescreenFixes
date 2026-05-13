@@ -1,390 +1,265 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "SplatMagazineRenegadePaintballFOVFix";
-std::string sFixVersion = "1.2";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fCameraFOVFactor;
-float fWeaponFOVFactor;
-float fZoomFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-uintptr_t CameraZoomAddress;
-
-// Game detection
-enum class Game
+class RenegadePaintballFix final : public FixBase
 {
-	SMRP,
-	Unknown
-};
-
-enum CameraFOVInstructionsIndex
-{
-	Briefing,
-	Hipfire1,
-	Hipfire2,
-	Zoom,
-	Weapon
-};
-
-enum AspectRatioInstructionsIndex
-{
-	AR1,
-	AR2,
-	AR3,
-	AR4,
-	AR5,
-	AR6,
-	AR7,
-	AR8,
-	AR9,
-	AR10,
-	AR11
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::SMRP, {"SPLAT Magazine: Renegade Paintball", "PaintballGame.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit RenegadePaintballFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "CameraFOVFactor", fCameraFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", fWeaponFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "ZoomFactor", fZoomFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fCameraFOVFactor);
-	spdlog_confparse(fWeaponFOVFactor);
-	spdlog_confparse(fZoomFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~RenegadePaintballFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid BriefingCameraFOVInstructionHook{};
-static SafetyHookMid HipfireCameraFOVInstruction1Hook{};
-static SafetyHookMid HipfireCameraFOVInstruction2Hook{};
-static SafetyHookMid WeaponFOVInstructionHook{};
-static SafetyHookMid CameraZoomFOVInstructionHook{};
-
-enum DestInstruction
-{
-	FLD,
-	ECX
-};
-
-void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor, DestInstruction destInstruction, SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
-
-	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
-
-	switch (destInstruction)
+protected:
+	const char* FixName() const override
 	{
-		case FLD:
-		{
-			FPU::FLD(fNewCameraFOV);
-			break;
-		}
-
-		case ECX:
-		{
-			ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
-			break;
-		}
+		return "SplatMagazineRenegadePaintballFOVFix";
 	}
-}
 
-void FOVFix()
-{
-	if (eGameType == Game::SMRP && bFixActive == true)
+	const char* FixVersion() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "1.3";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* TargetName() const override
+	{
+		return "Splat Magazine Renegade Paintball";
+	}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 40 ?? 8B 86 ?? ?? ?? ?? D9 50", "D9 83 ?? ?? ?? ?? 8D 44 24 ?? D9 83 ?? ?? ?? ?? 50",
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "PaintballGame.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "HipfireFOVFactor", m_hipfireFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", m_weaponFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "ZoomFactor", m_zoomFactor);
+		spdlog_confparse(m_hipfireFOVFactor);
+		spdlog_confparse(m_weaponFOVFactor);
+		spdlog_confparse(m_zoomFactor);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "6A ?? 89 74 24 ?? FF 15", "8B 8C 24 ?? ?? ?? ?? 8B BC 24 ?? ?? ?? ?? 89 0E");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
+		{
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
+
+			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock], 303);
+
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+			{
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x148);
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x14C);
+				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
+
+				s_instance_->WriteAR();
+			});
+		}
+
+		AspectRatioScansResult = Memory::PatternScan(ExeModule(), "C7 40 ?? ?? ?? ?? ?? DD 05 ?? ?? ?? ?? C7 40 ?? ?? ?? ?? ?? D9 F2 50 DD D8 D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FE D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FF D9 98 ?? ?? ?? ?? C7 40",
+		"C7 43 ?? ?? ?? ?? ?? 8B 80", "C7 42 ?? ?? ?? ?? ?? 8B 06 8B 54 24", "C7 41 ?? ?? ?? ?? ?? EB ?? A1", "C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C6 84 24 ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? E8",
+		"C7 40 ?? ?? ?? ?? ?? DD 05 ?? ?? ?? ?? C7 40 ?? ?? ?? ?? ?? D9 F2 50 DD D8 D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FE D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FF D9 98 ?? ?? ?? ?? 8B C5", "C7 41 ?? ?? ?? ?? ?? 8B 55 ?? 8D 86", "C7 40 ?? ?? ?? ?? ?? 8B 45 ?? 8B 54 24",
+		"C7 43 ?? ?? ?? ?? ?? D8 0D", "C7 42 ?? ?? ?? ?? ?? 8B C8");
+		if (Memory::AreAllSignaturesValid(AspectRatioScansResult) == true)
+		{
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR3] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR4] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 5: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR5] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 6: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR6] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 7: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR7] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 8: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR8] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 9: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR9] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 10: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR10] - (std::uint8_t*)ExeModule());
+		}
+
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D9 40 ?? 8B 86 ?? ?? ?? ?? D9 50", "D9 83 ?? ?? ?? ?? 8D 44 24 ?? D9 83 ?? ?? ?? ?? 50",
 		"D9 83 ?? ?? ?? ?? 50", "D9 05 ?? ?? ?? ?? D8 64 24 ?? 5F", "8B 48 ?? 33 C0 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 89 44 24 ?? 8B 44 F2");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Briefing Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Briefing] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Hipfire Camera FOV Instruction 1: Address is{:s} + {:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Hipfire1] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Hipfire Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Hipfire2] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Camera Zoom FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Zoom] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Weapon] - (std::uint8_t*)exeModule);
+			spdlog::info("Briefing Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Briefing] - (std::uint8_t*)ExeModule());
+			spdlog::info("Hipfire Camera FOV Instruction 1: Address is{:s} + {:x}", ExeName().c_str(), CameraFOVScansResult[Hipfire1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Hipfire Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Hipfire2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Zoom FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Zoom] - (std::uint8_t*)ExeModule());
+			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Weapon] - (std::uint8_t*)ExeModule());
 
 			// Briefing Camera FOV
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Briefing], 3);
+			Memory::WriteNOPs(CameraFOVScansResult[Briefing], 3);
 
-			BriefingCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Briefing], [](SafetyHookContext& ctx)
+			m_briefingFOVHook = safetyhook::create_mid(CameraFOVScansResult[Briefing], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.eax + 0x4, 1.0f, FLD, ctx);
+				s_instance_->CameraFOVMidHook(ctx.eax + 0x4, 1.0f, FLD, ctx);
 			});
 
 			// Hipfire Camera FOV 1
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Hipfire1], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[Hipfire1], 6);
 
-			HipfireCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Hipfire1], [](SafetyHookContext& ctx)
+			m_hipfireFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Hipfire1], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.ebx + 0x19C, fCameraFOVFactor, FLD, ctx);
+				s_instance_->CameraFOVMidHook(ctx.ebx + 0x19C, s_instance_->m_hipfireFOVFactor, FLD, ctx);
 			});
 
 			// Hipfire Camera FOV 2
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Hipfire2], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[Hipfire2], 6);
 
-			HipfireCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Hipfire2], [](SafetyHookContext& ctx)
+			m_hipfireFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Hipfire2], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.ebx + 0x19C, fCameraFOVFactor, FLD, ctx);
+				s_instance_->CameraFOVMidHook(ctx.ebx + 0x19C, s_instance_->m_hipfireFOVFactor, FLD, ctx);
 			});
 
 			// Camera Zoom FOV
-			CameraZoomAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[Zoom] + 2, Memory::PointerMode::Absolute);
+			m_cameraZoomAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[Zoom] + 2, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Zoom], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[Zoom], 6);
 
-			CameraZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Zoom], [](SafetyHookContext& ctx)
+			m_ZoomFOVHook = safetyhook::create_mid(CameraFOVScansResult[Zoom], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(CameraZoomAddress, 1.0f / fZoomFactor, FLD, ctx);
+				s_instance_->CameraFOVMidHook(s_instance_->m_cameraZoomAddress, 1.0f / s_instance_->m_zoomFactor, FLD, ctx);
 			});
 
 			// Weapon FOV
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Weapon], 3);
+			Memory::WriteNOPs(CameraFOVScansResult[Weapon], 3);
 
-			WeaponFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Weapon], [](SafetyHookContext& ctx)
+			m_weaponFOVHook = safetyhook::create_mid(CameraFOVScansResult[Weapon], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.eax + 0x4, fWeaponFOVFactor, ECX, ctx);
+				s_instance_->CameraFOVMidHook(ctx.eax + 0x4, s_instance_->m_weaponFOVFactor, ECX, ctx);
 			});
 		}
+	}
 
-		std::vector<std::uint8_t*> AspectRatioScansResult = Memory::PatternScan(exeModule, "C7 40 ?? ?? ?? ?? ?? DD 05 ?? ?? ?? ?? C7 40 ?? ?? ?? ?? ?? D9 F2 50 DD D8 D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FE D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FF D9 98 ?? ?? ?? ?? C7 40",
-		"C7 43 ?? ?? ?? ?? ?? 8B 80", "C7 42 ?? ?? ?? ?? ?? 8B 06 8B 54 24", "C7 41 ?? ?? ?? ?? ?? EB ?? A1", "C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C6 84 24 ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? C7 84 24 ?? ?? ?? ?? ?? ?? ?? ?? E8",
-		"C7 40 ?? ?? ?? ?? ?? DD 05 ?? ?? ?? ?? C7 40 ?? ?? ?? ?? ?? D9 F2 50 DD D8 D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FE D9 98 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? D9 FF D9 98 ?? ?? ?? ?? 8B C5", "C7 41 ?? ?? ?? ?? ?? 8B 55 ?? 8D 86", "C7 40 ?? ?? ?? ?? ?? 8B 45 ?? 8B 54 24",
-		"C7 43 ?? ?? ?? ?? ?? D8 0D", "C7 42 ?? ?? ?? ?? ?? 8B C8", "6C 16 AD 3F AB AA AA 3F 35 58 A8 3F");
-		if (Memory::AreAllSignaturesValid(AspectRatioScansResult) == true)
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	std::vector<std::uint8_t*> AspectRatioScansResult;
+
+	float m_hipfireFOVFactor = 0.0f;
+	float m_weaponFOVFactor = 0.0f;
+	float m_zoomFactor = 0.0f;
+
+	uintptr_t m_cameraZoomAddress = 0;
+
+	SafetyHookMid m_resolutionHook{};	
+	SafetyHookMid m_briefingFOVHook{};
+	SafetyHookMid m_hipfireFOV1Hook{};
+	SafetyHookMid m_hipfireFOV2Hook{};
+	SafetyHookMid m_ZoomFOVHook{};
+	SafetyHookMid m_weaponFOVHook{};
+
+	enum DestInstruction
+	{
+		FLD,
+		ECX
+	};
+
+	enum ResolutionInstructionsIndex
+	{
+		ResListUnlock,
+		ResWidthHeight
+	};
+
+	enum AspectRatioInstructionsIndex
+	{
+		AR1,
+		AR2,
+		AR3,
+		AR4,
+		AR5,
+		AR6,
+		AR7,
+		AR8,
+		AR9,
+		AR10
+	};
+
+	enum CameraFOVInstructionsIndex
+	{
+		Briefing,
+		Hipfire1,
+		Hipfire2,
+		Zoom,
+		Weapon
+	};
+
+	void CameraFOVMidHook(uintptr_t FOVAddress, float fovFactor, DestInstruction destInstruction, SafetyHookContext& ctx)
+	{
+		float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
+
+		m_newCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, m_aspectRatioScale) * fovFactor;
+
+		switch (destInstruction)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR1] - (std::uint8_t*)exeModule);
+			case FLD:
+			{
+				FPU::FLD(m_newCameraFOV);
+				break;
+			}
 
-			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR2] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR3] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR4] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR5] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR6] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio Instruction 7: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR7] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio Instruction 8: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR8] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio Instruction 9: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR9] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio Instruction 10: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR10] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio 11: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScansResult[AR11] + 4 - (std::uint8_t*)exeModule);
-
-			Memory::Write(AspectRatioScansResult, AR1, AR4, 3, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AR5] + 7, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult, AR6, AR10, 3, fNewAspectRatio);
-
-			Memory::Write(AspectRatioScansResult[AR11] + 4, fNewAspectRatio);
+			case ECX:
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(m_newCameraFOV);
+				break;
+			}
 		}
 	}
-}
-
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+	
+	void WriteAR()
 	{
-		FOVFix();
+		Memory::Write(AspectRatioScansResult, AR1, AR4, 3, m_newAspectRatio);
+		Memory::Write(AspectRatioScansResult[AR5] + 7, m_newAspectRatio);
+		Memory::Write(AspectRatioScansResult, AR6, AR10, 3, m_newAspectRatio);
 	}
-	return TRUE;
-}
+
+	inline static RenegadePaintballFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<RenegadePaintballFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<RenegadePaintballFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
