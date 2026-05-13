@@ -1,382 +1,188 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-
-// Fix details
-std::string sFixName = "BassProShopsTrophyHunter2007WidescreenFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalBulletCameraFOV1 = 90.0f;
-constexpr float fOriginalBulletCameraFOV2 = 95.0f;
-
-// Variables
-int iCurrentResX;
-int iCurrentResY;
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fFOVFactor;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
-float fNewCameraFOV3;
-float fNewCameraFOV4;
-float fNewWeaponFOV;
-float fNewBulletCameraFOV1;
-float fNewBulletCameraFOV2;
-
-// Game detection
-enum class Game
+class BassProShops2007Fix final : public FixBase
 {
-	BPSTH2007,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::BPSTH2007, {"Bass Pro Shops: Trophy Hunter 2007", "BPS Trophy Hunter 2007.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit BassProShops2007Fix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~BassProShops2007Fix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid ResolutionWidthInstructionHook{};
-static SafetyHookMid ResolutionHeightInstructionHook{};
-
-static SafetyHookMid WeaponFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::BPSTH2007 && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "BassProShopsTrophyHunter2007WidescreenFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.1";
+	}
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "89 41 1C 8B 44 24 0C 89 51 20 89 41 24 C2 0C 00 CC CC CC CC");
-		if (ResolutionInstructionsScanResult)
+	const char* TargetName() const override
+	{
+		return "Bass Pro Shops Trophy Hunter 2007";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "BPS Trophy Hunter 2007.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "C6 44 38 ?? ?? 8B 8E", "8B 44 24 ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 89 81");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(ResolutionInstructionsScanResult, 3);			
+			Memory::Write(ResolutionScansResult[ResListUnlock] + 4, m_validResolution);
 
-			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-				Memory::ReadMem(ctx.ecx + 0x1C) = iCurrentResX;
-			});
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x4);
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x8);
+				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
 
-			Memory::WriteNOPs(ResolutionInstructionsScanResult + 7, 3);			
-
-			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 7, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ctx.ecx + 0x20) = iCurrentResY;
+				s_instance_->WriteCharacterAndProjectileFOVs();
 			});
 		}
-		else
-		{
-			spdlog::info("Cannot locate the resolution instructions scan memory address.");
-			return;
-		}
 
-		std::uint8_t* CameraFOVInstruction1ScanResult = Memory::PatternScan(exeModule, "68 00 00 8C 42 51 89 85 08 01 00 00 8B 0D ?? ?? ?? ??");
-		if (CameraFOVInstruction1ScanResult)
+		CameraFOVScansResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 51 89 85", "68 ?? ?? ?? ?? 51 8B CC 89 64 24 ?? 51", "68 ?? ?? ?? ?? 8B CD E8 ?? ?? ?? ?? 50",
+		"C7 44 24 ?? ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 44 24 ?? DA E9 DF E0 F6 C4 ?? 7A ?? C7 44 24", "D9 81 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC 56",
+		"C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? 88 86", "C7 46 ?? ?? ?? ?? ?? 89 48 ?? 8B 15");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction1ScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("First Person Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FirstPerson1] - (std::uint8_t*)ExeModule());
+			spdlog::info("First Person Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FirstPerson2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Third Person Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[ThirdPerson1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Third Person Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[ThirdPerson2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Weapon] - (std::uint8_t*)ExeModule());
+			spdlog::info("Projectile Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[ProjectileView1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Projectile Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[ProjectileView2] - (std::uint8_t*)ExeModule());			
 
-			fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(70.0f, fAspectRatioScale) * fFOVFactor;
+			Memory::WriteNOPs(CameraFOVScansResult[Weapon], 6);
 
-			Memory::Write(CameraFOVInstruction1ScanResult + 1, fNewCameraFOV1);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the camera FOV instruction 1 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "68 00 00 70 42 8B CD E8 ?? ?? ?? ?? 50 8B CD");
-		if (CameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
-
-			fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(70.0f, fAspectRatioScale) * fFOVFactor;
-
-			Memory::Write(CameraFOVInstruction2ScanResult + 1, fNewCameraFOV2);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the camera FOV instruction 2 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstruction3ScanResult = Memory::PatternScan(exeModule, "68 00 00 8C 42 51 8B CC 89 64 24 28 51 8B 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 33 D2 8A 95 C7 00 00 00");
-		if (CameraFOVInstruction3ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction3ScanResult - (std::uint8_t*)exeModule);
-			
-			fNewCameraFOV3 = Maths::CalculateNewFOV_DegBased(70.0f, fAspectRatioScale);
-			
-			Memory::Write(CameraFOVInstruction3ScanResult + 1, fNewCameraFOV3);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the camera FOV instruction 3 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstruction4ScanResult = Memory::PatternScan(exeModule, "C7 44 24 34 00 00 82 42 D9 05 ?? ?? ?? ?? D9 44 24 38 DA E9 DF E0 F6 C4 44");
-		if (CameraFOVInstruction4ScanResult)
-		{
-			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstruction4ScanResult - (std::uint8_t*)exeModule);
-			
-			fNewCameraFOV4 = Maths::CalculateNewFOV_DegBased(65.0f, fAspectRatioScale);
-
-			Memory::Write(CameraFOVInstruction4ScanResult + 4, fNewCameraFOV4);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the camera FOV instruction 4 memory address.");
-			return;
-		}
-
-		std::uint8_t* WeaponFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 81 80 00 00 00 C3 CC CC CC CC CC CC CC CC CC");
-		if (WeaponFOVInstructionScanResult)
-		{
-			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), WeaponFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::WriteNOPs(WeaponFOVInstructionScanResult, 6);
-			
-			WeaponFOVInstructionHook = safetyhook::create_mid(WeaponFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			m_weaponFOVHook = safetyhook::create_mid(CameraFOVScansResult[Weapon], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentWeaponFOV = Memory::ReadMem(ctx.ecx + 0x80);
 
-				fNewWeaponFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponFOV, fAspectRatioScale);
+				s_instance_->m_newWeaponFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponFOV, s_instance_->m_aspectRatioScale);
 
-				FPU::FLD(fNewWeaponFOV);
-			});
-		}
-		else
-		{
-			spdlog::info("Cannot locate the weapon FOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* BulletCameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "C7 46 38 00 00 B4 42 C7 46 48 9A 99 99 3E 88 86 D4 00 00 00 89 86 D8 00 00 00 5E");
-		if (BulletCameraFOVInstructionScanResult)
-		{
-			spdlog::info("Bullet Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), BulletCameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			fNewBulletCameraFOV1 = Maths::CalculateNewFOV_DegBased(fOriginalBulletCameraFOV1, fAspectRatioScale);
-
-			Memory::Write(BulletCameraFOVInstructionScanResult + 3, fNewBulletCameraFOV1);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the bullet camera FOV instruction memory address.");
-			return;
-		}
-		
-		std::uint8_t* BulletCameraFOVInstruction2ScanResult = Memory::PatternScan(exeModule, "C7 46 38 00 00 BE 42 89 48 08 8B 15 ?? ?? ?? ?? 89 9E C0 00 00 00");
-		if (BulletCameraFOVInstruction2ScanResult)
-		{
-			spdlog::info("Bullet Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), BulletCameraFOVInstruction2ScanResult - (std::uint8_t*)exeModule);
-			
-			fNewBulletCameraFOV2 = Maths::CalculateNewFOV_DegBased(fOriginalBulletCameraFOV2, fAspectRatioScale);
-
-			Memory::Write(BulletCameraFOVInstruction2ScanResult + 3, fNewBulletCameraFOV2);
-		}
-		else
-		{
-			spdlog::info("Cannot locate the bullet camera FOV instruction 2 memory address.");
-			return;
+				FPU::FLD(s_instance_->m_newWeaponFOV);
+			});			
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_weaponFOVHook{};
+	
+	static constexpr uint8_t m_validResolution = 1;
+	static constexpr float m_originalCharacterFOV1 = 70.0f;
+	static constexpr float m_originalCharacterFOV2 = 65.0f;
+	static constexpr float m_originalCharacterFOV3 = 60.0f;
+	static constexpr float m_originalProjectileViewFOV1 = 90.0f;
+	static constexpr float m_originalProjectileViewFOV2 = 95.0f;
+
+	enum ResolutionInstructionsIndex
 	{
-		WidescreenFix();
+		ResListUnlock,
+		ResWidthHeight
+	};
+
+	enum CameraFOVInstructionsIndex
+	{
+		FirstPerson1,
+		FirstPerson2,
+		ThirdPerson1,		
+		ThirdPerson2,
+		Weapon,
+		ProjectileView1,
+		ProjectileView2
+	};
+
+	std::vector<std::uint8_t*> CameraFOVScansResult;
+
+	float m_newCharacterCameraFOV1 = 0.0f;
+	float m_newCharacterCameraFOV2 = 0.0f;
+	float m_newCharacterCameraFOV3 = 0.0f;
+	float m_newWeaponFOV = 0.0f;
+	float m_newProjectileCameraFOV1 = 0.0f;
+	float m_newProjectileCameraFOV2 = 0.0f;
+
+	void WriteCharacterAndProjectileFOVs()
+	{
+		m_newCharacterCameraFOV1 = Maths::CalculateNewFOV_DegBased(m_originalCharacterFOV1, m_aspectRatioScale) * m_fovFactor;
+		m_newCharacterCameraFOV2 = Maths::CalculateNewFOV_DegBased(m_originalCharacterFOV2, m_aspectRatioScale) * m_fovFactor;
+		m_newCharacterCameraFOV3 = Maths::CalculateNewFOV_DegBased(m_originalCharacterFOV3, m_aspectRatioScale) * m_fovFactor;
+		Memory::Write(CameraFOVScansResult[FirstPerson1] + 1, m_newCharacterCameraFOV1);
+		Memory::Write(CameraFOVScansResult[FirstPerson2] + 1, m_newCharacterCameraFOV1);
+		Memory::Write(CameraFOVScansResult[ThirdPerson1] + 1, m_newCharacterCameraFOV3);
+		Memory::Write(CameraFOVScansResult[ThirdPerson2] + 4, m_newCharacterCameraFOV2);
+
+		m_newProjectileCameraFOV1 = Maths::CalculateNewFOV_DegBased(m_originalProjectileViewFOV1, m_aspectRatioScale);
+		m_newProjectileCameraFOV2 = Maths::CalculateNewFOV_DegBased(m_originalProjectileViewFOV2, m_aspectRatioScale);
+		Memory::Write(CameraFOVScansResult[ProjectileView1] + 3, m_newProjectileCameraFOV1);
+		Memory::Write(CameraFOVScansResult[ProjectileView2] + 3, m_newProjectileCameraFOV2);
 	}
-	return TRUE;
-}
+
+	inline static BassProShops2007Fix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<BassProShops2007Fix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<BassProShops2007Fix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
