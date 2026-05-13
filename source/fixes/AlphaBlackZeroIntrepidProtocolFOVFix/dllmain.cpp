@@ -148,9 +148,6 @@ private:
 	SafetyHookMid m_zoomFOVHook{};
 
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
-	
-	float m_aspectRatioScale = 1.0f;
-	float m_newAspectRatio2 = 0.0f;	
 
 	static constexpr float m_originalHipfireFOV = 78.0f;
 	uintptr_t HipfireFOV4Address = 0;

@@ -114,7 +114,6 @@ protected:
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
-	float m_aspectRatioScale = 1.0f;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_cameraFOVHook{};

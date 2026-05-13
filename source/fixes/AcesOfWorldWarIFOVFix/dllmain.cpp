@@ -102,8 +102,6 @@ protected:
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_OriginalAspectRatio = 0.75f;
-	float m_aspectRatioScale = 1.0f;
-	float m_newAspectRatio2 = 0.0f;
 
 	uintptr_t m_CameraFOVAddress = 0;
 
