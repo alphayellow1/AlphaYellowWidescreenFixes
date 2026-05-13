@@ -81,7 +81,6 @@ protected:
 				{
 					int& iCurrentWidth = Memory::ReadMem(ctx.edx);
 					int& iCurrentHeight = Memory::ReadMem(ctx.edx + 0x4);
-
 					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
 				});
@@ -92,14 +91,14 @@ protected:
 				return;
 			}
 
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(ExeModule(), "8B 54 24 ?? 81 E6");
-			if (CameraFOVInstructionScanResult)
+			auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 54 24 ?? 81 E6");
+			if (CameraFOVScanResult)
 			{
-				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)ExeModule());
+				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-				Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
+				Memory::WriteNOPs(CameraFOVScanResult, 4);
 
-				m_cameraFOVHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 				{
 					s_instance_->CameraFOVMidHook(ctx);
 				});

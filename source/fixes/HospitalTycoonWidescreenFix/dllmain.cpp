@@ -1,215 +1,82 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "HospitalTycoonWidescreenFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-float fFOVFactor;
-
-// Variables
-double dNewAspectRatio;
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class HospitalTycoonFix final : public FixBase
 {
-	HT,
-	Unknown
-};
-
-enum ResolutionInstructionsScansIndices
-{
-	ResListUnlock,
-	ResWidthHeight
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::HT, {"Hospital Tycoon", "HospitalTycoon.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit HospitalTycoonFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(fFOVFactor);
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
+	~HospitalTycoonFix() override
 	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid ResolutionInstructionsHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::HT && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "0F 82 ?? ?? ?? ?? 8B 5A", "8B 54 24 ?? 8B 44 24 ?? 89 6E");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		return "HospitalTycoonWidescreenFix";
+	}
+
+	const char* FixVersion() const override
+	{
+		return "1.2";
+	}
+
+	const char* TargetName() const override
+	{
+		return "Hospital Tycoon";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "HospitalTycoon.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "0F 82 ?? ?? ?? ?? 8B 5A", "8B 54 24 ?? 8B 44 24 ?? 89 6E");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResListUnlock] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
 
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResWidthHeight] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock], 6);
+			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock], 6);
+			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 15, 6);
+			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 26, 6);
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 15, 6);
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[ResListUnlock] + 26, 6);
-
-			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
 				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x30);
-
 				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x34);
-
-				dNewAspectRatio = static_cast<double>(iCurrentWidth) / static_cast<double>(iCurrentHeight);
+				s_instance_->m_newAspectRatio = static_cast<double>(iCurrentWidth) / static_cast<double>(iCurrentHeight);
 			});
 		}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "DD 05 ?? ?? ?? ?? D8 C9 D9 5C 24 ?? D9 86");
-		if (AspectRatioInstructionScanResult)
+		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "DD 05 ?? ?? ?? ?? D8 C9 D9 5C 24 ?? D9 86");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);			
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::Write(AspectRatioInstructionScanResult + 2, &dNewAspectRatio);
+			Memory::Write(AspectRatioScanResult + 2, &m_newAspectRatio);
 		}
 		else
 		{
@@ -217,20 +84,20 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 81 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC 51 D9 81 ?? ?? ?? ?? D9 1C 24");
-		if (CameraFOVInstructionScanResult)
+		auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "D9 81 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC 51 D9 81 ?? ?? ?? ?? D9 1C 24");
+		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(CameraFOVScanResult, 6);
+
+			m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + 0x1E8);
 
-				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+				s_instance_->m_newCameraFOV = fCurrentCameraFOV * s_instance_->m_fovFactor;
 
-				FPU::FLD(fNewCameraFOV);
+				FPU::FLD(s_instance_->m_newCameraFOV);
 			});
 		}
 		else
@@ -239,27 +106,52 @@ void WidescreenFix()
 			return;
 		}
 	}
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_cameraFOVHook{};
+
+	double m_newAspectRatio = 0.0;
+
+	enum ResolutionInstructionsIndex
+	{
+		ResListUnlock,
+		ResWidthHeight
+	};
+
+	inline static HospitalTycoonFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<HospitalTycoonFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		Logging();
-		Configuration();
-		if (DetectGame())
-		{
-			WidescreenFix();
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<HospitalTycoonFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
