@@ -54,13 +54,13 @@ protected:
 
 	void ApplyFix() override
 	{
-		HMODULE CloakNTEngineDllModule = Memory::GetHandle("CloakNTEngine.dll");
-		std::string CloakNTEngineDllName = Memory::GetModuleName(CloakNTEngineDllModule);
+		m_cloakNTEngineDllModule = Memory::GetHandle("CloakNTEngine.dll");
+		m_cloakNTEngineDllName = Memory::GetModuleName(m_cloakNTEngineDllModule);
 
-		auto ResolutionListUnlockScanResult = Memory::PatternScan(CloakNTEngineDllModule, "83 3C BD ?? ?? ?? ?? ?? 74");
+		auto ResolutionListUnlockScanResult = Memory::PatternScan(m_cloakNTEngineDllModule, "83 3C BD ?? ?? ?? ?? ?? 74");
 		if (ResolutionListUnlockScanResult)
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)CloakNTEngineDllModule);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)m_cloakNTEngineDllModule);
 
 			Memory::WriteNOPs(ResolutionListUnlockScanResult, 30);
 		}
@@ -70,7 +70,7 @@ protected:
 			return;
 		}
 
-		auto CameraFOVScansResult = Memory::PatternScan(CloakNTEngineDllModule, "D9 05 ?? ?? ?? ?? 89 85 ?? ?? ?? ?? 8D 4D", "D9 05 ?? ?? ?? ?? D9 1C 24 D9 04 24 59 C3 CC",
+		auto CameraFOVScansResult = Memory::PatternScan(m_cloakNTEngineDllModule, "D9 05 ?? ?? ?? ?? 89 85 ?? ?? ?? ?? 8D 4D", "D9 05 ?? ?? ?? ?? D9 1C 24 D9 04 24 59 C3 CC",
 		"D9 05 ?? ?? ?? ?? DC 05 ?? ?? ?? ?? C7 06 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? D9 5E ?? C6 46 ?? ?? 8B C6",
 		"D9 05 ?? ?? ?? ?? 8B 54 24 ?? D9 96", "D9 05 ?? ?? ?? ?? D9 1C 24 E8 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? EB ?? 8B 46",
 		"DB 83 F9 ?? 0F 8C ?? ?? ?? ?? 83 F9 ?? 0F 8F ?? ?? ?? ?? 8B 80 ?? ?? ?? ?? D9 05 ?? ?? ?? ??",
@@ -80,17 +80,17 @@ protected:
 		"D9 46 ?? D9 1C 24 E8 ?? ?? ?? ?? D9 EE D8 5C 24");
 		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Actor Initialize FOV Instruction: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[ActorInitialize] - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Hipfire FOV Instruction: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[Hipfire] - (std::uint8_t*)CloakNTEngineDllModule);			
-			spdlog::info("Sprint FOV Instruction 1: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[Sprint1] - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Sprint FOV Instruction 2: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[Sprint2] - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Change Weapon FOV Instruction 1: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[ChangeWeapon1] - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Change Weapon FOV Instruction 2: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[ChangeWeapon2] + 25 - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Change Weapon FOV Instruction 3: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[ChangeWeapon3] - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Weapon Show FOV Instruction: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[WeaponShow] - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Reset Weapon FOV Instruction 1: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[ResetWeapon1] + 29 - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Reset Weapon FOV Instruction 2: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[ResetWeapon2] - (std::uint8_t*)CloakNTEngineDllModule);
-			spdlog::info("Zoom FOV Instruction: Address is {:s}+{:x}", CloakNTEngineDllName.c_str(), CameraFOVScansResult[Zoom] - (std::uint8_t*)CloakNTEngineDllModule);
+			spdlog::info("Actor Initialize FOV Instruction: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ActorInitialize] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Hipfire FOV Instruction: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[Hipfire] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Sprint FOV Instruction 1: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[Sprint1] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Sprint FOV Instruction 2: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[Sprint2] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Change Weapon FOV Instruction 1: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ChangeWeapon1] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Change Weapon FOV Instruction 2: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ChangeWeapon2] + 25 - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Change Weapon FOV Instruction 3: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ChangeWeapon3] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Weapon Show FOV Instruction: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[WeaponShow] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Reset Weapon FOV Instruction 1: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ResetWeapon1] + 29 - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Reset Weapon FOV Instruction 2: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ResetWeapon2] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Zoom FOV Instruction: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[Zoom] - (std::uint8_t*)m_cloakNTEngineDllModule);
 
 			m_newHipfireFOV = m_originalHipfireFOV * m_hipfireFOVFactor;
 
@@ -119,6 +119,9 @@ private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 
 	static constexpr float m_originalHipfireFOV = 1.22173059f;
+
+	HMODULE m_cloakNTEngineDllModule = nullptr;
+	std::string m_cloakNTEngineDllName = "";
 
 	float m_hipfireFOVFactor = 0.0f;
 	float m_zoomFactor = 0.0f;
