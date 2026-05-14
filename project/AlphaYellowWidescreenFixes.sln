@@ -1181,6 +1181,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TigerHuntWidescreenFix", "T
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SecretServiceWidescreenFix", "SecretServiceWidescreenFix.vcxproj", "{A2219030-06CA-42F4-A897-D9F9557407BC}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CabelasDangerousHunts2013WidescreenFix", "CabelasDangerousHunts2013WidescreenFix.vcxproj", "{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5885,6 +5887,14 @@ Global
 		{A2219030-06CA-42F4-A897-D9F9557407BC}.Release|x64.Build.0 = Release|x64
 		{A2219030-06CA-42F4-A897-D9F9557407BC}.Release|x86.ActiveCfg = Release|Win32
 		{A2219030-06CA-42F4-A897-D9F9557407BC}.Release|x86.Build.0 = Release|Win32
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}.Debug|x64.ActiveCfg = Debug|x64
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}.Debug|x64.Build.0 = Debug|x64
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}.Debug|x86.ActiveCfg = Debug|Win32
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}.Debug|x86.Build.0 = Debug|Win32
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}.Release|x64.ActiveCfg = Release|x64
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}.Release|x64.Build.0 = Release|x64
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}.Release|x86.ActiveCfg = Release|Win32
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6477,6 +6487,7 @@ Global
 		{92CE65B7-D4A7-4FA4-BC63-6223D9D44311} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{18212280-9C12-4E20-8187-06ED3DAF90E0} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{A2219030-06CA-42F4-A897-D9F9557407BC} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
