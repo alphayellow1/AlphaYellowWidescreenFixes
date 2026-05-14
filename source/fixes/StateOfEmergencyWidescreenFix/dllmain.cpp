@@ -97,7 +97,7 @@ protected:
 				*reinterpret_cast<float*>(ctx.esp + 0x48) = s_instance_->m_newAspectRatio;
 			});
 
-			m_hfovCullingHook = safetyhook::create_mid(AspectRatioScansResult[HFOVCulling] + 10, [](SafetyHookContext& ctx)
+			m_hfovCullingHook = safetyhook::create_mid(AspectRatioScansResult[HFOVCulling], [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_newHFOVCulling = 1.0f / s_instance_->m_aspectRatioScale;
 
