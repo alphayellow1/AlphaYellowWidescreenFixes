@@ -26,7 +26,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x64.asm">
+    <MASM Include="$(MSBuildThisFileDirectory)..\includes\fpu_ops_x86.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

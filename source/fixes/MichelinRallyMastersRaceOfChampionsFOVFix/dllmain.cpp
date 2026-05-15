@@ -1,311 +1,202 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-
-// Fix details
-std::string sFixName = "MichelinRallyMastersRaceOfChampionsFOVFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr uint32_t iOriginalHUDWidth = 320;
-constexpr float fOriginalCameraFOV = 80.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-double dNewCameraFOV;
-uint32_t iNewHUDWidth;
-float fNewHUDVerticalPosition;
-float fNewSelectionMenuCarFOV;
-uintptr_t fCurrentHUDVerticalPositionAddress;
-
-// Game detection
-enum class Game
+class RallyMastersFix final : public FixBase
 {
-	MRMROC,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::MRMROC, {"Michelin Rally Masters: Race of Champions", "RallyMasters.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit RallyMastersFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~RallyMastersFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;	
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-static SafetyHookMid HUDVerticalPositionInstructionHook{};
-
-void FOVFix()
-{
-	if (eGameType == Game::MRMROC && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "MichelinRallyMastersRaceOfChampionsFOVFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.2";
+	}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DC 3D A0 04 4D 00 D9 51 38 D9 05 D0 03 4D 00 D8 F1");
-		if (CameraFOVInstructionScanResult)
+	const char* TargetName() const override
+	{
+		return "Michelin Rally Masters: Race of Champions";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "RallyMasters.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 44 24 ?? 8B 4C 24 ?? 89 44 24 ?? 89 74 24");
+		if (ResolutionScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-			dNewCameraFOV = (1.0 / (double)fAspectRatioScale) / (double)fFOVFactor;
-
-			Memory::Write(CameraFOVInstructionScanResult + 2, &dNewCameraFOV);
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* HUDWidthInstructionScanResult = Memory::PatternScan(exeModule, "BA 40 01 00 00 2B D6 2B D7 5F");
-		if (HUDWidthInstructionScanResult)
-		{
-			spdlog::info("HUD Width Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDWidthInstructionScanResult - (std::uint8_t*)exeModule);
-
-			iNewHUDWidth = (uint32_t)(iOriginalHUDWidth * fAspectRatioScale);
-
-			Memory::Write(HUDWidthInstructionScanResult + 1, iNewHUDWidth);
-		}
-		else
-		{
-			spdlog::error("Failed to locate HUD width instruction memory address.");
-			return;
-		}
-
-		std::uint8_t* HUDVerticalPositionInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 89 16 89 56 04 89 56 08 89 4E 10 D9 56 7E DF 6C 24 04");
-		if (HUDVerticalPositionInstructionScanResult)
-		{
-			spdlog::info("HUD Vertical Position Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDVerticalPositionInstructionScanResult - (std::uint8_t*)exeModule);
-
-			fCurrentHUDVerticalPositionAddress = Memory::GetPointerFromAddress(HUDVerticalPositionInstructionScanResult + 2, Memory::PointerMode::Absolute);
-
-			Memory::WriteNOPs(HUDVerticalPositionInstructionScanResult, 6);
-
-			HUDVerticalPositionInstructionHook = safetyhook::create_mid(HUDVerticalPositionInstructionScanResult, [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHUDVerticalPosition = Memory::ReadMem(fCurrentHUDVerticalPositionAddress);
-
-				fNewHUDVerticalPosition = fCurrentHUDVerticalPosition / fAspectRatioScale;
-
-				FPU::FMUL(fNewHUDVerticalPosition);
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x10);
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x14);
+				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate HUD vertical position instruction memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
-		}
-		
-		std::uint8_t* SelectionMenuCarFOVInstructionScanResult = Memory::PatternScan(exeModule, "68 00 00 A0 42 E8 9C 68 F9 FF B9 F2 E5 5C 00 E8 02 6D 01 00");
-		if (SelectionMenuCarFOVInstructionScanResult)
-		{
-			spdlog::info("Selection Menu Car FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), SelectionMenuCarFOVInstructionScanResult - (std::uint8_t*)exeModule);
+		}		
 
-			fNewSelectionMenuCarFOV = fOriginalCameraFOV / fFOVFactor;
-
-			Memory::Write(SelectionMenuCarFOVInstructionScanResult + 1, fNewSelectionMenuCarFOV);
-		}
-		else
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "DC 3D ?? ?? ?? ?? D9 51", "A1 ?? ?? ?? ?? 56 57 8B F9", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B CE 68");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::error("Failed to locate selection menu car FOV instruction memory address.");
-			return;
+			spdlog::info("General Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[General] - (std::uint8_t*)ExeModule());
+			spdlog::info("Outside Views Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[OutsideViews] - (std::uint8_t*)ExeModule());
+			spdlog::info("Cockpit Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Cockpit] - (std::uint8_t*)ExeModule());
+
+			Memory::WriteNOPs(CameraFOVScansResult[General], 6);
+
+			m_generalFOVHook = safetyhook::create_mid(CameraFOVScansResult[General], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newOverallFOV = 1.0 / (double)s_instance_->m_aspectRatioScale;
+
+				FPU::FDIVR(s_instance_->m_newOverallFOV);
+			});
+
+			OutsideViewsFOVAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[OutsideViews] + 1, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(CameraFOVScansResult[OutsideViews], 5);
+
+			m_outsideViewsFOVHook = safetyhook::create_mid(CameraFOVScansResult[OutsideViews], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentOutsideViewsFOV = Memory::ReadMem(s_instance_->OutsideViewsFOVAddress);
+				s_instance_->m_newOutsideViewsFOV = fCurrentOutsideViewsFOV * s_instance_->m_fovFactor;
+				ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newOutsideViewsFOV);
+			});
+
+			m_newCockpitFOV = m_originalCockpitFOV * m_fovFactor;
+
+			Memory::Write(CameraFOVScansResult[Cockpit] + 1, m_newCockpitFOV);
+		}
+
+		auto HUDAspectRatioScansResult = Memory::PatternScan(ExeModule(), "BA ?? ?? ?? ?? 2B D6 2B D7", "D8 0D ?? ?? ?? ?? 89 16");
+		if (Memory::AreAllSignaturesValid(HUDAspectRatioScansResult) == true)
+		{
+			spdlog::info("HUD Width Instruction: Address is {:s}+{:x}", ExeName().c_str(), HUDAspectRatioScansResult[HUDWidth] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Vertical Position Instruction: Address is {:s}+{:x}", ExeName().c_str(), HUDAspectRatioScansResult[HUDVertical] - (std::uint8_t*)ExeModule());
+
+			Memory::WriteNOPs(HUDAspectRatioScansResult[HUDWidth], 5);
+
+			m_hudWidthHook = safetyhook::create_mid(HUDAspectRatioScansResult[HUDWidth], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newHUDWidth = (uint32_t)(s_instance_->m_originalHUDWidth * s_instance_->m_aspectRatioScale);
+
+				ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newHUDWidth);
+			});
+
+			m_hudVerticalPositionAddress = Memory::GetPointerFromAddress(HUDAspectRatioScansResult[HUDVertical] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(HUDAspectRatioScansResult[HUDVertical], 6);
+
+			m_hudVerticalPositionHook = safetyhook::create_mid(HUDAspectRatioScansResult[HUDVertical], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentHUDVerticalPosition = Memory::ReadMem(s_instance_->m_hudVerticalPositionAddress);
+
+				s_instance_->m_newHUDVerticalPosition = fCurrentHUDVerticalPosition / s_instance_->m_aspectRatioScale;
+
+				FPU::FMUL(s_instance_->m_newHUDVerticalPosition);
+			});
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalCockpitFOV = 80.0f;
+	static constexpr float m_originalHUDWidth = 320;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_generalFOVHook{};
+	SafetyHookMid m_outsideViewsFOVHook{};
+	SafetyHookMid m_hudWidthHook{};
+	SafetyHookMid m_hudVerticalPositionHook{};
+
+	uintptr_t OutsideViewsFOVAddress = 0;
+	uintptr_t m_hudVerticalPositionAddress = 0;
+
+	double m_newOverallFOV = 0.0;
+	float m_newOutsideViewsFOV = 0.0f;
+	float m_newCockpitFOV = 0.0f;
+	float m_newHUDVerticalPosition = 0.0f;
+	uint32_t m_newHUDWidth = 0;
+
+	enum CameraFOVInstructionsIndex
 	{
-		FOVFix();
-	}
-	return TRUE;
-}
+		General,
+		OutsideViews,
+		Cockpit
+	};
+
+	enum HUDInstructionsIndex
+	{
+		HUDWidth,
+		HUDVertical
+	};
+
+	inline static RallyMastersFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<RallyMastersFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<RallyMastersFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
