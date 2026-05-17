@@ -148,9 +148,6 @@ private:
 	{
 		float& fCurrentMaxGameplayFOV = Memory::ReadMem(ctx.ebp + 0xE4);
 		float& fCurrentMinimumGameplayFOV = Memory::ReadMem(ctx.ebp + 0xE8);
-
-		spdlog::info("Current max FOV: {:.12f} | Current minimum FOV: {:.12f}", fCurrentMaxGameplayFOV, fCurrentMinimumGameplayFOV);
-
 		m_newMaxGameplayFOV = fCurrentMaxGameplayFOV * m_fovFactor;
 		m_newMinimumGameplayFOV = fCurrentMinimumGameplayFOV / m_zoomFactor;
 		FPU::FLD(m_newMaxGameplayFOV);
