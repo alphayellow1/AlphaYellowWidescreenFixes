@@ -1,10 +1,6 @@
 ﻿#include "..\..\common\FixBase.hpp"
 #include "..\..\common\DllNotificationWatcher.cpp"
 
-#include <atomic>
-#include <mutex>
-
-
 class AliceFix final : public FixBase
 {
 public:

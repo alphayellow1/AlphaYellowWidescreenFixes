@@ -29,5 +29,8 @@
     <ClCompile Include="..\external\safetyhook\Zydis.c">
       <Filter>Arquivos de Recurso</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\common\DllNotificationWatcher.cpp">
+      <Filter>Arquivos de Recurso</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
