@@ -57,7 +57,6 @@ protected:
 	void ApplyFix() override
 	{
 		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
-
 		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
 
 		auto ResolutionListScanResult = Memory::PatternScan(ExeModule(), "80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00");
