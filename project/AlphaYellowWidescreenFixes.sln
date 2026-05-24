@@ -1183,6 +1183,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CabelasDangerousHunts2013Wi
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AngelsVsDevilsWidescreenFix", "AngelsVsDevilsWidescreenFix.vcxproj", "{4DEE5BCF-2671-4D05-921C-634E176C543F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HopmonWidescreenFix", "HopmonWidescreenFix.vcxproj", "{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5895,6 +5897,14 @@ Global
 		{4DEE5BCF-2671-4D05-921C-634E176C543F}.Release|x64.Build.0 = Release|x64
 		{4DEE5BCF-2671-4D05-921C-634E176C543F}.Release|x86.ActiveCfg = Release|Win32
 		{4DEE5BCF-2671-4D05-921C-634E176C543F}.Release|x86.Build.0 = Release|Win32
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}.Debug|x64.ActiveCfg = Debug|x64
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}.Debug|x64.Build.0 = Debug|x64
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}.Debug|x86.ActiveCfg = Debug|Win32
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}.Debug|x86.Build.0 = Debug|Win32
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}.Release|x64.ActiveCfg = Release|x64
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}.Release|x64.Build.0 = Release|x64
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}.Release|x86.ActiveCfg = Release|Win32
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6488,6 +6498,7 @@ Global
 		{A2219030-06CA-42F4-A897-D9F9557407BC} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{416FC27B-DEC8-4CE0-BC69-B64E52D9A11B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{4DEE5BCF-2671-4D05-921C-634E176C543F} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
