@@ -360,7 +360,7 @@ void WidescreenFix()
 
 			Memory::Write(Pattern10ScanResult + 4, fNewValue5);
 
-			Memory::Write(Pattern10ScanResult + 18, fNewValue6);
+			Memory::Write(Pattern10ScanResult + 24, fNewValue6);
 
 			Memory::Write(Pattern10ScanResult + 28, fNewValue7);
 
