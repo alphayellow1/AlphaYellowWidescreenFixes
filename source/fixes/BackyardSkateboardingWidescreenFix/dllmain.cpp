@@ -1,276 +1,103 @@
-﻿// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+﻿#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "BackyardSkateboardingWidescreenFix";
-std::string sFixVersion = "1.2";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-float fNewHUDHorizontalRes;
-uint8_t* DX9CheckScanResult;
-uint8_t* ResolutionInstructionsScanResult;
-uint8_t* ResolutionInstructionsScanResult2;
-uint8_t* CameraFOVInstructionScanResult;
-
-// Game detection
-enum class Game
+class BackyardSkateboardingFix final : public FixBase
 {
-	BS_DX9_ORIGINAL,
-	BS_DX9_GOTY,
-	BS_DX8_1,
-	BS_DX8,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::BS_DX9_ORIGINAL, {"Backyard Skateboarding (DX9)", "BYSkateboarding.exe"}},
-	{Game::BS_DX9_GOTY, {"Backyard Skateboarding GOTY (DX9)", "BYSkateboarding.exe"}},
-	{Game::BS_DX8_1, {"Backyard Skateboarding (DX8.1)", "BYSkateboarding_DX8.1.exe"}},
-	{Game::BS_DX8, {"Backyard Skateboarding (DX8)", "BYSkateboarding_DX8.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit BackyardSkateboardingFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~BackyardSkateboardingFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-Game DetectDX9Version()
-{
-	uint8_t* VersionCheckScanResult = Memory::PatternScan(exeModule, "?? ?? ?? ?? ?? 73 ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? ?? E8 ?? ?? ?? ??");
-
-	uint8_t VersionCheckValue = Memory::ReadMem(VersionCheckScanResult);
-
-	if (VersionCheckValue == 0xBB)
-	{
-		return Game::BS_DX9_ORIGINAL;
-	}		
-	if (VersionCheckValue == 0xBE)
-	{
-		return Game::BS_DX9_GOTY;
-	}
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (!Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			continue;
-		}	
+			s_instance_ = nullptr;
+		}
+	}
 
-		eGameType = type;
+protected:
+	const char* FixName() const override
+	{
+		return "BackyardSkateboardingWidescreenFix";
+	}
 
-		if (type == Game::BS_DX9_ORIGINAL || type == Game::BS_DX9_GOTY)
+	const char* FixVersion() const override
+	{
+		return "1.3";
+	}
+
+	const char* TargetName() const override
+	{
+		return "Backyard Skateboarding";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "BYSkateboarding.exe") ||
+		Util::stringcmp_caseless(exeName, "BYSkateboarding_DX8.1.exe") || 
+		Util::stringcmp_caseless(exeName, "BYSkateboarding_DX8.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);		
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
+
+		ResolutionScan1Result = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? C7 44 24");
+		ResolutionScan2Result = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? 8B 08 50 FF 51 ?? 3B C7");
+
+		if (ResolutionScan1Result != nullptr)
 		{
-			eGameType = DetectDX9Version();
+			m_gameVersion = BS_ORIGINAL;
+			ResolutionScanResult = ResolutionScan1Result;
+		}
+		else if (ResolutionScan2Result != nullptr)
+		{
+			m_gameVersion = BS_GOTY;
+			ResolutionScanResult = ResolutionScan2Result;
 		}
 
-		if (eGameType == Game::Unknown)
+		if (ResolutionScanResult)
 		{
-			spdlog::error("Failed to refine DX9 version");
-			return false;
-		}
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-		game = &kGames.at(eGameType);
-
-		spdlog::info("Detected EXE: {} ({})", game->GameTitle, sExeName);
-
-		spdlog::info("----------");
-		return true;
-	}
-
-	spdlog::error("Failed to detect supported game, {:s} isn't supported.", sExeName);
-	return false;
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-static SafetyHookMid HUDHorizontalResInstructionHook{};
-
-void WidescreenFix()
-{
-	if ((eGameType == Game::BS_DX9_ORIGINAL || eGameType == Game::BS_DX9_GOTY || eGameType == Game::BS_DX8_1 || eGameType == Game::BS_DX8) && bFixActive == true)
-	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-		if (eGameType == Game::BS_DX9_ORIGINAL || eGameType == Game::BS_DX8)
-		{
-			ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? C7 44 24");
-		}
-		else if (eGameType == Game::BS_DX9_GOTY || eGameType == Game::BS_DX8_1)
-		{
-			ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? 8B 08 50 FF 51 ?? 3B C7");
-		}
-		
-		if (ResolutionInstructionsScanResult)
-		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
-
-			if (eGameType == Game::BS_DX9_ORIGINAL || eGameType == Game::BS_DX8)
+			if (m_gameVersion == BS_ORIGINAL)
 			{
 				// 640x480
-				Memory::Write(ResolutionInstructionsScanResult + 4, iCurrentResX);
+				Memory::Write(ResolutionScanResult + 4, m_newResX);
 
-				Memory::Write(ResolutionInstructionsScanResult + 12, iCurrentResY);
+				Memory::Write(ResolutionScanResult + 12, m_newResY);
 			}
-			else if (eGameType == Game::BS_DX9_GOTY || eGameType == Game::BS_DX8_1)
+			else if (m_gameVersion == BS_GOTY)
 			{
 				// 640x480
-				Memory::Write(ResolutionInstructionsScanResult + 4, iCurrentResX);
-
-				Memory::Write(ResolutionInstructionsScanResult + 12, iCurrentResY);
+				Memory::Write(ResolutionScanResult + 4, m_newResX);
+				Memory::Write(ResolutionScanResult + 12, m_newResX);
 
 				// 800x600
-				Memory::Write(ResolutionInstructionsScanResult + 55, iCurrentResX);
-
-				Memory::Write(ResolutionInstructionsScanResult + 63, iCurrentResY);
+				Memory::Write(ResolutionScanResult + 55, m_newResX);
+				Memory::Write(ResolutionScanResult + 63, m_newResY);
 			}
 		}
 		else
@@ -279,35 +106,40 @@ void WidescreenFix()
 			return;
 		}
 
-		if (eGameType == Game::BS_DX9_ORIGINAL || eGameType == Game::BS_DX8)
+		if (m_gameVersion == BS_ORIGINAL)
 		{
-			CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 46 ?? 83 C4 ?? 68");
+			CameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 46 ?? 83 C4 ?? 68");
 		}
-		else if (eGameType == Game::BS_DX9_GOTY || eGameType == Game::BS_DX8_1)
+		else if (m_gameVersion == BS_GOTY)
 		{
-			CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 4E ?? 83 C4 ?? 50 51");
+			CameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 4E ?? 83 C4 ?? 50 51");
 		}
 
-		if (CameraFOVInstructionScanResult)
+		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
+			Memory::WriteNOPs(CameraFOVScanResult, 3);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x2C);
+				s_instance_->m_newCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, s_instance_->m_aspectRatioScale) * s_instance_->m_fovFactor;
 
-				fNewCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-
-				if (eGameType == Game::BS_DX9_ORIGINAL || eGameType == Game::BS_DX8)
+				switch (s_instance_->m_gameVersion)
 				{
-					ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
+					case BS_ORIGINAL:
+					{
+						ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV);
+						break;
+					}
+
+					case BS_GOTY:
+					{
+						ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV);
+						break;
+					}
 				}
-				else if (eGameType == Game::BS_DX9_GOTY || eGameType == Game::BS_DX8_1)
-				{
-					ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
-				}				
 			});
 		}
 		else
@@ -316,20 +148,18 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* HUDHorizontalResInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 8B 4C 24 ?? 89 04 ?? 8B 44 24 ?? 8D 14");
-		if (HUDHorizontalResInstructionScanResult)
+		auto HUDHorizontalResScanResult = Memory::PatternScan(ExeModule(), "8B 44 24 ?? 8B 4C 24 ?? 89 04 ?? 8B 44 24 ?? 8D 14");
+		if (HUDHorizontalResScanResult)
 		{
-			spdlog::info("HUD Horizontal Res Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDHorizontalResInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("HUD Horizontal Res Instruction: Address is {:s}+{:x}", ExeName().c_str(), HUDHorizontalResScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(HUDHorizontalResInstructionScanResult, 4);
+			Memory::WriteNOPs(HUDHorizontalResScanResult, 4);
 
-			HUDHorizontalResInstructionHook = safetyhook::create_mid(HUDHorizontalResInstructionScanResult, [](SafetyHookContext& ctx)
+			m_hudHorizontalResHook = safetyhook::create_mid(HUDHorizontalResScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentHUDVerticalRes = Memory::ReadMem(ctx.esp + 0x14);
-
-				fNewHUDHorizontalRes = fCurrentHUDVerticalRes * fNewAspectRatio;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewHUDHorizontalRes);
+				s_instance_->m_newHUDHorizontalRes = fCurrentHUDVerticalRes * s_instance_->m_newAspectRatio;
+				ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newHUDHorizontalRes);
 			});
 		}
 		else
@@ -338,18 +168,31 @@ void WidescreenFix()
 			return;
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	SafetyHookMid m_cameraFOVHook{};
+	SafetyHookMid m_hudHorizontalResHook{};
+
+	uint8_t* ResolutionScanResult = nullptr;
+	uint8_t* ResolutionScan1Result = nullptr;
+	uint8_t* ResolutionScan2Result = nullptr;
+	uint8_t* CameraFOVScanResult = nullptr;
+
+	float m_newHUDHorizontalRes = 0.0f;
+	int m_gameVersion = 0;
+
+	enum GameVersions
 	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
+		BS_ORIGINAL,
+		BS_GOTY
+	};
+
+	inline static BackyardSkateboardingFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<BackyardSkateboardingFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -357,19 +200,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<BackyardSkateboardingFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
