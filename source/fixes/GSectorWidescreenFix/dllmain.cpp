@@ -215,6 +215,11 @@ void WidescreenFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
+		Memory::PatchBytes((uint8_t*)0x00419E48, "\xEB\x3E");
+		Memory::PatchBytes((uint8_t*)0x00421409, "\xEB\x29");
+		Memory::PatchBytes((uint8_t*)0x0042140B, "\xEB\xEB");
+
+		/*
 		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "7f ?? 74 ?? 83 f8", "c7 44 24 ?? ?? ?? ?? ?? 89 6c 24 ?? c7 44 24 ?? ?? ?? ?? ?? 8d 4c 24",
 		"75 ?? 81 fa ?? ?? ?? ?? 75", "74 ?? 48 74 ?? 48 74 ?? 68 ?? ?? ?? ?? e8 ?? ?? ?? ?? 83 c4 ?? 83 c4", "eb ?? 3d ?? ?? ?? ?? 75 ?? 81 7c 24 ?? ?? ?? ?? ?? 74 ?? eb ?? 3d");
 		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
@@ -259,6 +264,7 @@ void WidescreenFix()
 
 			Memory::PatchBytes(ResolutionInstructionsScansResult[Res5] + 50, "\xEB\x00");
 		}
+		*/
 	}
 }
 

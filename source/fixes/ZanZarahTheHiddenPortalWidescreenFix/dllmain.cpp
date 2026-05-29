@@ -1,404 +1,199 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-#include <tlhelp32.h>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "ZanZarahTheHiddenPortalWidescreenFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewValue1;
-float fNewValue2;
-float fNewValue3;
-float fNewValue4;
-float fNewValue5;
-float fNewValue6;
-float fNewValue7;
-float fNewValue8;
-float fNewValue9;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
-
-// Game detection
-enum class Game
+class ZanzarahFix final : public FixBase
 {
-	ZTHP,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::ZTHP, {"ZanZarah: The Hidden Portal", "zanthp.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit ZanzarahFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~ZanzarahFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid Pattern2Hook{};
-static SafetyHookMid Pattern3Hook{};
-static SafetyHookMid CameraHFOVInstructionHook{};
-static SafetyHookMid CameraVFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::ZTHP && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "ZanZarahTheHiddenPortalWidescreenFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.1";
+	}
 
-		fNewValue1 = 0.75f / fAspectRatioScale;
+	const char* TargetName() const override
+	{
+		return "ZanZarah: The Hidden Portal";
+	}
 
-		fNewValue2 = 0.65f / fAspectRatioScale;
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
 
-		fNewValue3 = 0.71f / fAspectRatioScale;
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "zanthp.exe");
+	}
 
-		fNewValue4 = 0.72f / fAspectRatioScale;
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
 
-		fNewValue5 = 0.68f / fAspectRatioScale;
+		FallbackToDesktopResolution(m_newResX, m_newResY);
 
-		fNewValue6 = 0.725f / fAspectRatioScale;
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+	}
 
-		fNewValue7 = 0.685f / fAspectRatioScale;
+	void ApplyFix() override
+	{
+		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
 
-		fNewValue8 = 0.69f / fAspectRatioScale;
-
-		std::uint8_t* Pattern1ScanResult = Memory::PatternScan(exeModule, "74 ?? 83 4D ?? ?? 68");
-		if (Pattern1ScanResult)
+		auto ResolutionListsScansResult = Memory::PatternScan(ExeModule(), "80 02 00 00 E0 01 00 00 10 00 00 00 20 03 00 00 58 02 00 00 10 00 00 00 00 04 00 00 00 03 00 00 10 00 00 00 80 02 00 00 E0 01 00 00 20 00 00 00 20 03 00 00 58 02 00 00 20 00 00 00 00 04 00 00 00 03 00 00 20 00 00 00 DB",
+		"80 02 00 00 E0 01 00 00 10 00 00 00 20 03 00 00 58 02 00 00 10 00 00 00 00 04 00 00 00 03 00 00 10 00 00 00 80 02 00 00 E0 01 00 00 20 00 00 00 20 03 00 00 58 02 00 00 20 00 00 00 00 04 00 00 00 03 00 00 20 00 00 00 F5",
+		"80 02 00 00 E0 01 00 00 10 00 00 00 20 03 00 00 58 02 00 00 10 00 00 00 00 04 00 00 00 03 00 00 10 00 00 00 80 02 00 00 E0 01 00 00 20 00 00 00 20 03 00 00 58 02 00 00 20 00 00 00 00 04 00 00 00 03 00 00 20 00 00 00 3B");
+		if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
 		{
-			spdlog::info("Pattern 1 detected.");
+			spdlog::info("Resolution List 1 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListsScansResult[ResList1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution List 2 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListsScansResult[ResList2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution List 3 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListsScansResult[ResList3] - (std::uint8_t*)ExeModule());
+			
+			// Resolution List 1
+			// 640x480x16
+			Memory::Write(ResolutionListsScansResult[ResList1], m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList1] + 4, m_newResY);
+			// 800x600x16
+			Memory::Write(ResolutionListsScansResult[ResList1] + 12, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList1] + 16, m_newResX);
+			// 1024x768x16
+			Memory::Write(ResolutionListsScansResult[ResList1] + 24, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList1] + 28, m_newResX);
+			// 640x480x32
+			Memory::Write(ResolutionListsScansResult[ResList1] + 36, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList1] + 40, m_newResY);
+			// 800x600x32
+			Memory::Write(ResolutionListsScansResult[ResList1] + 48, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList1] + 52, m_newResX);
+			// 1024x768x32
+			Memory::Write(ResolutionListsScansResult[ResList1] + 60, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList1] + 64, m_newResX);
 
-			Memory::WriteNOPs(Pattern1ScanResult, 2);
+			// Resolution List 2
+			// 640x480x16
+			Memory::Write(ResolutionListsScansResult[ResList2], m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList2] + 4, m_newResY);
+			// 800x600x16
+			Memory::Write(ResolutionListsScansResult[ResList2] + 12, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList2] + 16, m_newResX);
+			// 1024x768x16
+			Memory::Write(ResolutionListsScansResult[ResList2] + 24, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList2] + 28, m_newResX);
+			// 640x480x32
+			Memory::Write(ResolutionListsScansResult[ResList2] + 36, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList2] + 40, m_newResY);
+			// 800x600x32
+			Memory::Write(ResolutionListsScansResult[ResList2] + 48, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList2] + 52, m_newResX);
+			// 1024x768x32
+			Memory::Write(ResolutionListsScansResult[ResList2] + 60, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList2] + 64, m_newResX);
+
+			// Resolution List 3
+			// 640x480x16
+			Memory::Write(ResolutionListsScansResult[ResList3], m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList3] + 4, m_newResY);
+			// 800x600x16
+			Memory::Write(ResolutionListsScansResult[ResList3] + 12, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList3] + 16, m_newResX);
+			// 1024x768x16
+			Memory::Write(ResolutionListsScansResult[ResList3] + 24, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList3] + 28, m_newResX);
+			// 640x480x32
+			Memory::Write(ResolutionListsScansResult[ResList3] + 36, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList3] + 40, m_newResY);
+			// 800x600x32
+			Memory::Write(ResolutionListsScansResult[ResList3] + 48, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList3] + 52, m_newResX);
+			// 1024x768x32
+			Memory::Write(ResolutionListsScansResult[ResList3] + 60, m_newResX);
+			Memory::Write(ResolutionListsScansResult[ResList3] + 64, m_newResX);
+		}		
+
+		auto HUDScansResult = Memory::PatternScan(ExeModule(), "D9 05 ?? ?? ?? ?? 51 D9 1C 24 51 8B 4E ?? D9 E8 81 C1 ?? ?? ?? ?? D9 1C 24 E8 ?? ?? ?? ?? C7 86",
+		"D9 05 ?? ?? ?? ?? 8B BE", "D9 05 ?? ?? ?? ?? 8B 40 ?? 8B 48 ?? D9 C2",
+		"D8 0D ?? ?? ?? ?? DE C1 D9 96 ?? ?? ?? ?? D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 45 ?? D9 96 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 5E C9 C2 ?? ?? 55 8B EC 51 51",
+		"D8 0D ?? ?? ?? ?? D8 E2 D9 55 ?? D9 9E ?? ?? ?? ?? 8B 45 ?? 89 86 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? DE C1 D9 96 ?? ?? ?? ?? D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 45 ?? D9 96 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 5E C9 C2 ?? ?? 55 8B EC 51 51",
+		"D8 0D ?? ?? ?? ?? D9 5E ?? D9 C2", "D8 0D ?? ?? ?? ?? D9 5E ?? D9 56 ?? D9 45 ?? D9 56 ?? D9 05 ?? ?? ?? ?? D9 56 ?? D9 EE D9 5E ?? 89 56", "D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? 83 FF");
+		if (Memory::AreAllSignaturesValid(HUDScansResult) == true)
+		{
+			spdlog::info("HUD Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), HUDScansResult[HUD1] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), HUDScansResult[HUD2] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), HUDScansResult[HUD3] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), HUDScansResult[HUD4] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Instruction 5: Address is {:s}+{:x}", ExeName().c_str(), HUDScansResult[HUD5] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Instruction 6: Address is {:s}+{:x}", ExeName().c_str(), HUDScansResult[HUD6] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Instruction 7: Address is {:s}+{:x}", ExeName().c_str(), HUDScansResult[HUD7] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Instruction 8: Address is {:s}+{:x}", ExeName().c_str(), HUDScansResult[HUD8] - (std::uint8_t*)ExeModule());
+
+			m_HUD1Address = Memory::GetPointerFromAddress(HUDScansResult[HUD1] + 2, Memory::PointerMode::Absolute);
+			m_HUD2Address = Memory::GetPointerFromAddress(HUDScansResult[HUD2] + 2, Memory::PointerMode::Absolute);
+			m_HUD3Address = Memory::GetPointerFromAddress(HUDScansResult[HUD3] + 2, Memory::PointerMode::Absolute);
+			m_HUD4Address = Memory::GetPointerFromAddress(HUDScansResult[HUD4] + 2, Memory::PointerMode::Absolute);
+			m_HUD5Address = Memory::GetPointerFromAddress(HUDScansResult[HUD5] + 2, Memory::PointerMode::Absolute);
+			m_HUD6Address = Memory::GetPointerFromAddress(HUDScansResult[HUD6] + 2, Memory::PointerMode::Absolute);
+			m_HUD7Address = Memory::GetPointerFromAddress(HUDScansResult[HUD7] + 2, Memory::PointerMode::Absolute);
+			m_HUD8Address = Memory::GetPointerFromAddress(HUDScansResult[HUD8] + 2, Memory::PointerMode::Absolute);
+
+			m_newHUD1Value = 0.75f / m_aspectRatioScale;
+			m_newHUD2Value = 0.65f / m_aspectRatioScale;
+			m_newHUD3Value = 0.71f / m_aspectRatioScale;
+			m_newHUD4Value = 0.72f / m_aspectRatioScale;
+			m_newHUD5Value = 0.68f / m_aspectRatioScale;
+			m_newHUD6Value = 0.725f / m_aspectRatioScale;
+			m_newHUD7Value = 0.685f / m_aspectRatioScale;
+			m_newHUD8Value = 0.69f / m_aspectRatioScale;
+
+			Memory::Write(m_HUD1Address, m_newHUD1Value);
+			Memory::Write(m_HUD2Address, m_newHUD2Value);
+			Memory::Write(m_HUD3Address, m_newHUD3Value);
+			Memory::Write(m_HUD4Address, m_newHUD4Value);
+			Memory::Write(m_HUD5Address, m_newHUD5Value);
+			Memory::Write(m_HUD6Address, m_newHUD6Value);
+			Memory::Write(m_HUD7Address, m_newHUD7Value);
+			Memory::Write(m_HUD8Address, m_newHUD8Value);
 		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 1 memory address.");
-			return;
-		}
 
-		std::uint8_t* Pattern2ScanResult = Memory::PatternScan(exeModule, "E8 ?? ?? ?? ?? FF 35 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? D9 05");
-		if (Pattern2ScanResult)
+		auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 45 ?? 89 45 ?? 8B 45 ?? 56 89 45");
+		if (CameraFOVScanResult)
 		{
-			spdlog::info("Pattern 2 detected.");
+			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult + 6 - (std::uint8_t*)ExeModule());
 
-			Pattern2Hook = safetyhook::create_mid(Pattern2ScanResult, [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(CameraFOVScanResult, 3);
+
+			m_cameraHFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
-				*reinterpret_cast<int*>(ctx.esp + 0x8) = iCurrentResX;
-				
-				*reinterpret_cast<int*>(ctx.esp + 0xC) = iCurrentResY;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 2 memory address.");
-			return;
-		}
-
-		std::uint8_t* Pattern3ScanResult = Memory::PatternScan(exeModule, "8B B0 ?? ?? ?? ?? 89 71 ?? 8B B0");
-		if (Pattern3ScanResult)
-		{
-			spdlog::info("Pattern 3 detected.");
-
-			Memory::WriteNOPs(Pattern3ScanResult, 30);
-
-			Pattern3Hook = safetyhook::create_mid(Pattern3ScanResult, [](SafetyHookContext& ctx)
-			{
-				*reinterpret_cast<int*>(ctx.ecx + 0x8) = iCurrentResX;
-				
-				*reinterpret_cast<int*>(ctx.ecx + 0xC) = iCurrentResY;
-				
-				*reinterpret_cast<int*>(ctx.ecx + 0x10) = 32;
-				
-				*reinterpret_cast<int*>(ctx.ecx + 0x14) = 0;
-			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 3 memory address.");
-			return;
-		}
-
-		std::uint8_t* Pattern4ScanResult = Memory::PatternScan(exeModule, "33 C9 8B 30 89 14 24");
-		if (Pattern4ScanResult)
-		{
-			spdlog::info("Pattern 4 detected.");
-
-			Memory::PatchBytes(Pattern4ScanResult, "\x59\x59\x59\x68\x38\x04\x00\x00\x68\x80\x07\x00\x00\x52\x33\xC9\x89\x4C\x24\x14\x89\x4C\x24\x10\xB8\x20\x00\x00\x00");
-
-			Memory::Write(Pattern4ScanResult + 4, iCurrentResY);
-
-			Memory::Write(Pattern4ScanResult + 9, iCurrentResX);
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 4 memory address.");
-			return;
-		}
-
-		std::uint8_t* Pattern6ScanResult = Memory::PatternScan(exeModule, "DA E1 42 00 00 00 40 3F");
-		if (Pattern6ScanResult)
-		{
-			spdlog::info("Pattern 6 detected.");
-
-			Memory::Write(Pattern6ScanResult + 4, fNewValue1);			
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 6 memory address.");
-			return;
-		}
-
-		std::uint8_t* Pattern7ScanResult = Memory::PatternScan(exeModule, "7D 3F 66 66 26 3F 00 00");
-		if (Pattern7ScanResult)
-		{
-			spdlog::info("Pattern 7 detected.");
-
-			Memory::Write(Pattern7ScanResult + 2, fNewValue2);
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 7 memory address.");
-			return;
-		}
-
-		std::uint8_t* Pattern8ScanResult = Memory::PatternScan(exeModule, "66 66 A6 3F 00 00 00 00 00 00 40 3F 00 00 80 3F");
-		if (Pattern8ScanResult)
-		{
-			spdlog::info("Pattern 8 detected.");
-
-			Memory::Write(Pattern8ScanResult + 8, fNewValue1);
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 8 memory address.");
-			return;
-		}
-
-		std::uint8_t* Pattern9ScanResult = Memory::PatternScan(exeModule, "00 00 C0 BF AB AA AA 3E 66 66 E6 3F 8F C2 35 3F");
-		if (Pattern9ScanResult)
-		{
-			spdlog::info("Pattern 9 detected.");
-
-			Memory::Write(Pattern9ScanResult + 12, fNewValue3);
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 9 memory address.");
-			return;
-		}
-
-		std::uint8_t* Pattern10ScanResult = Memory::PatternScan(exeModule, "EC 51 38 3F 7B 14 2E 3F C3 F5 08 3F A6 9B C4 3B 0A D7 23 3B CD CC 0C 3F 9A 99 39 3F 29 5C 2F 3F AD AC EF B7 17 B7 D1 37 7B 14 0E 3F 00 00 C0 3E E1 7A 14 3E D7 A3 30 3F");
-		if (Pattern10ScanResult)
-		{
-			spdlog::info("Pattern 10 detected.");
-
-			Memory::Write(Pattern10ScanResult, fNewValue4);
-
-			Memory::Write(Pattern10ScanResult + 4, fNewValue5);
-
-			Memory::Write(Pattern10ScanResult + 18, fNewValue6);
-
-			Memory::Write(Pattern10ScanResult + 28, fNewValue7);
-
-			Memory::Write(Pattern10ScanResult + 52, fNewValue8);
-		}
-		else
-		{
-			spdlog::error("Failed to locate pattern 10 memory address.");
-			return;
-		}
-
-		std::uint8_t* CameraFOVInstructionsScanResult = Memory::PatternScan(exeModule, "8B 45 ?? 89 45 ?? 8B 45 ?? 56 89 45");
-		if (CameraFOVInstructionsScanResult)
-		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult - (std::uint8_t*)exeModule);
-
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScanResult + 6 - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult, 3);
-
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult, [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraHFOV = Memory::ReadMem(ctx.ebp + 0x8);
-
-				fNewCameraHFOV = fCurrentCameraHFOV * fAspectRatioScale * fFOVFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraHFOV);
+				s_instance_->CameraFOVMidHook(ctx, ctx.ebp + 0x8);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScanResult + 6, 3);
+			Memory::WriteNOPs(CameraFOVScanResult + 6, 3);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScanResult + 6, [](SafetyHookContext& ctx)
+			m_cameraVFOVHook = safetyhook::create_mid(CameraFOVScanResult + 6, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraVFOV = Memory::ReadMem(ctx.ebp + 0xC);
-
-				fNewCameraVFOV = fCurrentCameraVFOV * fAspectRatioScale * fFOVFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraVFOV);
+				s_instance_->CameraFOVMidHook(ctx, ctx.ebp + 0xC);
 			});
 		}
 		else
@@ -407,18 +202,63 @@ void WidescreenFix()
 			return;
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	uintptr_t m_HUD1Address = 0;
+	uintptr_t m_HUD2Address = 0;
+	uintptr_t m_HUD3Address = 0;
+	uintptr_t m_HUD4Address = 0;
+	uintptr_t m_HUD5Address = 0;
+	uintptr_t m_HUD6Address = 0;
+	uintptr_t m_HUD7Address = 0;
+	uintptr_t m_HUD8Address = 0;
+
+	float m_newHUD1Value = 0.0f;
+	float m_newHUD2Value = 0.0f;
+	float m_newHUD3Value = 0.0f;
+	float m_newHUD4Value = 0.0f;
+	float m_newHUD5Value = 0.0f;
+	float m_newHUD6Value = 0.0f;
+	float m_newHUD7Value = 0.0f;
+	float m_newHUD8Value = 0.0f;
+	float m_newCameraHFOV = 0.0f;
+	float m_newCameraVFOV = 0.0f;	
+
+	SafetyHookMid m_cameraHFOVHook{};
+	SafetyHookMid m_cameraVFOVHook{};
+
+	enum ResolutionListsIndex
 	{
-		WidescreenFix();
+		ResList1,
+		ResList2,
+		ResList3
+	};
+
+	enum HUDInstructionsIndex
+	{
+		HUD1,
+		HUD2,
+		HUD3,
+		HUD4,
+		HUD5,
+		HUD6,
+		HUD7,
+		HUD8
+	};
+
+	void CameraFOVMidHook(SafetyHookContext& ctx, uintptr_t FOVAddress)
+	{
+		float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
+		m_newCameraFOV = fCurrentCameraFOV * m_aspectRatioScale * m_fovFactor;
+		ctx.eax = std::bit_cast<uintptr_t>(m_newCameraFOV);
 	}
-	return TRUE;
-}
+
+	inline static ZanzarahFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<ZanzarahFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -426,19 +266,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<ZanzarahFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
