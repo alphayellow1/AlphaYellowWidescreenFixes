@@ -1,370 +1,79 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "FilaWorldTourTennisFOVFix";
-std::string sFixVersion = "1.3";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-uint32_t iNewResX;
-uint32_t iNewResY;
-float fNewCharacterSelectionHFOV1;
-float fNewCharacterSelectionHFOV2;
-uintptr_t HUDAspectRatioAddress;
-float fNewHUDAspectRatio;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
-float fNewCameraFOV5;
-int iNewCameraFOV6;
-
-
-// Game detection
-enum class Game
+class FilaWorldTourTennisFix final : public FixBase
 {
-	FWTT,
-	Unknown
-};
-
-enum AspectRatioInstructionsIndices
-{
-	CameraAR,
-	CharSelectionAR1,
-	CharSelectionAR2,
-	HUDAR1,
-	HUDAR2,
-	HUDAR3,
-	HUDAR4
-};
-
-enum FOVInstructionsIndices
-{
-	FOV1,
-	FOV2,
-	FOV3,
-	FOV4,
-	FOV5,
-	FOV6
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::FWTT, {"Fila World Tour Tennis", "FWTT.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit FilaWorldTourTennisFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(fFOVFactor);
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
+	~FilaWorldTourTennisFix() override
 	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid ResolutionWidthInstructionHook{};
-static SafetyHookMid ResolutionHeightInstructionHook{};
-static SafetyHookMid HUDAspectRatioInstruction1Hook{};
-static SafetyHookMid HUDAspectRatioInstruction2Hook{};
-static SafetyHookMid HUDAspectRatioInstruction3Hook{};
-static SafetyHookMid HUDAspectRatioInstruction4Hook{};
-static SafetyHookMid CameraFOVInstruction5Hook{};
-static SafetyHookMid CameraFOVInstruction6Hook{};
-
-enum DestinationInstructions
-{
-	ECX,
-	FMUL,
-	FSUB
-};
-
-void HUDAspectRatioInstructionsMidHook(uintptr_t address, DestinationInstructions destinationInstruction, SafetyHookContext& ctx)
-{
-	float& fCurrentHUDAspectRatio = Memory::ReadMem(address);
-	
-	fNewHUDAspectRatio = fCurrentHUDAspectRatio * fAspectRatioScale;
-
-	switch (destinationInstruction)
+protected:
+	const char* FixName() const override
 	{
-	case ECX:
-		ctx.ecx = std::bit_cast<uintptr_t>(fNewHUDAspectRatio);
-		break;
-
-	case FMUL:
-		FPU::FMUL(fNewHUDAspectRatio);
-		break;
-
-	case FSUB:
-		FPU::FSUB(fNewHUDAspectRatio);
-		break;
-	}
-}
-
-void FixARAndFOV()
-{
-	std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 51 8B 4E ?? 6A", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? 83 F8", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? DB 44 24", "8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 8D 44 24", "D8 0D ?? ?? ?? ?? DC C0 D8 25 ?? ?? ?? ?? D8 2D ?? ?? ?? ?? D9 5C 24 ?? DB 44 24", "D8 25 ?? ?? ?? ?? D8 2D ?? ?? ?? ?? D9 5C 24 ?? DB 44 24", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? DB 44 24 ?? DA 35");
-	if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
-	{
-		spdlog::info("Camera Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CameraAR] - (std::uint8_t*)exeModule);
-
-		spdlog::info("Character Selection Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CharSelectionAR1] - (std::uint8_t*)exeModule);
-
-		spdlog::info("Character Selection Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CharSelectionAR2] - (std::uint8_t*)exeModule);
-
-		spdlog::info("HUD Aspect Ratio Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUDAR1] - (std::uint8_t*)exeModule);
-
-		spdlog::info("HUD Aspect Ratio Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUDAR2] - (std::uint8_t*)exeModule);
-
-		spdlog::info("HUD Aspect Ratio Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUDAR3] - (std::uint8_t*)exeModule);
-
-		spdlog::info("HUD Aspect Ratio Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[HUDAR4] - (std::uint8_t*)exeModule);
-
-		Memory::Write(AspectRatioInstructionsScansResult[CameraAR] + 1, fNewAspectRatio);
-
-		fNewCharacterSelectionHFOV1 = 320.0f * fAspectRatioScale;
-
-		Memory::Write(AspectRatioInstructionsScansResult[CharSelectionAR1] + 4, fNewCharacterSelectionHFOV1);
-
-		fNewCharacterSelectionHFOV2 = 224.0f * fAspectRatioScale;
-
-		Memory::Write(AspectRatioInstructionsScansResult[CharSelectionAR2] + 4, fNewCharacterSelectionHFOV2);
-
-		HUDAspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioInstructionsScansResult[HUDAR1] + 2, Memory::PointerMode::Absolute);
-
-		Memory::WriteNOPs(AspectRatioInstructionsScansResult, HUDAR1, HUDAR4, 0, 6);
-
-		HUDAspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR1], [](SafetyHookContext& ctx)
-		{
-			HUDAspectRatioInstructionsMidHook(HUDAspectRatioAddress, ECX, ctx);
-		});
-
-		HUDAspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR2], [](SafetyHookContext& ctx)
-		{
-			HUDAspectRatioInstructionsMidHook(HUDAspectRatioAddress, FMUL, ctx);
-		});
-
-		HUDAspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR3], [](SafetyHookContext& ctx)
-		{
-			HUDAspectRatioInstructionsMidHook(HUDAspectRatioAddress, FSUB, ctx);
-		});
-
-		HUDAspectRatioInstruction4Hook = safetyhook::create_mid(AspectRatioInstructionsScansResult[HUDAR4], [](SafetyHookContext& ctx)
-		{
-			HUDAspectRatioInstructionsMidHook(HUDAspectRatioAddress, FMUL, ctx);
-		});
+		return "FilaWorldTourTennisFOVFix";
 	}
 
-	std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 8B CF E8 ?? ?? ?? ?? D9 5C 24", "68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 44 24", "68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 86", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE", "D8 42 ?? 8B CE", "DB 40 ?? 51 8B CE D9 1C ?? E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 57");
-	if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+	const char* FixVersion() const override
 	{
-		spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
-
-		spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
-
-		spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV3] - (std::uint8_t*)exeModule);
-
-		spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV4] - (std::uint8_t*)exeModule);
-
-		spdlog::info("Camera FOV Instruction 5: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV5] - (std::uint8_t*)exeModule);
-
-		spdlog::info("Camera FOV Instruction 6: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV6] - (std::uint8_t*)exeModule);
-
-		fNewCameraFOV1 = Maths::CalculateNewFOV_DegBased(60.0f, fAspectRatioScale) * fFOVFactor;
-
-		fNewCameraFOV2 = Maths::CalculateNewFOV_DegBased(25.0f, fAspectRatioScale) * fFOVFactor;
-
-		Memory::Write(CameraFOVInstructionsScansResult, FOV1, FOV3, 1, fNewCameraFOV1);
-
-		Memory::Write(CameraFOVInstructionsScansResult[FOV4] + 1, fNewCameraFOV2);
-
-		Memory::WriteNOPs(CameraFOVInstructionsScansResult, FOV5, FOV6, 0, 3);
-
-		CameraFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV5], [](SafetyHookContext& ctx)
-		{
-			float& fCurrentCameraFOV5 = Memory::ReadMem(ctx.edx + 0x10);
-
-			fNewCameraFOV5 = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV5, fAspectRatioScale);
-
-			FPU::FADD(fNewCameraFOV5);
-		});
-
-		CameraFOVInstruction6Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV6], [](SafetyHookContext& ctx)
-		{
-			int& iCurrentCameraFOV6 = Memory::ReadMem(ctx.eax + 0x14);
-
-			iNewCameraFOV6 = (int)(Maths::CalculateNewFOV_DegBased((float)iCurrentCameraFOV6, fAspectRatioScale) * fFOVFactor);
-
-			FPU::FILD(iNewCameraFOV6);
-		});
+		return "1.4";
 	}
-}
 
-void FOVFix()
-{
-	if (eGameType == Game::FWTT && bFixActive == true)
+	const char* TargetName() const override
 	{
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 89 0D");
-		if (ResolutionInstructionsScanResult)
-		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+		return "Fila World Tour Tennis";
+	}
 
-			ResolutionWidthInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "FWTT.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "89 15 ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 89 0D");
+		if (ResolutionScanResult)
+		{
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
+
+			m_resolutionWidthHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
 			{
-				iNewResX = Memory::ReadRegister(ctx.edx);
+				s_instance_->m_newResX = Memory::ReadRegister(ctx.edx);
 			});
 
-			ResolutionHeightInstructionHook = safetyhook::create_mid(ResolutionInstructionsScanResult + 16, [](SafetyHookContext& ctx)
+			m_resolutionHeightHook = safetyhook::create_mid(ResolutionScanResult + 16, [](SafetyHookContext& ctx)
 			{
-				iNewResY = Memory::ReadRegister(ctx.ecx);
+				s_instance_->m_newResY = Memory::ReadRegister(ctx.ecx);
+				s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
 
-				fNewAspectRatio = static_cast<float>(iNewResX) / static_cast<float>(iNewResY);
-
-				fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-				FixARAndFOV();
+				s_instance_->WriteStaticARandFOVs();
 
 				// Since we only need the resolution width and height at startup and already give the correct AR and AR scale to the AR and FOV logic, these hooks don't need to be active anymore
-				ResolutionWidthInstructionHook.reset();
-
-				ResolutionHeightInstructionHook.reset();
-			});			
+				s_instance_->m_resolutionWidthHook.disable();
+				s_instance_->m_resolutionHeightHook.disable();
+			});
 		}
 		else
 		{
@@ -372,20 +81,186 @@ void FOVFix()
 			return;
 		}
 
-		
-	}
-}
+		AspectRatioScansResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 51 8B 4E ?? 6A", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? 83 F8",
+		"C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? DB 44 24", "8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 8D 44 24", "D8 0D ?? ?? ?? ?? DC C0 D8 25 ?? ?? ?? ?? D8 2D ?? ?? ?? ?? D9 5C 24 ?? DB 44 24",
+		"D8 25 ?? ?? ?? ?? D8 2D ?? ?? ?? ?? D9 5C 24 ?? DB 44 24", "D8 0D ?? ?? ?? ?? D9 5C 24 ?? DB 44 24 ?? DA 35");
+		if (Memory::AreAllSignaturesValid(AspectRatioScansResult) == true)
+		{
+			spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[GameplayCamAR] - (std::uint8_t*)ExeModule());
+			spdlog::info("Character Selection Aspect Ratio Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[CharSelectionAR1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Character Selection Aspect Ratio Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[CharSelectionAR2] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Aspect Ratio Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[HUDAR1] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Aspect Ratio Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[HUDAR2] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Aspect Ratio Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[HUDAR3] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Aspect Ratio Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[HUDAR4] - (std::uint8_t*)ExeModule());			
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
+			Memory::WriteNOPs(AspectRatioScansResult, CharSelectionAR1, CharSelectionAR2, 0, 8);
+
+			m_characterSelectionHFOV1Hook = safetyhook::create_mid(AspectRatioScansResult[CharSelectionAR1], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newCharacterSelectionHFOV1 = s_instance_->m_originalCharacterSelectionAR1 * s_instance_->m_aspectRatioScale;
+
+				*reinterpret_cast<float*>(ctx.esp + 0x54) = s_instance_->m_newCharacterSelectionHFOV1;
+			});
+
+			m_characterSelectionHFOV2Hook = safetyhook::create_mid(AspectRatioScansResult[CharSelectionAR2], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newCharacterSelectionHFOV2 = s_instance_->m_originalCharacterSelectionAR2 * s_instance_->m_aspectRatioScale;
+
+				*reinterpret_cast<float*>(ctx.esp + 0x54) = s_instance_->m_newCharacterSelectionHFOV2;
+			});
+
+			m_hudAspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioScansResult[HUDAR1] + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(AspectRatioScansResult, HUDAR1, HUDAR4, 0, 6);
+
+			m_hudAspectRatio1Hook = safetyhook::create_mid(AspectRatioScansResult[HUDAR1], [](SafetyHookContext& ctx)
+			{
+				s_instance_->HUDAspectRatioMidHook(s_instance_->m_hudAspectRatioAddress, ECX, ctx);
+			});
+
+			m_hudAspectRatio2Hook = safetyhook::create_mid(AspectRatioScansResult[HUDAR2], [](SafetyHookContext& ctx)
+			{
+				s_instance_->HUDAspectRatioMidHook(s_instance_->m_hudAspectRatioAddress, FMUL, ctx);
+			});
+
+			m_hudAspectRatio3Hook = safetyhook::create_mid(AspectRatioScansResult[HUDAR3], [](SafetyHookContext& ctx)
+			{
+				s_instance_->HUDAspectRatioMidHook(s_instance_->m_hudAspectRatioAddress, FSUB, ctx);
+			});
+
+			m_hudAspectRatio4Hook = safetyhook::create_mid(AspectRatioScansResult[HUDAR4], [](SafetyHookContext& ctx)
+			{
+				s_instance_->HUDAspectRatioMidHook(s_instance_->m_hudAspectRatioAddress, FMUL, ctx);
+			});
+		}
+
+		CameraFOVScansResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 8B CF E8 ?? ?? ?? ?? D9 5C 24", "68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 44 24",
+		"68 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 8B 86", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE", "D8 42 ?? 8B CE",
+		"DB 40 ?? 51 8B CE D9 1C ?? E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 57");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
+		{
+			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Gameplay Camera FOV Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay3] - (std::uint8_t*)ExeModule());
+			spdlog::info("Gameplay Camera FOV Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay4] - (std::uint8_t*)ExeModule());
+			spdlog::info("Cutscenes Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Cutscenes1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Cutscenes2] - (std::uint8_t*)ExeModule());
+
+			Memory::WriteNOPs(CameraFOVScansResult, Cutscenes1, Cutscenes2, 0, 3);
+
+			m_cutscenesFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Cutscenes1], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentCutscenesFOV1 = Memory::ReadMem(ctx.edx + 0x10);
+				s_instance_->m_newCutscenesFOV1 = Maths::CalculateNewFOV_DegBased(fCurrentCutscenesFOV1, s_instance_->m_aspectRatioScale);
+				FPU::FADD(s_instance_->m_newCutscenesFOV1);
+			});
+
+			m_cutscenesFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Cutscenes2], [](SafetyHookContext& ctx)
+			{
+				int& iCurrentCameraFOV6 = Memory::ReadMem(ctx.eax + 0x14);
+				s_instance_->m_newCutscenesFOV2 = (uint32_t)(Maths::CalculateNewFOV_DegBased((float)iCurrentCameraFOV6, s_instance_->m_aspectRatioScale));
+				FPU::FILD(s_instance_->m_newCutscenesFOV2);
+			});
+		}
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalCameraFOV1 = 60.0f;
+	static constexpr float m_originalCameraFOV2 = 25.0f;
+	static constexpr float m_originalCharacterSelectionAR1 = 320.0f;
+	static constexpr float m_originalCharacterSelectionAR2 = 224.0f;
+
+	SafetyHookMid m_resolutionWidthHook{};
+	SafetyHookMid m_resolutionHeightHook{};
+	SafetyHookMid m_characterSelectionHFOV1Hook{};
+	SafetyHookMid m_characterSelectionHFOV2Hook{};
+	SafetyHookMid m_hudAspectRatio1Hook{};
+	SafetyHookMid m_hudAspectRatio2Hook{};
+	SafetyHookMid m_hudAspectRatio3Hook{};
+	SafetyHookMid m_hudAspectRatio4Hook{};
+	SafetyHookMid m_cutscenesFOV1Hook{};
+	SafetyHookMid m_cutscenesFOV2Hook{};
+
+	std::vector<std::uint8_t*> AspectRatioScansResult;
+	std::vector<std::uint8_t*> CameraFOVScansResult;
+
+	uint32_t iNewResX = 0;
+	uint32_t iNewResY = 0;
+	float m_newCharacterSelectionHFOV1 = 0.0f;
+	float m_newCharacterSelectionHFOV2 = 0.0f;
+	uintptr_t m_hudAspectRatioAddress = 0;
+	float m_newHUDAspectRatio = 0.0f;
+	float m_newCameraFOV1 = 0.0f;
+	float m_newCameraFOV2 = 0.0f;
+	float m_newCutscenesFOV1 = 0.0f;
+	uint32_t m_newCutscenesFOV2 = 0;
+
+	enum AspectRatioInstructionsIndices
+	{
+		GameplayCamAR,
+		CharSelectionAR1,
+		CharSelectionAR2,
+		HUDAR1,
+		HUDAR2,
+		HUDAR3,
+		HUDAR4
+	};
+
+	enum FOVInstructionsIndices
+	{
+		Gameplay1,
+		Gameplay2,
+		Gameplay3,
+		Gameplay4,
+		Cutscenes1,
+		Cutscenes2
+	};
+
+	enum DestinationInstructions
+	{
+		ECX,
+		FMUL,
+		FSUB
+	};
+
+	void WriteStaticARandFOVs()
+	{
+		m_newCameraFOV1 = Maths::CalculateNewFOV_DegBased(m_originalCameraFOV1, m_aspectRatioScale) * m_fovFactor;
+		m_newCameraFOV2 = Maths::CalculateNewFOV_DegBased(m_originalCameraFOV2, m_aspectRatioScale) * m_fovFactor;
+
+		Memory::Write(AspectRatioScansResult[GameplayCamAR] + 1, m_newAspectRatio);
+		Memory::Write(CameraFOVScansResult, Gameplay1, Gameplay3, 1, m_newCameraFOV1);
+		Memory::Write(CameraFOVScansResult[Gameplay4] + 1, m_newCameraFOV2);
+	}
+
+	void HUDAspectRatioMidHook(uintptr_t address, DestinationInstructions destinationInstruction, SafetyHookContext& ctx)
+	{
+		float& fCurrentHUDAspectRatio = Memory::ReadMem(address);
+
+		m_newHUDAspectRatio = fCurrentHUDAspectRatio * m_aspectRatioScale;
+
+		switch (destinationInstruction)
+		{
+		case ECX:
+			ctx.ecx = std::bit_cast<uintptr_t>(m_newHUDAspectRatio);
+			break;
+
+		case FMUL:
+			FPU::FMUL(m_newHUDAspectRatio);
+			break;
+
+		case FSUB:
+			FPU::FSUB(m_newHUDAspectRatio);
+			break;
+		}
+	}
+
+	inline static FilaWorldTourTennisFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<FilaWorldTourTennisFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -393,19 +268,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<FilaWorldTourTennisFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }

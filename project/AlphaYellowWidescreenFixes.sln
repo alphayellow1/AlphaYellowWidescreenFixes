@@ -1183,6 +1183,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArchangelWidescreenFix", "A
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArthursQuestBattleForTheKingdomWidescreenFix", "ArthursQuestBattleForTheKingdomWidescreenFix.vcxproj", "{D3EC3192-FC49-4DE2-AFD3-A79B5BC1FCB9}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NHRADragRacingQuarterMileShowdownWidescreenFix", "NHRADragRacingQuarterMileShowdownWidescreenFix.vcxproj", "{A268AF20-C115-46E6-9436-89F93AF96261}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5895,6 +5897,14 @@ Global
 		{D3EC3192-FC49-4DE2-AFD3-A79B5BC1FCB9}.Release|x64.Build.0 = Release|x64
 		{D3EC3192-FC49-4DE2-AFD3-A79B5BC1FCB9}.Release|x86.ActiveCfg = Release|Win32
 		{D3EC3192-FC49-4DE2-AFD3-A79B5BC1FCB9}.Release|x86.Build.0 = Release|Win32
+		{A268AF20-C115-46E6-9436-89F93AF96261}.Debug|x64.ActiveCfg = Debug|x64
+		{A268AF20-C115-46E6-9436-89F93AF96261}.Debug|x64.Build.0 = Debug|x64
+		{A268AF20-C115-46E6-9436-89F93AF96261}.Debug|x86.ActiveCfg = Debug|Win32
+		{A268AF20-C115-46E6-9436-89F93AF96261}.Debug|x86.Build.0 = Debug|Win32
+		{A268AF20-C115-46E6-9436-89F93AF96261}.Release|x64.ActiveCfg = Release|x64
+		{A268AF20-C115-46E6-9436-89F93AF96261}.Release|x64.Build.0 = Release|x64
+		{A268AF20-C115-46E6-9436-89F93AF96261}.Release|x86.ActiveCfg = Release|Win32
+		{A268AF20-C115-46E6-9436-89F93AF96261}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6488,6 +6498,7 @@ Global
 		{A0B1BEAD-D40E-45EB-B844-B7332B23EEB9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{F3583A10-B6DE-40EA-8C79-FB19CCFF5192} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{D3EC3192-FC49-4DE2-AFD3-A79B5BC1FCB9} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{A268AF20-C115-46E6-9436-89F93AF96261} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}
