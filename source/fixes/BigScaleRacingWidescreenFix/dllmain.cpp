@@ -46,14 +46,7 @@ protected:
 
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
-		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
-		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
-
-		FallbackToDesktopResolution(m_newResX, m_newResY);
-
-		spdlog_confparse(m_newResX);
-		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
 	}
 
