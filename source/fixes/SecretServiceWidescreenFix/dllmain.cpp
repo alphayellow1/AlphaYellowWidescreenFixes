@@ -117,7 +117,6 @@ protected:
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
-
 	static constexpr float m_originalHipfireFOV = 1.22173059f;
 
 	HMODULE m_cloakNTEngineDllModule = nullptr;
