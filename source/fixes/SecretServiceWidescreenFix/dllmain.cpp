@@ -10,6 +10,8 @@ public:
 
 	~SecretServiceFix() override
 	{
+		StopResolutionLoop();
+
 		if (s_instance_ == this)
 		{
 			s_instance_ = nullptr;
@@ -24,7 +26,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -47,13 +49,17 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "HipfireFOVFactor", m_hipfireFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", m_weaponFOVFactor);
 		inipp::get_value(ini.sections["Settings"], "ZoomFactor", m_zoomFactor);
 		spdlog_confparse(m_hipfireFOVFactor);
+		spdlog_confparse(m_weaponFOVFactor);
 		spdlog_confparse(m_zoomFactor);
 	}
 
 	void ApplyFix() override
 	{
+		StartResolutionLoop();
+
 		m_cloakNTEngineDllModule = Memory::GetHandle("CloakNTEngine.dll");
 		m_cloakNTEngineDllName = Memory::GetModuleName(m_cloakNTEngineDllModule);
 
@@ -77,7 +83,7 @@ protected:
 		"D9 05 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 8B 4C 24 ?? 89 96 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? 8B 54 24 ?? 89 86",
 		"D9 05 ?? ?? ?? ?? D9 1C 24 E8 ?? ?? ?? ?? 8B 8E", "88 ?? ?? ?? ?? 83 F9 ?? 0F 8C ?? ?? ?? ?? 83 F9 ?? 0F 8F ?? ?? ?? ?? 8B 80 ?? ?? ?? ?? D9 05 ?? ?? ?? ??",
 		"D9 05 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 89 8E ?? ?? ?? ?? 8B 4C 24 ?? 89 96 ?? ?? ?? ?? 89 96 ?? ?? ?? ?? 8B 54 24 ?? 33 DB",
-		"D9 46 ?? D9 1C 24 E8 ?? ?? ?? ?? D9 EE D8 5C 24");
+		"D9 46 ?? D9 1C 24 E8 ?? ?? ?? ?? D9 EE D8 5C 24", "D9 44 24 ?? DC 0D ?? ?? ?? ?? D9 99 ?? ?? ?? ?? C2 ?? ?? CC CC CC CC CC CC CC CC CC CC CC CC CC 51 D9 81 ?? ?? ?? ?? DC 0D ?? ?? ?? ?? D9 1C 24 D9 04 24 59 C3 CC CC CC CC CC CC CC CC CC CC CC 56");
 		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
 			spdlog::info("Actor Initialize FOV Instruction: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ActorInitialize] - (std::uint8_t*)m_cloakNTEngineDllModule);
@@ -91,8 +97,9 @@ protected:
 			spdlog::info("Reset Weapon FOV Instruction 1: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ResetWeapon1] + 29 - (std::uint8_t*)m_cloakNTEngineDllModule);
 			spdlog::info("Reset Weapon FOV Instruction 2: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[ResetWeapon2] - (std::uint8_t*)m_cloakNTEngineDllModule);
 			spdlog::info("Zoom FOV Instruction: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[Zoom] - (std::uint8_t*)m_cloakNTEngineDllModule);
+			spdlog::info("Weapon Model FOV Instruction: Address is {:s}+{:x}", m_cloakNTEngineDllName.c_str(), CameraFOVScansResult[WeaponModel] - (std::uint8_t*)m_cloakNTEngineDllModule);
 
-			m_newHipfireFOV = m_originalHipfireFOV * m_hipfireFOVFactor;
+			m_newHipfireFOV = Maths::CalculateNewFOV_RadBased(m_originalHipfireFOV, m_aspectRatioScale) * m_hipfireFOVFactor;
 
 			Memory::Write(CameraFOVScansResult[ActorInitialize] + 2, &m_newHipfireFOV);
 			Memory::Write(CameraFOVScansResult[Hipfire] + 2, &m_newHipfireFOV);
@@ -109,26 +116,37 @@ protected:
 			m_zoomFOVHook = safetyhook::create_mid(CameraFOVScansResult[Zoom], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentZoomFOV = Memory::ReadMem(ctx.esi + 0x34);
-				s_instance_->m_newZoomFOV = fCurrentZoomFOV / s_instance_->m_zoomFactor;
+				s_instance_->m_newZoomFOV = Maths::CalculateNewFOV_RadBased(fCurrentZoomFOV, s_instance_->m_aspectRatioScale) / s_instance_->m_zoomFactor;
 				FPU::FLD(s_instance_->m_newZoomFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[WeaponModel], 4);
+			m_weaponModelFOVHook = safetyhook::create_mid(CameraFOVScansResult[WeaponModel], [](SafetyHookContext& ctx)
+			{
+				float& fCurrentWeaponModelFOV = Memory::ReadMem(ctx.esp + 0x4);
+				s_instance_->m_newWeaponModelFOV = Maths::CalculateNewFOV_DegBased(fCurrentWeaponModelFOV, s_instance_->m_aspectRatioScale) * s_instance_->m_weaponFOVFactor;
+				FPU::FLD(s_instance_->m_newWeaponModelFOV);
 			});
 		}
 	}
 
 private:
-	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_oldAspectRatio = 16.0f / 9.0f;
 	static constexpr float m_originalHipfireFOV = 1.22173059f;
 
 	HMODULE m_cloakNTEngineDllModule = nullptr;
 	std::string m_cloakNTEngineDllName = "";
 
 	float m_hipfireFOVFactor = 0.0f;
+	float m_weaponFOVFactor = 0.0f;
 	float m_zoomFactor = 0.0f;
 
 	float m_newHipfireFOV = 0.0f;
 	float m_newZoomFOV = 0.0f;
+	float m_newWeaponModelFOV = 0.0f;	
 
 	SafetyHookMid m_zoomFOVHook{};
+	SafetyHookMid m_weaponModelFOVHook{};
 
 	enum CameraFOVInstructionsIndices
 	{
@@ -142,8 +160,108 @@ private:
 		WeaponShow,
 		ResetWeapon1,
 		ResetWeapon2,
-		Zoom
+		Zoom,
+		WeaponModel
 	};
+
+	std::thread m_resolutionThread;
+	std::atomic_bool m_resolutionThreadRunning{ false };
+
+	int m_gameWidth = 0;
+	int m_gameHeight = 0;
+
+	static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
+	{
+		DWORD windowProcessId = 0;
+		GetWindowThreadProcessId(hwnd, &windowProcessId);
+
+		if (windowProcessId != GetCurrentProcessId())
+		{
+			return TRUE;
+		}
+
+		if (!IsWindowVisible(hwnd))
+		{
+			return TRUE;
+		}
+
+		if (GetWindow(hwnd, GW_OWNER) != nullptr)
+		{
+			return TRUE;
+		}
+
+		*reinterpret_cast<HWND*>(lParam) = hwnd;
+		return FALSE;
+	}
+
+	HWND GetGameWindow() const
+	{
+		HWND hwnd = nullptr;
+		EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&hwnd));
+		return hwnd;
+	}
+
+	void StartResolutionLoop()
+	{
+		if (m_resolutionThreadRunning)
+		{
+			return;
+		}
+
+		m_resolutionThreadRunning = true;
+
+		m_resolutionThread = std::thread([this]()
+		{
+			HWND gameWindow = nullptr;
+
+			while (m_resolutionThreadRunning)
+			{
+				if (!gameWindow || !IsWindow(gameWindow))
+				{
+					gameWindow = GetGameWindow();
+
+					if (!gameWindow)
+					{
+						std::this_thread::sleep_for(std::chrono::milliseconds(500));
+						continue;
+					}
+				}
+
+				RECT clientRect{};
+				if (GetClientRect(gameWindow, &clientRect))
+				{
+					const int width = clientRect.right - clientRect.left;
+					const int height = clientRect.bottom - clientRect.top;
+
+					if (width > 0 && height > 0)
+					{
+						if (width != m_gameWidth || height != m_gameHeight)
+						{
+							m_gameWidth = width;
+							m_gameHeight = height;
+
+							const float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+
+							m_aspectRatioScale = aspectRatio / m_oldAspectRatio;
+							m_newHipfireFOV = Maths::CalculateNewFOV_RadBased(m_originalHipfireFOV, m_aspectRatioScale) * m_hipfireFOVFactor;
+						}
+					}
+				}
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(250));
+			}
+		});
+	}
+
+	void StopResolutionLoop()
+	{
+		m_resolutionThreadRunning = false;
+
+		if (m_resolutionThread.joinable())
+		{
+			m_resolutionThread.join();
+		}
+	}
 
 	inline static SecretServiceFix* s_instance_ = nullptr;
 };
