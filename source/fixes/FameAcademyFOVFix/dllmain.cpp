@@ -52,24 +52,9 @@ protected:
 
 	void ApplyFix() override
 	{
-		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 02 A3 ?? ?? ?? ?? 8B 42");
-		if (ResolutionScanResult)
-		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
+		GetResolutionFromIni();
 
-			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
-				{
-					uint32_t& iCurrentWidth = Memory::ReadMem(ctx.edx);
-					uint32_t& iCurrentHeight = Memory::ReadMem(ctx.edx + 0x4);
-					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
-					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
-				});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions scan memory address.");
-			return;
-		}
+		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
 
 		auto AspectRatioScansResult = Memory::PatternScan(ExeModule(), "8B 96 ?? ?? ?? ?? 50 8B 86 ?? ?? ?? ?? 51 52 50 8D 4E", "D8 8E ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 1C", "D8 8E ?? ?? ?? ?? 83 C4", "D8 8E ?? ?? ?? ?? D8 C9");
 		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "8B 86 ?? ?? ?? ?? 51 52 50 8D 4E", "D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 51", "D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 1C", "D9 86 ?? ?? ?? ?? D8 8E ?? ?? ?? ?? D8 0D", "D9 86 ?? ?? ?? ?? D8 8E ?? ?? ?? ?? 83 C4", "D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8D 5E");
@@ -195,6 +180,45 @@ private:
 		FOV5,
 		FOV6
 	};
+
+	void GetResolutionFromIni()
+	{
+		char exePath[MAX_PATH]{};
+
+		if (GetModuleFileNameA(nullptr, exePath, MAX_PATH) == 0)
+		{
+			spdlog::error("Failed to get executable path.");
+			return;
+		}
+
+		std::filesystem::path configPath = std::filesystem::path(exePath).parent_path() / "DATA" / "Config" / "UserConfig.ini";
+
+		inipp::Ini<char> fameAcademyIni;
+		std::ifstream iniFile(configPath);
+
+		if (!iniFile.is_open())
+		{
+			spdlog::error("Failed to open UserConfig.ini at: {}", configPath.string());
+			return;
+		}
+
+		fameAcademyIni.parse(iniFile);
+
+		int iniWidth = 0;
+		int iniHeight = 0;
+
+		inipp::get_value(fameAcademyIni.sections["CUSTOM_DISPLAY"], "DISPRESOLUTIONWIDTH", iniWidth);
+		inipp::get_value(fameAcademyIni.sections["CUSTOM_DISPLAY"], "DISPRESOLUTIONHEIGHT", iniHeight);
+
+		if (iniWidth <= 0 || iniHeight <= 0)
+		{
+			spdlog::error("Invalid resolution read from UserConfig.ini: {}x{}", iniWidth, iniHeight);
+			return;
+		}
+
+		m_newResX = iniWidth;
+		m_newResY = iniHeight;
+	}
 
 	static void AspectRatioMidHook(SafetyHookContext& ctx)
 	{
