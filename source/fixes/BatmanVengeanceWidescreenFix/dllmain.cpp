@@ -1,267 +1,81 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE dllModule2 = nullptr;
-HMODULE dllModule3 = nullptr;
-HMODULE dllModule4 = nullptr;
-HMODULE dllModule5 = nullptr;
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "BatmanVengeanceWidescreenFix";
-std::string sFixVersion = "1.6";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewResX;
-float fNewGeneralFOV;
-float fNewGameplayFOV;
-float fNewCameraFOV3;
-uintptr_t GameplayFOVAddress1;
-uintptr_t GameplayFOVAddress5;
-
-// Game detection
-enum class Game
+class BatmanVengeanceFix final : public FixBase
 {
-	BV,
-	Unknown
-};
-
-enum CameraFOVInstructionsIndices
-{
-	GeneralFOV,
-	GameplayFOV1,
-	GameplayFOV2,
-	GameplayFOV3,
-	GameplayFOV4,
-	GameplayFOV5,
-	GameplayFOV6
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::BV, {"Batman Vengeance", "Batman.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit BatmanVengeanceFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~BatmanVengeanceFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	bool bGameFound = false;
-
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			bGameFound = true;
-			break;
+			s_instance_ = nullptr;
 		}
 	}
 
-	if (bGameFound == false)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		return "BatmanVengeanceWidescreenFix";
 	}
 
-	dllModule2 = Memory::GetHandle("osr_dx8_vf.dll", 50);
-
-	return true;
-}
-
-static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid GeneralFOVInstructionHook{};
-static SafetyHookMid GameplayFOVInstruction1Hook{};
-static SafetyHookMid GameplayFOVInstruction2Hook{};
-static SafetyHookMid GameplayFOVInstruction3Hook{};
-static SafetyHookMid GameplayFOVInstruction4Hook{};
-static SafetyHookMid GameplayFOVInstruction5Hook{};
-static SafetyHookMid GameplayFOVInstruction6Hook{};
-
-void GameplayFOVInstructionsMidHook(uintptr_t FOVAddress, uintptr_t& destInstruction)
-{
-	float& fCurrentGameplayFOV = Memory::ReadMem(FOVAddress);
-
-	fNewGameplayFOV = fCurrentGameplayFOV * fFOVFactor;
-
-	destInstruction = std::bit_cast<uintptr_t>(fNewGameplayFOV);
-}
-
-void WidescreenFix()
-{
-	if (eGameType == Game::BV && bFixActive == true)
+	const char* FixVersion() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "1.7";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* TargetName() const override
+	{
+		return "Batman: Vengeance";
+	}
 
-		std::uint8_t* ResolutionListScanResult = Memory::PatternScan(dllModule2, "00 00 00 00 02 00 00 80 01 00 00 80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00 3C 00 00 00");
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Batman.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		m_osrDllModule = Memory::GetHandle("osr_dx8_vf.dll", 50);
+		m_osrDllModuleName = Memory::GetModuleName(m_osrDllModule);
+
+		auto ResolutionListScanResult = Memory::PatternScan(m_osrDllModule, "00 00 00 00 02 00 00 80 01 00 00 80 02 00 00 E0 01 00 00 20 03 00 00 58 02 00 00 00 04 00 00 00 03 00 00 00 05 00 00 00 04 00 00 40 06 00 00 B0 04 00 00 3C 00 00 00");
 		if (ResolutionListScanResult)
 		{
-			spdlog::info("Resolution List Scan: Address is osr_dx8_vf.dll+{:x}", ResolutionListScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", m_osrDllModuleName.c_str(), ResolutionListScanResult - (std::uint8_t*)m_osrDllModule);
 
 			// 640x480
-			Memory::Write(ResolutionListScanResult + 11, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 15, iCurrentResY);
-
+			Memory::Write(ResolutionListScanResult + 11, m_newResX);
+			Memory::Write(ResolutionListScanResult + 15, m_newResY);
 			// 800x600
-			Memory::Write(ResolutionListScanResult + 19, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 23, iCurrentResY);
-
+			Memory::Write(ResolutionListScanResult + 19, m_newResX);
+			Memory::Write(ResolutionListScanResult + 23, m_newResY);
 			// 1024x768
-			Memory::Write(ResolutionListScanResult + 27, iCurrentResX);
-
-			Memory::Write(ResolutionListScanResult + 31, iCurrentResY);
+			Memory::Write(ResolutionListScanResult + 27, m_newResX);
+			Memory::Write(ResolutionListScanResult + 31, m_newResY);
 		}
 		else
 		{
@@ -269,26 +83,25 @@ void WidescreenFix()
 			return;
 		}
 
-		dllModule3 = Memory::GetHandle("enginecore_vf.dll", 50);
+		m_enginecoreDllModule = Memory::GetHandle("enginecore_vf.dll", 50);
+		m_aisdkDllModule = Memory::GetHandle("aisdk_gamedll_vf.dll", 50);
+		m_dlgDllModule = Memory::GetHandle("DLG_vf.dll", 50);
+		m_enginecoreDllModuleName = Memory::GetModuleName(m_enginecoreDllModule);
+		m_aisdkDllModuleName = Memory::GetModuleName(m_aisdkDllModule);
+		m_dlgDllModuleName = Memory::GetModuleName(m_dlgDllModule);
 
-		dllModule4 = Memory::GetHandle("aisdk_gamedll_vf.dll", 50);
-
-		dllModule5 = Memory::GetHandle("DLG_vf.dll", 50);
-
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule5, "8B 46 ?? 8B 4E ?? 8B 96 ?? ?? ?? ?? 53");
-		if (AspectRatioInstructionScanResult)
+		auto AspectRatioScanResult = Memory::PatternScan(m_dlgDllModule, "8B 46 ?? 8B 4E ?? 8B 96 ?? ?? ?? ?? 53");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is DLG_vf.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule5);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", m_dlgDllModuleName.c_str(), AspectRatioScanResult - (std::uint8_t*)m_dlgDllModule);
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 3);
+			Memory::WriteNOPs(AspectRatioScanResult, 3);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentResX = Memory::ReadMem(ctx.esi + 0x24);
-
-				fNewResX = fCurrentResX * fAspectRatioScale;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewResX);
+				s_instance_->m_newAspectRatio2 = fCurrentResX * s_instance_->m_aspectRatioScale;
+				ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newAspectRatio2);
 			});
 		}
 		else
@@ -297,99 +110,133 @@ void WidescreenFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule3, "D8 4C 24 ?? D9 5C 24 ?? D9 44 24 ?? D8 74 24", dllModule4, "8B 0D ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 51 52 FF 15 ?? ?? ?? ?? 8B 0D",
+		auto CameraFOVScansResult = Memory::PatternScan(m_enginecoreDllModule, "D8 4C 24 ?? D9 5C 24 ?? D9 44 24 ?? D8 74 24", m_aisdkDllModule, "8B 0D ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 51 52 FF 15 ?? ?? ?? ?? 8B 0D",
 		"8B 8E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 51 52 FF 15 ?? ?? ?? ?? 8B 8E", "68 ?? ?? ?? ?? 52 FF 15 ?? ?? ?? ?? A1", "68 ?? ?? ?? ?? 50 FF 15 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 8E",
 		"8B 0D ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 55");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("General Camera FOV Instruction: Address is enginecore_vr.dll+{:x}", CameraFOVInstructionsScansResult[GeneralFOV] - (std::uint8_t*)dllModule3);
+			spdlog::info("General Camera FOV Instruction: Address is {:s}+{:x}", m_enginecoreDllModuleName.c_str(), CameraFOVScansResult[GeneralFOV] - (std::uint8_t*)m_enginecoreDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", m_aisdkDllModuleName.c_str(), CameraFOVScansResult[GameplayFOV1] - (std::uint8_t*)m_aisdkDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", m_aisdkDllModuleName.c_str(), CameraFOVScansResult[GameplayFOV2] - (std::uint8_t*)m_aisdkDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 3: Address is {:s}+{:x}", m_aisdkDllModuleName.c_str(), CameraFOVScansResult[GameplayFOV3] - (std::uint8_t*)m_aisdkDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 4: Address is {:s}+{:x}", m_aisdkDllModuleName.c_str(), CameraFOVScansResult[GameplayFOV4] - (std::uint8_t*)m_aisdkDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 5: Address is {:s}+{:x}", m_aisdkDllModuleName.c_str(), CameraFOVScansResult[GameplayFOV5] - (std::uint8_t*)m_aisdkDllModule);
 
-			spdlog::info("Gameplay Camera FOV Instruction 1: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV1] - (std::uint8_t*)dllModule4);
-
-			spdlog::info("Gameplay Camera FOV Instruction 2: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV2] - (std::uint8_t*)dllModule4);
-
-			spdlog::info("Gameplay Camera FOV Instruction 3: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV3] - (std::uint8_t*)dllModule4);
-
-			spdlog::info("Gameplay Camera FOV Instruction 4: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV4] - (std::uint8_t*)dllModule4);
-
-			spdlog::info("Gameplay Camera FOV Instruction 5: Address is aisdk_gamedll_vf.dll+{:x}", CameraFOVInstructionsScansResult[GameplayFOV5] - (std::uint8_t*)dllModule4);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GeneralFOV], 4);
+			Memory::WriteNOPs(CameraFOVScansResult[GeneralFOV], 4);
 
 			// Instruction is located in the CAM_vAdjustCameraToViewport function
-			GeneralFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
+			m_generalFOVHook = safetyhook::create_mid(CameraFOVScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentGeneralFOV = Memory::ReadMem(ctx.esp + 0xC);
-
-				fNewGeneralFOV = fCurrentGeneralFOV * fAspectRatioScale;
-
-				FPU::FMUL(fNewGeneralFOV);
+				s_instance_->m_newGeneralFOV = fCurrentGeneralFOV * s_instance_->m_aspectRatioScale;
+				FPU::FMUL(s_instance_->m_newGeneralFOV);
 			});
 
-			GameplayFOVAddress1 = (uintptr_t)Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[GameplayFOV1] + 2, Memory::PointerMode::Absolute);
+			m_gameplayFOVAddress1 = Memory::GetPointerFromAddress(CameraFOVScansResult[GameplayFOV1] + 2, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV1], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[GameplayFOV1], 6);
 
-			GameplayFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV1], [](SafetyHookContext& ctx)
+			m_gameplayFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[GameplayFOV1], [](SafetyHookContext& ctx)
 			{
-				GameplayFOVInstructionsMidHook(GameplayFOVAddress1, ctx.ecx);
+				s_instance_->GameplayFOVMidHook(s_instance_->m_gameplayFOVAddress1, ctx.ecx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV2], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[GameplayFOV2], 6);
 
-			GameplayFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV2], [](SafetyHookContext& ctx)
+			m_gameplayFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[GameplayFOV2], [](SafetyHookContext& ctx)
 			{
-				GameplayFOVInstructionsMidHook(ctx.esi + 0x13C, ctx.ecx);
+				s_instance_->GameplayFOVMidHook(ctx.esi + 0x13C, ctx.ecx);
 			});
 
-			fNewCameraFOV3 = 1.299999952f * fFOVFactor;
+			m_newCameraFOV3 = 1.299999952f * m_fovFactor;
 
-			Memory::Write(CameraFOVInstructionsScansResult[GameplayFOV3] + 1, fNewCameraFOV3);
+			Memory::Write(CameraFOVScansResult[GameplayFOV3] + 1, m_newCameraFOV3);
+			Memory::Write(CameraFOVScansResult[GameplayFOV4] + 1, m_newCameraFOV3);
 
-			Memory::Write(CameraFOVInstructionsScansResult[GameplayFOV4] + 1, fNewCameraFOV3);
-			
-			GameplayFOVAddress5 = (uintptr_t)Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[GameplayFOV5] + 2, Memory::PointerMode::Absolute);
+			m_gameplayFOVAddress5 = Memory::GetPointerFromAddress(CameraFOVScansResult[GameplayFOV5] + 2, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GameplayFOV5], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[GameplayFOV5], 6);
 
-			GameplayFOVInstruction5Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GameplayFOV5], [](SafetyHookContext& ctx)
+			m_gameplayFOV5Hook = safetyhook::create_mid(CameraFOVScansResult[GameplayFOV5], [](SafetyHookContext& ctx)
 			{
-				GameplayFOVInstructionsMidHook(GameplayFOVAddress5, ctx.ecx);
+				s_instance_->GameplayFOVMidHook(s_instance_->m_gameplayFOVAddress5, ctx.ecx);
 			});
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	HMODULE m_osrDllModule = nullptr;
+	HMODULE m_enginecoreDllModule = nullptr;
+	HMODULE m_dlgDllModule = nullptr;
+	HMODULE m_aisdkDllModule = nullptr;	
+	std::string m_osrDllModuleName = "";
+	std::string m_enginecoreDllModuleName = "";
+	std::string m_dlgDllModuleName = "";
+	std::string m_aisdkDllModuleName = "";
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	float m_newGeneralFOV = 0.0f;
+	float m_newGameplayFOV = 0.0f;
+	float m_newCameraFOV3 = 0.0f;
+	uintptr_t m_gameplayFOVAddress1 = 0;
+	uintptr_t m_gameplayFOVAddress5 = 0;
+	
+	SafetyHookMid m_aspectRatioHook{};
+	SafetyHookMid m_generalFOVHook{};
+	SafetyHookMid m_gameplayFOV1Hook{};
+	SafetyHookMid m_gameplayFOV2Hook{};
+	SafetyHookMid m_gameplayFOV5Hook{};
+
+	enum CameraFOVInstructionsIndices
 	{
-		WidescreenFix();
+		GeneralFOV,
+		GameplayFOV1,
+		GameplayFOV2,
+		GameplayFOV3,
+		GameplayFOV4,
+		GameplayFOV5,
+		GameplayFOV6
+	};
+
+	void GameplayFOVMidHook(uintptr_t FOVAddress, uintptr_t& destInstruction)
+	{
+		float& fCurrentGameplayFOV = Memory::ReadMem(FOVAddress);
+		m_newGameplayFOV = fCurrentGameplayFOV * m_fovFactor;
+		destInstruction = std::bit_cast<uintptr_t>(m_newGameplayFOV);
 	}
-	return TRUE;
-}
+
+	inline static BatmanVengeanceFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<BatmanVengeanceFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<BatmanVengeanceFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
