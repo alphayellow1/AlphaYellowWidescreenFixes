@@ -55,16 +55,16 @@ protected:
 	{
 		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
-		inipp::get_value(ini.sections["Settings"], "ThirdPersonFOVFactor", m_firstPersonFOVFactor);
-		inipp::get_value(ini.sections["Settings"], "FirstPersonFOVFactor", m_thirdPersonFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "ThirdPersonFOVFactor", m_thirdPersonFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "FirstPersonFOVFactor", m_firstPersonFOVFactor);
 		inipp::get_value(ini.sections["Settings"], "ZoomFactor", m_zoomFactor);
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
 		spdlog_confparse(m_newResX);
 		spdlog_confparse(m_newResY);
-		spdlog_confparse(m_firstPersonFOVFactor);
 		spdlog_confparse(m_thirdPersonFOVFactor);
+		spdlog_confparse(m_firstPersonFOVFactor);
 		spdlog_confparse(m_zoomFactor);
 	}
 
