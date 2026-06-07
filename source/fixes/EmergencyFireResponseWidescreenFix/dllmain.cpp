@@ -29,7 +29,7 @@ protected:
 
 	const char* TargetName() const override
 	{
-		return "Secret Service";
+		return "Emergency: Fire Response";
 	}
 
 	InitMode GetInitMode() const override
@@ -49,6 +49,9 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "MainMenuWidth", m_newMenuWidth);
 		inipp::get_value(ini.sections["Settings"], "MainMenuHeight", m_newMenuHeight);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+
+		FallbackToDesktopResolution(m_newMenuWidth, m_newMenuHeight);
+
 		spdlog_confparse(m_newMenuWidth);
 		spdlog_confparse(m_newMenuHeight);
 		spdlog_confparse(m_fovFactor);
@@ -72,50 +75,50 @@ protected:
 
 			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-					const int iCurrentWidth = Memory::ReadMem(ctx.ebp + 0x8);
-					const int iCurrentHeight = Memory::ReadMem(ctx.ebp + 0xC);
+				const int iCurrentWidth = Memory::ReadMem(ctx.ebp + 0x8);
+				const int iCurrentHeight = Memory::ReadMem(ctx.ebp + 0xC);
 
-					const float newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+				const float newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 
-					const bool aspectChanged = !s_instance_->m_hasResolution || std::abs(s_instance_->m_newAspectRatio - newAspectRatio) >= 0.0001f;
+				const bool aspectChanged = !s_instance_->m_hasResolution || std::abs(s_instance_->m_newAspectRatio - newAspectRatio) >= 0.0001f;
 
-					s_instance_->m_newAspectRatio = newAspectRatio;
-					s_instance_->m_hasResolution = true;
+				s_instance_->m_newAspectRatio = newAspectRatio;
+				s_instance_->m_hasResolution = true;
 
-					const bool ar3NeedsUpdate = s_instance_->m_ar3HasContext && std::abs(s_instance_->m_ar3AppliedAspectRatio - newAspectRatio) >= 0.0001f;
+				const bool ar3NeedsUpdate = s_instance_->m_ar3HasContext && std::abs(s_instance_->m_ar3AppliedAspectRatio - newAspectRatio) >= 0.0001f;
 
-					if (!aspectChanged && !ar3NeedsUpdate)
-					{
-						return;
-					}
+				if (!aspectChanged && !ar3NeedsUpdate)
+				{
+					return;
+				}
 
-					if (!s_instance_->m_ar3HasContext)
-					{
-						return;
-					}
+				if (!s_instance_->m_ar3HasContext)
+				{
+					return;
+				}
 
-					if (s_instance_->m_ar3This == 0 || s_instance_->m_ar3CallTarget == 0)
-					{
-						return;
-					}
+				if (s_instance_->m_ar3This == 0 || s_instance_->m_ar3CallTarget == 0)
+				{
+					return;
+				}
 
-					if (s_instance_->m_callingAR3Function)
-					{
-						return;
-					}
+				if (s_instance_->m_callingAR3Function)
+				{
+					return;
+				}
 
-					s_instance_->m_callingAR3Function = true;
+				s_instance_->m_callingAR3Function = true;
 
-					auto function = reinterpret_cast<AR3AspectFunction>(s_instance_->m_ar3CallTarget);
+				auto function = reinterpret_cast<AR3AspectFunction>(s_instance_->m_ar3CallTarget);
 
-					const float ar3Arg1 = Memory::ReadMem(s_instance_->m_ar3This + 0xA4);
-					const float ar3Arg3 = Memory::ReadMem(s_instance_->m_ar3This + 0xAC);
-					const float ar3Arg4 = Memory::ReadMem(s_instance_->m_ar3This + 0xB0);
+				const float ar3Arg1 = Memory::ReadMem(s_instance_->m_ar3This + 0xA4);
+				const float ar3Arg3 = Memory::ReadMem(s_instance_->m_ar3This + 0xAC);
+				const float ar3Arg4 = Memory::ReadMem(s_instance_->m_ar3This + 0xB0);
 
-					function(reinterpret_cast<void*>(s_instance_->m_ar3This), ar3Arg1, s_instance_->m_newAspectRatio, ar3Arg3, ar3Arg4);
+				function(reinterpret_cast<void*>(s_instance_->m_ar3This), ar3Arg1, s_instance_->m_newAspectRatio, ar3Arg3, ar3Arg4);
 
-					s_instance_->m_ar3AppliedAspectRatio = s_instance_->m_newAspectRatio;
-					s_instance_->m_callingAR3Function = false;
+				s_instance_->m_ar3AppliedAspectRatio = s_instance_->m_newAspectRatio;
+				s_instance_->m_callingAR3Function = false;
 			});
 
 			Memory::Write(ResolutionScansResult[MainMenu1] + 3, m_newMenuWidth);
@@ -210,8 +213,8 @@ private:
 	SafetyHookMid m_aspectRatio4Hook{};
 	SafetyHookMid m_cameraFOVHook{};
 
-	uint32_t m_newMenuWidth = 0;
-	uint32_t m_newMenuHeight = 0;
+	int m_newMenuWidth = 0;
+	int m_newMenuHeight = 0;
 
 	float m_ar3AppliedAspectRatio = 0.0f;
 	bool m_ar3NeedsReapply = false;
