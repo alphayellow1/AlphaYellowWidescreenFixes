@@ -31,7 +31,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3.2";
+		return "1.3.3";
 	}
 
 	const char* TargetName() const override
@@ -132,8 +132,8 @@ protected:
 						spdlog::info("Sniper Zoom In FOV Instruction: Address is {:s}+{:x}", moduleName.c_str(), CameraFOVScansResult[SniperZoomIn] - (std::uint8_t*)module);
 						spdlog::info("Sniper Zoom Out FOV Instruction: Address is {:s}+{:x}", moduleName.c_str(), CameraFOVScansResult[SniperZoomOut] - (std::uint8_t*)module);
 
-						m_newThirdPersonFOV = Maths::CalculateNewFOV_RadBased(m_defaultCameraFOV, m_aspectRatioScale) * m_firstPersonFOVFactor;
-						m_newFirstPersonFOV = Maths::CalculateNewFOV_RadBased(m_defaultCameraFOV, m_aspectRatioScale) * m_thirdPersonFOVFactor;
+						m_newThirdPersonFOV = Maths::CalculateNewFOV_RadBased(m_defaultCameraFOV, m_aspectRatioScale) * m_thirdPersonFOVFactor;
+						m_newFirstPersonFOV = Maths::CalculateNewFOV_RadBased(m_defaultCameraFOV, m_aspectRatioScale) * m_firstPersonFOVFactor;
 
 						Memory::Write(CameraFOVScansResult[ThirdPerson] + 1, m_newThirdPersonFOV);
 						Memory::Write(CameraFOVScansResult[FirstPerson1] + 1, m_newFirstPersonFOV);
