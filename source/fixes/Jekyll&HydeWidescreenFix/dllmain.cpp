@@ -1,349 +1,235 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2;
-
-// Fix details
-std::string sFixName = "Jekyll&HydeWidescreenFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
-
-// Game detection
-enum class Game
+class JekyllFix final : public FixBase
 {
-	JAH_GAME,
-	JAH_VIDEOCONFIG,
-	Unknown
-};
-
-enum AspectRatioInstructionsIndices
-{
-	AR1,
-	AR2
-};
-
-enum CameraFOVInstructionsIndices
-{
-	FOV1,
-	FOV2
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::JAH_GAME, {"Jekyll & Hyde", "Game.exe"}},
-	{Game::JAH_VIDEOCONFIG, {"Jekyll & Hyde - Video Configuration", "video.exe"}}
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit JekyllFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~JekyllFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	bool bGameFound = false;
-
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			bGameFound = true;
-			break;
+			s_instance_ = nullptr;
 		}
 	}
 
-	if (bGameFound == false)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		return "Jekyll&HydeWidescreenFix";
 	}
 
-	dllModule2 = Memory::GetHandle("fnx_dx7.dll");
-
-	return true;
-}
-
-static SafetyHookMid AspectRatioInstruction1Hook{};
-static SafetyHookMid AspectRatioInstruction2Hook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void WidescreenFix()
-{
-	if (bFixActive == true)
+	const char* FixVersion() const override
 	{
-		if (eGameType == Game::JAH_VIDEOCONFIG)
+		return "1.1";
+	}
+
+	const char* TargetName() const override
+	{
+		return "Jekyll & Hyde";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "video.exe") ||
+		Util::stringcmp_caseless(exeName, "Game.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		if (Util::stringcmp_caseless(ExeName(), "video.exe"))
 		{
-			std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "00 05 00 00 0F 85 0E 01 00 00 8B 16 8B CE FF 52 20 3D 00 04 00 00");
-			if (ResolutionInstructionsScanResult)
+			auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "3D ?? ?? ?? ?? 75 ?? 8B 16 8B CE FF 52 ?? 3D ?? ?? ?? ?? 0F 84",
+			"3D ?? ?? ?? ?? 75 ?? 81 7C 24");
+			if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
-				
-				Memory::Write(ResolutionInstructionsScanResult, iCurrentResX);
-				
-				Memory::Write(ResolutionInstructionsScanResult + 18, iCurrentResY);
+				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
+				spdlog::info("Default Resolution Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[DefaultRes] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(ResolutionScansResult[ListUnlock], "\xE9\xA8\x00\x00\x00");
+
+				m_newDefaultWidth = GetSystemMetrics(SM_CXSCREEN);
+				m_newDefaultHeight = GetSystemMetrics(SM_CYSCREEN);
+
+				Memory::Write(ResolutionScansResult[DefaultRes] + 1, m_newDefaultWidth);
+				Memory::Write(ResolutionScansResult[DefaultRes] + 11, m_newDefaultHeight);
+			}
+		}
+
+		if (Util::stringcmp_caseless(ExeName(), "Game.exe"))
+		{
+			auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 2B C1");
+			if (ResolutionScanResult)
+			{
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
+
+				m_resolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionScanResult + 28, Memory::PointerMode::Absolute);
+				m_resolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionScanResult + 1, Memory::PointerMode::Absolute);
+
+				m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+				{
+					int& iCurrentWidth = Memory::ReadMem(s_instance_->m_resolutionWidthAddress);
+					int& iCurrentHeight = Memory::ReadMem(s_instance_->m_resolutionHeightAddress);
+					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
+					s_instance_->m_resolutionHook.disable();
+				});
 			}
 			else
 			{
-				spdlog::info("Cannot locate the resolution instructions scan memory address.");
+				spdlog::error("Failed to locate resolution instructions scan memory address.");
 				return;
 			}
-		}
 
-		if (eGameType == Game::JAH_GAME)
-		{
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+			m_fnxCoreModule = Memory::GetHandle("fnx_core.dll");
+			m_fnxCoreModuleName = Memory::GetModuleName(m_fnxCoreModule);
+			m_fnxDX7Module = Memory::GetHandle("fnx_dx7.dll");
+			m_fnxDX7ModuleName = Memory::GetModuleName(m_fnxDX7Module);			
 
-			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-			std::vector<std::uint8_t*> AspectRatioInstructionsScanResult = Memory::PatternScan(dllModule2, "8B 8E ?? ?? ?? ?? 8B 96 ?? ?? ?? ?? 8B 86", "D8 B7");
-			if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScanResult) == true)
+			auto AspectRatioScanResult = Memory::PatternScan(m_fnxCoreModule, "A1 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B C6");
+			if (AspectRatioScanResult)
 			{
-				spdlog::info("Aspect Ratio Instruction 1: Address is fnx_dx7.dll+{:x}", AspectRatioInstructionsScanResult[AspectRatio1Scan] - (std::uint8_t*)dllModule2);
+				spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", m_fnxCoreModuleName.c_str(), AspectRatioScanResult - (std::uint8_t*)m_fnxCoreModule);
 
-				spdlog::info("Aspect Ratio Instruction 2: Address is fnx_dx7.dll+{:x}", AspectRatioInstructionsScanResult[AspectRatio2Scan] - (std::uint8_t*)dllModule2);
+				Memory::WriteNOPs(AspectRatioScanResult, 5);
 
-				Memory::WriteNOPs(AspectRatioInstructionsScanResult[AR1], 6);
-
-				AspectRatioInstruction1Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AR1], [](SafetyHookContext& ctx)
+				m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
 				{
-					ctx.ecx = std::bit_cast<uintptr_t>(fNewAspectRatio);
-				});
-
-				Memory::WriteNOPs(AspectRatioInstructionsScanResult[AR2], 6);
-
-				AspectRatioInstruction2Hook = safetyhook::create_mid(AspectRatioInstructionsScanResult[AR2], [](SafetyHookContext& ctx)
-				{
-					FPU::FDIV(fNewAspectRatio);
+					ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newAspectRatio);
 				});
 			}
-
-			std::vector<std::uint8_t*> CameraFOVInstructionsScanResult = Memory::PatternScan(dllModule2, "8B 8E ?? ?? ?? ?? 52", "D9 87 ?? ?? ?? ?? 8D 4C 24");
-			if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScanResult) == true)
+			else
 			{
-				spdlog::info("Camera FOV Instruction 1: Address is fnx_dx7.dll+{:x}", CameraFOVInstructionsScanResult[FOV1] - (std::uint8_t*)dllModule2);
+				spdlog::error("Failed to locate aspect ratio instruction memory address.");
+				return;
+			}
 
-				spdlog::info("Camera FOV Instruction 2: Address is fnx_dx7.dll+{:x}", CameraFOVInstructionsScanResult[FOV2] - (std::uint8_t*)dllModule2);
+			auto CameraFOVScansResult = Memory::PatternScan(m_fnxDX7Module, "8B 8E ?? ?? ?? ?? 52", "D9 87 ?? ?? ?? ?? 8D 4C 24");
+			if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
+			{
+				spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", m_fnxDX7ModuleName.c_str(), CameraFOVScansResult[FOV1] - (std::uint8_t*)m_fnxDX7Module);
+				spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", m_fnxDX7ModuleName.c_str(), CameraFOVScansResult[FOV2] - (std::uint8_t*)m_fnxDX7Module);
 
-				Memory::WriteNOPs(CameraFOVInstructionsScanResult[FOV1], 6);
+				Memory::WriteNOPs(CameraFOVScansResult[FOV1], 6);
 
-				CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[FOV1], [](SafetyHookContext& ctx)
+				m_cameraFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[FOV1], [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.esi + 0xCC);
 
 					if (fCurrentCameraFOV1 != 1.134464025497f)
 					{
-						fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale) * fFOVFactor;
+						s_instance_->m_newCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, s_instance_->m_aspectRatioScale) * s_instance_->m_fovFactor;
 					}
 					else
 					{
-						fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
+						s_instance_->m_newCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, s_instance_->m_aspectRatioScale);
 					}
 
-					ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
+					ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV1);
 				});
 
-				Memory::WriteNOPs(CameraFOVInstructionsScanResult[FOV2], 6);
+				Memory::WriteNOPs(CameraFOVScansResult[FOV2], 6);
 
-				CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScanResult[FOV2], [](SafetyHookContext& ctx)
+				m_cameraFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[FOV2], [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.edi + 0xCC);
 
 					if (fCurrentCameraFOV2 != 1.134464025497f)
 					{
-						fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale) * fFOVFactor;
+						s_instance_->m_newCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, s_instance_->m_aspectRatioScale) * s_instance_->m_fovFactor;
 					}
 					else
 					{
-						fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
+						s_instance_->m_newCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, s_instance_->m_aspectRatioScale);
 					}
 
-					FPU::FLD(fNewCameraFOV2);
+					FPU::FLD(s_instance_->m_newCameraFOV2);
 				});
 			}
 		}
-	}	
-}
-
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	HMODULE m_fnxDX7Module = nullptr;
+	std::string m_fnxDX7ModuleName = "";
+	HMODULE m_fnxCoreModule = nullptr;
+	std::string m_fnxCoreModuleName = "";
+
+	int m_newDefaultWidth = 0;
+	int m_newDefaultHeight = 0;
+
+	float m_newCameraFOV1 = 0.0f;
+	float m_newCameraFOV2 = 0.0f;
+
+	uintptr_t m_resolutionWidthAddress = 0;
+	uintptr_t m_resolutionHeightAddress = 0;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_aspectRatioHook{};
+	SafetyHookMid m_cameraFOV1Hook{};
+	SafetyHookMid m_cameraFOV2Hook{};
+
+	enum ResolutionInstructionsIndex
+	{
+		ListUnlock,
+		DefaultRes
+	};
+
+	enum CameraFOVInstructionsIndex
+	{
+		FOV1,
+		FOV2
+	};
+
+	inline static JekyllFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<JekyllFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<JekyllFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
