@@ -1,4 +1,4 @@
-![Artboard 1](https://github.com/user-attachments/assets/c335dc49-5887-4e40-9944-31e8aad24e3f)
+<img width="3914" height="2142" alt="artboard1" src="https://github.com/user-attachments/assets/23ba7549-7b09-4bb1-bbdd-373595052b6a" />
 
 <p align="center">
   <a href="https://github.com/alphayellow1/AlphaYellowWidescreenFixes/releases">
