@@ -107,9 +107,7 @@ protected:
 			m_generalFOVHook = safetyhook::create_mid(CameraFOVScansResult[General], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentGeneralFOV = Memory::ReadMem(ctx.esp + 0x4);
-
 				s_instance_->m_newGeneralFOV = Maths::CalculateNewFOV_RadBased(fCurrentGeneralFOV, s_instance_->m_aspectRatioScale);
-
 				FPU::FLD(s_instance_->m_newGeneralFOV);
 			});
 
