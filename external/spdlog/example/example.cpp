@@ -33,41 +33,41 @@ void mdc_example();
 #include "spdlog/fmt/ostr.h"  // support for user defined types
 
 int main(int, char *[]) {
-    // Log levels can be loaded from argv/env using "SPDLOG_LEVEL"
-    load_levels_example();
-
-    spdlog::info("Welcome to spdlog version {}.{}.{}  !", SPDLOG_VER_MAJOR, SPDLOG_VER_MINOR,
-                 SPDLOG_VER_PATCH);
-
-    spdlog::warn("Easy padding in numbers like {:08d}", 12);
-    spdlog::critical("Support for int: {0:d};  hex: {0:x};  oct: {0:o}; bin: {0:b}", 42);
-    spdlog::info("Support for floats {:03.2f}", 1.23456);
-    spdlog::info("Positional args are {1} {0}..", "too", "supported");
-    spdlog::info("{:>8} aligned, {:<8} aligned", "right", "left");
-
-    // Runtime log levels
-    spdlog::set_level(spdlog::level::info);  // Set global log level to info
-    spdlog::debug("This message should not be displayed!");
-    spdlog::set_level(spdlog::level::trace);  // Set specific logger's log level
-    spdlog::debug("This message should be displayed..");
-
-    // Customize msg format for all loggers
-    spdlog::set_pattern("[%H:%M:%S %z] [%^%L%$] [thread %t] %v");
-    spdlog::info("This an info message with custom format");
-    spdlog::set_pattern("%+");  // back to default format
-    spdlog::set_level(spdlog::level::info);
-
-    // Backtrace support
-    // Loggers can store in a ring buffer all messages (including debug/trace) for later inspection.
-    // When needed, call dump_backtrace() to see what happened:
-    spdlog::enable_backtrace(10);  // create ring buffer with capacity of 10  messages
-    for (int i = 0; i < 100; i++) {
-        spdlog::debug("Backtrace message {}", i);  // not logged..
-    }
-    // e.g. if some error happened:
-    spdlog::dump_backtrace();  // log them now!
-
     try {
+        // Log levels can be loaded from argv/env using "SPDLOG_LEVEL"
+        load_levels_example();
+
+        spdlog::info("Welcome to spdlog version {}.{}.{}  !", SPDLOG_VER_MAJOR, SPDLOG_VER_MINOR,
+                     SPDLOG_VER_PATCH);
+
+        spdlog::warn("Easy padding in numbers like {:08d}", 12);
+        spdlog::critical("Support for int: {0:d};  hex: {0:x};  oct: {0:o}; bin: {0:b}", 42);
+        spdlog::info("Support for floats {:03.2f}", 1.23456);
+        spdlog::info("Positional args are {1} {0}..", "too", "supported");
+        spdlog::info("{:>8} aligned, {:<8} aligned", "right", "left");
+
+        // Runtime log levels
+        spdlog::set_level(spdlog::level::info);  // Set global log level to info
+        spdlog::debug("This message should not be displayed!");
+        spdlog::set_level(spdlog::level::trace);  // Set specific logger's log level
+        spdlog::debug("This message should be displayed..");
+
+        // Customize msg format for all loggers
+        spdlog::set_pattern("[%H:%M:%S %z] [%^%L%$] [thread %t] %v");
+        spdlog::info("This an info message with custom format");
+        spdlog::set_pattern("%+");  // back to default format
+        spdlog::set_level(spdlog::level::info);
+
+        // Backtrace support
+        // Loggers can store in a ring buffer all messages (including debug/trace) for later
+        // inspection. When needed, call dump_backtrace() to see what happened:
+        spdlog::enable_backtrace(10);  // create ring buffer with capacity of 10  messages
+        for (int i = 0; i < 100; i++) {
+            spdlog::debug("Backtrace message {}", i);  // not logged..
+        }
+        // e.g. if some error happened:
+        spdlog::dump_backtrace();  // log them now!
+
         stdout_logger_example();
         basic_example();
         rotating_example();
@@ -183,7 +183,7 @@ void async_example() {
 // {:n} - don't split the output to lines.
 
 #if !defined SPDLOG_USE_STD_FORMAT || defined(_MSC_VER)
-    #include "spdlog/fmt/bin_to_hex.h"
+#include "spdlog/fmt/bin_to_hex.h"
 void binary_example() {
     std::vector<char> buf;
     for (int i = 0; i < 80; i++) {
@@ -207,7 +207,7 @@ void binary_example() {
 
 // Log a vector of numbers
 #ifndef SPDLOG_USE_STD_FORMAT
-    #include "spdlog/fmt/ranges.h"
+#include "spdlog/fmt/ranges.h"
 void vector_example() {
     std::vector<int> vec = {1, 2, 3};
     spdlog::info("Vector example: {}", vec);
@@ -301,7 +301,7 @@ void err_handler_example() {
 
 // syslog example (linux/osx/freebsd)
 #ifndef _WIN32
-    #include "spdlog/sinks/syslog_sink.h"
+#include "spdlog/sinks/syslog_sink.h"
 void syslog_example() {
     std::string ident = "spdlog-example";
     auto syslog_logger = spdlog::syslog_logger_mt("syslog", ident, LOG_PID);
@@ -311,7 +311,7 @@ void syslog_example() {
 
 // Android example.
 #if defined(__ANDROID__)
-    #include "spdlog/sinks/android_sink.h"
+#include "spdlog/sinks/android_sink.h"
 void android_example() {
     std::string tag = "spdlog-android";
     auto android_logger = spdlog::android_logger_mt("android", tag);
@@ -371,15 +371,13 @@ void replace_default_logger_example() {
     // store the old logger so we don't break other examples.
     auto old_logger = spdlog::default_logger();
 
-    auto new_logger =
-        spdlog::basic_logger_mt("new_default_logger", "logs/new-default-log.txt", true);
-    spdlog::set_default_logger(new_logger);
+    auto new_logger = spdlog::basic_logger_mt("new_default_logger", "logs/somelog.txt", true);
+    spdlog::set_default_logger(std::move(new_logger));
     spdlog::set_level(spdlog::level::info);
     spdlog::debug("This message should not be displayed!");
     spdlog::set_level(spdlog::level::trace);
     spdlog::debug("This message should be displayed..");
-
-    spdlog::set_default_logger(old_logger);
+    spdlog::set_default_logger(std::move(old_logger));
 }
 
 // Mapped Diagnostic Context (MDC) is a map that stores key-value pairs (string values) in thread
@@ -388,7 +386,7 @@ void replace_default_logger_example() {
 // thread-local storage.
 
 #ifndef SPDLOG_NO_TLS
-    #include "spdlog/mdc.h"
+#include "spdlog/mdc.h"
 void mdc_example() {
     spdlog::mdc::put("key1", "value1");
     spdlog::mdc::put("key2", "value2");

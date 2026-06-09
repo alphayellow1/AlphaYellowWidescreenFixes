@@ -19,7 +19,11 @@ include(GNUInstallDirs)
 # Set default build to release
 # ---------------------------------------------------------------------------------------
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose Release or Debug" FORCE)
+    # Set CMAKE_BUILD_TYPE only if this project is top-level
+    if((DEFINED PROJECT_IS_TOP_LEVEL AND PROJECT_IS_TOP_LEVEL) OR (NOT DEFINED PROJECT_IS_TOP_LEVEL
+                                                                   AND CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR))
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose Release or Debug" FORCE)
+    endif()
 endif()
 
 # ---------------------------------------------------------------------------------------
@@ -62,6 +66,9 @@ option(SPDLOG_ENABLE_PCH "Build static or shared library using precompiled heade
 # build position independent code
 option(SPDLOG_BUILD_PIC "Build position independent code (-fPIC)" OFF)
 
+# debug build postfix
+set(SPDLOG_DEBUG_POSTFIX "d" CACHE STRING "Filename postfix for libraries in debug builds")
+
 # example options
 option(SPDLOG_BUILD_EXAMPLE "Build example" ${SPDLOG_MASTER_PROJECT})
 option(SPDLOG_BUILD_EXAMPLE_HO "Build header only example" OFF)
@@ -90,6 +97,7 @@ option(SPDLOG_USE_STD_FORMAT "Use std::format instead of fmt library." OFF)
 option(SPDLOG_FMT_EXTERNAL "Use external fmt library instead of bundled" OFF)
 option(SPDLOG_FMT_EXTERNAL_HO "Use external fmt header-only library instead of bundled" OFF)
 option(SPDLOG_NO_EXCEPTIONS "Compile with -fno-exceptions. Call abort() on any spdlog exceptions" OFF)
+option(SPDLOG_NO_TZ_OFFSET "Omit %z timezone offset (use on platforms without tm_gmtoff)" OFF)
 
 if(SPDLOG_FMT_EXTERNAL AND SPDLOG_FMT_EXTERNAL_HO)
     message(FATAL_ERROR "SPDLOG_FMT_EXTERNAL and SPDLOG_FMT_EXTERNAL_HO are mutually exclusive")
@@ -191,7 +199,7 @@ spdlog_enable_warnings(spdlog)
 
 set_target_properties(spdlog PROPERTIES VERSION ${SPDLOG_VERSION} SOVERSION
                                                                   ${SPDLOG_VERSION_MAJOR}.${SPDLOG_VERSION_MINOR})
-set_target_properties(spdlog PROPERTIES DEBUG_POSTFIX d)
+set_target_properties(spdlog PROPERTIES DEBUG_POSTFIX ${SPDLOG_DEBUG_POSTFIX})
 
 if(COMMAND target_precompile_headers AND SPDLOG_ENABLE_PCH)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/pch.h.in ${PROJECT_BINARY_DIR}/spdlog_pch.h @ONLY)
@@ -279,7 +287,8 @@ foreach(
     SPDLOG_NO_TLS
     SPDLOG_NO_ATOMIC_LEVELS
     SPDLOG_DISABLE_DEFAULT_LOGGER
-    SPDLOG_USE_STD_FORMAT)
+    SPDLOG_USE_STD_FORMAT
+    SPDLOG_NO_TZ_OFFSET)
     if(${SPDLOG_OPTION})
         target_compile_definitions(spdlog PUBLIC ${SPDLOG_OPTION})
         target_compile_definitions(spdlog_header_only INTERFACE ${SPDLOG_OPTION})
