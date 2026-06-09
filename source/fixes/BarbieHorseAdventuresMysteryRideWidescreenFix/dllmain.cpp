@@ -122,9 +122,9 @@ protected:
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalCameraFOV = 0.5f;
 
 	SafetyHookMid m_resolutionHook{};
-	SafetyHookMid m_cameraFOVHook{};
 
 	enum AspectRatioInstructionsIndices
 	{
@@ -141,7 +141,7 @@ private:
 		AR11,
 		AR12,
 		AR13,
-		AR14,
+		AR14
 	};
 
 	enum CameraFOVInstructionsIndices
@@ -159,10 +159,8 @@ private:
 		FOV11,
 		FOV12,
 		FOV13,
-		FOV14,
+		FOV14
 	};
-
-	float m_originalCameraFOV = 0.5f;
 
 	std::vector<std::uint8_t*> AspectRatioScansResult;
 	std::vector<std::uint8_t*> CameraFOVScansResult;
