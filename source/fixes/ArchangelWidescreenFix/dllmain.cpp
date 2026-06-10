@@ -65,14 +65,14 @@ protected:
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(ExeModule(), "D9 81 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8A");
-		if (CameraFOVInstructionScanResult)
+		auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "D9 81 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8A");
+		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
+			Memory::WriteNOPs(CameraFOVScanResult, 6);
 
-			m_cameraFOVHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + 0xD4);
 				s_instance_->m_newCameraFOV = fCurrentCameraFOV * s_instance_->m_fovFactor;
