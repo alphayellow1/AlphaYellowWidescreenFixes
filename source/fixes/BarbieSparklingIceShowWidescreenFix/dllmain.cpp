@@ -1,232 +1,94 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-#include <vector>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "BarbieSparklingIceShowWidescreenFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-uint8_t* ResolutionWidth1Address;
-uint8_t* ResolutionHeight1Address;
-uint8_t* ResolutionWidth2Address;
-uint8_t* ResolutionHeight2Address;
-uint8_t* ResolutionWidth3Address;
-uint8_t* ResolutionHeight3Address;
-uint8_t* ResolutionWidth4Address;
-uint8_t* ResolutionHeight4Address;
-
-// Game detection
-enum class Game
+class BarbieSparklingIceShowFix final : public FixBase
 {
-	BSIS,
-	Unknown
-};
-
-enum ResolutionInstructionsIndex
-{
-	Resolution1Scan,
-	Resolution2Scan,
-	Resolution3Scan,
-	Resolution4Scan
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::BSIS, {"Barbie Sparkling Ice Show", "IceSkating.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit BarbieSparklingIceShowFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~BarbieSparklingIceShowFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid AspectRatioInstructionHook{};
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::BSIS && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "BarbieSparklingIceShowWidescreenFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.2";
+	}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 18 59 48 00 D8 8E 6C 02 00 00 D9 9E 1C 01 00 00 D9 96 30 01 00 00");
-		if (AspectRatioInstructionScanResult)
+	const char* TargetName() const override
+	{
+		return "Barbie: Sparking Ice Show";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "IceSkating.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "Framerate", m_newFramerate);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_newFramerate);
+	}
+
+	void ApplyFix() override
+	{
+		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
+
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? C7 05", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? A1",
+		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 68", "81 FE ?? ?? ?? ?? 89 74 24");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
+			spdlog::info("Resolution Initialization Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Init] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Configuration 1 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Config1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Configuration 2 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Config2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Tile/Grid Drawing Limit Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[TileDraw] - (std::uint8_t*)ExeModule());
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FMUL(fNewAspectRatio);
-			});
+			Memory::Write(ResolutionScansResult[Init] + 6, m_newResX);
+			Memory::Write(ResolutionScansResult[Init] + 1, m_newResY);
+			Memory::Write(ResolutionScansResult[Config1] + 6, m_newResX);
+			Memory::Write(ResolutionScansResult[Config1] + 1, m_newResY);
+			Memory::Write(ResolutionScansResult[Config2] + 6, m_newResX);
+			Memory::Write(ResolutionScansResult[Config2] + 1, m_newResY);
+			Memory::Write(ResolutionScansResult[TileDraw] + 2, m_newResX);
+			Memory::Write(ResolutionScansResult[TileDraw] + 17, m_newResY);
+		}
+		
+		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "D8 0D ?? ?? ?? ?? D8 8E");
+		if (AspectRatioScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());
+
+			Memory::Write(AspectRatioScanResult + 2, &m_newAspectRatio);
 		}
 		else
 		{
@@ -234,38 +96,57 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 3D 2C 52 48 00 D9 C0 D8 8E 68 02 00 00 D9 1B");
-		if (CameraFOVInstructionScanResult)
+		auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "D8 3D ?? ?? ?? ?? D9 C0 D8 8E");
+		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-			fNewCameraFOV = (1.0f / fAspectRatioScale) / fFOVFactor;
+			m_newCameraFOV = (1.0f / m_aspectRatioScale) / m_fovFactor;
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				FPU::FDIVR(fNewCameraFOV);
-			});
+			Memory::Write(CameraFOVScanResult + 2, &m_newCameraFOV);
 		}
 		else
 		{
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
-	}
-}
+		
+		auto FramerateScanResult = Memory::PatternScan(ExeModule(), "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? A3 ?? ?? ?? ?? 89 0D");
+		if (FramerateScanResult)
+		{
+			spdlog::info("Framerate Instruction: Address is {:s}+{:x}", ExeName().c_str(), FramerateScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Framerate Delta Instruction: Address is {:s}+{:x}", ExeName().c_str(), FramerateScanResult + 10 - (std::uint8_t*)ExeModule());
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
+			m_newFramerateDelta = 1.0f / m_newFramerate;
+
+			Memory::Write(FramerateScanResult + 6, m_newFramerate);
+			Memory::Write(FramerateScanResult + 16, m_newFramerateDelta);
+		}
+		else
+		{
+			spdlog::error("Failed to locate framerate instruction memory address.");
+			return;
+		}
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	float m_newFramerate = 0.0f;
+	float m_newFramerateDelta = 0.0f;
+
+	enum ResolutionInstructionsIndex
+	{
+		Init,
+		Config1,
+		Config2,
+		TileDraw
+	};
+
+	inline static BarbieSparklingIceShowFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<BarbieSparklingIceShowFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -273,19 +154,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<BarbieSparklingIceShowFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
