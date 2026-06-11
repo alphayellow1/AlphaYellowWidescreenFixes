@@ -1,227 +1,74 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "BarbieExplorerWidescreenFix";
-std::string sFixVersion = "1.2";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-
-// Variables
-int iCurrentResX;
-int iCurrentResY;
-float fNewCameraHFOV;
-float fNewCameraVFOV;
-float fFOVFactor;
-float fNewAspectRatio;
-float fAspectRatioScale;
-int16_t iNewForegroundCameraHFOV;
-int16_t iNewForegroundCameraVFOV;
-int16_t iNewBackgroundCameraHFOV;
-float fNewBackgroundCameraVFOV;
-
-// Game detection
-enum class Game
+class BarbieExplorerFix final : public FixBase
 {
-	BE,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::BE, {"Barbie Explorer", "Barbiex.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit BarbieExplorerFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~BarbieExplorerFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid CameraForegroundHFOVInstructionHook{};
-static SafetyHookMid CameraForegroundVFOVInstructionHook{};
-static SafetyHookMid CameraBackgroundHFOVInstructionHook{};
-static SafetyHookMid CameraBackgroundVFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(float fNewCameraFOV)
-{
-	FPU::FMUL(fNewCameraFOV);
-}
-
-void WidescreenFix()
-{
-	if (eGameType == Game::BE && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "BarbieExplorerWidescreenFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.3";
+	}
 
-		fNewCameraHFOV = (1.0f / fFOVFactor) / fAspectRatioScale;
+	const char* TargetName() const override
+	{
+		return "Barbie Explorer";
+	}
 
-		fNewCameraVFOV = 1.0f / fFOVFactor;
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
 
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "C7 05 80 AB 59 00 80 02 00 00 C7 05 90 AC 59 00 E0 01 00 00");
-		if (ResolutionInstructionsScanResult)
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Barbiex.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;		
+
+		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 83 C4");
+		if (ResolutionScanResult)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::Write(ResolutionInstructionsScanResult + 6, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScanResult + 16, iCurrentResY);
+			Memory::Write(ResolutionScanResult + 6,  m_newResX);
+			Memory::Write(ResolutionScanResult + 16, m_newResY);
 		}
 		else
 		{
@@ -229,74 +76,101 @@ void WidescreenFix()
 			return;
 		}
 
-		std::uint8_t* CameraForegroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00");
-		if (CameraForegroundHFOVInstructionScanResult)
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "DB 45 D8 D8 0D 60 BD 5D 00 D8 0D 68 BD 5D 00", "DB 45 D4 D8 0D 64 BD 5D 00 D8 0D 68 BD 5D 00 DE C1",
+		"D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 94 BD 5D 00 D9 05 64 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00 89 15 1C BE 5D 00 D9 05 10 F3 48 00 D8 35",
+		"D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Camera Foreground HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundHFOVInstructionScanResult + 3 - (std::uint8_t*)exeModule);
+			spdlog::info("Camera Foreground HFOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[ForegroundHFOV] + 3 - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Foreground VFOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[ForegroundVFOV] + 3 - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Background HFOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[BackgroundHFOV] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Background VFOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[BackgroundVFOV] - (std::uint8_t*)ExeModule());
 
-			CameraForegroundHFOVInstructionHook = safetyhook::create_mid(CameraForegroundHFOVInstructionScanResult + 3, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraHFOV); });
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera foreground HFOV instruction memory address.");
-			return;
-		}
+			// First function: X side flags
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CA46, 9);
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CA93, 9);
 
-		std::uint8_t* CameraForegroundVFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 45 D4 D8 0D 64 BD 5D 00 D8 0D 68 BD 5D 00 DE C1");
-		if (CameraForegroundVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera Foreground VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraForegroundVFOVInstructionScanResult + 3 - (std::uint8_t*)exeModule);
+			// First function: Y flags
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CA12, 9);
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CA2C, 9);
 
-			CameraForegroundVFOVInstructionHook = safetyhook::create_mid(CameraForegroundVFOVInstructionScanResult + 3, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraVFOV); });
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera foreground VFOV instruction memory address.");
-			return;
-		}
+			// First function: previous transform/clamp warning flag
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CAA5, 9);
 
-		std::uint8_t* CameraBackgroundHFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 94 BD 5D 00 D9 05 64 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00 89 15 1C BE 5D 00 D9 05 10 F3 48 00 D8 35");
-		if (CameraBackgroundHFOVInstructionScanResult)
-		{
-			spdlog::info("Camera Background HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraBackgroundHFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			// First function: far-depth flag
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CA82, 9);
 
-			Memory::WriteNOPs(CameraBackgroundHFOVInstructionScanResult, 6);
+			// Second function: X side flags
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CC10, 9);
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CC5D, 8);
 
-			CameraBackgroundHFOVInstructionHook = safetyhook::create_mid(CameraBackgroundHFOVInstructionScanResult, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraHFOV); });
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera background HFOV instruction memory address.");
-			return;
-		}
+			// Second function: Y flags
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CBDE, 9);
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CBF7, 9);
 
-		std::uint8_t* CameraBackgroundVFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D 98 BD 5D 00 D9 05 68 BD 5D 00 D8 0D 10 F3 48 00 D8 35 18 F3 48 00 D9 1D A0 BD 5D 00 DB 05 58 BE 5D 00 D8 05 94 BD 5D 00 D9 1D 60 BD 5D 00 DB 05 64 BE 5D 00 D8 05 98 BD 5D 00 D9 1D 64 BD 5D 00 DB 05 54 BE 5D 00 D8 05 A0 BD 5D 00 D9 15 68 BD 5D 00 D8 1D 00 F3 48 00 DF E0 F6 C4 01 74 16 C7 05 68 BD 5D 00 00 00 00 00 A1 28 BD 5D 00 0C 24 A3 28 BD 5D 00 D9 05 68 BD 5D 00 D8 1D 24 F3 48 00 DF E0 F6 C4 41 75 19 C7 05 68 BD 5D 00 00 FF 7F 47 8B 0D 28 BD 5D 00 83 C9 24 89 0D 28 BD 5D 00 0F BF 05 F2 BD 5D 00 99 2B C2 D1 F8 89 45 BC DB 45 BC D8 1D 68 BD 5D 00 DF E0 F6 C4 01 74 6E 8B 15 68 BD 5D 00");
-		if (CameraBackgroundVFOVInstructionScanResult)
-		{
-			spdlog::info("Camera Background VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraBackgroundVFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			// Second function: previous transform/clamp warning flag
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CC6E, 9);
 
-			Memory::WriteNOPs(CameraBackgroundVFOVInstructionScanResult, 6);
+			// Second function: far-depth flag
+			Memory::WriteNOPs((uint8_t*)ExeModule() + 0x4CC4C, 9);
 
-			CameraBackgroundVFOVInstructionHook = safetyhook::create_mid(CameraBackgroundVFOVInstructionScanResult, [](SafetyHookContext& ctx) { CameraFOVInstructionMidHook(fNewCameraVFOV); });
-		}
-		else
-		{
-			spdlog::error("Failed to locate camera background VFOV instruction memory address.");
-			return;
+			m_newCameraHFOV = (1.0f / m_fovFactor) / m_aspectRatioScale;
+			m_newCameraVFOV = 1.0f / m_fovFactor;
+
+			m_cameraForegroundHFOVHook = safetyhook::create_mid(CameraFOVScansResult[ForegroundHFOV] + 3, [](SafetyHookContext& ctx)
+			{
+				s_instance_->CameraFOVMidHook(s_instance_->m_newCameraHFOV);
+			});
+
+			m_cameraForegroundVFOVHook = safetyhook::create_mid(CameraFOVScansResult[ForegroundVFOV] + 3, [](SafetyHookContext& ctx)
+			{
+				s_instance_->CameraFOVMidHook(s_instance_->m_newCameraVFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[BackgroundHFOV], 6);
+
+			m_cameraBackgroundHFOVHook = safetyhook::create_mid(CameraFOVScansResult[BackgroundHFOV], [](SafetyHookContext& ctx)
+			{
+				s_instance_->CameraFOVMidHook(s_instance_->m_newCameraHFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[BackgroundVFOV], 6);
+
+			m_cameraBackgroundVFOVHook = safetyhook::create_mid(CameraFOVScansResult[BackgroundVFOV], [](SafetyHookContext& ctx)
+			{
+				s_instance_->CameraFOVMidHook(s_instance_->m_newCameraVFOV);
+			});
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	float m_newCameraHFOV = 0.0f;
+	float m_newCameraVFOV = 0.0f;
+
+	SafetyHookMid m_cameraForegroundHFOVHook{};
+	SafetyHookMid m_cameraForegroundVFOVHook{};
+	SafetyHookMid m_cameraBackgroundHFOVHook{};
+	SafetyHookMid m_cameraBackgroundVFOVHook{};
+
+	void CameraFOVMidHook(float newCameraFOV)
 	{
-		WidescreenFix();
+		FPU::FMUL(newCameraFOV);
 	}
-	return TRUE;
-}
+
+	enum CameraFOVInstructionsIndex
+	{
+		ForegroundHFOV,
+		ForegroundVFOV,
+		BackgroundHFOV,
+		BackgroundVFOV
+	};
+
+	inline static BarbieExplorerFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<BarbieExplorerFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -304,19 +178,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<BarbieExplorerFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
