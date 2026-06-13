@@ -1,272 +1,155 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "AtlantisUnderwaterTycoonFOVFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalCameraFOV = 0.75f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-float fNewCullingValue;
-
-// Game detection
-enum class Game
+class AtlantisUnderwaterTycoonFix final : public FixBase
 {
-	AUT,
-	Unknown
-};
-
-enum AspectRatioAndFOVInstructionsIndex
-{
-	ARAndFOV1Scan,
-	ARAndFOV2Scan,
-	ARAndFOV3Scan
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::AUT, {"Atlantis Underwater Tycoon", "ut.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit AtlantisUnderwaterTycoonFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~AtlantisUnderwaterTycoonFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid CameraCullingInstructionHook{};
-static SafetyHookMid AspectRatioInstruction3Hook{};
-
-void FOVFix()
-{
-	if (eGameType == Game::AUT && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "AtlantisUnderwaterTycoonFOVFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.1";
+	}
 
-		std::uint8_t* CameraCullingInstructionScanResult = Memory::PatternScan(exeModule, "D8 05 ?? ?? ?? ?? D9 5C 24 ?? 75");
-		if (CameraCullingInstructionScanResult)
+	const char* TargetName() const override
+	{
+		return "Atlantis Underwater Tycoon";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "ut.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 83 ?? ?? ?? ?? A3 ?? ?? ?? ?? 8B 8B");
+		if (ResolutionScanResult)
 		{
-			spdlog::info("Camera Culling Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraCullingInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-			fNewCullingValue = 16.0f;
-
-			Memory::WriteNOPs(CameraCullingInstructionScanResult, 6);
-
-			CameraCullingInstructionHook = safetyhook::create_mid(CameraCullingInstructionScanResult, [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
 			{
-				FPU::FADD(fNewCullingValue);
+				int& iCurrentWidth = Memory::ReadMem(ctx.ebx + 0x2AA04);
+				int& iCurrentHeight = Memory::ReadMem(ctx.ebx + 0x2AA08);
+				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+				s_instance_->WriteStaticARs();
 			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera culling instruction memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
-		}		
+		}
 
-		std::vector<std::uint8_t*> AspectRatioAndCameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B 4E", "68 ?? ?? ?? ?? 8D 54 24 ?? 68 ?? ?? ?? ?? 52 E8", "8B 54 24 10 51 55 8D 86 48 AF 02 00 52 68 00 00 40 3F");
-		if (Memory::AreAllSignaturesValid(AspectRatioAndCameraFOVInstructionsScansResult) == true)
+		AspectRatioScansResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B 4E", "68 ?? ?? ?? ?? 8D 54 24 ?? 68 ?? ?? ?? ?? 52 E8",
+		"8B 54 24 ?? 51 55");
+		if (Memory::AreAllSignaturesValid(AspectRatioScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio & Camera FOV Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR3] - (std::uint8_t*)ExeModule());
 
-			spdlog::info("Aspect Ratio & Camera FOV Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV2Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Aspect Ratio & Camera FOV Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan] - (std::uint8_t*)exeModule);
-
-			fNewCameraFOV = fOriginalCameraFOV * fFOVFactor;
-
-			Memory::Write(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV1Scan] + 1, fNewAspectRatio);
-
-			Memory::Write(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV1Scan] + 6, fNewCameraFOV);
-
-			Memory::Write(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV2Scan] + 1, fNewAspectRatio);
-
-			Memory::Write(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV2Scan] + 10, fNewCameraFOV);
-
-			Memory::WriteNOPs(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan], 4);
-
-			AspectRatioInstruction3Hook = safetyhook::create_mid(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan], [](SafetyHookContext& ctx)
+			m_aspectRatio3Hook = safetyhook::create_mid(AspectRatioScansResult[AR3], [](SafetyHookContext& ctx)
 			{
-				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
-			});			
+				ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newAspectRatio);
+			});
+		}
 
-			Memory::Write(AspectRatioAndCameraFOVInstructionsScansResult[ARAndFOV3Scan] + 14, fNewCameraFOV);
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B 4E", "68 ?? ?? ?? ?? 52 E8 ?? ?? ?? ?? 8B 46",
+		"68 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? A1", "7c ?? 89 5e ?? 5f", "75 ?? 89 5e ?? 5f 5e 5d 5b 83 c4 ?? c2 ?? ?? 89 7e",
+		"89 5e ?? 5f 5e 5d 5b 83 c4 ?? c2 ?? ?? 90", "0f 85 ?? ?? ?? ?? d9 44 24 ?? d8 1d ?? ?? ?? ?? df e0 f6 c4 ?? 0f 84 ?? ?? ?? ?? 8d be",
+		"0f 85 ?? ?? ?? ?? 8b d5");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
+		{
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV3] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Culling Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Culling1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Culling Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Culling2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Culling Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Culling3] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Culling Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Culling4] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera Culling Instruction 5: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Culling5] - (std::uint8_t*)ExeModule());
+
+			m_newCameraFOV = m_originalCameraFOV * m_fovFactor;
+
+			Memory::Write(CameraFOVScansResult, FOV1, FOV3, 1, m_newCameraFOV);
+
+			Memory::PatchBytes(CameraFOVScansResult, Culling1, Culling2, 0, "\xEB");
+			Memory::PatchBytes(CameraFOVScansResult[Culling3] + 1, "\x7E");
+			Memory::PatchBytes(CameraFOVScansResult[Culling4], "\xE9\x3C\x01\x00\x00\x90");
+			Memory::PatchBytes(CameraFOVScansResult[Culling5], "\xE9\xA0\x00\x00\x00\x90");
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalCameraFOV = 0.75f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_aspectRatio3Hook{};
+	SafetyHookMid m_cameraCullingHook{};
+
+	std::vector<std::uint8_t*> AspectRatioScansResult;
+
+	enum AspectRatioInstructionsIndex
 	{
-		FOVFix();
+		AR1,
+		AR2,
+		AR3
+	};
+
+	enum CameraFOVInstructionsIndex
+	{
+		FOV1,
+		FOV2,
+		FOV3,
+		Culling1,
+		Culling2,
+		Culling3,
+		Culling4,
+		Culling5,
+		Culling6
+	};
+
+	void WriteStaticARs()
+	{
+		Memory::Write(AspectRatioScansResult, AR1, AR2, 1, m_newAspectRatio);
 	}
-	return TRUE;
-}
+
+	inline static AtlantisUnderwaterTycoonFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<AtlantisUnderwaterTycoonFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -274,19 +157,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<AtlantisUnderwaterTycoonFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
