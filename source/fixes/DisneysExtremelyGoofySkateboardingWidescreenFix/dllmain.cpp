@@ -1,241 +1,105 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-#include <vector>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "DisneysExtremelyGoofySkateboardingWidescreenFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr float fOriginalGameplayFOV = 1.04719758f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-int iDesiredFramerate;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewGeneralFOV;
-float fNewGameplayFOV;
-int iNewFramerate;
-
-// Game detection
-enum class Game
+class GoofySkateboardingFix final : public FixBase
 {
-	DEGS,
-	Unknown
-};
-
-enum CameraFOVInstructionsIndices
-{
-	General,
-	Gameplay
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::DEGS, {"Disney's Extremely Goofy Skateboarding", "Skating.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit GoofySkateboardingFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "Framerate", iDesiredFramerate);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-	spdlog_confparse(iDesiredFramerate);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~GoofySkateboardingFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::DEGS && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "DisneysExtremelyGoofySkateboardingWidescreenFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.2";
+	}
 
-		std::uint8_t* ResolutionsInstructionScanResult = Memory::PatternScan(exeModule, "80 02 00 00 E0 01 00 00 E8 03 00 00 1E 00 00 00");
-		if (ResolutionsInstructionScanResult)
+	const char* TargetName() const override
+	{
+		return "Disney's Extremely Goofy Skateboarding";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Skating.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "Framerate", m_newFramerate);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_bSkipIntroVideos);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_newFramerate);
+		spdlog_confparse(m_bSkipIntroVideos);
+	}
+
+	void ApplyFix() override
+	{
+		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
+
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "74 ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 8B 44 24",
+		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? 6A ?? E8 ?? ?? ?? ?? 8B 15", "8B 35 ?? ?? ?? ?? 8B C8 A1", "68 ?? ?? ?? ?? 8B CB 75");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionsInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Hi-Res Unlock Instruction: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[HiResUnlock] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Setup Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResSetup] - (std::uint8_t*)ExeModule());
+			spdlog::info("Target FPS Instruction: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[TargetFPS] - (std::uint8_t*)ExeModule());
+			spdlog::info("Frame Delta Instruction: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[FrameDelta] - (std::uint8_t*)ExeModule());
 
-			Memory::Write(ResolutionsInstructionScanResult, iCurrentResX);
+			Memory::WriteNOPs(ResolutionScansResult[HiResUnlock], 2);
+			Memory::Write(ResolutionScansResult[HiResUnlock] + 8, m_newResX);
+			Memory::Write(ResolutionScansResult[HiResUnlock] + 18, m_newResY);
 
-			Memory::Write(ResolutionsInstructionScanResult + 4, iCurrentResY);
+			Memory::Write(ResolutionScansResult[ResSetup] + 5, m_newResX);
+			Memory::Write(ResolutionScansResult[ResSetup] + 1, m_newResY);
 
-			iNewFramerate = (int)(iDesiredFramerate * 2);
+			Memory::WriteNOPs(ResolutionScansResult[TargetFPS], 6);
+			m_targetFPSHook = safetyhook::create_mid(ResolutionScansResult[TargetFPS], [](SafetyHookContext& ctx)
+			{
+				ctx.esi = std::bit_cast<uintptr_t>(s_instance_->m_newFramerate);
+			});
 
-			Memory::Write(ResolutionsInstructionScanResult + 12, iNewFramerate);
+			m_newFrameDelta = 1.0f / m_newFramerate;
+
+			Memory::Write(ResolutionScansResult[FrameDelta] + 1, m_newFrameDelta);
+			Memory::Write(ResolutionScansResult[FrameDelta] + 20, m_newFrameDelta);
 		}
-		else
-		{
-			spdlog::error("Failed to locate resolution scan memory address.");
-			return;
-		}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? A1 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? A3 ?? ?? ?? ?? A1 ?? ?? ?? ?? 50 8B 08 FF 91 ?? ?? ?? ?? C3 90");
-		if (AspectRatioInstructionScanResult)
+		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? A1 ?? ?? ?? ?? D9 1D ?? ?? ?? ?? A3 ?? ?? ?? ?? A1 ?? ?? ?? ?? 50 8B 08 FF 91 ?? ?? ?? ?? C3 90");
+		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio);
+			Memory::Write(AspectRatioScanResult + 2, &m_newAspectRatio);
 		}
 		else
 		{
@@ -243,34 +107,69 @@ void WidescreenFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 3D ?? ?? ?? ?? D9 15 ?? ?? ?? ?? D9 C0", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? C6 46 ?? ?? 8B 46");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D8 3D ?? ?? ?? ?? D9 15 ?? ?? ?? ?? D9 C0", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? C6 46 ?? ?? 8B 46");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("General FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[General] - (std::uint8_t*)exeModule);
+			spdlog::info("General FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[General] - (std::uint8_t*)ExeModule());
+			spdlog::info("Gameplay FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay] - (std::uint8_t*)ExeModule());
 
-			spdlog::info("Gameplay FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[Gameplay] - (std::uint8_t*)exeModule);
+			m_newGeneralFOV = 1.0f / m_aspectRatioScale;
 
-			fNewGeneralFOV = 1.0f / fAspectRatioScale;
+			Memory::Write(CameraFOVScansResult[General] + 2, &m_newGeneralFOV);
 
-			Memory::Write(CameraFOVInstructionsScansResult[General] + 2, &fNewGeneralFOV);
+			m_newGameplayFOV = m_originalGameplayFOV * m_fovFactor;
 
-			fNewGameplayFOV = fOriginalGameplayFOV * fFOVFactor;
+			Memory::Write(CameraFOVScansResult[Gameplay] + 1, m_newGameplayFOV);
+		}
 
-			Memory::Write(CameraFOVInstructionsScansResult[Gameplay] + 1, fNewGameplayFOV);
+		if (m_bSkipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 85 ?? ?? ?? ?? 50 A1");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Intro Videos Skip Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x79\x01\x00\x00\x90");
+			}
+			else
+			{
+				spdlog::error("Failed to locate intro videos skip instruction memory address.");
+				return;
+			}
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalGameplayFOV = 1.04719758f;	
+
+	float m_newFramerate = 0.0f;
+	float m_newFrameDelta = 0.0f;
+	bool m_bSkipIntroVideos;
+
+	float m_newGeneralFOV = 0.0f;
+	float m_newGameplayFOV = 0.0f;
+
+	SafetyHookMid m_targetFPSHook{};
+
+	enum ResolutionInstructionsIndex
 	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
+		HiResUnlock,
+		ResSetup,
+		TargetFPS,
+		FrameDelta
+	};
+
+	enum CameraFOVInstructionsIndices
+	{
+		General,
+		Gameplay
+	};
+
+	inline static GoofySkateboardingFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<GoofySkateboardingFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -278,19 +177,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<GoofySkateboardingFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
