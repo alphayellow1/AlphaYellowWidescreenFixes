@@ -1847,3 +1847,16 @@ namespace Maths
 		return oss.str();
 	}
 }
+
+namespace Screen
+{
+	inline int GetDesktopResolutionWidth()
+	{
+		return GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	}
+
+	inline int GetDesktopResolutionHeight()
+	{
+		return GetSystemMetrics(SM_CYVIRTUALSCREEN);
+	}
+}

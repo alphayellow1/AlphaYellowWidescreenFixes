@@ -8,11 +8,6 @@
 #include <inipp/inipp.h>
 #include <safetyhook.hpp>
 
-#include <filesystem>
-#include <memory>
-#include <string>
-#include <cstdint>
-
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
 class FixBase

@@ -58,15 +58,12 @@ protected:
 			auto ResolutionListUnlockScansResult = Memory::PatternScan(ExeModule(), "74 ?? 8B 45 ?? 8D 8E", "0F 82 ?? ?? ?? ?? 81 7D");
 			if (Memory::AreAllSignaturesValid(ResolutionListUnlockScansResult) == true)
 			{
-				spdlog::info("Resolution List Unlock Scan 1: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListUnlockScansResult[ResListUnlock1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution List Unlock Scan 1: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListUnlockScansResult[ListUnlock1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution List Unlock Scan 2: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListUnlockScansResult[ListUnlock2] - (std::uint8_t*)ExeModule());
 
-				spdlog::info("Resolution List Unlock Scan 2: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListUnlockScansResult[ResListUnlock2] - (std::uint8_t*)ExeModule());
-
-				Memory::WriteNOPs(ResolutionListUnlockScansResult[ResListUnlock1], 2);
-
-				Memory::WriteNOPs(ResolutionListUnlockScansResult[ResListUnlock2], 6);
-
-				Memory::WriteNOPs(ResolutionListUnlockScansResult[ResListUnlock2] + 13, 6);
+				Memory::WriteNOPs(ResolutionListUnlockScansResult[ListUnlock1], 2);
+				Memory::WriteNOPs(ResolutionListUnlockScansResult[ListUnlock2], 6);
+				Memory::WriteNOPs(ResolutionListUnlockScansResult[ListUnlock2] + 13, 6);
 			}
 		}
 
@@ -119,8 +116,8 @@ private:
 
 	enum ResolutionListsIndices
 	{
-		ResListUnlock1,
-		ResListUnlock2
+		ListUnlock1,
+		ListUnlock2
 	};
 
 	void CameraFOVMidHook(SafetyHookContext& ctx)

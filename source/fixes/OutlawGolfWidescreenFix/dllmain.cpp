@@ -49,6 +49,9 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "WindowedWidth", m_newWindowedWidth);
 		inipp::get_value(ini.sections["Settings"], "WindowedHeight", m_newWindowedHeight);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+
+		FallbackToDesktopResolution(m_newWindowedWidth, m_newWindowedHeight);
+
 		spdlog_confparse(m_newWindowedWidth);
 		spdlog_confparse(m_newWindowedHeight);
 		spdlog_confparse(m_fovFactor);

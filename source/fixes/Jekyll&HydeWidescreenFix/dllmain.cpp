@@ -64,8 +64,8 @@ protected:
 
 				Memory::PatchBytes(ResolutionScansResult[ListUnlock], "\xE9\xA8\x00\x00\x00");
 
-				m_newDefaultWidth = GetSystemMetrics(SM_CXSCREEN);
-				m_newDefaultHeight = GetSystemMetrics(SM_CYSCREEN);
+				m_newDefaultWidth = Screen::GetDesktopResolutionWidth();
+				m_newDefaultHeight = Screen::GetDesktopResolutionHeight();
 
 				Memory::Write(ResolutionScansResult[DefaultRes] + 1, m_newDefaultWidth);
 				Memory::Write(ResolutionScansResult[DefaultRes] + 11, m_newDefaultHeight);
