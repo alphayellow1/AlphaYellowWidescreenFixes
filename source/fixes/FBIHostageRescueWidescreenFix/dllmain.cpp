@@ -161,7 +161,6 @@ protected:
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 
-	SafetyHookMid m_resolutionListUnlockHook{};
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_cameraFOV1Hook{};
@@ -289,8 +288,6 @@ static std::unique_ptr<FBIHostageRescueFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
