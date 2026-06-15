@@ -1,391 +1,302 @@
-﻿// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+﻿#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-
-// Fix details
-std::string sFixName = "TheWatchmakerWidescreenFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-uint8_t* ResolutionWidth1Address;
-uint8_t* ResolutionHeight1Address;
-uint8_t* ResolutionWidth5Address;
-uint8_t* ResolutionHeight5Address;
-uint8_t* ResolutionWidth6Address;
-uint8_t* ResolutionHeight6Address;
-uint8_t* ResolutionWidth7Address;
-uint8_t* ResolutionHeight7Address;
-
-// Game detection
-enum class Game
+class TheWatchmakerFix final : public FixBase
 {
-	TWM,
-	Unknown
-};
-
-enum ResolutionInstructionsIndex
-{
-	Resolution1Scan,
-	Resolution2Scan,
-	Resolution3Scan,
-	Resolution4Scan,
-	Resolution5Scan,
-	Resolution6Scan,
-	Resolution7Scan,
-	Resolution8Scan,
-	Resolution9Scan,
-	Resolution10Scan,
-	Resolution11Scan,
-	Resolution12Scan,
-	Resolution13Scan,
-	Resolution14Scan,
-	Resolution15Scan
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::TWM, {"The Watchmaker", "Wm.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit TheWatchmakerFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~TheWatchmakerFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	bool bGameFound = false;
-
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (m_newModeTable)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			bGameFound = true;
-			break;
+			VirtualFree(m_newModeTable, 0, MEM_RELEASE);
+			m_newModeTable = nullptr;
+		}
+
+		if (s_instance_ == this)
+		{
+			s_instance_ = nullptr;
 		}
 	}
 
-	if (bGameFound == false)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		return "TheWatchmakerWidescreenFix";
 	}
 
-	dllModule2 = Memory::GetHandle("render.dll");
-
-	return true;
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void CameraFOVInstructionMidHook(SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x1C);
-
-	fNewCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-
-	_asm
+	const char* FixVersion() const override
 	{
-		fld dword ptr ds:[fNewCameraFOV]
+		return "1.1";
 	}
-}
 
-void WidescreenFix()
-{
-	if (eGameType == Game::TWM && bFixActive == true)
+	const char* TargetName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "The Watchmaker";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "89 0D 18 B2 62 00 89 15 1C B2 62 00 BF 01 00 00 00 BE C4 F4 55 00", "8B 0D 40 55 AE 00 8B 15 90 55 AE 00 56 57", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 68",
-		dllModule2, "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 35", "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? 5E", "89 35 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 35 ?? ?? ?? ?? 89 35", "A3 ?? ?? ?? ?? 8B 44 24 ?? 6A 00 6A 00 68 ?? ?? ?? ?? 50 89 7C 24 ?? FF D6 85 C0 0F 85 ?? ?? ?? ?? 8B 44 24 ?? 85 C0 0F 84 ?? ?? ?? ?? 8B 4C 24 ?? 8D 54 24 ?? 8D 44 24 ?? 52 50 89 0D ?? ?? ?? ??");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Wm.exe") ||
+		Util::stringcmp_caseless(exeName, "Setup.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		m_renderDllModule = Memory::GetHandle("render.dll");
+		m_renderDllModuleName = Memory::GetModuleName(m_renderDllModule);
+
+		auto ResolutionListUnlockScanResult = Memory::PatternScan(m_renderDllModule, "74 ?? 83 F8 ?? 75 ?? 8B 4E");
+		if (ResolutionListUnlockScanResult)
 		{
-			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", m_renderDllModuleName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)m_renderDllModule);
 
-			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution Instructions 4 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution4Scan] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Resolution Instructions 5 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution5Scan] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Resolution Instructions 6 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution6Scan] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Resolution Instructions 7 Scan: Address is render.dll+{:x}", ResolutionInstructionsScansResult[Resolution7Scan] - (std::uint8_t*)dllModule2);
-
-			ResolutionWidth1Address = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[Resolution1Scan] + 2, Memory::PointerMode::Absolute);
-
-			ResolutionHeight1Address = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[Resolution1Scan] + 8, Memory::PointerMode::Absolute);
-
-			ResolutionWidth5Address = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[Resolution5Scan] + 8, Memory::PointerMode::Absolute);
-
-			ResolutionHeight5Address = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[Resolution5Scan] + 2, Memory::PointerMode::Absolute);
-
-			ResolutionWidth6Address = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[Resolution6Scan] + 8, Memory::PointerMode::Absolute);
-
-			ResolutionHeight6Address = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[Resolution6Scan] + 2, Memory::PointerMode::Absolute);
-
-			ResolutionWidth7Address = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[Resolution7Scan] + 1, Memory::PointerMode::Absolute);
-
-			ResolutionHeight7Address = Memory::GetPointerFromAddress(ResolutionInstructionsScansResult[Resolution7Scan] + 61, Memory::PointerMode::Absolute);
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution1Scan], 12);
-
-			static SafetyHookMid ResolutionInstructions1MidHook{};
-
-			ResolutionInstructions1MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution1Scan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionWidth1Address) = iCurrentResX;
-
-				Memory::ReadMem(ResolutionHeight1Address) = iCurrentResY;
-			});
-
-			static SafetyHookMid ResolutionInstructions2MidHook{};
-
-			ResolutionInstructions2MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution2Scan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(0x00AE5540) = iCurrentResX;
-
-				Memory::ReadMem(0x00AE5590) = iCurrentResY;
-			});
-
-			/*
-			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 6, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 1, iCurrentResY);
-			*/
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution4Scan], 11);
-
-			static SafetyHookMid ResolutionInstructions4MidHook{};
-
-			ResolutionInstructions4MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution4Scan], [](SafetyHookContext& ctx)
-			{
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResX);
-
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResY);
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution5Scan], 12);
-
-			static SafetyHookMid ResolutionInstructions5MidHook{};
-
-			ResolutionInstructions5MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution5Scan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionWidth5Address) = iCurrentResX;
-
-				Memory::ReadMem(ResolutionHeight5Address) = iCurrentResY;
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution6Scan], 12);
-
-			static SafetyHookMid ResolutionInstructions6MidHook{};
-
-			ResolutionInstructions6MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution6Scan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionWidth6Address) = iCurrentResX;
-
-				Memory::ReadMem(ResolutionHeight6Address) = iCurrentResY;
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution7Scan], 5);
-
-			static SafetyHookMid ResolutionWidthInstruction7MidHook{};
-
-			ResolutionWidthInstruction7MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution7Scan], [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionWidth7Address) = iCurrentResX;
-			});
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Resolution7Scan] + 59, 6);
-
-			static SafetyHookMid ResolutionHeightInstruction7MidHook{};
-
-			ResolutionHeightInstruction7MidHook = safetyhook::create_mid(ResolutionInstructionsScansResult[Resolution7Scan] + 59, [](SafetyHookContext& ctx)
-			{
-				Memory::ReadMem(ResolutionHeight7Address) = iCurrentResY;
-			});
-		}
-
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "D9 44 24 ?? D8 0D");
-		if (CameraFOVInstructionScanResult)
-		{
-			spdlog::info("Camera FOV Instruction: Address is render.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
-
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
-
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, CameraFOVInstructionMidHook);
+			Memory::WriteNOPs(ResolutionListUnlockScanResult + 5, 2);
+			Memory::WriteNOPs(ResolutionListUnlockScanResult + 16, 2);
+			Memory::WriteNOPs(ResolutionListUnlockScanResult + 24, 2);
+			Memory::WriteNOPs(ResolutionListUnlockScanResult + 33, 2);
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			spdlog::error("Failed to locate resolution list unlock scan memory address.");
 			return;
 		}
-	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
+		m_modeCount = reinterpret_cast<std::uint32_t*>(reinterpret_cast<std::uint8_t*>(m_renderDllModule) + 0x99070);
+
+		m_newModeTable = reinterpret_cast<std::uint8_t*>(VirtualAlloc(nullptr, kModeCapacity * kModeEntrySize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+
+		if (!m_newModeTable)
+		{
+			spdlog::error("Failed to allocate expanded resolution mode table.");
+			return;
+		}
+
+		std::memset(m_newModeTable, 0, kModeCapacity * kModeEntrySize);
+
+		PatchModeTableReferences();
+		InstallModeLimitHook();
+
+		if (Util::stringcmp_caseless(ExeName(), "Wm.exe"))
+		{
+			auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "89 0D ?? ?? ?? ?? 89 15 ?? ?? ?? ?? BF");
+			if (ResolutionScanResult)
+			{
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+				m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+				{
+					const int& iCurrentWidth = Memory::ReadRegister(ctx.ecx);
+					const int& iCurrentHeight = Memory::ReadRegister(ctx.edx);
+					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+				});
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution instructions scan memory address.");
+				return;
+			}
+
+			auto CameraFOVScansResult = Memory::PatternScan(m_renderDllModule, "D9 44 24 ?? D8 0D", ExeModule(), "8B 41 ?? 50 A1 ?? ?? ?? ?? 50 56 99 2B C2 D1 F8 50 8B C6 99 2B C2 D1 F8 50 51 E8 ?? ?? ?? ?? 8B 0D",
+			"8B 51 ?? 8B 35 ?? ?? ?? ?? 52 50 99 2B C2 56 D1 F8 50 8B C6 99 2B C2 D1 F8 50 51 E8 ?? ?? ?? ?? 66 A1", "8B 51 ?? 8B 35 ?? ?? ?? ?? 52 50 99 2B C2 56 D1 F8 50 8B C6 99 2B C2 D1 F8 50 51 E8 ?? ?? ?? ?? 6A");
+			if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
+			{
+				spdlog::info("General FOV Instruction: Address is {:s}+{:x}", m_renderDllModuleName.c_str(), CameraFOVScansResult[General] - (std::uint8_t*)m_renderDllModule);
+				spdlog::info("Gameplay FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Gameplay FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay2] - (std::uint8_t*)ExeModule());
+				spdlog::info("Gameplay FOV Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay3] - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(CameraFOVScansResult[General], 4);
+
+				m_generalFOVHook = safetyhook::create_mid(CameraFOVScansResult[General], [](SafetyHookContext& ctx)
+				{
+					s_instance_->GeneralFOVMidHook(ctx);
+				});
+
+				Memory::WriteNOPs(CameraFOVScansResult[Gameplay1], 3);
+
+				m_gameplayFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay1], [](SafetyHookContext& ctx)
+				{
+					float& fCurrentGameplayFOV1 = Memory::ReadMem(ctx.ecx + 0x30);
+					s_instance_->m_newGameplayFOV1 = fCurrentGameplayFOV1 * s_instance_->m_fovFactor;
+					ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newGameplayFOV1);
+				});
+
+				Memory::WriteNOPs(CameraFOVScansResult[Gameplay2], 3);
+
+				m_gameplayFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay2], [](SafetyHookContext& ctx)
+				{
+					float& fCurrentGameplayFOV2 = Memory::ReadMem(ctx.ecx + 0x30);
+					s_instance_->m_newGameplayFOV2 = fCurrentGameplayFOV2 * s_instance_->m_fovFactor;
+					ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newGameplayFOV2);
+				});
+
+				Memory::WriteNOPs(CameraFOVScansResult[Gameplay3], 3);
+
+				m_gameplayFOV3Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay3], [](SafetyHookContext& ctx)
+				{
+					float& fCurrentGameplayFOV3 = Memory::ReadMem(ctx.ecx + 0x30);
+					s_instance_->m_newGameplayFOV3 = fCurrentGameplayFOV3 * s_instance_->m_fovFactor;
+					ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newGameplayFOV3);
+				});
+			}
+		}
 	}
-	return TRUE;
-}
+
+private:
+	HMODULE m_renderDllModule = nullptr;
+	std::string m_renderDllModuleName = "";
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	float m_newGeneralFOV = 0.0f;
+	float m_newGameplayFOV1 = 0.0f;
+	float m_newGameplayFOV2 = 0.0f;
+	float m_newGameplayFOV3 = 0.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_generalFOVHook{};
+	SafetyHookMid m_gameplayFOV1Hook{};
+	SafetyHookMid m_gameplayFOV2Hook{};
+	SafetyHookMid m_gameplayFOV3Hook{};
+
+	enum CameraFOVInstructionsIndex
+	{
+		General,
+		Gameplay1,
+		Gameplay2,
+		Gameplay3
+	};
+
+	static constexpr std::size_t kModeEntrySize = 0x8C;
+	static constexpr std::size_t kModeCapacity = 4096;
+
+	std::uint8_t* m_newModeTable = nullptr;
+	std::uint32_t* m_modeCount = nullptr;
+
+	SafetyHookMid m_modeLimitHook{};
+
+	static IMAGE_SECTION_HEADER* FindSection(HMODULE module, const char* name)
+	{
+		auto* base = reinterpret_cast<std::uint8_t*>(module);
+		auto* dos = reinterpret_cast<IMAGE_DOS_HEADER*>(base);
+		auto* nt = reinterpret_cast<IMAGE_NT_HEADERS*>(base + dos->e_lfanew);
+		auto* section = IMAGE_FIRST_SECTION(nt);
+
+		for (WORD i = 0; i < nt->FileHeader.NumberOfSections; i++)
+		{
+			char sectionName[9]{};
+			std::memcpy(sectionName, section[i].Name, 8);
+
+			if (std::strcmp(sectionName, name) == 0)
+			{
+				return &section[i];
+			}
+		}
+
+		return nullptr;
+	}
+
+	void PatchModeTableReferences()
+	{
+		auto* text = FindSection(m_renderDllModule, ".text");
+		if (!text)
+		{
+			spdlog::error("Failed to find .text section in render.dll.");
+			return;
+		}
+
+		auto* moduleBase = reinterpret_cast<std::uint8_t*>(m_renderDllModule);
+		auto* textStart = moduleBase + text->VirtualAddress;
+		auto* textEnd = textStart + text->Misc.VirtualSize;
+
+		const auto oldTable = reinterpret_cast<std::uintptr_t>(moduleBase + 0x9E590);
+		const auto newTable = reinterpret_cast<std::uintptr_t>(m_newModeTable);
+
+		const std::array<std::uint32_t, 5> oldRefs =
+		{
+			static_cast<std::uint32_t>(oldTable + 0x00),
+			static_cast<std::uint32_t>(oldTable + 0x04),
+			static_cast<std::uint32_t>(oldTable + 0x08),
+			static_cast<std::uint32_t>(oldTable + 0x0C),
+			static_cast<std::uint32_t>(oldTable + 0x10),
+		};
+
+		const std::array<std::uint32_t, 5> newRefs =
+		{
+			static_cast<std::uint32_t>(newTable + 0x00),
+			static_cast<std::uint32_t>(newTable + 0x04),
+			static_cast<std::uint32_t>(newTable + 0x08),
+			static_cast<std::uint32_t>(newTable + 0x0C),
+			static_cast<std::uint32_t>(newTable + 0x10),
+		};
+
+		std::size_t patchedRefs = 0;
+
+		for (auto* p = textStart; p + sizeof(std::uint32_t) <= textEnd; p++)
+		{
+			std::uint32_t value{};
+			std::memcpy(&value, p, sizeof(value));
+
+			for (std::size_t i = 0; i < oldRefs.size(); i++)
+			{
+				if (value == oldRefs[i])
+				{
+					Memory::Write(p, newRefs[i]);
+					patchedRefs++;
+					break;
+				}
+			}
+		}
+	}
+
+	void InstallModeLimitHook()
+	{
+		m_modeLimitHook = safetyhook::create_mid((uintptr_t)m_renderDllModule + 0x5378, [](SafetyHookContext& ctx)
+		{
+			const auto count = static_cast<std::uint32_t>(ctx.edx);
+
+			constexpr std::uint32_t ZF = 0x40;
+
+			if (count < kModeCapacity)
+			{
+				ctx.eflags &= ~ZF;
+			}
+			else
+			{
+				ctx.eflags |= ZF;
+			}
+		});
+	}
+
+	void GeneralFOVMidHook(SafetyHookContext& ctx)
+	{
+		float& fCurrentGeneralFOV = Memory::ReadMem(ctx.esp + 0x1C);
+		m_newGeneralFOV = Maths::CalculateNewFOV_DegBased(fCurrentGeneralFOV, m_aspectRatioScale);
+		FPU::FLD(m_newGeneralFOV);
+	}
+
+	inline static TheWatchmakerFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<TheWatchmakerFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -393,19 +304,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<TheWatchmakerFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
