@@ -1,5 +1,4 @@
 #include "..\..\common\FixBase.hpp"
-#include <cstdio>
 #include <set>
 
 class FootballGenerationFix final : public FixBase

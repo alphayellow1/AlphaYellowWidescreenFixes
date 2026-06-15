@@ -1,5 +1,4 @@
 #include "..\..\common\FixBase.hpp"
-#include <cstdio>
 #include <set>
 
 class FBIHostageRescueFix final : public FixBase
@@ -63,6 +62,11 @@ protected:
 				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)ExeModule());
 
 				Memory::WriteNOPs(ResolutionListUnlockScanResult, 122);
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution list unlock scan memory address.");
+				return;
 			}
 		}
 
@@ -206,12 +210,6 @@ private:
 			DWORD height = devMode.dmPelsHeight;
 			DWORD bpp = devMode.dmBitsPerPel;
 			DWORD frequency = devMode.dmDisplayFrequency;
-
-			// Optional sanity filters
-			if (width < 640 || height < 480)
-			{
-				continue;
-			}
 
 			if (bpp != 16 && bpp != 32)
 			{
