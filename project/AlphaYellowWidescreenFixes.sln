@@ -1179,6 +1179,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TomClancysRainbowSixWidescr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "18WheelsOfSteelAcrossAmericaFOVFix", "18WheelsOfSteelAcrossAmericaFOVFix.vcxproj", "{302AAC7C-EF29-42D2-90C0-ADA0513527F2}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TennisAnticsWidescreenFix", "TennisAnticsWidescreenFix.vcxproj", "{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5875,6 +5877,14 @@ Global
 		{302AAC7C-EF29-42D2-90C0-ADA0513527F2}.Release|x64.Build.0 = Release|x64
 		{302AAC7C-EF29-42D2-90C0-ADA0513527F2}.Release|x86.ActiveCfg = Release|Win32
 		{302AAC7C-EF29-42D2-90C0-ADA0513527F2}.Release|x86.Build.0 = Release|Win32
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}.Debug|x64.ActiveCfg = Debug|x64
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}.Debug|x64.Build.0 = Debug|x64
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}.Debug|x86.ActiveCfg = Debug|Win32
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}.Debug|x86.Build.0 = Debug|Win32
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}.Release|x64.ActiveCfg = Release|x64
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}.Release|x64.Build.0 = Release|x64
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}.Release|x86.ActiveCfg = Release|Win32
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6466,6 +6476,7 @@ Global
 		{882D5964-5329-4D9E-B920-BF2974C31954} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{E0964D07-CB46-4C34-8F39-A0A6D63B8BD0} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{302AAC7C-EF29-42D2-90C0-ADA0513527F2} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{18C28C3C-EE6D-4F49-BB83-1D4188B3D8DE} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}

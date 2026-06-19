@@ -1,14 +1,14 @@
 #include "..\..\common\FixBase.hpp"
 
-class BeanotownRacingFix final : public FixBase
+class TennisAnticsFix final : public FixBase
 {
 public:
-	explicit BeanotownRacingFix(HMODULE selfModule) : FixBase(selfModule)
+	explicit TennisAnticsFix(HMODULE selfModule) : FixBase(selfModule)
 	{
 		s_instance_ = this;
 	}
 
-	~BeanotownRacingFix() override
+	~TennisAnticsFix() override
 	{
 		if (s_instance_ == this)
 		{
@@ -19,17 +19,17 @@ public:
 protected:
 	const char* FixName() const override
 	{
-		return "BeanotownRacingWidescreenFix";
+		return "TennisAnticsWidescreenFix";
 	}
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.0";
 	}
 
 	const char* TargetName() const override
 	{
-		return "Beanotown Racing";
+		return "Tennis Antics";
 	}
 
 	InitMode GetInitMode() const override
@@ -41,7 +41,7 @@ protected:
 
 	bool IsCompatibleExecutable(const std::string& exeName) const override
 	{
-		return Util::stringcmp_caseless(exeName, "prog.dat");
+		return Util::stringcmp_caseless(exeName, "TennisAntics.exe");
 	}
 
 	void ParseFixConfig(inipp::Ini<char>& ini) override
@@ -52,35 +52,38 @@ protected:
 
 	void ApplyFix() override
 	{
-		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "74 ?? E8 ?? ?? ?? ?? A1 ?? ?? ?? ?? 50", "8B 0A 89 0D ?? ?? ?? ?? 8B 4A");
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "81 7D ?? ?? ?? ?? ?? 75 ?? 81 7D ?? ?? ?? ?? ?? 74 ?? 81 7D ?? ?? ?? ?? ?? 75 ?? 81 7D ?? ?? ?? ?? ?? 74 ?? 81 7D ?? ?? ?? ?? ?? 75",
+		"8B 55 ?? 89 15 ?? ?? ?? ?? 8B 45 ?? A3 ?? ?? ?? ?? 8B 0D");
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
 			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(ResolutionScansResult[ListUnlock], 2);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock], 80);
 
 			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
 			{
-				int& iCurrentWidth = Memory::ReadMem(ctx.edx);
-				int& iCurrentHeight = Memory::ReadMem(ctx.edx + 0x4);
+				int& iCurrentWidth = Memory::ReadMem(ctx.ebp - 0x18);
+				int& iCurrentHeight = Memory::ReadMem(ctx.ebp - 0x14);
 				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
 			});
 		}
 
-		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "89 44 24 ?? 8B 44 24 ?? 52 50");
+		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "8B 0D ?? ?? ?? ?? 89 4D ?? 8B 15 ?? ?? ?? ?? 89 55 ?? 8D 45 ?? 50 8B 4D");
 		if (AspectRatioScanResult)
 		{
 			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(AspectRatioScanResult, 4);
+			m_aspectRatioAddress = Memory::GetPointerFromAddress(AspectRatioScanResult + 2, Memory::PointerMode::Absolute);
+
+			Memory::WriteNOPs(AspectRatioScanResult, 6);
 
 			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
 			{
-				s_instance_->m_currentAspectRatio = Memory::ReadRegister(ctx.eax);
-				s_instance_->m_newAspectRatio2 = s_instance_->m_currentAspectRatio * s_instance_->m_aspectRatioScale;
-				*reinterpret_cast<float*>(ctx.esp + 0x0) = s_instance_->m_newAspectRatio2;
+				s_instance_->m_currentAspectRatio = Memory::ReadMem(s_instance_->m_aspectRatioAddress);
+				s_instance_->m_newAspectRatio2 = s_instance_->m_currentAspectRatio * s_instance_->m_aspectRatioScale;				
+				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newAspectRatio2);
 			});
 		}
 		else
@@ -89,19 +92,14 @@ protected:
 			return;
 		}
 
-		auto CameraFOVInstructionScanResult = Memory::PatternScan(ExeModule(), "D9 40 ?? D8 25 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D8 05 ?? ?? ?? ?? D9 15");
-		if (CameraFOVInstructionScanResult)
+		auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? A1 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 83 C4 ?? E8 ?? ?? ?? ?? C6 05");
+		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 3);
+			m_newCameraFOV = m_originalCameraFOV * m_fovFactor;
 
-			m_cameraFOVHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-			{
-				s_instance_->m_currentCameraFOV = Memory::ReadMem(ctx.eax + 0x2C);
-				s_instance_->m_newCameraFOV = s_instance_->m_currentCameraFOV * s_instance_->m_fovFactor;
-				FPU::FLD(s_instance_->m_newCameraFOV);
-			});
+			Memory::Write(CameraFOVScanResult + 1, m_newCameraFOV);
 		}
 		else
 		{
@@ -112,13 +110,14 @@ protected:
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalCameraFOV = 0.4f;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_cameraFOVHook{};
 
 	float m_currentAspectRatio = 0.0f;
-	float m_currentCameraFOV = 0.0f;
+	uintptr_t m_aspectRatioAddress = 0;
 
 	enum ResolutionInstructionsIndex
 	{
@@ -126,10 +125,10 @@ private:
 		WidthHeight
 	};
 
-	inline static BeanotownRacingFix* s_instance_ = nullptr;
+	inline static TennisAnticsFix* s_instance_ = nullptr;
 };
 
-static std::unique_ptr<BeanotownRacingFix> g_fix;
+static std::unique_ptr<TennisAnticsFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -138,7 +137,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	case DLL_PROCESS_ATTACH:
 	{
 		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<BeanotownRacingFix>(hModule);
+		g_fix = std::make_unique<TennisAnticsFix>(hModule);
 		g_fix->Start();
 		break;
 	}
