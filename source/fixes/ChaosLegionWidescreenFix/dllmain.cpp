@@ -17,6 +17,7 @@
 #include <iomanip>
 #include <cstdint>
 #include <iostream>
+#include <cstdio>
 
 #define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
 
@@ -176,53 +177,379 @@ bool DetectGame()
 			game = &info;
 			return true;
 		}
-		else
-		{
-			spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-			return false;
-		}
 	}
+
+	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
+	return false;
 }
 
-void FOVFix()
+#include <string>
+#include <algorithm>
+
+struct ResolutionMode {
+    uint32_t width;
+    uint32_t height;
+    uint32_t bpp;
+};
+
+static uintptr_t g_base = 0;
+
+static SafetyHookMid g_resolution_table_mid{};
+static SafetyHookMid g_width_cap_mid{};
+static SafetyHookMid g_height_cap_mid{};
+static SafetyHookMid g_capability_mid{};
+static SafetyHookMid g_input_begin_mid{};
+static SafetyHookMid g_input_end_mid{};
+
+static std::vector<ResolutionMode> g_system_modes{};
+
+static int g_page_start = 0;
+static int g_old_menu_index = 0;
+static bool g_rebuilding = false;
+
+static constexpr int MENU_SLOT_COUNT = 20;
+
+static uintptr_t rva(uintptr_t off) {
+    return g_base + off;
+}
+
+static void write_mem(uintptr_t addr, const void* data, size_t size) {
+    DWORD old{};
+    VirtualProtect(reinterpret_cast<void*>(addr), size, PAGE_EXECUTE_READWRITE, &old);
+    std::memcpy(reinterpret_cast<void*>(addr), data, size);
+    VirtualProtect(reinterpret_cast<void*>(addr), size, old, &old);
+}
+
+static void write_u32(uintptr_t addr, uint32_t value) {
+    write_mem(addr, &value, sizeof(value));
+}
+
+static void write_u8(uintptr_t addr, uint8_t value) {
+    write_mem(addr, &value, sizeof(value));
+}
+
+static void write_string(uintptr_t addr, const char* text, size_t max_len)
 {
-	if (eGameType == Game::CL && bFixActive == true)
-	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);		
+    if (!text || max_len == 0)
+    {
+        return;
+    }
 
-		static std::string NewString = std::to_string(iCurrentResX) + "X" + std::to_string(iCurrentResY) + "X16(FULL)";
+    DWORD old{};
+    VirtualProtect(reinterpret_cast<void*>(addr), max_len, PAGE_EXECUTE_READWRITE, &old);
 
-		const char* NewStringPtr = NewString.c_str();
+    char* dst = reinterpret_cast<char*>(addr);
 
-		Memory::Write((uint8_t*)0x0040596F + 2, NewStringPtr);
+    std::memset(dst, 0, max_len);
+    strncpy_s(dst, max_len, text, _TRUNCATE);
 
-		/*
-		Memory::Write((uint8_t*)0x005D634C, 1920);
+    VirtualProtect(reinterpret_cast<void*>(addr), max_len, old, &old);
+}
 
-		Memory::Write((uint8_t*)0x005D634C + 4, 1080);
+static uint8_t& selected_resolution_index() {
+    return *reinterpret_cast<uint8_t*>(rva(0x232690));
+}
 
-		Memory::Write((uint8_t*)0x00630BA0, 1920);
+static void enumerate_system_resolutions() {
+    g_system_modes.clear();
 
-		Memory::Write((uint8_t*)0x00630BA0 + 4, 1080);
-		
+    DEVMODEA dm{};
+    dm.dmSize = sizeof(dm);
 
-		std::uint8_t* ResolutionScanResult = Memory::PatternScan(exeModule, "20 03 00 00 58 02 00 00");
-		if (ResolutionScanResult)
-		{
-			spdlog::info("Resolution Instruction: Address is {:s}+{:x}", sExeName.c_str(), ResolutionScanResult - (std::uint8_t*)exeModule);
+    for (DWORD i = 0; EnumDisplaySettingsA(nullptr, i, &dm); i++) {
+        if (dm.dmPelsWidth == 0 || dm.dmPelsHeight == 0) {
+            continue;
+        }
 
-			Memory::Write(ResolutionScanResult, iCurrentResX);
+        if (dm.dmBitsPerPel < 16) {
+            continue;
+        }
 
-			Memory::Write(ResolutionScanResult + 4, iCurrentResY);
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution memory address.");
-			return;
-		}
-		*/
+        ResolutionMode mode{
+            static_cast<uint32_t>(dm.dmPelsWidth),
+            static_cast<uint32_t>(dm.dmPelsHeight),
+            static_cast<uint32_t>(dm.dmBitsPerPel)
+        };
 
-	}
+        auto exists = std::find_if(
+            g_system_modes.begin(),
+            g_system_modes.end(),
+            [&](const ResolutionMode& m) {
+                return m.width == mode.width &&
+                    m.height == mode.height &&
+                    m.bpp == mode.bpp;
+            }
+        );
+
+        if (exists == g_system_modes.end()) {
+            g_system_modes.push_back(mode);
+        }
+    }
+
+    std::sort(
+        g_system_modes.begin(),
+        g_system_modes.end(),
+        [](const ResolutionMode& a, const ResolutionMode& b) {
+            if (a.width != b.width) {
+                return a.width < b.width;
+            }
+
+            if (a.height != b.height) {
+                return a.height < b.height;
+            }
+
+            return a.bpp < b.bpp;
+        }
+    );
+}
+
+static void write_resolution_slot(int slot, const ResolutionMode* mode) {
+    /*
+        Game hardcoded resolution table:
+
+            entry_base = ChaosLegion.exe + 0x1A61D8 + slot * 0x130
+
+        Known fields:
+
+            +0x00 = width
+            +0x04 = height
+            +0x2C = mode flag / color flag used by +4CA0 and +58F0
+            +0x2D = visible text string
+
+        Runtime availability table:
+
+            ChaosLegion.exe + 0x232500 + slot * 0x0C
+
+        Important:
+        Do not only force 232500 availability bytes.
+        Let the game fill 232500 via function +5640.
+    */
+
+    constexpr uintptr_t RES_TABLE_BASE = 0x1A61D8;
+    constexpr uintptr_t RES_ENTRY_SIZE = 0x130;
+    constexpr uintptr_t RES_LABEL_OFF = 0x2D;
+
+    const uintptr_t entry = rva(RES_TABLE_BASE + slot * RES_ENTRY_SIZE);
+
+    if (!mode) {
+        write_u32(entry + 0x00, 0);
+        write_u32(entry + 0x04, 0);
+        write_string(entry + RES_LABEL_OFF, "", 0x100);
+        return;
+    }
+
+    write_u32(entry + 0x00, mode->width);
+    write_u32(entry + 0x04, mode->height);
+
+    // Keep this simple and compatible with the game's old labels.
+    char label[64]{};
+    std::snprintf(
+        label,
+        sizeof(label),
+        "%uX%uX%u(FULL)",
+        mode->width,
+        mode->height,
+        mode->bpp
+    );
+
+    write_string(entry + RES_LABEL_OFF, label, 0x100);
+}
+
+static void write_current_resolution_page() {
+    if (g_system_modes.empty()) {
+        return;
+    }
+
+    if (g_page_start < 0) {
+        g_page_start = 0;
+    }
+
+    if (g_page_start >= static_cast<int>(g_system_modes.size())) {
+        g_page_start = std::max(0, static_cast<int>(g_system_modes.size()) - 1);
+    }
+
+    for (int slot = 0; slot < MENU_SLOT_COUNT; slot++) {
+        const int mode_index = g_page_start + slot;
+
+        if (mode_index >= 0 && mode_index < static_cast<int>(g_system_modes.size())) {
+            write_resolution_slot(slot, &g_system_modes[mode_index]);
+        }
+        else {
+            write_resolution_slot(slot, nullptr);
+        }
+    }
+}
+
+static void rebuild_game_resolution_table() {
+    if (g_rebuilding) {
+        return;
+    }
+
+    g_rebuilding = true;
+
+    using RebuildFn = void(__cdecl*)();
+    auto fn = reinterpret_cast<RebuildFn>(rva(0x5640));
+
+    fn();
+
+    g_rebuilding = false;
+}
+
+void install_resolution_hooks() {
+    g_base = reinterpret_cast<uintptr_t>(GetModuleHandleW(L"ChaosLegion.exe"));
+
+    if (!g_base) {
+        return;
+    }
+
+    enumerate_system_resolutions();
+
+    /*
+        Hook +5640.
+
+        This is the game function that populates:
+
+            ChaosLegion.exe+232500
+
+        We overwrite the 20 hardcoded menu entries with a page of real system modes
+        right before the game validates them.
+    */
+    g_resolution_table_mid = safetyhook::create_mid(
+        reinterpret_cast<uint8_t*>(rva(0x5640)),
+        [](SafetyHookContext& ctx) {
+            write_current_resolution_page();
+        }
+    );
+
+    /*
+      cap:
+
+            +566F jg +570C
+
+        Original rejects if table_width > [230BBC].
+        With dynamic system modes, do not let desktop/current cap hide valid modes.
+    */
+    g_width_cap_mid = safetyhook::create_mid(
+        reinterpret_cast<uint8_t*>(rva(0x566F)),
+        [](SafetyHookContext& ctx) {
+            ctx.eip = static_cast<uint32_t>(rva(0x5675));
+        }
+    );
+
+    /*
+        Skip height cap:
+
+            +567F jg +570C
+
+        Original rejects if table_height > [230BB8].
+    */
+    g_height_cap_mid = safetyhook::create_mid(
+        reinterpret_cast<uint8_t*>(rva(0x567F)),
+        [](SafetyHookContext & ctx){
+            ctx.eip = static_cast<uint32_t>(rva(0x5685));
+        }
+    );
+
+    /*
+        Optional: skip capability-level rejection:
+
+            +5699 jl +570C
+
+        This prevents the old hardcoded table's capability values from rejecting
+        your injected system modes.
+    */
+    g_capability_mid = safetyhook::create_mid(
+        reinterpret_cast<uint8_t*>(rva(0x5699)),
+        [](SafetyHookContext& ctx) {
+            ctx.eip = static_cast<uint32_t>(rva(0x569B));
+        }
+    );
+
+    /*
+        Hook start of resolution input handler +5750.
+
+        Save the previous visible slot index before the game processes left/right input.
+    */
+    g_input_begin_mid = safetyhook::create_mid(
+        reinterpret_cast<uint8_t*>(rva(0x5750)),
+        [](SafetyHookContext& ctx) {
+            g_old_menu_index = selected_resolution_index();
+        }
+    );
+
+    /*
+        Hook near the end of input handler +584A.
+
+        After the game changes selected slot, detect edge movement.
+
+        If user moves past the last visible slot, advance the page.
+        If user moves before the first visible slot, go back a page.
+
+        The game still only sees 20 slots, but our backing vector can contain
+        every system resolution.
+    */
+    g_input_end_mid = safetyhook::create_mid(
+        reinterpret_cast<uint8_t*>(rva(0x584A)),
+        [](SafetyHookContext& ctx) {
+            if (g_system_modes.empty()) {
+                return;
+            }
+
+            int current = selected_resolution_index();
+
+            const int max_page_start =
+                std::max(0, static_cast<int>(g_system_modes.size()) - MENU_SLOT_COUNT);
+
+            bool changed_page = false;
+
+            // Moving right at the end of the 20-slot window.
+            if (g_old_menu_index == MENU_SLOT_COUNT - 2 &&
+                current == MENU_SLOT_COUNT - 1 &&
+                g_page_start < max_page_start) {
+                g_page_start++;
+                selected_resolution_index() = MENU_SLOT_COUNT - 2;
+                changed_page = true;
+            }
+
+            // Moving left at the start of the 20-slot window.
+            if (g_old_menu_index == 1 &&
+                current == 0 &&
+                g_page_start > 0) {
+                g_page_start--;
+                selected_resolution_index() = 1;
+                changed_page = true;
+            }
+
+            if (changed_page) {
+                write_current_resolution_page();
+                rebuild_game_resolution_table();
+            }
+        }
+    );
+}
+
+void WidescreenFix()
+{
+    if (eGameType != Game::CL || bFixActive != true)
+    {
+        return;
+    }
+
+    spdlog::info("Installing Chaos Legion widescreen/resolution fix...");
+
+    if (iCurrentResX > 0 && iCurrentResY > 0)
+    {
+        fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+        fNewRenderingSidesValue = fNewAspectRatio / fOldAspectRatio;
+
+        spdlog::info("Target resolution: {}x{}", iCurrentResX, iCurrentResY);
+        spdlog::info("New aspect ratio: {}", fNewAspectRatio);
+        spdlog::info("Rendering sides multiplier: {}", fNewRenderingSidesValue);
+    }
+
+    install_resolution_hooks();
+
+    spdlog::info("Resolution hooks installed.");
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -236,7 +563,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 		Configuration();
 		if (DetectGame())
 		{
-			FOVFix();
+            WidescreenFix();
 		}
 		break;
 	}
