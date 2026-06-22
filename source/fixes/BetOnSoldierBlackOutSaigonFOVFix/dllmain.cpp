@@ -1,268 +1,105 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-HMODULE dllModule3 = nullptr;
-HMODULE dllModule4 = nullptr;
-
-// Fix details
-std::string sFixName = "BetOnSoldierBlackOutSaigonFOVFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fStandardCameraFOVFactor;
-float fSuitCameraFOVFactor;
-float fStandardZoomFOVFactor;
-float fShieldZoomFOVFactor;
-float fWeaponFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
-float fNewCameraFOV3;
-float fNewHipfireCameraFOV;
-float fNewWeaponHipfireFOV;
-float fNewShieldZoomFOV;
-float fNewStandardZoomFOV;
-uint8_t* HipfireCameraFOVAddress;
-uint8_t* ShieldZoomFOVAddress;
-uint8_t* StandardZoomFOVAddress;
-
-// Game detection
-enum class Game
+class BetOnSoldierBlackOutSaigonFix final : public FixBase
 {
-	BOSBOS,
-	BOSBOSGAME,
-	Unknown
-};
-
-enum CameraFOVInstructionsScansIndices
-{
-	CameraFOV1Scan,
-	CameraFOV2Scan,
-	CameraFOV3Scan,
-	HipfireAndZoomFOVScan,
-	WeaponFOVScan
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::BOSBOS, {"Bet on Soldier: Black-out Saigon", "BoS.exe"}},
-	{Game::BOSBOSGAME, {"Bet on Soldier: Black-out Saigon", "BetOnSoldier_BlackOutSaigon.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit BetOnSoldierBlackOutSaigonFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "StandardCameraFOVFactor", fStandardCameraFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "SuitCameraFOVFactor", fSuitCameraFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "StandardZoomFOVFactor", fStandardZoomFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "ShieldZoomFOVFactor", fShieldZoomFOVFactor);
-	inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", fWeaponFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fStandardCameraFOVFactor);
-	spdlog_confparse(fSuitCameraFOVFactor);
-	spdlog_confparse(fStandardZoomFOVFactor);
-	spdlog_confparse(fShieldZoomFOVFactor);
-	spdlog_confparse(fWeaponFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~BetOnSoldierBlackOutSaigonFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	bool bGameFound = false;
-
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			bGameFound = true;
-			break;
+			s_instance_ = nullptr;
 		}
 	}
 
-	if (bGameFound == false)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		return "BetOnSoldierBlackOutSaigonFOVFix";
 	}
 
-	dllModule2 = Memory::GetHandle("kte_core.dll");
-
-	dllModule3 = Memory::GetHandle("Bos.dll");
-
-	dllModule4 = Memory::GetHandle("kte_dx9.dll");
-
-	return true;
-}
-
-static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-static SafetyHookMid CameraFOVInstruction3Hook{};
-static SafetyHookMid HipfireCameraAndShieldZoomFOVInstructionsHook{};
-static SafetyHookMid StandardCameraZoomFOVInstructionHook{};
-static SafetyHookMid WeaponHipfireFOVInstructionHook{};
-
-void FOVFix()
-{
-	if ((eGameType == Game::BOSBOS || eGameType == Game::BOSBOSGAME) && bFixActive == true)
+	const char* FixVersion() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "1.2";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* TargetName() const override
+	{
+		return "Bet on Soldier: Black-out Saigon";
+	}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(dllModule2, "D8 B6 E0 00 00 00 D9 E8 D9 F3 D9 C0 D9 FF D9 5C 24 0C");
-		if (AspectRatioInstructionScanResult)
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "BoS.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "StandardCameraFOVFactor", m_standardCameraFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "SuitCameraFOVFactor", m_suitCameraFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "StandardZoomFOVFactor", m_standardZoomFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "ShieldZoomFOVFactor", m_shieldZoomFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", m_weaponFOVFactor);
+		spdlog_confparse(m_standardCameraFOVFactor);
+		spdlog_confparse(m_suitCameraFOVFactor);
+		spdlog_confparse(m_standardZoomFOVFactor);
+		spdlog_confparse(m_shieldZoomFOVFactor);
+		spdlog_confparse(m_weaponFOVFactor);
+	}
+
+	void ApplyFix() override
+	{
+		m_kteCoreDllModule = Memory::GetHandle("kte_core.dll");
+		m_bosDllModule = Memory::GetHandle("Bos.dll");
+		m_kteDX9DllModule = Memory::GetHandle("kte_dx9.dll");
+		m_kteGameDllModule = Memory::GetHandle("KT_Game.DLL");
+		m_kteCoreDllModuleName = Memory::GetModuleName(m_kteCoreDllModule);
+		m_bosDllModuleName = Memory::GetModuleName(m_bosDllModule);
+		m_kteDX9DllModuleName = Memory::GetModuleName(m_kteDX9DllModule);
+		m_kteGameDllModuleName = Memory::GetModuleName(m_kteGameDllModule);
+
+		auto ResolutionScanResult = Memory::PatternScan(m_kteGameDllModule, "8B 44 24 ?? 8B 4C 24 ?? 89 86");
+		if (ResolutionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is kte_core.dll+{:x}", AspectRatioInstructionScanResult - (std::uint8_t*)dllModule2);			
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", m_kteGameDllModuleName.c_str(), ResolutionScanResult - (std::uint8_t*)m_kteGameDllModule);
 
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+			{
+				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x2C);
+				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x30);
+				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
+			return;
+		}
+
+		auto AspectRatioScanResult = Memory::PatternScan(m_kteCoreDllModule, "D8 B6 ?? ?? ?? ?? D9 E8");
+		if (AspectRatioScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", m_kteCoreDllModuleName.c_str(), AspectRatioScanResult - (std::uint8_t*)m_kteCoreDllModule);
+
+			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentAspectRatio = Memory::ReadMem(ctx.esi + 0xE0);
-
+				
 				if (fCurrentAspectRatio == 1.3333333333f)
 				{
-					fCurrentAspectRatio = fNewAspectRatio;
+					fCurrentAspectRatio = s_instance_->m_newAspectRatio;
 				}
 			});
 		}
@@ -272,117 +109,151 @@ void FOVFix()
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule4, "8B 8E ?? ?? ?? ?? 52 50 51 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 55 ?? 8D 44 24 ?? 50 8B CD FF 92 ?? ?? ?? ?? 83 BE ?? ?? ?? ?? ?? 75 ?? 8B 55 ?? 68 ?? ?? ?? ?? 8B CD FF 92 ?? ?? ?? ?? 8B D8 85 DB 74 ?? 8B 0D ?? ?? ?? ?? 8B 01 68 ?? ?? ?? ?? FF 50 ?? 8B F8 85 FF 74 ?? 8B 17 8B CF FF 52 ?? 8B 8E ?? ?? ?? ?? 85 C9 74 ?? 8B 01 FF 50 ?? 8B CF 89 BE ?? ?? ?? ?? 8B 11 53 FF 52 ?? 8B 8E ?? ?? ?? ?? 85 C9 0F 84 ?? ?? ?? ?? 8B 01 FF 50 ?? 8B D8 8D 85 ?? ?? ?? ?? 50 8D 8D ?? ?? ?? ?? 8D B5 ?? ?? ?? ?? 51 8B CE FF 15 ?? ?? ?? ?? B9 ?? ?? ?? ?? 8B FB 8D 54 24 ?? F3 ?? 8B 8D ?? ?? ?? ?? 52 FF 15 ?? ?? ?? ?? 8B F0 8D 7B ?? B9 ?? ?? ?? ?? F3 ?? 8D BB ?? ?? ?? ?? B9 ?? ?? ?? ?? 8D B5 ?? ?? ?? ?? F3 ?? 8B 74 24 ?? 8B 8E ?? ?? ?? ?? 8B 01 FF 50 ?? 8B 48 ?? 85 C9 DB 40 ?? 7D ?? D8 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8B CD", "D9 86 ?? ?? ?? ?? D8 0D",
-		dllModule2, "D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8D 58",
-		dllModule3, "A1 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 53 56 8B F1 8B 0D ?? ?? ?? ?? 89 44 24 08 89 4C 24 10 89 54 24 0C 74 1D A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ??", "D9 41 40 C2 04 00 D9 41 3C C2 04 00 CC CC CC CC CC CC CC CC CC CC CC CC CC");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		auto CameraFOVScansResult = Memory::PatternScan(m_kteDX9DllModule, "8B 8E ?? ?? ?? ?? 52 50 51 8D 4C 24 ?? FF 15 ?? ?? ?? ?? 8B 55 ?? 8D 44 24 ?? 50 8B CD FF 92 ?? ?? ?? ?? 83 BE ?? ?? ?? ?? ?? 75 ?? 8B 55 ?? 68 ?? ?? ?? ?? 8B CD FF 92 ?? ?? ?? ?? 8B D8 85 DB 74 ?? 8B 0D ?? ?? ?? ?? 8B 01 68 ?? ?? ?? ?? FF 50 ?? 8B F8 85 FF 74 ?? 8B 17 8B CF FF 52 ?? 8B 8E ?? ?? ?? ?? 85 C9 74 ?? 8B 01 FF 50 ?? 8B CF 89 BE ?? ?? ?? ?? 8B 11 53 FF 52 ?? 8B 8E ?? ?? ?? ?? 85 C9 0F 84 ?? ?? ?? ?? 8B 01 FF 50 ?? 8B D8 8D 85 ?? ?? ?? ?? 50 8D 8D ?? ?? ?? ?? 8D B5 ?? ?? ?? ?? 51 8B CE FF 15 ?? ?? ?? ?? B9 ?? ?? ?? ?? 8B FB 8D 54 24 ?? F3 ?? 8B 8D ?? ?? ?? ?? 52 FF 15 ?? ?? ?? ?? 8B F0 8D 7B ?? B9 ?? ?? ?? ?? F3 ?? 8D BB ?? ?? ?? ?? B9 ?? ?? ?? ?? 8D B5 ?? ?? ?? ?? F3 ?? 8B 74 24 ?? 8B 8E ?? ?? ?? ?? 8B 01 FF 50 ?? 8B 48 ?? 85 C9 DB 40 ?? 7D ?? D8 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8B CD", "D9 86 ?? ?? ?? ?? D8 0D",
+		m_kteCoreDllModule, "D9 86 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? 8D 58",
+		m_bosDllModule, "A1 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 53 56 8B F1 8B 0D ?? ?? ?? ?? 89 44 24 08 89 4C 24 10 89 54 24 0C 74 1D A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 15 ?? ?? ?? ??", "D9 41 ?? C2 ?? ?? CC CC CC CC CC CC CC CC");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is kte_dx9.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV1Scan] - (std::uint8_t*)dllModule4);
-
-			spdlog::info("Camera FOV Instruction 2: Address is kte_dx9.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV2Scan] - (std::uint8_t*)dllModule4);
-
-			spdlog::info("Camera FOV Instruction 3: Address is kte_core.dll+{:x}", CameraFOVInstructionsScansResult[CameraFOV3Scan] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Hipfire & Zoom Camera FOV Instruction: Address is Bos.dll+{:x}", CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] - (std::uint8_t*)dllModule3);
-
-			spdlog::info("Weapon FOV Instruction: Address is Bos.dll+{:x}", CameraFOVInstructionsScansResult[WeaponFOVScan] - (std::uint8_t*)dllModule3);
+			spdlog::info("General FOV Instruction 1: Address is {:s}+{:x}", m_kteDX9DllModuleName.c_str(), CameraFOVScansResult[General1] - (std::uint8_t*)m_kteDX9DllModule);
+			spdlog::info("General FOV Instruction 2: Address is {:s}+{:x}", m_kteDX9DllModuleName.c_str(), CameraFOVScansResult[General2] - (std::uint8_t*)m_kteDX9DllModule);
+			spdlog::info("General FOV Instruction 3: Address is {:s}+{:x}", m_kteCoreDllModuleName.c_str(), CameraFOVScansResult[General3] - (std::uint8_t*)m_kteCoreDllModule);
+			spdlog::info("Hipfire Camera/Shield Zoom/Standard Zoom FOV Instructions Scan: Address is {:s}+{:x}", m_bosDllModuleName.c_str(), CameraFOVScansResult[HipfireAndZoom] - (std::uint8_t*)m_bosDllModule);
+			spdlog::info("Weapon FOV Instruction: Address is {:s}+{:x}", m_bosDllModuleName.c_str(), CameraFOVScansResult[Weapon] - (std::uint8_t*)m_bosDllModule);
 
 			// Camera FOV Instruction 1 Hook
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV1Scan], 6);
-			
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV1Scan], [](SafetyHookContext& ctx)
+			Memory::WriteNOPs(CameraFOVScansResult[General1], 6);
+
+			m_generalFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[General1], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.esi + 0xD4);
-
-				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV1);
+				s_instance_->m_currentGeneralFOV1 = Memory::ReadMem(ctx.esi + 0xD4);
+				s_instance_->m_newGeneralFOV1 = Maths::CalculateNewFOV_RadBased(s_instance_->m_currentGeneralFOV1, s_instance_->m_aspectRatioScale);
+				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newGeneralFOV1);
 			});
 
 			// Camera FOV Instruction 2 Hook
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV2Scan], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[General2], 6);
 
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV2Scan], [](SafetyHookContext& ctx)
+			m_generalFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[General2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esi + 0xD4);
-
-				fNewCameraFOV2 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV2, fAspectRatioScale);
-
-				FPU::FLD(fNewCameraFOV2);
+				s_instance_->m_currentGeneralFOV2 = Memory::ReadMem(ctx.esi + 0xD4);
+				s_instance_->m_newGeneralFOV2 = Maths::CalculateNewFOV_RadBased(s_instance_->m_currentGeneralFOV2, s_instance_->m_aspectRatioScale);
+				FPU::FLD(s_instance_->m_newGeneralFOV2);
 			});
 
 			// Camera FOV Instruction 3 Hook
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[CameraFOV3Scan], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[General3], 6);
 
-			CameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[CameraFOV3Scan], [](SafetyHookContext& ctx)
+			m_generalFOV3Hook = safetyhook::create_mid(CameraFOVScansResult[General3], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV3 = Memory::ReadMem(ctx.esi + 0xD4);
-
-				fNewCameraFOV3 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV3, fAspectRatioScale);
-
-				FPU::FLD(fNewCameraFOV3);
+				s_instance_->m_currentGeneralFOV3 = Memory::ReadMem(ctx.esi + 0xD4);
+				s_instance_->m_newGeneralFOV3 = Maths::CalculateNewFOV_RadBased(s_instance_->m_currentGeneralFOV3, s_instance_->m_aspectRatioScale);
+				FPU::FLD(s_instance_->m_newGeneralFOV3);
 			});
 
-			// Hipfire & Zoom Camera FOV Instructions Hook
-			HipfireCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 1, Memory::PointerMode::Absolute);
+			// Hipfire Camera/Shield Zoom/Standard Zoom FOV Instructions Hook
+			m_hipfireCameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[HipfireAndZoom] + 1, Memory::PointerMode::Absolute);
+			m_shieldZoomFOVAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[HipfireAndZoom] + 7, Memory::PointerMode::Absolute);
+			m_standardZoomFOVAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[HipfireAndZoom] + 17, Memory::PointerMode::Absolute);
 
-			ShieldZoomFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 7, Memory::PointerMode::Absolute);
+			Memory::WriteNOPs(CameraFOVScansResult[HipfireAndZoom], 11);
 
-			StandardZoomFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 17, Memory::PointerMode::Absolute);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan], 11);
-
-			HipfireCameraAndShieldZoomFOVInstructionsHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan], [](SafetyHookContext& ctx)
+			m_hipfireCameraAndShieldZoomFOVHook = safetyhook::create_mid(CameraFOVScansResult[HipfireAndZoom], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHipfireCameraFOV = Memory::ReadMem(HipfireCameraFOVAddress);
+				s_instance_->m_currentHipfireFOV = Memory::ReadMem(s_instance_->m_hipfireCameraFOVAddress);
+				s_instance_->m_newHipfireCameraFOV = s_instance_->m_currentHipfireFOV * s_instance_->m_standardCameraFOVFactor;
+				ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newHipfireCameraFOV);
 
-				fNewHipfireCameraFOV = fCurrentHipfireCameraFOV * fStandardCameraFOVFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewHipfireCameraFOV);
-
-				float& fCurrentShieldZoomFOV = Memory::ReadMem(ShieldZoomFOVAddress);
-
-				fNewShieldZoomFOV = fCurrentShieldZoomFOV / fShieldZoomFOVFactor;
-
-				ctx.edx = std::bit_cast<uintptr_t>(fNewShieldZoomFOV);
+				s_instance_->m_currentShieldZoomFOV = Memory::ReadMem(s_instance_->m_shieldZoomFOVAddress);
+				s_instance_->m_newShieldZoomFOV = s_instance_->m_currentShieldZoomFOV / s_instance_->m_shieldZoomFOVFactor;
+				ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newShieldZoomFOV);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 15, 6);
+			Memory::WriteNOPs(CameraFOVScansResult[HipfireAndZoom] + 15, 6);
 
-			StandardCameraZoomFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HipfireAndZoomFOVScan] + 15, [](SafetyHookContext& ctx)
+			m_standardCameraZoomFOVHook = safetyhook::create_mid(CameraFOVScansResult[HipfireAndZoom] + 15, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentStandardZoomFOV = Memory::ReadMem(StandardZoomFOVAddress);
-
-				fNewStandardZoomFOV = fCurrentStandardZoomFOV / fStandardZoomFOVFactor;
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewStandardZoomFOV);
+				s_instance_->m_currentStandardZoomFOV = Memory::ReadMem(s_instance_->m_standardZoomFOVAddress);
+				s_instance_->m_newStandardZoomFOV = s_instance_->m_currentStandardZoomFOV / s_instance_->m_standardZoomFOVFactor;
+				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newStandardZoomFOV);
 			});
 
 			// Weapon FOV Instruction Hook
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[WeaponFOVScan] + 6, 3);
+			Memory::WriteNOPs(CameraFOVScansResult[Weapon], 3);
 
-			WeaponHipfireFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[WeaponFOVScan] + 6, [](SafetyHookContext& ctx)
+			m_weaponHipfireFOVHook = safetyhook::create_mid(CameraFOVScansResult[Weapon], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentWeaponHipfireFOV = Memory::ReadMem(ctx.ecx + 0x3C);
-
-				fNewWeaponHipfireFOV = fCurrentWeaponHipfireFOV * fWeaponFOVFactor;
-
-				FPU::FLD(fNewWeaponHipfireFOV);
+				s_instance_->m_currentWeaponHipfireFOV = Memory::ReadMem(ctx.ecx + 0x3C);
+				s_instance_->m_newWeaponHipfireFOV = s_instance_->m_currentWeaponHipfireFOV * s_instance_->m_weaponFOVFactor;
+				FPU::FLD(s_instance_->m_newWeaponHipfireFOV);
 			});
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	HMODULE m_kteCoreDllModule = nullptr;
+	HMODULE m_bosDllModule = nullptr;
+	HMODULE m_kteDX9DllModule = nullptr;
+	HMODULE m_kteGameDllModule = nullptr;
+	std::string m_kteCoreDllModuleName = "";
+	std::string m_bosDllModuleName = "";
+	std::string m_kteDX9DllModuleName = "";
+	std::string m_kteGameDllModuleName = "";
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_aspectRatioHook{};
+	SafetyHookMid m_generalFOV1Hook{};
+	SafetyHookMid m_generalFOV2Hook{};
+	SafetyHookMid m_generalFOV3Hook{};
+	SafetyHookMid m_hipfireCameraAndShieldZoomFOVHook{};
+	SafetyHookMid m_standardCameraZoomFOVHook{};
+	SafetyHookMid m_weaponHipfireFOVHook{};
+
+	float m_standardCameraFOVFactor = 0.0f;
+	float m_suitCameraFOVFactor = 0.0f;
+	float m_standardZoomFOVFactor = 0.0f;
+	float m_shieldZoomFOVFactor = 0.0f;
+	float m_weaponFOVFactor = 0.0f;
+
+	float m_currentGeneralFOV1 = 0.0f;
+	float m_currentGeneralFOV2 = 0.0f;
+	float m_currentGeneralFOV3 = 0.0f;
+	float m_newGeneralFOV1 = 0.0f;
+	float m_newGeneralFOV2 = 0.0f;
+	float m_newGeneralFOV3 = 0.0f;
+
+	float m_currentHipfireFOV = 0.0f;
+	float m_currentShieldZoomFOV = 0.0f;
+	float m_currentStandardZoomFOV = 0.0f;
+	float m_currentWeaponHipfireFOV = 0.0f;
+	float m_newHipfireCameraFOV = 0.0f;
+	float m_newWeaponHipfireFOV = 0.0f;
+	float m_newShieldZoomFOV = 0.0f;
+	float m_newStandardZoomFOV = 0.0f;
+	uintptr_t m_hipfireCameraFOVAddress = 0;
+	uintptr_t m_shieldZoomFOVAddress = 0;
+	uintptr_t m_standardZoomFOVAddress = 0;
+
+	enum AspectRatioInstructionsScansIndices
 	{
-		FOVFix();
-	}
-	return TRUE;
-}
+		AR1,
+		AR2
+	};
+
+	enum CameraFOVInstructionsScansIndices
+	{
+		General1,
+		General2,
+		General3,
+		HipfireAndZoom,
+		Weapon
+	};
+
+	inline static BetOnSoldierBlackOutSaigonFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<BetOnSoldierBlackOutSaigonFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -390,19 +261,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<BetOnSoldierBlackOutSaigonFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
