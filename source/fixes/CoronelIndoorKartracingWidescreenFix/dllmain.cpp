@@ -291,7 +291,7 @@ void WidescreenFix()
 
 				fNewGameplayCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentGameplayCameraFOV, 1.0f / fAspectRatioScale) / fFOVFactor;
 
-				Memory::ReadMem(ctx.eax) = fNewGameplayCameraFOV;
+				*reinterpret_cast<float*>(ctx.eax) = fNewGameplayCameraFOV;
 			});
 		}
 		else

@@ -1,312 +1,211 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "WinxClubWidescreenFix";
-std::string sFixVersion = "1.0.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV1;
-float fNewCameraFOV2;
-
-// Game detection
-enum class Game
+class WinxClubFix final : public FixBase
 {
-	WC,
-	Unknown
-};
-
-enum ResolutionInstructionsIndices
-{
-	ResList,
-	MainMenuRes
-};
-
-enum CameraFOVInstructionsIndices
-{
-	FOV1,
-	FOV2
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::WC, {"Winx Club", "WinxClub.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit WinxClubFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~WinxClubFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;	
-}
-
-static SafetyHookMid CameraFOVInstruction1Hook{};
-static SafetyHookMid CameraFOVInstruction2Hook{};
-
-void WidescreenFix()
-{
-	if (bFixActive == true && eGameType == Game::WC)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "WinxClubWidescreenFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.1";
+	}
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "C7 44 24 08 20 03 00 00 C7 44 24 0C 58 02 00 00 EB 34 C7 44 24 08 00 04 00 00 C7 44 24 0C 00 03 00 00 EB 22 C7 44 24 08 00 05 00 00 C7 44 24 0C C0 03 00 00 EB 10 C7 44 24 08 40 06 00 00 C7 44 24 0C B0 04 00 00", "C7 06 00 04 00 00 C7 46 04 00 03 00 00 89 46 08 89 46 0C A1");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+	const char* TargetName() const override
+	{
+		return "Winx Club";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "WinxClub.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		s_instance_->m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+		s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB",
+		"C7 06 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? 89 46 ?? 89 46 ?? A1", "A1 ?? ?? ?? ?? 89 02 8B 0D ?? ?? ?? ?? 89 4A ?? 66 A1");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[ResList] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Main Menu Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[MainMenuRes] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution List Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResList] - (std::uint8_t*)ExeModule());
+			spdlog::info("Main Menu Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[MainMenuRes] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Strings Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResStrings] - (std::uint8_t*)ExeModule());
 
 			// 800x600
-			Memory::Write(ResolutionInstructionsScansResult[ResList] + 4, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[ResList] + 12, iCurrentResY);
+			Memory::Write(ResolutionScansResult[ResList] + 4, m_newResX);
+			Memory::Write(ResolutionScansResult[ResList] + 12, m_newResY);
 
 			// 1024x768
-			Memory::Write(ResolutionInstructionsScansResult[ResList] + 22, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[ResList] + 30, iCurrentResY);
+			Memory::Write(ResolutionScansResult[ResList] + 22, m_newResX);
+			Memory::Write(ResolutionScansResult[ResList] + 30, m_newResY);
 
 			// 1280x960
-			Memory::Write(ResolutionInstructionsScansResult[ResList] + 40, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[ResList] + 48, iCurrentResY);
+			Memory::Write(ResolutionScansResult[ResList] + 40, m_newResX);
+			Memory::Write(ResolutionScansResult[ResList] + 48, m_newResY);
 
 			// 1600x1200
-			Memory::Write(ResolutionInstructionsScansResult[ResList] + 58, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[ResList] + 66, iCurrentResY);
+			Memory::Write(ResolutionScansResult[ResList] + 58, m_newResX);
+			Memory::Write(ResolutionScansResult[ResList] + 66, m_newResY);
 
 			// Main Menu Resolution (1024x768)
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuRes] + 2, iCurrentResX);
+			Memory::Write(ResolutionScansResult[MainMenuRes] + 2, m_newResX);
+			Memory::Write(ResolutionScansResult[MainMenuRes] + 9, m_newResY);
+			Memory::Write(ResolutionScansResult[MainMenuRes] + 52, m_newResX);
+			Memory::Write(ResolutionScansResult[MainMenuRes] + 59, m_newResY);
 
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuRes] + 9, iCurrentResY);
+			// Resolution Strings
+			m_newResolutionString = std::to_string(m_newResX) + " X " + std::to_string(m_newResY);
 
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuRes] + 52, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[MainMenuRes] + 59, iCurrentResY);
-		}
-
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D9 44 24 ?? 8B 44 24 ?? D8 0D ?? ?? ?? ?? 89 81", "8B 91 88 01 00 00 52 E8 ?? ?? ?? ??");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
-		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 4);
-
-			CameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResStrings] + 142, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.esp + 0x4);
+				s_instance_->m_string_800_600 = Memory::ReadMem(ctx.esi + 0x290);
+				s_instance_->m_string_1024_768 = Memory::ReadMem(ctx.esi + 0x294);
+				s_instance_->m_string_1280_960 = Memory::ReadMem(ctx.esi + 0x298);
 
-				fNewCameraFOV1 = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV1, fAspectRatioScale);
-
-				FPU::FLD(fNewCameraFOV1);
-			});
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 6);
-
-			CameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
-			{
-				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.ecx + 0x188);
-
-				if (fCurrentCameraFOV2 != fNewCameraFOV2)
+				if (s_instance_->m_string_800_600)
 				{
-					fNewCameraFOV2 = fCurrentCameraFOV2 * fFOVFactor;
-				}				
+					std::snprintf(s_instance_->m_string_800_600, 15, "%u X %u", s_instance_->m_newResX, s_instance_->m_newResY);
+				}
 
-				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV2);
+				if (s_instance_->m_string_1024_768)
+				{
+					std::snprintf(s_instance_->m_string_1024_768, 15, "%u X %u", s_instance_->m_newResX, s_instance_->m_newResY);
+				}
+
+				if (s_instance_->m_string_1280_960)
+				{
+					std::snprintf(s_instance_->m_string_1280_960, 15, "%u X %u", s_instance_->m_newResX, s_instance_->m_newResY);
+				}
 			});
 		}
 
-		std::uint8_t* WindowNameInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? 56 FF 15 ?? ?? ?? ?? 83 C4 ?? 8B C6");
-		if (WindowNameInstructionScanResult)
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D9 44 24 ?? 8B 44 24 ?? D8 0D ?? ?? ?? ?? 89 81", "8B 91 88 01 00 00 52 E8 ?? ?? ?? ??");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Window Name Instruction: Address is {:s}+{:x}", sExeName.c_str(), WindowNameInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[General] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay] - (std::uint8_t*)ExeModule());
 
-			const char* NewWindowNameAddress = "Winx Club";
+			Memory::WriteNOPs(CameraFOVScansResult[General], 4);
 
-			Memory::Write(WindowNameInstructionScanResult + 1, NewWindowNameAddress);
+			m_generalFOVHook = safetyhook::create_mid(CameraFOVScansResult[General], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_currentGeneralFOV = Memory::ReadMem(ctx.esp + 0x4);
+				spdlog::info("Current general FOV: {:.12f}", s_instance_->m_currentGeneralFOV);
+				s_instance_->m_newGeneralFOV = Maths::CalculateNewFOV_RadBased(s_instance_->m_currentGeneralFOV, s_instance_->m_aspectRatioScale);
+				FPU::FLD(s_instance_->m_newGeneralFOV);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay], 6);
+
+			m_gameplayFOVHook = safetyhook::create_mid(CameraFOVScansResult[Gameplay], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_currentGameplayFOV = Memory::ReadMem(ctx.ecx + 0x188);
+
+				spdlog::info("Current gameplay FOV: {:.12f}", s_instance_->m_currentGameplayFOV);
+
+				if (s_instance_->m_currentGameplayFOV != s_instance_->m_newGameplayFOV)
+				{
+					s_instance_->m_newGameplayFOV = s_instance_->m_currentGameplayFOV * s_instance_->m_fovFactor;
+				}
+
+				ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newGameplayFOV);
+			});
+		}
+
+		auto WindowNameScanResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 56 FF 15 ?? ?? ?? ?? 83 C4 ?? 8B C6");
+		if (WindowNameScanResult)
+		{
+			spdlog::info("Window Name Instruction: Address is {:s}+{:x}", ExeName().c_str(), WindowNameScanResult - (std::uint8_t*)ExeModule());
+
+			m_newWindowName = "Winx Club";
+
+			Memory::Write(WindowNameScanResult + 1, m_newWindowName);
 		}
 		else
 		{
 			spdlog::error("Failed to locate window name instruction memory address.");
 			return;
 		}
-	}	
-}
-
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_generalFOVHook{};
+	SafetyHookMid m_gameplayFOVHook{};
+
+	std::string m_newResolutionString = "";
+	std::string m_newResolutionWidthString = "";
+	const char* m_cNewResolutionString = "";
+	const char* m_cNewResolutionWidthString = "";
+	const char* m_newWindowName = "";
+
+	char* m_string_800_600;
+	char* m_string_1024_768;
+	char* m_string_1280_960;
+
+	float m_currentGeneralFOV = 0.0f;
+	float m_currentGameplayFOV = 0.0f;
+	float m_newGeneralFOV = 0.0f;
+	float m_newGameplayFOV = 0.0f;
+
+	enum ResolutionInstructionsIndices
+	{
+		ResList,
+		MainMenuRes,
+		ResStrings
+	};
+
+	enum CameraFOVInstructionsIndices
+	{
+		General,
+		Gameplay
+	};
+
+	inline static WinxClubFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<WinxClubFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -314,19 +213,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<WinxClubFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
