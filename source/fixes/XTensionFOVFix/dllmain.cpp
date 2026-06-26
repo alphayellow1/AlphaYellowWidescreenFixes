@@ -189,6 +189,8 @@ bool DetectGame()
 }
 
 static SafetyHookMid CameraFOVInstructionHook{};
+static SafetyHookMid ProjectionMatrixPreHook{};
+static SafetyHookMid ProjectionMatrixPostHook{};
 
 int32_t ConvertFOV(int32_t baseFOV, double baseAR, double newAR)
 {
@@ -209,8 +211,12 @@ void FOVFix()
 
 		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 05 ?? ?? ?? ?? DC 0D ?? ?? ?? ?? D9 C9");
-		if (CameraFOVInstructionScanResult)
+		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "DB 05 ?? ?? ?? ?? DC 0D");
+		if (!CameraFOVInstructionScanResult)
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+		}
+		else
 		{
 			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
 
@@ -227,10 +233,69 @@ void FOVFix()
 				FPU::FILD(iNewFOV);
 			});
 		}
+
+		std::uint8_t* ProjectionSetTransformScanResult = Memory::PatternScan(
+			exeModule,
+			"8B 51 64 56 6A 03 50 FF D2"
+		);
+
+		if (!ProjectionSetTransformScanResult)
+		{
+			spdlog::error("Failed to locate projection matrix SetTransform call.");
+		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
+			std::uint8_t* ProjectionSetTransformPreHookAddress =
+				ProjectionSetTransformScanResult + 3;
+
+			std::uint8_t* ProjectionSetTransformPostHookAddress =
+				ProjectionSetTransformScanResult + 9;
+
+			spdlog::info(
+				"Projection matrix SetTransform call: Address is {:s}+{:x}",
+				sExeName.c_str(),
+				ProjectionSetTransformPreHookAddress - reinterpret_cast<std::uint8_t*>(exeModule)
+			);
+
+			static float fOriginalProjectionM00 = 0.0f;
+			static float fOriginalProjectionM11 = 0.0f;
+			static float* pCurrentProjectionMatrix = nullptr;
+
+			ProjectionMatrixPreHook = safetyhook::create_mid(
+				ProjectionSetTransformPreHookAddress,
+				[](SafetyHookContext& ctx)
+				{
+					pCurrentProjectionMatrix = reinterpret_cast<float*>(ctx.esi);
+
+					if (pCurrentProjectionMatrix == nullptr)
+					{
+						return;
+					}
+
+					fOriginalProjectionM00 = pCurrentProjectionMatrix[0];
+					fOriginalProjectionM11 = pCurrentProjectionMatrix[5];
+
+					const float projectionScale = 1.0f / fAspectRatioScale;
+
+					pCurrentProjectionMatrix[0] *= projectionScale;
+					pCurrentProjectionMatrix[5] *= projectionScale;
+				}
+			);
+
+			ProjectionMatrixPostHook = safetyhook::create_mid(
+				ProjectionSetTransformPostHookAddress,
+				[](SafetyHookContext& ctx)
+				{
+					if (pCurrentProjectionMatrix == nullptr)
+					{
+						return;
+					}
+
+					pCurrentProjectionMatrix[0] = fOriginalProjectionM00;
+					pCurrentProjectionMatrix[5] = fOriginalProjectionM11;
+					pCurrentProjectionMatrix = nullptr;
+				}
+			);
 		}
 	}
 }
