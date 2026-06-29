@@ -1,229 +1,91 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "ThePolarExpressWidescreenFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCutscenesAspectRatio;
-float fNewGameplayAspectRatio;
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class PolarExpressFix final : public FixBase
 {
-	TPE_GAME,
-	TPE_CONFIG,
-	Unknown
-};
-
-enum AspectRatioInstructionsIndices
-{
-	CutscenesAR,
-	GameplayAR,
-	PauseMenuAR
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::TPE_CONFIG, {"The Polar Express - Configuration", "Config.exe"}},
-	{Game::TPE_GAME, {"The Polar Express", "PolarExpress.exe"}}	
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit PolarExpressFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(fFOVFactor);
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
+	~PolarExpressFix() override
 	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;	
-}
-
-static SafetyHookMid ResolutionInstructionsHook{};
-static SafetyHookMid CutscenesAspectRatioInstructionHook{};
-static SafetyHookMid GameplayAspectRatioInstructionHook{};
-static SafetyHookMid PauseMenuAspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		if (eGameType == Game::TPE_CONFIG)
+		return "ThePolarExpressWidescreenFix";
+	}
+
+	const char* FixVersion() const override
+	{
+		return "1.2";
+	}
+
+	const char* TargetName() const override
+	{
+		return "The Polar Express";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Config.exe") ||
+		Util::stringcmp_caseless(exeName, "PolarExpress.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		if (Util::stringcmp_caseless(ExeName(), "Config.exe"))
 		{
-			std::uint8_t* ResolutionListUnlockScanResult = Memory::PatternScan(exeModule, "0F 8B ?? ?? ?? ?? 8B 55");
+			auto ResolutionListUnlockScanResult = Memory::PatternScan(ExeModule(), "0F 8B ?? ?? ?? ?? 8B 55");
 			if (ResolutionListUnlockScanResult)
 			{
-				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)ExeModule());
 
 				Memory::WriteNOPs(ResolutionListUnlockScanResult, 6);
-
 				Memory::WriteNOPs(ResolutionListUnlockScanResult + 28, 6);
-
 				Memory::WriteNOPs(ResolutionListUnlockScanResult + 45, 2);
-
 				Memory::PatchBytes(ResolutionListUnlockScanResult + 47, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate resolution list unlock scan memory address");
+				return;
 			}
 		}
 
-		if (eGameType == Game::TPE_GAME)
-		{			
-			std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 08 89 0D ?? ?? ?? ?? 8B 50");
-			if (ResolutionInstructionsScanResult)
+		if (Util::stringcmp_caseless(ExeName(), "PolarExpress.exe"))
+		{
+			auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 08 89 0D ?? ?? ?? ?? 8B 50");
+			if (ResolutionScanResult)
 			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-				ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+				m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
 				{
-					int& iCurrentWidth = Memory::ReadMem(ctx.eax);
-
-					int& iCurrentHeight = Memory::ReadMem(ctx.eax + 0x4);
-
-					fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
-
-					fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-					ResolutionInstructionsHook.disable();
+					s_instance_->m_newResX = Memory::ReadMem(ctx.eax);
+					s_instance_->m_newResY = Memory::ReadMem(ctx.eax + 0x4);
+					s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+					s_instance_->m_resolutionHook.disable();
 				});
 			}
 			else
@@ -232,56 +94,49 @@ void WidescreenFix()
 				return;
 			}
 
-			std::vector<std::uint8_t*> AspectRatioInstructionsScansResult = Memory::PatternScan(exeModule, "8B 50 ?? 8B 4C 24 ?? 83 C0 ?? 89 11 8B 40", 
+			auto AspectRatioScansResult = Memory::PatternScan(ExeModule(), "8B 50 ?? 8B 4C 24 ?? 83 C0 ?? 89 11 8B 40",
 			"D8 0D ?? ?? ?? ?? D9 5C 24 ?? E8 ?? ?? ?? ?? 83 C4 ?? 5E", "89 51 ?? 8B 8E ?? ?? ?? ?? 50");
-			if (Memory::AreAllSignaturesValid(AspectRatioInstructionsScansResult) == true)
+			if (Memory::AreAllSignaturesValid(AspectRatioScansResult) == true)
 			{
-				spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[CutscenesAR] - (std::uint8_t*)exeModule);
+				spdlog::info("Cutscenes Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[CutscenesAR] - (std::uint8_t*)ExeModule());
+				spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[GameplayAR] - (std::uint8_t*)ExeModule());
+				spdlog::info("Pause Menu Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[PauseMenuAR] - (std::uint8_t*)ExeModule());
 
-				spdlog::info("Gameplay Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[GameplayAR] - (std::uint8_t*)exeModule);
+				Memory::WriteNOPs(AspectRatioScansResult[CutscenesAR], 3);
 
-				spdlog::info("Pause Menu Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionsScansResult[PauseMenuAR] - (std::uint8_t*)exeModule);
-
-				Memory::WriteNOPs(AspectRatioInstructionsScansResult[CutscenesAR], 3);
-
-				CutscenesAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[CutscenesAR], [](SafetyHookContext& ctx)
+				m_cutscenesAspectRatioHook = safetyhook::create_mid(AspectRatioScansResult[CutscenesAR], [](SafetyHookContext& ctx)
 				{
-					float& fCurrentCutscenesAspectRatio = Memory::ReadMem(ctx.eax + 0x68);
-
-					fNewCutscenesAspectRatio = fCurrentCutscenesAspectRatio * fAspectRatioScale;
-
-					ctx.edx = std::bit_cast<uintptr_t>(fNewCutscenesAspectRatio);
+					s_instance_->m_currentCutscenesAspectRatio = Memory::ReadMem(ctx.eax + 0x68);
+					s_instance_->m_newCutscenesAspectRatio = s_instance_->m_currentCutscenesAspectRatio * s_instance_->m_aspectRatioScale;
+					ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newCutscenesAspectRatio);
 				});
 
-				Memory::WriteNOPs(AspectRatioInstructionsScansResult[GameplayAR], 6);				
+				Memory::WriteNOPs(AspectRatioScansResult[GameplayAR], 6);
 
-				GameplayAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[GameplayAR], [](SafetyHookContext& ctx)
+				m_gameplayAspectRatioHook = safetyhook::create_mid(AspectRatioScansResult[GameplayAR], [](SafetyHookContext& ctx)
 				{
-					fNewGameplayAspectRatio = 0.75f / fAspectRatioScale;
-
-					FPU::FMUL(fNewGameplayAspectRatio);
+					s_instance_->m_newGameplayAspectRatio = 0.75f / s_instance_->m_aspectRatioScale;
+					FPU::FMUL(s_instance_->m_newGameplayAspectRatio);
 				});
 
-				PauseMenuAspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionsScansResult[PauseMenuAR], [](SafetyHookContext& ctx)
+				m_pauseMenuAspectRatioHook = safetyhook::create_mid(AspectRatioScansResult[PauseMenuAR], [](SafetyHookContext& ctx)
 				{
-					*reinterpret_cast<float*>(ctx.eax) = *reinterpret_cast<float*>(ctx.eax) * fAspectRatioScale;
+					*reinterpret_cast<float*>(ctx.eax) = *reinterpret_cast<float*>(ctx.eax) * s_instance_->m_aspectRatioScale;
 				});
 			}
 
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D8 0D ?? ?? ?? ?? 8B 8E");
-			if (CameraFOVInstructionScanResult)
+			auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "D9 44 24 ?? D8 0D ?? ?? ?? ?? 8B 8E");
+			if (CameraFOVScanResult)
 			{
-				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-				Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
+				Memory::WriteNOPs(CameraFOVScanResult, 4);
 
-				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x10);
-
-					fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fFOVFactor;
-
-					FPU::FLD(fNewCameraFOV);
+					s_instance_->m_newCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, s_instance_->m_aspectRatioScale) * s_instance_->m_fovFactor;
+					FPU::FLD(s_instance_->m_newCameraFOV);
 				});
 			}
 			else
@@ -290,39 +145,65 @@ void WidescreenFix()
 				return;
 			}
 		}
-	}	
-}
-
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	float m_currentCutscenesAspectRatio = 0.0f;
+	float m_newCutscenesAspectRatio = 0.0f;
+	float m_newGameplayAspectRatio = 0.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_cutscenesAspectRatioHook{};
+	SafetyHookMid m_gameplayAspectRatioHook{};
+	SafetyHookMid m_pauseMenuAspectRatioHook{};
+	SafetyHookMid m_cameraFOVHook{};
+
+	enum ResolutionInstructionsIndex
+	{
+		ListUnlock1,
+		ListUnlock2
+	};
+
+	enum AspectRatioInstructionsIndices
+	{
+		CutscenesAR,
+		GameplayAR,
+		PauseMenuAR
+	};
+
+	inline static PolarExpressFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<PolarExpressFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+	UNREFERENCED_PARAMETER(lpReserved);
+
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<PolarExpressFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
