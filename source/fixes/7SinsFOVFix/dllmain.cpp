@@ -1,14 +1,14 @@
 #include "..\..\common\FixBase.hpp"
 
-class SinsFix final : public FixBase
+class SevenSinsFix final : public FixBase
 {
 public:
-	explicit SinsFix(HMODULE selfModule) : FixBase(selfModule)
+	explicit SevenSinsFix(HMODULE selfModule) : FixBase(selfModule)
 	{
 		s_instance_ = this;
 	}
 
-	~SinsFix() override
+	~SevenSinsFix() override
 	{
 		if (s_instance_ == this)
 		{
@@ -158,10 +158,10 @@ private:
 		FPU::FLD(m_newCameraFOV);
 	}
 
-	inline static SinsFix* s_instance_ = nullptr;
+	inline static SevenSinsFix* s_instance_ = nullptr;
 };
 
-static std::unique_ptr<SinsFix> g_fix;
+static std::unique_ptr<SevenSinsFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -173,7 +173,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 		DisableThreadLibraryCalls(hModule);
 
-		g_fix = std::make_unique<SinsFix>(hModule);
+		g_fix = std::make_unique<SevenSinsFix>(hModule);
 
 		g_fix->Start();
 
