@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.3";
 	}
 
 	const char* TargetName() const override
@@ -46,27 +46,57 @@ protected:
 
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
-		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
-		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
-		spdlog_confparse(m_newResX);
-		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
 	}
 
 	void ApplyFix() override
 	{
-		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
-		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
-
-		auto AspectRatioInstructionScanResult = Memory::PatternScan(ExeModule(), "C7 47 ?? ?? ?? ?? ?? C7 47 ?? ?? ?? ?? ?? 8B 8E");
-		if (AspectRatioInstructionScanResult)
+		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "56 E8 ?? ?? ?? ?? 85 C0 0F 8D");
+		if (ResolutionScanResult)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-			m_newAspectRatio2 = m_OriginalAspectRatio / m_aspectRatioScale;
+			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+			{
+				uintptr_t settings = ctx.ecx;
 
-			Memory::Write(AspectRatioInstructionScanResult + 3, m_newAspectRatio2);
+				uint32_t deviceIndex = *(uint32_t*)(settings + 0x2A380);
+
+				uintptr_t device = settings + 0x4 + deviceIndex * 0x438C;
+
+				uint32_t modeGroup = *(uint32_t*)(device + 0x4388);
+
+				uint32_t resIndex = *(uint32_t*)(device + modeGroup * 0xCA8 + 0x10DC);
+
+				uintptr_t resEntry = device + modeGroup * 0xCA8 + 0x0524 + resIndex * 0x14;
+
+				s_instance_->m_newResX = *(int*)(resEntry);
+				s_instance_->m_newResY = *(int*)(resEntry + 0x4);
+				s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
+			return;
+		}
+
+		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "C7 47 ?? ?? ?? ?? ?? C7 47 ?? ?? ?? ?? ?? 8B 8E");
+		if (AspectRatioScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());			
+
+			Memory::WriteNOPs(AspectRatioScanResult, 7);
+
+			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newAspectRatio2 = m_originalAspectRatio / s_instance_->m_aspectRatioScale;
+
+				*reinterpret_cast<float*>(ctx.edi + 0x2C) = s_instance_->m_newAspectRatio2;
+			});
 		}
 		else
 		{
@@ -74,22 +104,17 @@ protected:
 			return;
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(ExeModule(), "D8 0D ?? ?? ?? ?? D9 5F");
-		if (CameraFOVInstructionScanResult)
+		auto CameraFOVScanResult = Memory::PatternScan(ExeModule(), "D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 5F");
+		if (CameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-			m_CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
+			Memory::WriteNOPs(CameraFOVScanResult, 12);
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
-
-			m_CameraFOVHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(s_instance_->m_CameraFOVAddress);
-
-				s_instance_->m_newCameraFOV = fCurrentCameraFOV * s_instance_->m_fovFactor;
-
-				FPU::FMUL(s_instance_->m_newCameraFOV);
+				s_instance_->m_newCameraFOV = Maths::DegToRad(m_originalCameraFOV) * s_instance_->m_fovFactor;
+				FPU::FLD(s_instance_->m_newCameraFOV);
 			});
 		}
 		else
@@ -101,21 +126,14 @@ protected:
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
-	static constexpr float m_OriginalAspectRatio = 0.75f;
+	static constexpr float m_originalAspectRatio = 0.75f;
+	static constexpr float m_originalCameraFOV = 42.5f;
 
-	uintptr_t m_CameraFOVAddress = 0;
+	uintptr_t m_cameraFOVAddress = 0;
 
-	SafetyHookMid m_ResolutionHook{};
-	SafetyHookMid m_CameraFOVHook{};
-
-	void CameraFOVMidHook(SafetyHookContext& ctx)
-	{
-		float& fCurrentCameraFOV = Memory::ReadMem(ctx.eax + 0x114);
-
-		m_newCameraFOV = fCurrentCameraFOV * m_fovFactor;
-
-		FPU::FMUL(m_newCameraFOV);
-	}
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_aspectRatioHook{};
+	SafetyHookMid m_cameraFOVHook{};
 
 	inline static AcesWW1Fix* s_instance_ = nullptr;
 };
