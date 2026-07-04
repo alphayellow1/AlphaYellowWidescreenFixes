@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.3";
 	}
 
 	const char* TargetName() const override
@@ -54,7 +54,8 @@ protected:
 
 	void ApplyFix() override
 	{
-		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "81 7D ?? ?? ?? ?? ?? 72 ?? 81 7D", "89 0D ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 85");
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "81 7D ?? ?? ?? ?? ?? 72 ?? 81 7D", "89 0D ?? ?? ?? ?? C7 05 ?? ?? ?? ?? ?? ?? ?? ?? C7 85",
+		"a1 ?? ?? ?? ?? 50 68 ?? ?? ?? ?? 8b 4d");
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
 			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
@@ -64,49 +65,76 @@ protected:
 
 			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
 			{
-				const int& iCurrentResX = Memory::ReadRegister(ctx.edx);
-
-				const int& iCurrentResY = Memory::ReadRegister(ctx.ecx);
-
-				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
-
+				s_instance_->m_newResX = Memory::ReadRegister(ctx.edx);
+				s_instance_->m_newResY = Memory::ReadRegister(ctx.ecx);
+				s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+				s_instance_->m_newAspectRatio2 = 1.0f / s_instance_->m_newAspectRatio;
 				s_instance_->m_resolutionHook.disable();
 			});
+
+			Memory::PatchBytes(ResolutionScansResult[ResIndexSelection], "\x6A\x00\x90\x90\x90\x90");
+			Memory::PatchBytes(ResolutionScansResult[ResIndexSelection] + 23, "\x6A\x00\x90\x90\x90\x90\x90");
 		}
 
-		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "D9 05 ?? ?? ?? ?? D9 5D ?? EB ?? D9 05 ?? ?? ?? ?? D9 5D ?? 51 D9 05 ?? ?? ?? ?? D9 1C 24 51 D9 05 ?? ?? ?? ?? D9 1C 24 51 D9 45 ?? D9 1C 24 A1");
-		if (AspectRatioScanResult)
+		auto AspectRatioScansResult = Memory::PatternScan(ExeModule(), "D9 05 ?? ?? ?? ?? D9 5D ?? EB ?? D9 05 ?? ?? ?? ?? D9 5D ?? 51 D9 05 ?? ?? ?? ?? D9 1C 24 51 D9 05 ?? ?? ?? ?? D9 1C 24 51 D9 45 ?? D9 1C 24 A1",
+		"D9 05 ?? ?? ?? ?? D9 5D ?? 51 D9 05 ?? ?? ?? ?? D9 1C 24 51 D9 05 ?? ?? ?? ?? D9 1C 24 51 D9 45 ?? D9 1C 24 A1",
+		"D9 05 ?? ?? ?? ?? D9 5D ?? EB ?? D9 05 ?? ?? ?? ?? D9 5D ?? 51 D9 05 ?? ?? ?? ?? D9 1C 24 51 D9 05 ?? ?? ?? ?? D9 1C 24 D9 05",
+		"D9 05 ?? ?? ?? ?? D9 5D ?? 51 D9 05 ?? ?? ?? ?? D9 1C 24 51 D9 05 ?? ?? ?? ?? D9 1C 24 D9 05",
+		"D9 05 ?? ?? ?? ?? D9 5D ?? EB ?? D9 E8 D9 5D ?? 51 D9 E8",
+		"74 ?? D9 05 ?? ?? ?? ?? D9 5D ?? EB ?? D9 E8");
+		if (Memory::AreAllSignaturesValid(AspectRatioScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());
-			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult + 11 - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR3] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR4] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 5: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR5] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 6: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR6] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(AspectRatioScanResult, 6);
+			Memory::WriteNOPs(AspectRatioScansResult[AR1], 6);
 
-			m_aspectRatio1Hook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
+			m_aspectRatio1Hook = safetyhook::create_mid(AspectRatioScansResult[AR1], [](SafetyHookContext& ctx)
 			{
 				FPU::FLD(s_instance_->m_newAspectRatio);
 			});
 
-			Memory::WriteNOPs(AspectRatioScanResult + 11, 6);
+			Memory::WriteNOPs(AspectRatioScansResult[AR2], 6);
 
-			m_aspectRatio2Hook = safetyhook::create_mid(AspectRatioScanResult + 11, [](SafetyHookContext& ctx)
+			m_aspectRatio2Hook = safetyhook::create_mid(AspectRatioScansResult[AR2], [](SafetyHookContext& ctx)
 			{
 				FPU::FLD(s_instance_->m_newAspectRatio);
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate aspect ratio instructions scan memory address.");
-			return;
+
+			Memory::WriteNOPs(AspectRatioScansResult[AR3], 6);
+
+			m_aspectRatio3Hook = safetyhook::create_mid(AspectRatioScansResult[AR3], [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(s_instance_->m_newAspectRatio2);
+			});
+
+			Memory::WriteNOPs(AspectRatioScansResult[AR4], 6);
+
+			m_aspectRatio4Hook = safetyhook::create_mid(AspectRatioScansResult[AR4], [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(s_instance_->m_newAspectRatio2);
+			});
+
+			Memory::WriteNOPs(AspectRatioScansResult[AR5], 6);
+
+			m_aspectRatio5Hook = safetyhook::create_mid(AspectRatioScansResult[AR5], [](SafetyHookContext& ctx)
+			{
+				FPU::FLD(s_instance_->m_newAspectRatio2);
+			});
+
+			Memory::WriteNOPs(AspectRatioScansResult[AR6], 2);
 		}
 
 		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D9 05 ?? ?? ?? ?? D9 1C 24 8B 8D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 85",
-		"D9 44 10 ?? D9 5D ?? D9 45 ?? 8B E5 5D C3 CC CC CC CC 55 8B EC 83 EC ?? 89 4D ?? 8B 45 ?? 83 B8", "D9 05 ?? ?? ?? ?? D9 1C 24 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? 8B E5 5D C3 CC CC CC CC CC CC CC CC 55");
+		"D9 44 10 ?? D9 5D ?? D9 45 ?? 8B E5 5D C3 CC CC CC CC 55 8B EC 83 EC ?? 89 4D ?? 8B 45 ?? 83 B8");
 		if (Memory::AreAllSignaturesValid(CameraFOVScansResult))
 		{
-			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Hipfire] - (std::uint8_t*)ExeModule());
-			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Zoom] - (std::uint8_t*)ExeModule());
-			spdlog::info("Camera HFOV Culling Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[HFOVCulling] - (std::uint8_t*)ExeModule());
+			spdlog::info("Hipfire FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Hipfire] - (std::uint8_t*)ExeModule());
+			spdlog::info("Weapon Zoom FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Zoom] - (std::uint8_t*)ExeModule());
 
 			m_newHipfireFOV = m_originalHipfireFOV * m_hipfireFOVFactor;
 
@@ -117,31 +145,14 @@ protected:
 			m_zoomFOVHook = safetyhook::create_mid(CameraFOVScansResult[Zoom], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentZoomFOV = Memory::ReadMem(ctx.eax + ctx.edx + 0x10);
-
 				s_instance_->m_newZoomFOV = fCurrentZoomFOV * s_instance_->m_zoomFactor;
-
 				FPU::FLD(s_instance_->m_newZoomFOV);
-			});
-
-			// This last hook is still experimental, as I want to fix the culling in a more permanent way
-			m_HFOVCullingAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[HFOVCulling] + 2, Memory::PointerMode::Absolute);
-
-			Memory::WriteNOPs(CameraFOVScansResult[HFOVCulling], 6);
-
-			m_HFOVCullingHook = safetyhook::create_mid(CameraFOVScansResult[HFOVCulling], [](SafetyHookContext& ctx)
-			{
-				float& fCurrentHFOVCulling = Memory::ReadMem(s_instance_->m_HFOVCullingAddress);
-
-				s_instance_->m_newHFOVCulling = fCurrentHFOVCulling / s_instance_->m_aspectRatioScale;
-
-				FPU::FLD(s_instance_->m_newHFOVCulling);
 			});
 		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
-
 	static constexpr float m_originalHipfireFOV = 56.0f;
 
 	float m_hipfireFOVFactor = 0.0f;
@@ -149,28 +160,37 @@ private:
 
 	float m_newHipfireFOV = 0.0f;
 	float m_newZoomFOV = 0.0f;
-	float m_newHFOVCulling = 0.0f;
-
-	uintptr_t m_HFOVCullingAddress = 0;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatio1Hook{};
 	SafetyHookMid m_aspectRatio2Hook{};
+	SafetyHookMid m_aspectRatio3Hook{};
+	SafetyHookMid m_aspectRatio4Hook{};
+	SafetyHookMid m_aspectRatio5Hook{};
 	SafetyHookMid m_hipfireFOVHook{};
 	SafetyHookMid m_zoomFOVHook{};
-	SafetyHookMid m_HFOVCullingHook{};
 
 	enum ResolutionInstructionsIndices
 	{
 		ResListUnlock,
-		ResWidthHeight
+		ResWidthHeight,
+		ResIndexSelection
+	};
+
+	enum AspectRatioInstructionsIndices
+	{
+		AR1,
+		AR2,
+		AR3,
+		AR4,
+		AR5,
+		AR6
 	};
 
 	enum CameraFOVInstructionsIndices
 	{
 		Hipfire,
-		Zoom,
-		HFOVCulling
+		Zoom
 	};
 
 	inline static NarcFix* s_instance_ = nullptr;
@@ -180,8 +200,6 @@ static std::unique_ptr<NarcFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
