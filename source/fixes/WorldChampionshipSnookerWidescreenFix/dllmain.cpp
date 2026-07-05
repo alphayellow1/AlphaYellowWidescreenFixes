@@ -1,186 +1,66 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>	
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "WorldChampionshipSnookerWidescreenFix";
-std::string sFixVersion = "1.2";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-float fFOVFactor;
-
-// Variables
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class WCS2000Fix final : public FixBase
 {
-	WCS_CONFIG,
-	WCS_GAME,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::WCS_CONFIG, {"World Championship Snooker (Configuration)", "wcsconf.exe"}},
-	{Game::WCS_GAME, {"World Championship Snooker", "wcs.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit WCS2000Fix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(fFOVFactor);
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
+	~WCS2000Fix() override
 	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		if (eGameType == Game::WCS_CONFIG)
+		return "WorldChampionshipSnookerWidescreenFix";
+	}
+
+	const char* FixVersion() const override
+	{
+		return "1.3";
+	}
+
+	const char* TargetName() const override
+	{
+		return "World Championship Snooker";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "wcsconf.exe") ||
+		Util::stringcmp_caseless(exeName, "wcs.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+	}
+
+	void ApplyFix() override
+	{
+		if (Util::stringcmp_caseless(ExeName(), "wcsconf.exe"))
 		{
-			std::uint8_t* ResolutionListUnlockScanResult = Memory::PatternScan(exeModule, "3B D1 0F 85 ?? ?? ?? ?? 3D");
+			auto ResolutionListUnlockScanResult = Memory::PatternScan(ExeModule(), "3B D1 0F 85 ?? ?? ?? ?? 3D");
 			if (ResolutionListUnlockScanResult)
 			{
-				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListUnlockScanResult - (std::uint8_t*)ExeModule());
 
 				Memory::WriteNOPs(ResolutionListUnlockScanResult, 30);
 			}
@@ -190,44 +70,76 @@ void WidescreenFix()
 				return;
 			}
 		}
-		
-		if (eGameType == Game::WCS_GAME)
+
+		if (Util::stringcmp_caseless(ExeName(), "wcs.exe"))
 		{
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "89 8E ?? ?? ?? ?? D9 86");
-			if (CameraFOVInstructionScanResult)
+			auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "8B 42 ?? 89 43 ?? 8B 4A ?? 8B 44 24 ?? 89 4B ?? 8B 52 ?? 89 53 ?? 8B 0D ?? ?? ?? ?? 3B C1 75 ?? 8B 85 ?? ?? ?? ?? 0C ?? 89 85 ?? ?? ?? ?? 5F 5E 5D B8 ?? ?? ?? ?? 5B 83 C4 ?? C3 90 90 90 90 90 90",
+			"8B 42 ?? 5F 89 43");
+			if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 			{
-				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Cue Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[CueView] - (std::uint8_t*)ExeModule());
+				spdlog::info("Overhead Table Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[TableOverheadView] - (std::uint8_t*)ExeModule());
 
-				Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
+				Memory::WriteNOPs(CameraFOVScansResult[CueView], 3);
 
-				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+				m_cueCameraFOVHook = safetyhook::create_mid(CameraFOVScansResult[CueView], [](SafetyHookContext& ctx)
 				{
-					const float& fCurrentCameraFOV = Memory::ReadRegister(ctx.ecx);
+					s_instance_->CameraFOVMidHook(ctx);
+				});
 
-					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
+				Memory::WriteNOPs(CameraFOVScansResult[TableOverheadView], 3);
 
-					*reinterpret_cast<float*>(ctx.esi + 0xD0) = fNewCameraFOV;
+				m_tableOverheadCameraFOVHook = safetyhook::create_mid(CameraFOVScansResult[TableOverheadView], [](SafetyHookContext& ctx)
+				{
+					s_instance_->CameraFOVMidHook(ctx);
 				});
 			}
-			else
-			{
-				spdlog::error("Failed to locate camera FOV instruction memory address.");
-				return;
-			}
-		}		
-	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
+			if (m_runMultipleInstances == true)
+			{
+				auto MultipleInstancesScanResult = Memory::PatternScan(ExeModule(), "75 ?? 8B 0D ?? ?? ?? ?? 51");
+				if (MultipleInstancesScanResult)
+				{
+					spdlog::info("Multiple Instances Check Scan: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(MultipleInstancesScanResult, "\xEB");
+				}
+				else
+				{
+					spdlog::error("Failed to locate multiple instances check memory address.");
+					return;
+				}
+			}
+		}
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	SafetyHookMid m_cueCameraFOVHook{};
+	SafetyHookMid m_tableOverheadCameraFOVHook{};
+
+	bool m_runMultipleInstances = false;
+
+	float m_currentCameraFOV = 0.0f;
+
+	enum CameraFOVScansIndex
+	{
+		CueView,
+		TableOverheadView
+	};
+
+	void CameraFOVMidHook(SafetyHookContext& ctx)
+	{
+		s_instance_->m_currentCameraFOV = Memory::ReadMem(ctx.edx + 0x68);
+		s_instance_->m_newCameraFOV = s_instance_->m_currentCameraFOV * s_instance_->m_fovFactor;
+		ctx.eax = s_instance_->m_newCameraFOV;
+	}
+
+	inline static WCS2000Fix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<WCS2000Fix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -235,19 +147,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<WCS2000Fix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
