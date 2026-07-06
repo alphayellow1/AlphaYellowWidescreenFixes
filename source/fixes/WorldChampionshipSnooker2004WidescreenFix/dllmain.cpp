@@ -58,6 +58,7 @@ protected:
 		{
 			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
+			spdlog::info("Startup Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[StartupRes] - (std::uint8_t*)ExeModule());
 
 			Memory::WriteNOPs(ResolutionScansResult[ListUnlock], 30);
 
