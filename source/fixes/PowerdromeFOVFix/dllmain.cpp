@@ -1,378 +1,256 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-#include <cmath>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2 = nullptr;
-
-// Fix details
-std::string sFixName = "PowerdromeFOVFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-uintptr_t GameplayFOVAddress1;
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class PowerdromeFix final : public FixBase
 {
-	PD,
-	Unknown
-};
-
-enum CameraFOVInstructionsIndices
-{
-	MainMenu,
-	Cutscenes1,
-	Cutscenes2,
-	Cutscenes3,
-	Gameplay1,
-	Gameplay2,
-	Gameplay3,
-	Gameplay4
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::PD, {"Powerdrome", "Flux.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit PowerdromeFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~PowerdromeFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	bool bGameFound = false;
-
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			bGameFound = true;
-			break;
+			s_instance_ = nullptr;
 		}
 	}
 
-	if (bGameFound == false)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		return "PowerdromeFOVFix";
 	}
 
-	dllModule2 = Memory::GetHandle("powerdrome.dll");
-
-	return true;
-}
-
-static SafetyHookMid MainMenuCameraFOVInstructionHook{};
-static SafetyHookMid CutscenesCameraFOVInstruction1Hook{};
-static SafetyHookMid CutscenesCameraFOVInstruction2Hook{};
-static SafetyHookMid CutscenesCameraFOVInstruction3Hook{};
-static SafetyHookMid GameplayCameraFOVInstruction1Hook{};
-static SafetyHookMid GameplayCameraFOVInstruction2Hook{};
-static SafetyHookMid GameplayCameraFOVInstruction3Hook{};
-static SafetyHookMid GameplayCameraFOVInstruction4Hook{};
-
-enum destInstruction
-{
-	FADD,
-	EAX,
-	EDX,
-	ECX
-};
-
-void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fovFactor, destInstruction DestInstruction, SafetyHookContext& ctx)
-{
-	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
-
-	fNewCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, fAspectRatioScale) * fovFactor;
-
-	switch (DestInstruction)
+	const char* FixVersion() const override
 	{
-		case FADD:
-		{
-			FPU::FADD(fNewCameraFOV);
-			break;
-		}
-
-		case EAX:
-		{
-			ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
-			break;
-		}
-
-		case EDX:
-		{
-			ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
-			break;
-		}
-
-		case ECX:
-		{
-			ctx.ecx = std::bit_cast<uintptr_t>(fNewCameraFOV);
-			break;
-		}
+		return "1.2";
 	}
-}
 
-void FOVFix()
-{
-	if (eGameType == Game::PD && bFixActive == true)
+	const char* TargetName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "Powerdrome";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-		
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Flux.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		spdlog_confparse(m_fovFactor);
+	}
+
+	void ApplyFix() override
+	{
+		m_powerdromeDllModule = Memory::GetHandle("Powerdrome.dll");
+		m_powerdromeDllModuleName = Memory::GetModuleName(m_powerdromeDllModule);
+
+		auto ResolutionScanResult = Memory::PatternScan(m_powerdromeDllModule, "89 0D ?? ?? ?? ?? A3 ?? ?? ?? ?? D1 E9");
+		if (ResolutionScanResult)
+		{
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), ResolutionScanResult - (std::uint8_t*)m_powerdromeDllModule);
+
+			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newResX = Memory::ReadRegister(ctx.ecx);
+				s_instance_->m_newResY = Memory::ReadRegister(ctx.eax);
+				s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+			});
+		}
+		else
+		{
+			spdlog::info("Failed to locate the resolution instructions scan memory address.");
+			return;
+		}
+
 		// These instructions are located in the following functions: piCameraItem::FactorGlanceIntoMatrix, pcTrackDollyCam::StaticClass, pcGeneratedCam::MakeCamera, pcFixedCam::MakeCamera, pcDollyCam::MakeCamera, pcCutsceneCam::StaticClass, pcCameraItem::StaticClass
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(dllModule2, "8B 54 24 ?? D8 07", "8B 44 24 ?? D8 44 24 ?? 50", "8B 4C 24 ?? D8 44 24 ?? 51", "8B 4D ?? 51 8B 4C 24", "D8 05 ?? ?? ?? ?? D9 1C ?? 51 8B 8C 24", 
+		auto CameraFOVScansResult = Memory::PatternScan(m_powerdromeDllModule, "8B 54 24 ?? D8 07", "8B 44 24 ?? D8 44 24 ?? 50", "8B 4C 24 ?? D8 44 24 ?? 51", "8B 4D ?? 51 8B 4C 24", "D8 05 ?? ?? ?? ?? D9 1C ?? 51 8B 8C 24",
 		"8B 44 24 ?? 50 8D 4C 24 ?? 51 8B 8C 24 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 FF 15 ?? ?? ?? ?? 81 C4 ?? ?? ?? ?? C2 ?? ?? D9 44 24 ?? D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 C7 44 24 ?? ?? ?? ?? ?? EB ?? 90 90 90 90 90 90 90 90 90 90 83 EC",
 		"8B 44 24 ?? 50 8D 4C 24 ?? 51 8B 8C 24 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 FF 15 ?? ?? ?? ?? 81 C4 ?? ?? ?? ?? C2 ?? ?? D9 44 24 ?? D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 C7 44 24 ?? ?? ?? ?? ?? EB ?? 90 90 90 90 90 90 90 90 90 90 90",
 		"8B 44 24 ?? 50 8D 4C 24 ?? 51 8B 8C 24 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 FF 15 ?? ?? ?? ?? 81 C4 ?? ?? ?? ?? C2 ?? ?? D9 44 24 ?? D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 75 ?? DD D8 C7 44 24 ?? ?? ?? ?? ?? EB ?? 90 90 90 90 90 90 90 90 90 90 A1");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Main Menu Camera FOV Instruction: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[MainMenu] - (std::uint8_t*)dllModule2);
+			spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), CameraFOVScansResult[MainMenu] - (std::uint8_t*)m_powerdromeDllModule);
+			spdlog::info("Cutscenes Camera FOV Instruction 1: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), CameraFOVScansResult[Cutscenes1] - (std::uint8_t*)m_powerdromeDllModule);
+			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), CameraFOVScansResult[Cutscenes2] - (std::uint8_t*)m_powerdromeDllModule);
+			spdlog::info("Cutscenes Camera FOV Instruction 3: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), CameraFOVScansResult[Cutscenes3] - (std::uint8_t*)m_powerdromeDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), CameraFOVScansResult[Gameplay1] - (std::uint8_t*)m_powerdromeDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), CameraFOVScansResult[Gameplay2] - (std::uint8_t*)m_powerdromeDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 3: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), CameraFOVScansResult[Gameplay3] - (std::uint8_t*)m_powerdromeDllModule);
+			spdlog::info("Gameplay Camera FOV Instruction 4: Address is {:s}+{:x}", m_powerdromeDllModuleName.c_str(), CameraFOVScansResult[Gameplay4] - (std::uint8_t*)m_powerdromeDllModule);
 
-			spdlog::info("Cutscenes Camera FOV Instruction 1: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[Cutscenes1] - (std::uint8_t*)dllModule2);
+			Memory::WriteNOPs(CameraFOVScansResult[MainMenu], 4);
 
-			spdlog::info("Cutscenes Camera FOV Instruction 2: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[Cutscenes2] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Cutscenes Camera FOV Instruction 3: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[Cutscenes3] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Gameplay Camera FOV Instruction 1: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay1] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Gameplay Camera FOV Instruction 2: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay2] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Gameplay Camera FOV Instruction 3: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay3] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Gameplay Camera FOV Instruction 4: Address is powerdrome.dll+{:x}", CameraFOVInstructionsScansResult[Gameplay4] - (std::uint8_t*)dllModule2);
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MainMenu], 4);
-
-			MainMenuCameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MainMenu], [](SafetyHookContext& ctx)
+			m_mainMenuFOVHook = safetyhook::create_mid(CameraFOVScansResult[MainMenu], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esp + 0x54, 1.0f, EDX, ctx);
+				s_instance_->CameraFOVMidHook(ctx.esp + 0x54, 1.0f, EDX, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Cutscenes1], 4);
+			Memory::WriteNOPs(CameraFOVScansResult[Cutscenes1], 4);
 
-			CutscenesCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cutscenes1], [](SafetyHookContext& ctx)
+			m_cutscenesFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Cutscenes1], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esp + 0x2C, 1.0f, EAX, ctx);
+				s_instance_->CameraFOVMidHook(ctx.esp + 0x2C, 1.0f, EAX, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Cutscenes2], 4);
+			Memory::WriteNOPs(CameraFOVScansResult[Cutscenes2], 4);
 
-			CutscenesCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cutscenes2], [](SafetyHookContext& ctx)
+			m_cutscenesFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Cutscenes2], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esp + 0x4, 1.0f, ECX, ctx);
+				s_instance_->CameraFOVMidHook(ctx.esp + 0x4, 1.0f, ECX, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Cutscenes3], 3);
+			Memory::WriteNOPs(CameraFOVScansResult[Cutscenes3], 3);
 
-			CutscenesCameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Cutscenes3], [](SafetyHookContext& ctx)
+			m_cutscenesFOV3Hook = safetyhook::create_mid(CameraFOVScansResult[Cutscenes3], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.ebp + 0x34, 1.0f, ECX, ctx);
+				s_instance_->CameraFOVMidHook(ctx.ebp + 0x34, 1.0f, ECX, ctx);
 			});
 
-			GameplayFOVAddress1 = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[Gameplay1] + 2, Memory::PointerMode::Absolute);
+			m_gameplayFOV1Address = Memory::GetPointerFromAddress(CameraFOVScansResult[Gameplay1] + 2, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay1], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay1], 6);
 
-			GameplayCameraFOVInstruction1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay1], [](SafetyHookContext& ctx)
+			m_gameplayFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay1], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(GameplayFOVAddress1, fFOVFactor, FADD, ctx);
+				s_instance_->CameraFOVMidHook(s_instance_->m_gameplayFOV1Address, s_instance_->m_fovFactor, FADD, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay2], 4);
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay2], 4);
 
-			GameplayCameraFOVInstruction2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay2], [](SafetyHookContext& ctx)
+			m_gameplayFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay2], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esp + 0x14, fFOVFactor, EAX, ctx);
+				s_instance_->CameraFOVMidHook(ctx.esp + 0x14, s_instance_->m_fovFactor, EAX, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay3], 4);
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay3], 4);
 
-			GameplayCameraFOVInstruction3Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay3], [](SafetyHookContext& ctx)
+			m_gameplayFOV3Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay3], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esp + 0x4, fFOVFactor, EAX, ctx);
+				s_instance_->CameraFOVMidHook(ctx.esp + 0x4, s_instance_->m_fovFactor, EAX, ctx);
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[Gameplay4], 4);
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay4], 4);
 
-			GameplayCameraFOVInstruction4Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Gameplay4], [](SafetyHookContext& ctx)
+			m_gameplayFOV4Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay4], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esp + 0x10, fFOVFactor, EAX, ctx);
-			});			
+				s_instance_->CameraFOVMidHook(ctx.esp + 0x10, s_instance_->m_fovFactor, EAX, ctx);
+			});
 		}
 	}
-}
+
+private:
+	HMODULE m_powerdromeDllModule = nullptr;
+	std::string m_powerdromeDllModuleName = "";
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_mainMenuFOVHook{};
+	SafetyHookMid m_cutscenesFOV1Hook{};
+	SafetyHookMid m_cutscenesFOV2Hook{};
+	SafetyHookMid m_cutscenesFOV3Hook{};
+	SafetyHookMid m_gameplayFOV1Hook{};
+	SafetyHookMid m_gameplayFOV2Hook{};
+	SafetyHookMid m_gameplayFOV3Hook{};
+	SafetyHookMid m_gameplayFOV4Hook{};
+
+	uintptr_t m_gameplayFOV1Address = 0;
+
+	enum destInstruction
+	{
+		FADD,
+		EAX,
+		EDX,
+		ECX
+	};
+
+	enum CameraFOVInstructionsIndices
+	{
+		MainMenu,
+		Cutscenes1,
+		Cutscenes2,
+		Cutscenes3,
+		Gameplay1,
+		Gameplay2,
+		Gameplay3,
+		Gameplay4
+	};
+
+	void CameraFOVMidHook(uintptr_t fovAddress, float fovFactor, destInstruction DestInstruction, SafetyHookContext& ctx)
+	{
+		float& fCurrentCameraFOV = Memory::ReadMem(fovAddress);
+
+		m_newCameraFOV = Maths::CalculateNewFOV_RadBased(fCurrentCameraFOV, m_aspectRatioScale) * fovFactor;
+
+		switch (DestInstruction)
+		{
+			case FADD:
+			{
+				FPU::FADD(m_newCameraFOV);
+				break;
+			}
+
+			case EAX:
+			{
+				ctx.eax = std::bit_cast<uintptr_t>(m_newCameraFOV);
+				break;
+			}
+
+			case EDX:
+			{
+				ctx.edx = std::bit_cast<uintptr_t>(m_newCameraFOV);
+				break;
+			}
+
+			case ECX:
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(m_newCameraFOV);
+				break;
+			}
+		}
+	}
+
+	inline static PowerdromeFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<PowerdromeFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		thisModule = hModule;
-		Logging();
-		Configuration();
-		if (DetectGame())
+		case DLL_PROCESS_ATTACH:
 		{
-			FOVFix();
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<PowerdromeFix>(hModule);
+			g_fix->Start();
+			break;
 		}
-		break;
+
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
+
 	return TRUE;
 }
