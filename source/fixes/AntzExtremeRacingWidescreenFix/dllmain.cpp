@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.5";
+		return "1.5.1";
 	}
 
 	const char* TargetName() const override
@@ -47,11 +47,13 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
-	{
+	{		
 		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 81 7D ?? ?? ?? ?? ?? 0F 8C", "E9 ?? ?? ?? ?? 81 7D EC ?? ?? ?? ?? 0F 8C ?? ?? ?? ??",
 		"75 ?? 8B 85 ?? ?? ?? ?? 83 E0", "83 EA ?? 89 15 ?? ?? ?? ?? A1 ?? ?? ?? ?? 50", "66 A1 ?? ?? ?? ?? 66 A3");
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
@@ -160,11 +162,29 @@ protected:
 				*reinterpret_cast<float*>(ctx.ebp - 0xC) = s_instance_->m_newAspectRatio5;
 			});
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? ?? 0F 84 ?? ?? ?? ?? 83 3D ?? ?? ?? ?? ?? 0F 8F");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x74\x01\x00\x00\x90");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos scan memory address.");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalMenuFOV = 0.5f;
+
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatio3Hook{};
