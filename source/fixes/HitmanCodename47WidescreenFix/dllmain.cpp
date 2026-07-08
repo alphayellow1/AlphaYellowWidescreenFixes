@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 	const char* TargetName() const override
@@ -118,9 +118,10 @@ protected:
 		}
 
 		auto CameraFOVScansResult = Memory::PatternScan(m_hitmanDlcDllModule, "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 89 5E",
-		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 5E 8B E5", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 92 ?? ?? ?? ?? DD 44 24", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C2 ?? ?? 90 90 90 90 90 90 90 55",
-		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE FF 90 ?? ?? ?? ?? 5F 5E 8B E5", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C2 ?? ?? 90 90 90 90 90 90 90 90",
-		"DD 44 24 ?? DC 0D ?? ?? ?? ?? 6A", "d9 84 86 ?? ?? ?? ?? 8b 4e ?? dd 99 ?? ?? ?? ?? 8b 46 ?? 83 88", "d9 84 86 ?? ?? ?? ?? 8b 4e ?? dd 99 ?? ?? ?? ?? 8b 46 ?? 8b 88");
+		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 5E 8B E5", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 92 ?? ?? ?? ?? DD 44 24",
+		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C2 ?? ?? 90 90 90 90 90 90 90 55", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CE FF 90 ?? ?? ?? ?? 5F 5E 8B E5",
+		"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 8B CF FF 90 ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C2 ?? ?? 90 90 90 90 90 90 90 90", "DD 44 24 ?? DC 0D ?? ?? ?? ?? 6A", "DC 0D ?? ?? ?? ?? 8B 01",
+		"D9 84 86 ?? ?? ?? ?? 8B 4E ?? DD 99 ?? ?? ?? ?? 8B 46 ?? 83 88", "D9 84 86 ?? ?? ?? ?? 8B 4E ?? DD 99 ?? ?? ?? ?? 8B 46 ?? 8B 88");
 		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
 			spdlog::info("Character FOV Instruction: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[MouseConCam] - (std::uint8_t*)m_hitmanDlcDllModule);
@@ -129,7 +130,8 @@ protected:
 			spdlog::info("New Dialog Camera FOV Instruction: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[NewDialogCam] - (std::uint8_t*)m_hitmanDlcDllModule);
 			spdlog::info("Plane Camera FOV Instruction: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[PlaneCam] - (std::uint8_t*)m_hitmanDlcDllModule);
 			spdlog::info("Static Activation Camera FOV Instruction: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[StaticActivationCam] - (std::uint8_t*)m_hitmanDlcDllModule);
-			spdlog::info("Cutscenes FOV Instruction: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[CutscenesCam] - (std::uint8_t*)m_hitmanDlcDllModule);
+			spdlog::info("Cutscenes FOV Instruction 1: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[CutscenesCam1] - (std::uint8_t*)m_hitmanDlcDllModule);
+			spdlog::info("Cutscenes FOV Instruction 2: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[CutscenesCam2] - (std::uint8_t*)m_hitmanDlcDllModule);
 			spdlog::info("Sniper Scope FOV Instruction 1: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[ScopeCam1] - (std::uint8_t*)m_hitmanDlcDllModule);
 			spdlog::info("Sniper Scope FOV Instruction 2: Address is {:s}+{:x}", m_hitmanDlcDllModuleName.c_str(), CameraFOVScansResult[ScopeCam2] - (std::uint8_t*)m_hitmanDlcDllModule);
 
@@ -151,14 +153,18 @@ protected:
 			Memory::Write(CameraFOVScansResult, BaseCam, StaticActivationCam, 1, m_cameraFOV1HigherBits);
 			Memory::Write(CameraFOVScansResult, BaseCam, StaticActivationCam, 6, m_cameraFOV1LowerBits);
 
-			Memory::WriteNOPs(CameraFOVScansResult[CutscenesCam], 4);
+			Memory::WriteNOPs(CameraFOVScansResult[CutscenesCam1], 4);
 
-			m_cutscenesFOVHook = safetyhook::create_mid(CameraFOVScansResult[CutscenesCam], [](SafetyHookContext& ctx)
+			m_cutscenesFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[CutscenesCam1], [](SafetyHookContext& ctx)
 			{
-				double& dCurrentCutscenesFOV = Memory::ReadMem(ctx.esp + 0x14);
-				s_instance_->m_newCutscenesFOV = Maths::CalculateNewFOV_DegBased(dCurrentCutscenesFOV, s_instance_->m_aspectRatioScale);
-				FPU::FLD(s_instance_->m_newCutscenesFOV);
+				double& dCurrentCutscenesFOV1 = Memory::ReadMem(ctx.esp + 0x14);
+				s_instance_->m_newCutscenesFOV1 = Maths::CalculateNewFOV_DegBased(dCurrentCutscenesFOV1, s_instance_->m_aspectRatioScale);
+				FPU::FLD(s_instance_->m_newCutscenesFOV1);
 			});
+
+			m_newCutscenesFOV2 = Maths::CalculateNewFOV_DegBased(m_originalCutscenesFOV2, s_instance_->m_aspectRatioScale);
+
+			Memory::Write(CameraFOVScansResult[CutscenesCam2] + 2, &m_newCutscenesFOV2);
 
 			Memory::WriteNOPs(CameraFOVScansResult[ScopeCam1], 7);
 
@@ -208,6 +214,7 @@ private:
 
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr double m_originalCameraFOV = 67.4;
+	static constexpr double m_originalCutscenesFOV2 = 57.2957795130823;
 
 	std::uint64_t m_cameraFOV1Bits = 0;
 	std::uint64_t m_cameraFOV2Bits = 0;
@@ -217,7 +224,8 @@ private:
 	uint32_t m_cameraFOV2LowerBits = 0;
 	uint32_t m_cameraFOV2HigherBits = 0;
 
-	double m_newCutscenesFOV = 0.0;
+	double m_newCutscenesFOV1 = 0.0;
+	double m_newCutscenesFOV2 = 0.0;
 	double m_newCameraFOV1 = 0.0;
 	double m_newCameraFOV2 = 0.0;
 	float m_newScopeViewFOV1 = 0.0f;
@@ -226,7 +234,8 @@ private:
 	float m_zoomFactor = 0.0f;
 	float m_drawDistanceFactor = 0.0f;
 
-	SafetyHookMid m_cutscenesFOVHook{};
+	SafetyHookMid m_cutscenesFOV1Hook{};
+	SafetyHookMid m_cutscenesFOV2Hook{};
 	SafetyHookMid m_drawDistanceHook{};
 	SafetyHookMid m_scopeViewFOV1Hook{};
 	SafetyHookMid m_scopeViewFOV2Hook{};
@@ -245,7 +254,8 @@ private:
 		NewDialogCam,
 		PlaneCam,
 		StaticActivationCam,
-		CutscenesCam,
+		CutscenesCam1,
+		CutscenesCam2,
 		ScopeCam1,
 		ScopeCam2
 	};
