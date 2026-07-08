@@ -56,7 +56,6 @@ protected:
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
 			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
-
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
 
 			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock], 6);
@@ -94,9 +93,7 @@ protected:
 			m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentCameraFOV = Memory::ReadMem(ctx.ecx + 0x1E8);
-
 				s_instance_->m_newCameraFOV = fCurrentCameraFOV * s_instance_->m_fovFactor;
-
 				FPU::FLD(s_instance_->m_newCameraFOV);
 			});
 		}

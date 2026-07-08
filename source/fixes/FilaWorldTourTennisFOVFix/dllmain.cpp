@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.5";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
 	}
 
 	void ApplyFix() override
@@ -67,10 +69,7 @@ protected:
 				s_instance_->m_newResY = Memory::ReadRegister(ctx.ecx);
 				s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
 				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
-
 				s_instance_->WriteStaticARandFOVs();
-
-				// Since we only need the resolution width and height at startup and already give the correct AR and AR scale to the AR and FOV logic, these hooks don't need to be active anymore
 				s_instance_->m_resolutionWidthHook.disable();
 				s_instance_->m_resolutionHeightHook.disable();
 			});
@@ -163,6 +162,22 @@ protected:
 				FPU::FILD(s_instance_->m_newCutscenesFOV2);
 			});
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto MultipleInstancesScanResult = Memory::PatternScan(ExeModule(), "75 ?? 8A 54 24 ?? 8D 44 24 ?? 68 ?? ?? ?? ?? 50 88 54 24 ?? E8 ?? ?? ?? ?? 8B 84 24");
+			if (MultipleInstancesScanResult)
+			{
+				spdlog::info("Multiple Instances Check Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(MultipleInstancesScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instances check instructions scan memory address.");
+				return;
+			}
+		}
 	}
 
 private:
@@ -171,6 +186,8 @@ private:
 	static constexpr float m_originalCameraFOV2 = 25.0f;
 	static constexpr float m_originalCharacterSelectionAR1 = 320.0f;
 	static constexpr float m_originalCharacterSelectionAR2 = 224.0f;
+
+	bool m_runMultipleInstances = false;
 
 	SafetyHookMid m_resolutionWidthHook{};
 	SafetyHookMid m_resolutionHeightHook{};
@@ -186,8 +203,6 @@ private:
 	std::vector<std::uint8_t*> AspectRatioScansResult;
 	std::vector<std::uint8_t*> CameraFOVScansResult;
 
-	uint32_t iNewResX = 0;
-	uint32_t iNewResY = 0;
 	float m_newCharacterSelectionHFOV1 = 0.0f;
 	float m_newCharacterSelectionHFOV2 = 0.0f;
 	uintptr_t m_hudAspectRatioAddress = 0;
