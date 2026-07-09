@@ -1,269 +1,212 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "OpenKartFOVFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraHFOV1;
-float fNewCameraHFOV2;
-float fNewCameraVFOV1;
-float fNewCameraVFOV2;
-
-// Game detection
-enum class Game
+class OpenKartFix final : public FixBase
 {
-	OPENKART_FULL,
-	OPENKART_DEMO,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::OPENKART_FULL, {"Open Kart (Full Version)", "Kart.exe"}},
-	{Game::OPENKART_DEMO, {"Open Kart (Demo)", "KartDemo.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit OpenKartFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~OpenKartFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-void FOVFix()
-{
-	if ((eGameType == Game::OPENKART_FULL || eGameType == Game::OPENKART_DEMO) && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "OpenKartFOVFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.2";
+	}
 
-		std::uint8_t* CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 8B 8D ?? ?? ?? ?? D9 5C 24");
-		if (CameraFOVInstructionsScansResult)
+	const char* TargetName() const override
+	{
+		return "Open Kart";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Kart.exe") ||
+		Util::stringcmp_caseless(exeName, "KartDemo.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 4D ?? 8B 53 ?? 50 51");
+		if (ResolutionScanResult)
 		{
-			spdlog::info("Camera HFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-			spdlog::info("Camera HFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult + 22 - (std::uint8_t*)exeModule);
-
-			spdlog::info("Camera VFOV Instruction 1: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult + 38 - (std::uint8_t*)exeModule);
-
-			spdlog::info("Camera VFOV Instruction 2: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult + 54 - (std::uint8_t*)exeModule);
-
-			fNewCameraHFOV1 = -0.5f * fAspectRatioScale * fFOVFactor;
-
-			fNewCameraHFOV2 = 0.5f * fAspectRatioScale * fFOVFactor;
-
-			fNewCameraVFOV1 = 0.5f * fFOVFactor;
-
-			fNewCameraVFOV2 = -0.5f * fFOVFactor;
-
-			Memory::Write(CameraFOVInstructionsScansResult + 2, &fNewCameraHFOV1);
-
-			Memory::Write(CameraFOVInstructionsScansResult + 24, &fNewCameraHFOV2);
-
-			Memory::Write(CameraFOVInstructionsScansResult + 40, &fNewCameraVFOV1);
-
-			Memory::Write(CameraFOVInstructionsScansResult + 56, &fNewCameraVFOV2);
+			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newResX = Memory::ReadMem(ctx.ebp + 0xC);
+				s_instance_->m_newResY = Memory::ReadMem(ctx.ebp + 0x8);
+				s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+			});
 		}
 		else
 		{
-			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
-	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D8 0D ?? ?? ?? ?? 8B 8D ?? ?? ?? ?? D9 5C 24",
+		"C7 81 ?? ?? ?? ?? ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? C7 81 ?? ?? ?? ?? ?? ?? ?? ?? 8B 45");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
+		{
+			spdlog::info("Gameplay HFOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay] - (std::uint8_t*)ExeModule());
+			spdlog::info("Gameplay HFOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay] + 22 - (std::uint8_t*)ExeModule());
+			spdlog::info("Gameplay VFOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay] + 38 - (std::uint8_t*)ExeModule());
+			spdlog::info("Gameplay VFOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay] + 54 - (std::uint8_t*)ExeModule());
+			spdlog::info("Kart Setup HFOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[KartSetup] - (std::uint8_t*)ExeModule());
+			spdlog::info("Kart Setup HFOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[KartSetup] + 10 - (std::uint8_t*)ExeModule());
+			
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay], 6);
+
+			m_gameplayHFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newGameplayHFOV1 = m_originalGameplayFOV1 * s_instance_->m_aspectRatioScale * s_instance_->m_fovFactor;
+				FPU::FMUL(s_instance_->m_newGameplayHFOV1);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay] + 22, 6);
+
+			m_gameplayHFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay] + 22, [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newGameplayHFOV2 = m_originalGameplayFOV2 * s_instance_->m_aspectRatioScale * s_instance_->m_fovFactor;
+				FPU::FMUL(s_instance_->m_newGameplayHFOV2);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay] + 38, 6);
+
+			m_gameplayVFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay] + 38, [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newGameplayVFOV1 = m_originalGameplayFOV2 * s_instance_->m_fovFactor;
+				FPU::FMUL(s_instance_->m_newGameplayVFOV1);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[Gameplay] + 54, 6);
+
+			m_gameplayVFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay] + 54, [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newGameplayVFOV2 = m_originalGameplayFOV1 * s_instance_->m_fovFactor;
+				FPU::FMUL(s_instance_->m_newGameplayVFOV2);
+			});
+
+			Memory::WriteNOPs(CameraFOVScansResult[KartSetup], 20);
+
+			m_kartSetupHFOVHook = safetyhook::create_mid(CameraFOVScansResult[KartSetup], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newKartSetupHFOV1 = m_originalKartSetupHFOV1 * s_instance_->m_aspectRatioScale;
+				s_instance_->m_newKartSetupHFOV2 = m_originalKartSetupHFOV2 * s_instance_->m_aspectRatioScale;
+				*reinterpret_cast<float*>(ctx.ecx + 0x144) = s_instance_->m_newKartSetupHFOV1;
+				*reinterpret_cast<float*>(ctx.ecx + 0x148) = s_instance_->m_newKartSetupHFOV2;
+			});
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScansResult = Memory::PatternScan(ExeModule(), "6A ?? 68 ?? ?? ?? ?? 50 8D 4C 24 ?? E8 ?? ?? ?? ?? 6A",
+			"6A ?? 68 ?? ?? ?? ?? 50 8D 4C 24 ?? E8 ?? ?? ?? ?? 8B 4C 24");
+			if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+			{
+				spdlog::info("Skip Intro Video Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipVids1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Video Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipVids2] - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(SkipIntroVideosScansResult[SkipVids1], 17);
+				Memory::WriteNOPs(SkipIntroVideosScansResult[SkipVids2], 17);
+			}			
+		}		
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalGameplayFOV1 = -0.5f;
+	static constexpr float m_originalGameplayFOV2 = 0.5f;
+	static constexpr float m_originalKartSetupHFOV1 = -0.5500000119f;
+	static constexpr float m_originalKartSetupHFOV2 = 0.5500000119f;
+
+	bool m_skipIntroVideos = false;
+
+	float m_newGameplayHFOV1 = 0.0f;	
+	float m_newGameplayHFOV2 = 0.0f;
+	float m_newGameplayVFOV1 = 0.0f;
+	float m_newGameplayVFOV2 = 0.0f;
+	float m_newKartSetupHFOV1 = 0.0f;
+	float m_newKartSetupHFOV2 = 0.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_gameplayHFOV1Hook{};
+	SafetyHookMid m_gameplayHFOV2Hook{};
+	SafetyHookMid m_gameplayVFOV1Hook{};
+	SafetyHookMid m_gameplayVFOV2Hook{};
+	SafetyHookMid m_kartSetupHFOVHook{};
+
+	enum CameraFOVInstructionsIndex
+	{
+		Gameplay,
+		KartSetup
+	};
+
+	enum SkipIntroVideosScansIndex
+	{
+		SkipVids1,
+		SkipVids2
+	};
+
+	inline static OpenKartFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<OpenKartFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		case DLL_PROCESS_ATTACH:
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<OpenKartFix>(hModule);
+			g_fix->Start();
+			break;
 		}
-		break;
+
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
+
 	return TRUE;
 }
