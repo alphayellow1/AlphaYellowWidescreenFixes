@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.1.1";
 	}
 
 	const char* TargetName() const override
@@ -49,12 +49,14 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntro", m_skipIntroVideos);
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
 		spdlog_confparse(m_newResX);
 		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -201,10 +203,41 @@ protected:
 			spdlog::error("Failed to locate camera FOV instructions scan memory address.");
 			return;
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "74 ?? C6 83 ?? ?? ?? ?? ?? 80 BB");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(SkipIntroVideosScanResult, 2);
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos instruction memory address.");
+				return;
+			}
+		}
+
+		auto SkipCommandlineParameterCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? C6 45 ?? ?? BF");
+		if (SkipCommandlineParameterCheckScanResult)
+		{
+			spdlog::info("Skip Commandline Parameter Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipCommandlineParameterCheckScanResult - (std::uint8_t*)ExeModule());
+
+			Memory::WriteNOPs(SkipCommandlineParameterCheckScanResult, 2);
+		}
+		else
+		{
+			spdlog::error("Failed to locate skip commandline parameter check instruction memory address.");
+			return;
+		}		
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_skipIntroVideos = false;
 
 	uintptr_t m_HUD1Address = 0;
 	uintptr_t m_HUD2Address = 0;
