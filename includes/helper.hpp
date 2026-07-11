@@ -30,6 +30,7 @@
 #include <variant>
 #include <vector>
 #include <climits>
+#include <fstream>
 
 #include <spdlog/spdlog.h>
 
@@ -1859,4 +1860,185 @@ namespace Screen
 	{
 		return GetSystemMetrics(SM_CYVIRTUALSCREEN);
 	}
+}
+
+namespace FileIO
+{
+	enum class OpenMode
+	{
+		Read,
+		Write,
+		ReadWrite,
+		Append
+	};
+
+	class BinaryFile
+	{
+	public:
+		BinaryFile() = default;
+
+		BinaryFile(const std::filesystem::path& path, OpenMode mode)
+		{
+			Open(path, mode);
+		}
+
+		~BinaryFile()
+		{
+			Close();
+		}
+
+		bool Open(const std::filesystem::path& path, OpenMode mode)
+		{
+			Close();
+
+			std::ios::openmode flags = std::ios::binary;
+
+			switch (mode)
+			{
+			case OpenMode::Read:
+				flags |= std::ios::in;
+				break;
+
+			case OpenMode::Write:
+				flags |= std::ios::out | std::ios::trunc;
+				break;
+
+			case OpenMode::ReadWrite:
+				flags |= std::ios::in | std::ios::out;
+				break;
+
+			case OpenMode::Append:
+				flags |= std::ios::out | std::ios::app;
+				break;
+			}
+
+			m_file.open(path, flags);
+
+			if (!m_file)
+			{
+				const std::string msg = fmt::format("FileIO::BinaryFile: failed to open '{}'", path.string());
+
+				spdlog::error("{}", msg);
+
+				throw std::runtime_error(msg);
+			}
+
+			m_path = path;
+			return true;
+		}
+
+		void Close()
+		{
+			if (m_file.is_open())
+			{
+				m_file.close();
+			}
+		}
+
+		[[nodiscard]] bool IsOpen() const
+		{
+			return m_file.is_open();
+		}
+
+		[[nodiscard]] bool Good() const
+		{
+			return static_cast<bool>(m_file);
+		}
+
+		bool ReadBytes(std::streamoff offset, void* out, std::size_t size)
+		{
+			if (!m_file || !out || size == 0)
+			{
+				return false;
+			}
+
+			m_file.clear();
+			m_file.seekg(offset, std::ios::beg);
+
+			if (!m_file)
+			{
+				spdlog::error("FileIO::ReadBytes: seek failed at offset {}", offset);
+				return false;
+			}
+
+			m_file.read(reinterpret_cast<char*>(out), static_cast<std::streamsize>(size));
+
+			if (m_file.gcount() != static_cast<std::streamsize>(size))
+			{
+				spdlog::error("FileIO::ReadBytes: read failed at offset {}, size {}", offset, size);
+				return false;
+			}
+
+			return true;
+		}
+
+		bool WriteBytes(std::streamoff offset, const void* data, std::size_t size)
+		{
+			if (!m_file || !data || size == 0)
+			{
+				return false;
+			}
+
+			m_file.clear();
+			m_file.seekp(offset, std::ios::beg);
+
+			if (!m_file)
+			{
+				spdlog::error("FileIO::WriteBytes: seek failed at offset {}", offset);
+				return false;
+			}
+
+			m_file.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
+
+			if (!m_file)
+			{
+				spdlog::error("FileIO::WriteBytes: write failed at offset {}, size {}", offset, size);
+				return false;
+			}
+
+			return true;
+		}
+
+		template <typename T>
+			requires std::is_trivially_copyable_v<T>
+		T Read(std::streamoff offset)
+		{
+			T value{};
+
+			if (!ReadBytes(offset, &value, sizeof(T)))
+			{
+				const std::string msg = fmt::format(
+					"FileIO::Read failed at offset {}",
+					offset
+				);
+
+				spdlog::error("{}", msg);
+
+				throw std::runtime_error(msg);
+			}
+
+			return value;
+		}
+
+		template <typename T>
+			requires std::is_trivially_copyable_v<T>
+		bool Write(std::streamoff offset, const T& value)
+		{
+			return WriteBytes(offset, &value, sizeof(T));
+		}
+
+		bool Read(std::streamoff offset, void* out, std::size_t size)
+		{
+			return ReadBytes(offset, out, size);
+		}
+
+		bool Write(std::streamoff offset, const void* data, std::size_t size)
+		{
+			return WriteBytes(offset, data, size);
+		}
+
+	private:
+		std::fstream m_file;
+		std::filesystem::path m_path;
+	};
 }
