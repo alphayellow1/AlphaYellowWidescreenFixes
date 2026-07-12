@@ -1,276 +1,191 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "TrivialPursuitUnhingedWidescreenFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-
-// Variables
-float fNewAspectRatio;
-
-// Game detection
-enum class Game
+class TrivialPursuitUnhingedFix final : public FixBase
 {
-	TPUENGLISHUS,
-	TPUFRENCH,
-	TPUGERMAN,
-	TPUITALIAN,
-	TPUSPANISH,
-	TPUENGLISHUK,
-	Unknown
-};
+public:
+    explicit TrivialPursuitUnhingedFix(HMODULE selfModule) : FixBase(selfModule)
+    {
+        s_instance_ = this;
+    }
 
-enum ResolutionInstructionsScansIndices
-{
-	Resolution1Scan,
-	Resolution2Scan,
-	Resolution3Scan,
-};
+    ~TrivialPursuitUnhingedFix() override
+    {
+        if (s_instance_ == this)
+        {
+            s_instance_ = nullptr;
+        }
+    }
 
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
+protected:
+    const char* FixName() const override
+    {
+        return "TrivialPursuitUnhingedWidescreenFix";
+    }
 
-const std::map<Game, GameInfo> kGames = {
-	{Game::TPUENGLISHUS, {"Trivial Pursuit: Unhinged", "TrivialPursuitPC.exe"}},
-	{Game::TPUFRENCH, {"Trivial Pursuit: Unhinged (French version)", "TPPCFrench.exe"}},
-	{Game::TPUGERMAN, {"Trivial Pursuit: Unhinged (German version)", "TPPCGerman.exe"}},
-	{Game::TPUITALIAN, {"Trivial Pursuit: Unhinged (Italian version)", "TTPCItalian.exe"}},
-	{Game::TPUSPANISH, {"Trivial Pursuit: Unhinged (Spanish version)", "TPPCSpanish.exe"}},
-	{Game::TPUENGLISHUK, {"Trivial Pursuit: Unhinged (UK version)", "TPPCUK.exe"}},
-};
+    const char* FixVersion() const override
+    {
+        return "1.1";
+    }
 
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
+    const char* TargetName() const override
+    {
+        return "Trivial Pursuit: Unhinged";
+    }
 
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
+    InitMode GetInitMode() const override
+    {
+        return InitMode::Direct;
+        // return InitMode::WorkerThread;
+        // return InitMode::ExportedOnly;
+    }
 
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
+    bool IsCompatibleExecutable(const std::string& exeName) const override
+    {
+        return Util::stringcmp_caseless(exeName, "TrivialPursuitPC.exe") ||
+        Util::stringcmp_caseless(exeName, "TPPCFrench.EXE") ||
+		Util::stringcmp_caseless(exeName, "TPPCGerman.EXE") ||
+		Util::stringcmp_caseless(exeName, "TTPCItalian.EXE") ||
+		Util::stringcmp_caseless(exeName, "TPPCSpanish.EXE") ||
+		Util::stringcmp_caseless(exeName, "TPPCUK.EXE");
+    }
 
-	// Spdlog initialization
-	try
-	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
+    void ParseFixConfig(inipp::Ini<char>& ini) override
+    {
+        inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+        inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
+        spdlog_confparse(m_runMultipleInstances);
+        spdlog_confparse(m_skipIntroVideos);
+    }
 
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
-	}
-
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
-	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+    void ApplyFix() override
+    {
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "75 ?? 3B C6 75 ?? 89 59", "50 57 52 53 e8", "8b 54 24 ?? 89 81 ?? ?? ?? ?? 8b 44 24");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
-		}
-	}
+			spdlog::info("Video Setup Dialog Check Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[VidSetup] - (std::uint8_t*)ExeModule());
+			spdlog::info("Video Setup Dialog Default Resolution Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[VidSetupDefaultRes] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
+            Memory::PatchBytes(ResolutionScansResult[VidSetup], "\xEB");
 
-void WidescreenFix()
-{
-	if ((eGameType == Game::TPUENGLISHUS || eGameType == Game::TPUFRENCH || eGameType == Game::TPUGERMAN || eGameType == Game::TPUITALIAN || eGameType == Game::TPUSPANISH || eGameType == Game::TPUENGLISHUK) && bFixActive == true)
-	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+            m_vidSetupDefaultResHook = safetyhook::create_mid(ResolutionScansResult[VidSetupDefaultRes], [](SafetyHookContext& ctx)
+            {
+                s_instance_->m_vidSetupDefaultWidth = Screen::GetDesktopResolutionWidth();
+                s_instance_->m_vidSetupDefaultHeight = Screen::GetDesktopResolutionHeight();
+                ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_vidSetupDefaultWidth);
+                ctx.edi = std::bit_cast<uintptr_t>(s_instance_->m_vidSetupDefaultHeight);
+                s_instance_->m_vidSetupDefaultResHook.disable();
+            });
 
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "24 38 58 02 00 00 89 5C 24 30 C7 44 24 34 20 03 00 00 89 5C", "6A 18 68 58 02 00 00 68 20 03 00 00 52 E8 85", "6A 18 68 58 02 00 00 68 20 03 00 00 89 44 24");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
-		{
-			spdlog::info("Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
-
-			spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 14, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 2, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 8, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 3, iCurrentResY);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 8, iCurrentResX);
-
-			Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 3, iCurrentResY);
+            m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
+            {
+                s_instance_->m_newResX = Memory::ReadMem(ctx.esp + 0x2C);
+                s_instance_->m_newResY = Memory::ReadMem(ctx.esp + 0x30);
+                s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+                s_instance_->m_resolutionHook.disable();
+            });
 		}
 
-		std::uint8_t* AspectRatioScanResult = Memory::PatternScan(exeModule, "CE C7 06 AB AA AA 3F C7 46 04");
+		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "C7 06 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? 89 7E");
 		if (AspectRatioScanResult)
 		{
-			spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());            
 
-			Memory::Write(AspectRatioScanResult + 3, fNewAspectRatio);
+			Memory::WriteNOPs(AspectRatioScanResult, 6);
+
+            m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
+            {
+                *reinterpret_cast<float*>(ctx.esi) = s_instance_->m_newAspectRatio;
+            });
 		}
 		else
 		{
-			spdlog::error("Failed to locate aspect ratio memory address.");
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
 			return;
 		}
-	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
+        if (m_runMultipleInstances == true)
+        {
+            auto RunMultipleInstancesScanResult = Memory::PatternScan(ExeModule(), "74 ?? B8 ?? ?? ?? ?? C2 ?? ?? 8B 44 24");
+            if (RunMultipleInstancesScanResult)
+            {
+                spdlog::info("Run Multiple Instances Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesScanResult - (std::uint8_t*)ExeModule());
+
+                Memory::PatchBytes(RunMultipleInstancesScanResult, "\xEB");
+            }
+            else
+            {
+                spdlog::error("Failed to locate run multiple instances check instruction memory address.");
+                return;
+            }
+        }
+
+        if (m_skipIntroVideos == true)
+        {
+            auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? A1 ?? ?? ?? ?? 85 C0 0F 85 ?? ?? ?? ?? 66 C7 44 24");
+            if (SkipIntroVideosScanResult)
+            {
+                spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+                Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x03\x01\x00\x00\x90");
+            }
+            else
+            {
+                spdlog::error("Failed to locate skip intro videos instruction memory address.");
+                return;
+            }
+        }
+    }
+
+private:
+    bool m_runMultipleInstances = false;
+    bool m_skipIntroVideos = false;
+
+    int m_vidSetupDefaultWidth = 0;
+    int m_vidSetupDefaultHeight = 0;
+
+    SafetyHookMid m_vidSetupDefaultResHook{};
+    SafetyHookMid m_resolutionHook{};    
+    SafetyHookMid m_aspectRatioHook{};
+
+    enum ResolutionInstructionsScansIndices
+    {
+        VidSetup,
+        VidSetupDefaultRes,
+        WidthHeight
+    };    
+
+    inline static TrivialPursuitUnhingedFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<TrivialPursuitUnhingedFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	switch (ul_reason_for_call)
-	{
-	case DLL_PROCESS_ATTACH:
-	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
-		break;
-	}
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
-	return TRUE;
+    UNREFERENCED_PARAMETER(lpReserved);
+
+    switch (ul_reason_for_call)
+    {
+    case DLL_PROCESS_ATTACH:
+    {
+        DisableThreadLibraryCalls(hModule);
+        g_fix = std::make_unique<TrivialPursuitUnhingedFix>(hModule);
+        g_fix->Start();
+        break;
+    }
+
+    case DLL_PROCESS_DETACH:
+    {
+        g_fix->Shutdown();
+        g_fix.reset();
+        break;
+    }
+
+    case DLL_THREAD_ATTACH:
+    case DLL_THREAD_DETACH:
+    default:
+        break;
+    }
+
+    return TRUE;
 }
