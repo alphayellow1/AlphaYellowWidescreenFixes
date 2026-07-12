@@ -24,7 +24,7 @@ protected:
 
     const char* FixVersion() const override
     {
-        return "1.4";
+        return "1.5";
     }
 
     const char* TargetName() const override
@@ -48,7 +48,9 @@ protected:
     void ParseFixConfig(inipp::Ini<char>& ini) override
     {
         inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+        inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
         spdlog_confparse(m_fovFactor);
+        spdlog_confparse(m_skipIntroVideos);
     }
 
     void ApplyFix() override
@@ -108,11 +110,51 @@ protected:
 
                 Memory::Write(CameraFOVScansResult[Gameplay2] + 1, m_newGameplayFOV2);
             }
+
+            if (m_skipIntroVideos == true)
+            {
+                auto SkipIntroVideosScansResult = Memory::PatternScan(ExeModule(), "B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 55 8B CE E8 ?? ?? ?? ?? B8", "B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 55 8B CE E8 ?? ?? ?? ?? 68",
+                "B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 55 8B CE E8 ?? ?? ?? ?? BB", "B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 55 8B CE E8 ?? ?? ?? ?? 8B 15", "B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 55 8B CE E8 ?? ?? ?? ?? 89 5E",
+                "B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 55 8B CE E8 ?? ?? ?? ?? C7 46", "74 ?? 8B 15 ?? ?? ?? ?? 53 6A", "C7 86 ?? ?? ?? ?? ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 88 86",
+                "74 ?? E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 89 7E");
+                if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+                {
+                    spdlog::info("Skip Intro Videos Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids1] - (std::uint8_t*)ExeModule());
+                    spdlog::info("Skip Intro Videos Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids2] - (std::uint8_t*)ExeModule());
+                    spdlog::info("Skip Intro Videos Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids3] - (std::uint8_t*)ExeModule());
+                    spdlog::info("Skip Intro Videos Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids4] - (std::uint8_t*)ExeModule());
+                    spdlog::info("Skip Intro Videos Instruction 5: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids5] - (std::uint8_t*)ExeModule());
+                    spdlog::info("Skip Intro Videos Instruction 6: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids6] - (std::uint8_t*)ExeModule());
+                    spdlog::info("Skip Intro Videos Instruction 7: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids7] - (std::uint8_t*)ExeModule());
+                    spdlog::info("Skip Intro Videos Instruction 8: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids8] - (std::uint8_t*)ExeModule());
+                    spdlog::info("Skip Intro Videos Instruction 9: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[SkipIntroVids9] - (std::uint8_t*)ExeModule());
+
+                    Memory::PatchBytes(SkipIntroVideosScansResult, SkipIntroVids1, SkipIntroVids6, 1, "\x00");
+                    Memory::PatchBytes(SkipIntroVideosScansResult[SkipIntroVids7], "\xEB");
+                    Memory::Write(SkipIntroVideosScansResult[SkipIntroVids8] + 6, 0.0f);
+                    Memory::PatchBytes(SkipIntroVideosScansResult[SkipIntroVids9], "\xEB");
+                }                
+            }            
         }
     }
 
 private:
     static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+    bool m_skipIntroVideos = false;
+
+    enum SkipIntroVideosInstructionsIndex
+    {
+        SkipIntroVids1,
+        SkipIntroVids2,
+        SkipIntroVids3,
+        SkipIntroVids4,
+        SkipIntroVids5,
+        SkipIntroVids6,
+        SkipIntroVids7,
+        SkipIntroVids8,
+        SkipIntroVids9
+    };
 
     struct Resolution
     {
