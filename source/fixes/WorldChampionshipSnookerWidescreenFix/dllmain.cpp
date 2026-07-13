@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.3.1";
 	}
 
 	const char* TargetName() const override
@@ -49,8 +49,10 @@ protected:
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
 		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
 		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -110,6 +112,22 @@ protected:
 					return;
 				}
 			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "6A ?? 8D 54 24 ?? 33 C9");
+				if (SkipIntroVideosScanResult)
+				{
+					spdlog::info("Skip Intro Videos Check Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x36\x00\x00\x00");
+				}
+				else
+				{
+					spdlog::error("Failed to locate skip intro videos check memory address.");
+					return;
+				}
+			}
 		}
 	}
 
@@ -120,6 +138,7 @@ private:
 	SafetyHookMid m_tableOverheadCameraFOVHook{};
 
 	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	float m_currentCameraFOV = 0.0f;
 
