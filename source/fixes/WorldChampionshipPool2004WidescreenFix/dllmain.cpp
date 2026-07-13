@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.1.1";
 	}
 
 	const char* TargetName() const override
@@ -48,8 +48,10 @@ protected:
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
 		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
 		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -109,6 +111,22 @@ protected:
 				return;
 			}
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 85 ?? ?? ?? ?? 39 2D");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Check Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\xB5\x00\x00\x00\x90");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos check scan memory address.");
+				return;
+			}
+		}
 	}
 
 private:
@@ -124,6 +142,7 @@ private:
 	std::vector<std::uint8_t*> ResolutionScansResult;
 
 	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	enum ResolutionInstructionsIndices
 	{

@@ -117,7 +117,8 @@ private:
 	enum ResolutionInstructionsIndices
 	{
 		ListUnlock,
-		WidthHeight
+		WidthHeight,
+		StartupRes
 	};
 
 	inline static WCS2004Fix* s_instance_ = nullptr;
