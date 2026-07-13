@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 	const char* TargetName() const override
@@ -108,6 +108,22 @@ protected:
 				return;
 			}
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "E8 ?? ?? ?? ?? 8B 3D ?? ?? ?? ?? 8B 1D ?? ?? ?? ?? 6A");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Check Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x31\x01\x00\x00");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos check memory address.");
+				return;
+			}
+		}
 	}
 
 private:
@@ -117,6 +133,7 @@ private:
 	SafetyHookMid m_resolutionHook{};
 
 	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	std::vector<std::uint8_t*> ResolutionScansResult;
 

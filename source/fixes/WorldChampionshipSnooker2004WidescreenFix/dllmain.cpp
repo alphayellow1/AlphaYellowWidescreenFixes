@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -103,11 +105,29 @@ protected:
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 33 D2 B9 ?? ?? ?? ?? 8B F0 E8 ?? ?? ?? ?? 8B D6 8B C8 E8 ?? ?? ?? ?? A1");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Check Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x8B\x00\x00\x00");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos check memory address.");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalCameraFOV = 0.3490999937f;
+
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatioHook{};
