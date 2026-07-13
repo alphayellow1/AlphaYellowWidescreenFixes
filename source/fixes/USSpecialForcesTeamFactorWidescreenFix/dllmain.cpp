@@ -1,246 +1,97 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE dllModule = nullptr;
-HMODULE dllModule2 = nullptr;
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "USSpecialForcesTeamFactorWidescreenFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-double dNewAspectRatio;
-float fNewCameraFOV;
-uint8_t* CameraFOVAddress;
-
-// Game detection
-enum class Game
+class USSpecialForcesTeamFactorFix final : public FixBase
 {
-	USSFTF_GAME,
-	USSFTF_LAUNCHER,
-	Unknown
-};
-
-enum ResolutionInstructionsIndex
-{
-	Resolution1Scan,
-	Resolution2Scan,
-	Resolution3Scan
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::USSFTF_GAME, {"US Special Forces: Team Factor", "tf.exe"}},
-	{Game::USSFTF_LAUNCHER, {"US Special Forces: Team Factor - Launcher", "TFLoader.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(dllModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit USSpecialForcesTeamFactorFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~USSpecialForcesTeamFactorFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		if (eGameType == Game::USSFTF_LAUNCHER)
-		{
-			dllModule2 = Memory::GetHandle({"TFLoader-en.dll", "TFLoader-fr.dll", "TFLoader-ge.dll"});
+		return "USSpecialForcesTeamFactorWidescreenFix";
+	}
 
-			std::string sDllName = Memory::GetModuleName(dllModule2);
-			
-			std::uint8_t* ResolutionStringScanResult = Memory::PatternScan(dllModule2, "31 32 38 30 20 78 20 31 30 32 34");
+	const char* FixVersion() const override
+	{
+		return "1.1";
+	}
+
+	const char* TargetName() const override
+	{
+		return "US Special Forces: Team Factor";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "tf.exe") ||
+		Util::stringcmp_caseless(exeName, "TFLoader.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "ZoomFactor", m_zoomFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntro", m_skipIntroVideo);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_zoomFactor);
+		spdlog_confparse(m_skipIntroVideo);
+	}
+
+	void ApplyFix() override
+	{
+		if (Util::stringcmp_caseless(ExeName(), "TFLoader.exe"))
+		{
+			m_tfLoaderDllModule = Memory::GetHandle({ "TFLoader-en.dll", "TFLoader-fr.dll", "TFLoader-ge.dll" });
+			m_tfLoaderDllModuleName = Memory::GetModuleName(m_tfLoaderDllModule);
+
+			auto ResolutionStringScanResult = Memory::PatternScan(m_tfLoaderDllModule, "31 32 38 30 20 78 20 31 30 32 34");
 			if (ResolutionStringScanResult)
 			{
-				spdlog::info("Resolution String Scan: Address is {}+{:x}", sDllName, ResolutionStringScanResult - (std::uint8_t*)dllModule2);
+				spdlog::info("Resolution String Scan: Address is {:s}+{:x}", m_tfLoaderDllModuleName.c_str(), ResolutionStringScanResult - (std::uint8_t*)m_tfLoaderDllModule);
 
-				if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 4)
+				if (Maths::digitCount(m_newResX) == 4 && Maths::digitCount(m_newResY) == 4)
 				{
-					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult, iCurrentResX);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
+					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult, m_newResX);
+					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, m_newResY);
 				}
-				
-				if (Maths::digitCount(iCurrentResX) == 4 && Maths::digitCount(iCurrentResY) == 3)
+
+				if (Maths::digitCount(m_newResX) == 4 && Maths::digitCount(m_newResY) == 3)
 				{
-					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult, iCurrentResX);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
-
+					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult, m_newResX);
+					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, m_newResY);
 					Memory::PatchBytes(ResolutionStringScanResult + 10, "\x00");
 				}
 
-				if (Maths::digitCount(iCurrentResX) == 3 && Maths::digitCount(iCurrentResY) == 3)
+				if (Maths::digitCount(m_newResX) == 3 && Maths::digitCount(m_newResY) == 3)
 				{
 					Memory::PatchBytes(ResolutionStringScanResult, "\x00");
-
-					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 1, iCurrentResX);
-
-					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, iCurrentResY);
-
+					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 1, m_newResX);
+					Memory::WriteNumberAsChar8Digits(ResolutionStringScanResult + 7, m_newResY);
 					Memory::PatchBytes(ResolutionStringScanResult + 10, "\x00");
 				}
 			}
@@ -249,49 +100,53 @@ void WidescreenFix()
 				spdlog::error("Failed to locate resolution string memory address.");
 				return;
 			}
+
+			if (m_skipIntroVideo == true)
+			{
+				auto SkipIntroVideoScanResult = Memory::PatternScan(ExeModule(), "FF D3 85 C0 74 ?? 8B 54 24");
+				if (SkipIntroVideoScanResult)
+				{
+					spdlog::info("Skip Intro Video Instruction: Address is {:s}+{:x}", ExeName().c_str(), ResolutionStringScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideoScanResult, "\x83\xC4\x28\xEB\x0E\x90");
+				}
+				else
+				{
+					spdlog::error("Failed to locate skip intro video instruction memory address.");
+					return;
+				}
+			}
 		}
 
-		if (eGameType == Game::USSFTF_GAME)
+		if (Util::stringcmp_caseless(ExeName(), "tf.exe"))
 		{
-			fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+			m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+			m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
 
-			fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-			std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "00 05 00 00 00 04 00 00 DB 0F 49 40 DB 0F 49 40 DB 0F", "00 05 00 00 00 04 00 00 90 A2 4A 00 B0 A2 4A 00", "00 05 00 00 BE 00 04 00 00 EB 0A BD 80");
-			if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+			auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "BD ?? ?? ?? ?? BE ?? ?? ?? ?? EB ?? BD ?? ?? ?? ?? BE ?? ?? ?? ?? EB ?? BD ?? ?? ?? ?? BE ?? ?? ?? ?? EB ?? BD ?? ?? ?? ?? BE ?? ?? ?? ?? EB ?? BD ?? ?? ?? ?? BE ?? ?? ?? ?? EB",
+			"00 05 00 00 00 04 00 00 DB 0F 49 40 DB 0F 49 40 DB 0F", "00 05 00 00 00 04 00 00 90 A2 4A 00 B0 A2 4A 00");
+			if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 			{
-				spdlog::info("Resolution 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution1Scan] - (std::uint8_t*)exeModule);
+				spdlog::info("Resolution List Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResList] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Res2] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Res3] - (std::uint8_t*)ExeModule());
 
-				spdlog::info("Resolution 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution2Scan] - (std::uint8_t*)exeModule);
-
-				spdlog::info("Resolution 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Resolution3Scan] - (std::uint8_t*)exeModule);
-								
-				Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan], iCurrentResX);
-
-				Memory::Write(ResolutionInstructionsScansResult[Resolution1Scan] + 4, iCurrentResY);
-
-				Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan], iCurrentResX);
-
-				Memory::Write(ResolutionInstructionsScansResult[Resolution2Scan] + 4, iCurrentResY);
-
-				Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan], iCurrentResX);
-
-				Memory::Write(ResolutionInstructionsScansResult[Resolution3Scan] + 5, iCurrentResY);
+				Memory::Write(ResolutionScansResult[ResList] + 49, m_newResX);
+				Memory::Write(ResolutionScansResult[ResList] + 54, m_newResY);
+				Memory::Write(ResolutionScansResult[Res2], m_newResX);
+				Memory::Write(ResolutionScansResult[Res2] + 4, m_newResY);
+				Memory::Write(ResolutionScansResult[Res3], m_newResX);
+				Memory::Write(ResolutionScansResult[Res3] + 4, m_newResY);
 			}
 
-			std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "DC 3D ?? ?? ?? ?? D9 5C 24");
-			if (AspectRatioInstructionScanResult)
+			auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "DC 3D ?? ?? ?? ?? D9 5C 24");
+			if (AspectRatioScanResult)
 			{
-				spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());				
 
-				Memory::WriteNOPs(AspectRatioInstructionScanResult, 6);
+				m_newAspectRatio2 = 1.0 / (double)m_aspectRatioScale;
 
-				dNewAspectRatio = 1.0 / (double)fAspectRatioScale;
-
-				AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					FPU::FDIVR(dNewAspectRatio);
-				});
+				Memory::Write(AspectRatioScanResult + 2, &m_newAspectRatio2);
 			}
 			else
 			{
@@ -299,43 +154,64 @@ void WidescreenFix()
 				return;
 			}
 
-			std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? D8 05 ?? ?? ?? ?? D9 5C 24 ?? D9 44 24");
-			if (CameraFOVInstructionScanResult)
+			auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D8 0D ?? ?? ?? ?? D8 05 ?? ?? ?? ?? D9 5C 24 ?? D9 44 24",
+			"D8 25 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? A1 ?? ?? ?? ?? 85 C0 75 ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? 89 44 24 ?? 85 C0 C7 44 24 ?? ?? ?? ?? ?? 74 ?? 8B C8 E8 ?? ?? ?? ?? EB ?? 33 C0 C7 44 24 ?? ?? ?? ?? ?? A3 ?? ?? ?? ?? 8B 8E",
+			"D8 25 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? E9",
+			"D8 25 ?? ?? ?? ?? D9 9E ?? ?? ?? ?? A1 ?? ?? ?? ?? 85 C0 75 ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? 89 44 24 ?? 85 C0 C7 44 24 ?? ?? ?? ?? ?? 74 ?? 8B C8 E8 ?? ?? ?? ?? EB ?? 33 C0 C7 44 24 ?? ?? ?? ?? ?? A3 ?? ?? ?? ?? 8B 96",
+			"D8 25 ?? ?? ?? ?? D8 9E");
+			if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 			{
-				spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+				spdlog::info("Hipfire FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Hipfire] - (std::uint8_t*)ExeModule());
+				spdlog::info("Zoom FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Zoom1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Zoom FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Zoom2] - (std::uint8_t*)ExeModule());
+				spdlog::info("Zoom FOV Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Zoom3] - (std::uint8_t*)ExeModule());
+				spdlog::info("Zoom FOV Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Zoom4] - (std::uint8_t*)ExeModule());
 
-				CameraFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionScanResult + 2, Memory::PointerMode::Absolute);
-
-				Memory::WriteNOPs(CameraFOVInstructionScanResult, 6);
-
-				CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
-				{
-					float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
-
-					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-					FPU::FMUL(fNewCameraFOV);
-				});
-			}
-			else
-			{
-				spdlog::error("Failed to locate camera FOV instruction memory address.");
-				return;
+				m_newHipfireFOV = m_originalHipfireFOV * m_fovFactor;
+				m_newTargetZoom = m_originalTargetZoom / m_zoomFactor;
+				Memory::Write(CameraFOVScansResult[Hipfire] + 2, &m_newHipfireFOV);
+				Memory::Write(CameraFOVScansResult, Zoom1, Zoom4, 2, &m_newTargetZoom);
 			}
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	HMODULE m_tfLoaderDllModule = nullptr;
+	std::string m_tfLoaderDllModuleName = "";
+
+	SafetyHookMid m_skipIntroVideoHook{};
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalHipfireFOV = 0.96f;
+	static constexpr float m_originalTargetZoom = 100.0f;
+
+	bool m_skipIntroVideo = false;
+
+	double m_newAspectRatio2 = 0.0f;
+	float m_zoomFactor = 0.0f;
+	float m_newHipfireFOV = 0.0f;
+	float m_newTargetZoom = 0.0f;
+
+	enum ResolutionInstructionsIndex
 	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
+		ResList,
+		Res2,
+		Res3
+	};
+
+	enum CameraFOVInstructionsIndex
+	{
+		Hipfire,
+		Zoom1,
+		Zoom2,
+		Zoom3,
+		Zoom4
+	};
+
+	inline static USSpecialForcesTeamFactorFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<USSpecialForcesTeamFactorFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -343,19 +219,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<USSpecialForcesTeamFactorFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
