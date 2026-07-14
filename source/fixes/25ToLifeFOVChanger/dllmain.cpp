@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -48,9 +48,12 @@ protected:
 	{
 		inipp::get_value(ini.sections["Settings"], "HipfireFOVFactor", m_hipfireFOVFactor);
 		inipp::get_value(ini.sections["Settings"], "ZoomFactor", m_zoomFactor);
-
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_hipfireFOVFactor);
 		spdlog_confparse(m_zoomFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -60,7 +63,6 @@ protected:
 		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
 		{
 			spdlog::info("Hipfire Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[Hipfire] - (std::uint8_t*)ExeModule());
-
 			spdlog::info("Zoom Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[Zoom] - (std::uint8_t*)ExeModule());
 
 			Memory::WriteNOPs(CameraFOVInstructionsScansResult, Hipfire, Zoom, 0, 3);
@@ -68,20 +70,49 @@ protected:
 			m_hipfireFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Hipfire], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentHipfireFOV = Memory::ReadMem(ctx.eax + 0x1C);
-
 				s_instance_->m_newHipfireFOV = fCurrentHipfireFOV * s_instance_->m_hipfireFOVFactor;
-
 				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newHipfireFOV);
 			});
 
 			m_zoomFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[Zoom], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentZoomFOV = Memory::ReadMem(ctx.eax + 0x1C);
-
 				s_instance_->m_newZoomFOV = fCurrentZoomFOV / s_instance_->m_zoomFactor;
-
 				FPU::FMUL(s_instance_->m_newZoomFOV);
 			});
+		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? FF D7");
+			if (RunMultipleInstancesScanResult)
+			{
+				spdlog::info("Run Multiple Instances Check Scan: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(RunMultipleInstancesScanResult, 6);
+				Memory::WriteNOPs(RunMultipleInstancesScanResult + 11, 6);
+			}
+			else
+			{
+				spdlog::error("Failed to locate run multiple instances check scan memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "6A ?? 68 ?? ?? ?? ?? 8D 4C 24 ?? C6 44 24");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x80\x00\x00\x00\x90\x90");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos scan memory address.");
+				return;
+			}
 		}
 	}
 
@@ -91,6 +122,9 @@ private:
 		Hipfire,
 		Zoom
 	};
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_hipfireFOVHook{};
 	SafetyHookMid m_zoomFOVHook{};
