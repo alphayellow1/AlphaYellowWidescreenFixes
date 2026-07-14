@@ -1,272 +1,189 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "TheMummyFOVFix";
-std::string sFixVersion = "1.5";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-constexpr int iOriginalCutscenesFOV = 1024;
-constexpr int iOriginalGameplayFOV = 683;
-
-// Ini variables
-bool bFixActive;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fOriginalCutscenesFOV;
-float fOriginalGameplayFOV;
-float fNewCutscenesFOV;
-float fNewGameplayFOV;
-int iNewCutscenesFOV;
-int iNewGameplayFOV;
-
-// Game detection
-enum class Game
+class TheMummyFix final : public FixBase
 {
-	TM,
-	Unknown
-};
-
-enum CameraFOVInstructionsIndex
-{
-	CutscenesFOV,
-	GameplayFOV
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::TM, {"The Mummy", "MummyPC.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit TheMummyFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(fFOVFactor);
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
+	~TheMummyFix() override
 	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid ResolutionInstructionsHook{};
-
-void SetARAndFOV()
-{
-	std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "D8 0D ?? ?? ?? ?? 89 44 24 ?? 8B 42");
-	if (AspectRatioInstructionScanResult)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-
-		Memory::Write(AspectRatioInstructionScanResult + 2, &fNewAspectRatio);
-	}
-	else
-	{
-		spdlog::error("Failed to locate aspect ratio instruction memory address.");
-		return;
+		return "TheMummyFOVFix";
 	}
 
-	std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? A3", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? E8 ?? ?? ?? ?? 8B CE");
-	if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+	const char* FixVersion() const override
 	{
-		spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[CutscenesFOV] - (std::uint8_t*)exeModule);
-
-		spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[GameplayFOV] - (std::uint8_t*)exeModule);
-
-		fOriginalCutscenesFOV = (float)iOriginalCutscenesFOV * 360.0f / 4096.0f;
-
-		fNewCutscenesFOV = Maths::CalculateNewFOV_DegBased(fOriginalCutscenesFOV, fAspectRatioScale);
-
-		iNewCutscenesFOV = (int)(fNewCutscenesFOV * 4096.0f / 360.0f);
-
-		fOriginalGameplayFOV = (float)iOriginalGameplayFOV * 360.0f / 4096.0f;
-
-		fNewGameplayFOV = Maths::CalculateNewFOV_DegBased(fOriginalGameplayFOV, fAspectRatioScale) * fFOVFactor;
-
-		iNewGameplayFOV = (int)(fNewGameplayFOV * 4096.0f / 360.0f);
-
-		Memory::Write(CameraFOVInstructionsScansResult[CutscenesFOV] + 1, iNewCutscenesFOV);
-
-		Memory::Write(CameraFOVInstructionsScansResult[GameplayFOV] + 1, iNewGameplayFOV);
+		return "1.6";
 	}
-}
 
-void FOVFix()
-{
-	if (eGameType == Game::TM && bFixActive == true)
-	{		
-		std::uint8_t* ResolutionInstructionsScanResult = Memory::PatternScan(exeModule, "8B 90 ?? ?? ?? ?? 8B 88 ?? ?? ?? ?? 89 15");
-		if (ResolutionInstructionsScanResult)
+	const char* TargetName() const override
+	{
+		return "The Mummy";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		// return InitMode::Direct;
+		return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "MummyPC.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 90 ?? ?? ?? ?? 8B 88 ?? ?? ?? ?? 89 15");
+		if (ResolutionScanResult)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-			static int hitCount = 0;
+			m_resolutionWidthOffset = Memory::GetPointerFromAddress(ResolutionScanResult + 8, Memory::PointerMode::Absolute);
+			m_resolutionHeightOffset = Memory::GetPointerFromAddress(ResolutionScanResult + 2, Memory::PointerMode::Absolute);
 
-			ResolutionInstructionsHook = safetyhook::create_mid(ResolutionInstructionsScanResult, [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
 			{
-				hitCount++;
+				s_instance_->hitCount++;
 
-				if (hitCount == 2)
+				if (s_instance_->hitCount == 2)
 				{
-					int& iCurrentWidth = Memory::ReadMem(ctx.eax + 0x004BB30C);
-
-					int& iCurrentHeight = Memory::ReadMem(ctx.eax + 0x004BB310);
-
-					fNewAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
-
-					fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
-
-					SetARAndFOV();
-
-					ResolutionInstructionsHook.disable();
+					int& iCurrentWidth = Memory::ReadMem(ctx.eax + s_instance_->m_resolutionWidthOffset);
+					int& iCurrentHeight = Memory::ReadMem(ctx.eax + s_instance_->m_resolutionHeightOffset);
+					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+					s_instance_->WriteStaticFOVs();
+					s_instance_->m_resolutionHook.disable();
 				}
 			});
 		}
-	}
-}
+		else
+		{
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
+			return;
+		}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
+		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "D8 0D ?? ?? ?? ?? 89 44 24 ?? 8B 42");
+		if (AspectRatioScanResult)
+		{
+			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScanResult - (std::uint8_t*)ExeModule());
+
+			Memory::WriteNOPs(AspectRatioScanResult, 6);
+
+			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
+			{
+				FPU::FMUL(s_instance_->m_newAspectRatio);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate aspect ratio instruction memory address.");
+			return;
+		}
+
+		CameraFOVScansResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? A3", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? E8 ?? ?? ?? ?? 8B CE");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
+		{
+			spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Cutscenes] - (std::uint8_t*)ExeModule());
+			spdlog::info("Gameplay Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay] - (std::uint8_t*)ExeModule());
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScansResult = Memory::PatternScan(ExeModule(), "6A ?? 68 ?? ?? ?? ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6A ?? 68 ?? ?? ?? ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6A ?? 68",
+			"6A ?? 68 ?? ?? ?? ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6A ?? E8 ?? ?? ?? ?? 59 C3 90 A1", "E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0", "68 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? E8");
+			if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+			{
+				spdlog::info("Skip Intro Videos: startup logo FMV sequence found at {:s}+{:x}", ExeName(), SkipIntroVideosScansResult[StartupLogoSequence] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Videos: ED_book_hi.bik playback found at {:s}+{:x}", ExeName(), SkipIntroVideosScansResult[BookIntro] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Videos: license1 image loader call found at {:s}+{:x}", ExeName(), SkipIntroVideosScansResult[LicenseImageLoader] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Videos: license image display duration found at {:s}+{:x}", ExeName(), SkipIntroVideosScansResult[LicenseDisplayDelay] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScansResult[StartupLogoSequence], "\xEB\x31");
+				Memory::PatchBytes(SkipIntroVideosScansResult[BookIntro], "\xEB\x0F");
+				Memory::WriteNOPs(SkipIntroVideosScansResult[LicenseImageLoader], 5);
+				Memory::Write(SkipIntroVideosScansResult[LicenseDisplayDelay] + 1, m_skippedDisplayDuration);
+			}
+		}		
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr int m_iOriginalCutscenesFOV = 1024;
+	static constexpr int m_iOriginalGameplayFOV = 683;
+	static constexpr float m_skippedDisplayDuration = 0.000001f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_aspectRatioHook{};
+
+	uintptr_t m_resolutionWidthOffset = 0;
+	uintptr_t m_resolutionHeightOffset = 0;
+
+	bool m_skipIntroVideos = false;
+
+	std::vector<std::uint8_t*> CameraFOVScansResult;
+
+	float m_fOriginalCutscenesFOV = 0.0f;
+	float m_fNewCutscenesFOV = 0.0f;
+	int m_iNewCutscenesFOV = 0;
+	float m_fOriginalGameplayFOV = 0.0f;
+	float m_fNewGameplayFOV = 0.0f;
+	int m_iNewGameplayFOV = 0;
+
+	int hitCount = 0;
+
+	enum CameraFOVInstructionsIndex
+	{
+		Cutscenes,
+		Gameplay
+	};
+
+	enum SkipIntroLogosIndex
+	{
+		StartupLogoSequence,
+		BookIntro,
+		LicenseImageLoader,
+		LicenseDisplayDelay
+	};
+
+	void WriteStaticFOVs()
+	{
+		m_fOriginalCutscenesFOV = (float)m_iOriginalCutscenesFOV * 360.0f / 4096.0f;
+		m_fNewCutscenesFOV = Maths::CalculateNewFOV_DegBased(m_fOriginalCutscenesFOV, m_aspectRatioScale);
+		m_iNewCutscenesFOV = (int)(m_fNewCutscenesFOV * 4096.0f / 360.0f);
+
+		m_fOriginalGameplayFOV = (float)m_iOriginalGameplayFOV * 360.0f / 4096.0f;
+		m_fNewGameplayFOV = Maths::CalculateNewFOV_DegBased(m_fOriginalGameplayFOV, m_aspectRatioScale) * m_fovFactor;
+		m_iNewGameplayFOV = (int)(m_fNewGameplayFOV * 4096.0f / 360.0f);
+
+		Memory::Write(CameraFOVScansResult[Cutscenes] + 1, m_iNewCutscenesFOV);
+		Memory::Write(CameraFOVScansResult[Gameplay] + 1, m_iNewGameplayFOV);
+	}
+
+	inline static TheMummyFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<TheMummyFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
@@ -274,19 +191,24 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 	case DLL_PROCESS_ATTACH:
 	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
-		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
-		}
+		DisableThreadLibraryCalls(hModule);
+		g_fix = std::make_unique<TheMummyFix>(hModule);
+		g_fix->Start();
 		break;
 	}
+
+	case DLL_PROCESS_DETACH:
+	{
+		g_fix->Shutdown();
+		g_fix.reset();
+		break;
+	}
+
 	case DLL_THREAD_ATTACH:
 	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
+	default:
 		break;
 	}
+
 	return TRUE;
 }
