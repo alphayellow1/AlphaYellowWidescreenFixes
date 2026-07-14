@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.3";
 	}
 
 	const char* TargetName() const override
@@ -49,12 +49,16 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);		
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
 		spdlog_confparse(m_newResX);
 		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -138,12 +142,49 @@ protected:
 				s_instance_->CameraFOVMidHook(ctx.ecx + 0xC0, EDX, ctx);
 			});
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "75 ?? 50 FF 15 ?? ?? ?? ?? C7 05");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideoScanResult = Memory::PatternScan(ExeModule(), "E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6A ?? 32 DB", "72 ?? E8 ?? ?? ?? ?? E8", "0F B6 44 24 ?? 83 E8",
+			"E8 ?? ?? ?? ?? 6A ?? E8 ?? ?? ?? ?? 6A ?? 6A ?? 6A ?? E8 ?? ?? ?? ?? 83 C4 ?? 5F");
+			if (Memory::AreAllSignaturesValid(SkipIntroVideoScanResult) == true)
+			{
+				spdlog::info("Acclaim Intro Video Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[AcclaimVid] - (std::uint8_t*)ExeModule());
+				spdlog::info("Legal Screen Timer Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[LegalScreenTimerCheck] - (std::uint8_t*)ExeModule());
+				spdlog::info("Gusto Games Image Fade/Loop Logic Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[GustoGamesLoop] - (std::uint8_t*)ExeModule());
+				spdlog::info("UFIntro Video Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[UFIntro] - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(SkipIntroVideoScanResult[AcclaimVid], 5);
+				Memory::WriteNOPs(SkipIntroVideoScanResult[LegalScreenTimerCheck], 2);
+				Memory::PatchBytes(SkipIntroVideoScanResult[GustoGamesLoop], "\xE9\xAC\x00\x00\x00");
+				Memory::WriteNOPs(SkipIntroVideoScanResult[UFIntro], 5);
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 
 	uint32_t m_newCameraFOV = 0;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_cameraFOV1Hook{};
 	SafetyHookMid m_cameraFOV2Hook{};
@@ -170,6 +211,14 @@ private:
 		FOV1,
 		FOV2,
 		FOV3
+	};
+
+	enum SkipIntroVideosInstructionsIndex
+	{
+		AcclaimVid,
+		LegalScreenTimerCheck,
+		GustoGamesLoop,
+		UFIntro
 	};
 
 	enum DestInstruction
