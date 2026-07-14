@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.4.1";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -86,7 +88,6 @@ protected:
 			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_newAspectRatio2 = 0.75f / s_instance_->m_aspectRatioScale;
-
 				FPU::FMUL(s_instance_->m_newAspectRatio2);
 			});
 		}
@@ -130,10 +131,31 @@ protected:
 				s_instance_->CameraFOVMidHook(s_instance_->m_cameraFOV1Address, s_instance_->m_fovFactor);
 			});
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScansResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? E9 ?? ?? ?? ?? E8",
+			"0F 84 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? E9 ?? ?? ?? ?? A1", "E8 ?? ?? ?? ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 6A ?? E8",
+			"72 ?? 38 1D ?? ?? ?? ?? 0F 84");
+			if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+			{
+				spdlog::info("Skip Intro Videos Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[RDLogoPlayback] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Videos Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[YFIntroPlayback] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Videos Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[DisclaimerDisplay] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Videos Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[IntroDelayLoop] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScansResult[RDLogoPlayback], "\xE9\xB9\x01\x00\x00\x90");
+				Memory::PatchBytes(SkipIntroVideosScansResult[YFIntroPlayback], "\xE9\x45\x01\x00\x00\x90");
+				Memory::WriteNOPs(SkipIntroVideosScansResult[DisclaimerDisplay], 5);
+				Memory::WriteNOPs(SkipIntroVideosScansResult[IntroDelayLoop], 2);
+			}
+		}		
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_skipIntroVideos = false;
 
 	enum ResolutionInstructionsIndices
 	{
@@ -147,6 +169,14 @@ private:
 		FOV2,
 		FOV3,
 		FOV4
+	};
+
+	enum LogoInstructionsIndices
+	{
+		RDLogoPlayback,
+		YFIntroPlayback,
+		DisclaimerDisplay,
+		IntroDelayLoop
 	};
 
 	SafetyHookMid m_resolution1Hook{};
