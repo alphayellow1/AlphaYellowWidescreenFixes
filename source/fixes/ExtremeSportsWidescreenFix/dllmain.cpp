@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.5";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -49,12 +49,16 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
 		spdlog_confparse(m_newResX);
 		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -70,7 +74,6 @@ protected:
 			// 800x600
 			Memory::Write(ResolutionListScanResult + 6, m_newResX);
 			Memory::Write(ResolutionListScanResult + 16, m_newResY);
-
 			// 640x480
 			Memory::Write(ResolutionListScanResult + 28, m_newResX);
 			Memory::Write(ResolutionListScanResult + 38, m_newResY);
@@ -124,12 +127,51 @@ protected:
 
 			Memory::Write(m_gameplayFOVAddress, m_newGameplayFOV);
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 8B 35 ?? ?? ?? ?? FF D6");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(RunMultipleInstancesCheckScanResult, 6);
+				Memory::WriteNOPs(RunMultipleInstancesCheckScanResult + 19, 6);
+				Memory::WriteNOPs(RunMultipleInstancesCheckScanResult + 30, 6);
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideoScanResult = Memory::PatternScan(ExeModule(), "E8 ?? ?? ?? ?? 83 C4 ?? 84 C0 0F 85 ?? ?? ?? ?? 68", "0F 85 ?? ?? ?? ?? E9 ?? ?? ?? ?? D9 86",
+			"0F 84 ?? ?? ?? ?? EB ?? 39 9E", "75 ?? 89 9E ?? ?? ?? ?? 8B 8E");
+			if (Memory::AreAllSignaturesValid(SkipIntroVideoScanResult) == true)
+			{
+				spdlog::info("Skip intro movie update call: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[MovieUpdateCall] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip intro fade-in wait branch: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[FadeInWaitBranch] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip intro fade-out wait branch: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[FadeOutWaitBranch] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip intro timed-image wait branch: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[TimedImageWaitBranch] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideoScanResult[MovieUpdateCall], "\x30\xC0\x90\x90\x90");
+				Memory::PatchBytes(SkipIntroVideoScanResult[FadeInWaitBranch], "\x90\x90\x90\x90\x90\x90");
+				Memory::PatchBytes(SkipIntroVideoScanResult[FadeOutWaitBranch], "\x90\x90\x90\x90\x90\x90");
+				Memory::PatchBytes(SkipIntroVideoScanResult[TimedImageWaitBranch], "\x90\x90");
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalAspectRatio = 4.0f;
 	static constexpr float m_originalGameplayFOV = 1.4281479f;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_generalFOVHook{};
@@ -138,6 +180,14 @@ private:
 	{
 		General,
 		Gameplay
+	};
+
+	enum SkipIntroPatchIndex
+	{
+		MovieUpdateCall,
+		FadeInWaitBranch,
+		FadeOutWaitBranch,
+		TimedImageWaitBranch
 	};
 
 	uintptr_t m_gameplayFOVAddress = 0;
