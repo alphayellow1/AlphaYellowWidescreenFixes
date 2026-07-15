@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.4";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -47,7 +47,11 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -64,41 +68,71 @@ protected:
 			});
 		}
 
-		auto CameraFOVInstructionsScansResult = Memory::PatternScan(ExeModule(), "D9 02 DE CB D9 CA", "D9 45 ?? D9 45 ?? D9 05 ?? ?? ?? ?? D9 05", "D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? DD 84 24");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D9 02 DE CB D9 CA", "D9 45 ?? D9 45 ?? D9 05 ?? ?? ?? ?? D9 05", "D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D9 05 ?? ?? ?? ?? DD 84 24");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("General Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[GeneralFOV] - (std::uint8_t*)ExeModule());
+			spdlog::info("General Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[GeneralFOV] - (std::uint8_t*)ExeModule());
+			spdlog::info("Min Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[MinFOV] - (std::uint8_t*)ExeModule());
+			spdlog::info("Max Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[MaxFOV] - (std::uint8_t*)ExeModule());
 
-			spdlog::info("Min Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[MinFOV] - (std::uint8_t*)ExeModule());
+			Memory::WriteNOPs(CameraFOVScansResult[GeneralFOV], 2);
 
-			spdlog::info("Max Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[MaxFOV] - (std::uint8_t*)ExeModule());
-
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[GeneralFOV], 2);
-
-			m_generalFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[GeneralFOV], [](SafetyHookContext& ctx)
+			m_generalFOVHook = safetyhook::create_mid(CameraFOVScansResult[GeneralFOV], [](SafetyHookContext& ctx)
 			{
 				s_instance_->CameraFOVInstructionsMidHook(ctx.edx, 1.0f, s_instance_->m_aspectRatioScale, ctx);
 			});
 
 			// During races, minimum FOV is 70 and maximum is 125 in 4:3
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MinFOV], 3);
+			Memory::WriteNOPs(CameraFOVScansResult[MinFOV], 3);
 
-			m_minimumFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MinFOV], [](SafetyHookContext& ctx)
+			m_minimumFOVHook = safetyhook::create_mid(CameraFOVScansResult[MinFOV], [](SafetyHookContext& ctx)
 			{
 				s_instance_->CameraFOVInstructionsMidHook(ctx.ebp + 0x54, s_instance_->m_fovFactor, 1.0f, ctx);
 			});
 
-			MaxFOVAddress = Memory::GetPointerFromAddress(CameraFOVInstructionsScansResult[MaxFOV] + 2, Memory::PointerMode::Absolute);
+			m_maxFOVAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[MaxFOV] + 2, Memory::PointerMode::Absolute);
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[MaxFOV], 6);
+			Memory::WriteNOPs(CameraFOVScansResult[MaxFOV], 6);
 
-			m_maxFOVHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[MaxFOV], [](SafetyHookContext& ctx)
+			m_maxFOVHook = safetyhook::create_mid(CameraFOVScansResult[MaxFOV], [](SafetyHookContext& ctx)
 			{
-				s_instance_->CameraFOVInstructionsMidHook(s_instance_->MaxFOVAddress, s_instance_->m_fovFactor, 1.0f, ctx);
+				s_instance_->CameraFOVInstructionsMidHook(s_instance_->m_maxFOVAddress, s_instance_->m_fovFactor, 1.0f, ctx);
 			});
 		}
-	}
 
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 6A");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(RunMultipleInstancesCheckScanResult, 2);
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideoScanResult = Memory::PatternScan(ExeModule(), "E8 ?? ?? ?? ?? 8B C8 8D 44 24 ?? 55");
+			if (SkipIntroVideoScanResult)
+			{
+				spdlog::info("Startup Intro Video Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideoScanResult, "\xE9\x0C\x00\x00\x00");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}		
+	}
+	
 private:
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_generalFOVHook{};
@@ -107,7 +141,10 @@ private:
 
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 
-	uintptr_t MaxFOVAddress = 0;
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
+
+	uintptr_t m_maxFOVAddress = 0;
 
 	enum CameraFOVInstructionsIndices
 	{
@@ -119,9 +156,7 @@ private:
 	void CameraFOVInstructionsMidHook(uintptr_t SourceAddress, float fovFactor, float arScale, SafetyHookContext& ctx)
 	{
 		float& fCurrentCameraFOV = Memory::ReadMem(SourceAddress);
-
 		m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, arScale) * fovFactor;
-
 		FPU::FLD(m_newCameraFOV);
 	}
 
@@ -132,29 +167,27 @@ static std::unique_ptr<DromeRacersFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<DromeRacersFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<DromeRacersFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
