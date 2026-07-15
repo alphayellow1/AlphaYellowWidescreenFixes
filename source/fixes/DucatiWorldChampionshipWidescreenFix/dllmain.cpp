@@ -122,10 +122,10 @@ protected:
 			{
 				spdlog::info("Startup Logo Post-Init Instruction: Address is {:s}+{:x}", ExeName().c_str(), StartupLogoPostInit - reinterpret_cast<std::uint8_t*>(ExeModule()));
 
-				m_startupLogoSkipHook = safetyhook::create_mid(StartupLogoPostInit + 4, [](SafetyHookContext& ctx)
+				m_startupLogoSkipHook = safetyhook::create_mid(StartupLogoPostInit + 8, [](SafetyHookContext& ctx)
 				{
-					auto wrapper = reinterpret_cast<std::uint8_t*>(ctx.esi);
-					auto movie = *reinterpret_cast<std::uint8_t**>(wrapper + 0x68);
+					auto* wrapper = reinterpret_cast<std::uint8_t*>(ctx.esi);
+					auto* movie = *reinterpret_cast<std::uint8_t**>(wrapper + 0x68);
 					*reinterpret_cast<std::uint32_t*>(wrapper + 0x6C) = 0;
 
 					if (movie != nullptr)
@@ -135,10 +135,17 @@ protected:
 					}
 				});
 			}
+			else
+			{
+				spdlog::error("Failed to locate startup logo post-ini instruction memory address.");
+				return;
+			}
 		}		
 	}
 
 private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_cameraFOV1Hook{};
 	SafetyHookMid m_cameraFOV2Hook{};
@@ -146,8 +153,7 @@ private:
 	SafetyHookMid m_startupLogoSkipHook{};
 
 	bool m_skipIntroVideos = false;
-
-	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	
 	float m_newBikeSelectionAspectRatio = 0.0f;
 
 	uint8_t* BikeSelectionAspectRatioScanResult;

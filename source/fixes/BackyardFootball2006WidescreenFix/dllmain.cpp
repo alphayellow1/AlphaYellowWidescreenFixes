@@ -277,7 +277,7 @@ void WidescreenFix()
 					fNewHUDHorizontalRes = fCurrentHUDHorizontalRes;
 				}				
 
-				Memory::ReadMem(ctx.esi + 0x68) = fNewHUDHorizontalRes;
+				*reinterpret_cast<float*>(ctx.esi + 0x68) = fNewHUDHorizontalRes;
 			});
 		}
 		else
