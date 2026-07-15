@@ -1,14 +1,14 @@
 #include "..\..\common\FixBase.hpp"
 
-class DucatiWCFix final : public FixBase
+class DucatiWorldChampionshipFix final : public FixBase
 {
 public:
-	explicit DucatiWCFix(HMODULE selfModule) : FixBase(selfModule)
+	explicit DucatiWorldChampionshipFix(HMODULE selfModule) : FixBase(selfModule)
 	{
 		s_instance_ = this;
 	}
 
-	~DucatiWCFix() override
+	~DucatiWorldChampionshipFix() override
 	{
 		if (s_instance_ == this)
 		{
@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.3";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -55,20 +57,19 @@ protected:
 		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "8B 4C 24 ?? 81 F9 ?? ?? ?? ?? 56", "8B 0A 89 0D ?? ?? ?? ?? 8B 4A");
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
 
-			Memory::PatchBytes(ResolutionScansResult[ResListUnlock], "\xB8\x01\x00\x00\x00\xC3"); // mov eax,01; ret -> this means every resolution passes the validation check, EAX is a boolean value in this case
+			Memory::PatchBytes(ResolutionScansResult[ListUnlock], "\xB8\x01\x00\x00\x00\xC3"); // mov eax,01; ret -> this means every resolution passes the validation check, EAX is a boolean value in this case
 
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 6, 115); // NOPing out the rest of the function, since it's just useless
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 6, 115); // NOPing out the rest of the function, since it's just useless
 
-			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
 			{
 				int& iCurrentWidth = Memory::ReadMem(ctx.edx);
 				int& iCurrentHeight = Memory::ReadMem(ctx.edx + 0x4);
 				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
-
 				s_instance_->WriteAR();
 			});
 		}
@@ -89,9 +90,7 @@ protected:
 		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
 			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV1] - (std::uint8_t*)ExeModule());
-
 			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV2] - (std::uint8_t*)ExeModule());
-
 			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV3] - (std::uint8_t*)ExeModule());
 
 			Memory::WriteNOPs(CameraFOVScansResult[FOV1], 6);
@@ -115,6 +114,28 @@ protected:
 				s_instance_->CameraFOVMidHook(ctx.esi + 0x1E0, EAX, ctx);
 			});
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto StartupLogoPostInit = Memory::PatternScan(ExeModule(), "89 46 68 E8 ?? ?? ?? ?? 8B 4C 24 ?? 5F 8B C6");
+			if (StartupLogoPostInit)
+			{
+				spdlog::info("Startup Logo Post-Init Instruction: Address is {:s}+{:x}", ExeName().c_str(), StartupLogoPostInit - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+				m_startupLogoSkipHook = safetyhook::create_mid(StartupLogoPostInit + 4, [](SafetyHookContext& ctx)
+				{
+					auto wrapper = reinterpret_cast<std::uint8_t*>(ctx.esi);
+					auto movie = *reinterpret_cast<std::uint8_t**>(wrapper + 0x68);
+					*reinterpret_cast<std::uint32_t*>(wrapper + 0x6C) = 0;
+
+					if (movie != nullptr)
+					{
+						movie[0x45] = 1;
+						movie[0x47] = 1;
+					}
+				});
+			}
+		}		
 	}
 
 private:
@@ -122,6 +143,9 @@ private:
 	SafetyHookMid m_cameraFOV1Hook{};
 	SafetyHookMid m_cameraFOV2Hook{};
 	SafetyHookMid m_cameraFOV3Hook{};
+	SafetyHookMid m_startupLogoSkipHook{};
+
+	bool m_skipIntroVideos = false;
 
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	float m_newBikeSelectionAspectRatio = 0.0f;
@@ -130,8 +154,8 @@ private:
 
 	enum ResolutionInstructionsIndices
 	{
-		ResListUnlock,
-		ResWidthHeight
+		ListUnlock,
+		WidthHeight
 	};	
 
 	void WriteAR()
@@ -162,35 +186,39 @@ private:
 
 		switch (DestInstruction)
 		{
-		case FLD:
-			FPU::FLD(m_newCameraFOV);
-			break;
+			case FLD:
+			{
+				FPU::FLD(m_newCameraFOV);
+				break;
+			}
 
-		case EAX:
-			ctx.eax = std::bit_cast<uintptr_t>(m_newCameraFOV);
-			break;
+			case EAX:
+			{
+				ctx.eax = std::bit_cast<uintptr_t>(m_newCameraFOV);
+				break;
+			}
 
-		case ECX:
-			ctx.ecx = std::bit_cast<uintptr_t>(m_newCameraFOV);
-			break;
+			case ECX:
+			{
+				ctx.ecx = std::bit_cast<uintptr_t>(m_newCameraFOV);
+				break;
+			}
 		}
 	}
 
-	inline static DucatiWCFix* s_instance_ = nullptr;
+	inline static DucatiWorldChampionshipFix* s_instance_ = nullptr;
 };
 
-static std::unique_ptr<DucatiWCFix> g_fix;
+static std::unique_ptr<DucatiWorldChampionshipFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
 	{
 		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<DucatiWCFix>(hModule);
+		g_fix = std::make_unique<DucatiWorldChampionshipFix>(hModule);
 		g_fix->Start();
 		break;
 	}
