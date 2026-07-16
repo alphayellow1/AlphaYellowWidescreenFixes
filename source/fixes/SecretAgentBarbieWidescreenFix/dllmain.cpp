@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.5";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -49,12 +49,16 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 
-		FallbackToDesktopResolution(m_newResX, m_newResY);
+		FallbackToDesktopResolution(m_newResX, m_newResY);		
 
 		spdlog_confparse(m_newResX);
 		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -135,19 +139,53 @@ protected:
 				s_instance_->GameplayFOVMidHook(ctx.ecx + 0xB0);
 			});
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 56 FF 15 ?? ?? ?? ?? 85 C0");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? A3 ?? ?? ?? ?? 8B 10 8B C8 FF 52 ?? 8B 0D ?? ?? ?? ?? 8B 01 FF 50 ?? 8B 0D");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::Write(SkipIntroVideosScanResult + 1, m_mainMenuMode);
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos instruction memory address");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalOutfitSelectionAR = 0.9710000157f;
+	const char* m_mainMenuMode = "MENUS";
 
 	float m_newOutfitSelectionAR = 0.0f;
-
 	float m_newOverallCameraFOV = 0.0f;
-
 	float m_gameplayOriginalFOV = 0.0f;
 	float m_gameplayModifiedFOV = 0.0f;
 	bool m_hasGameplayFOV = false;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_overallFOVHook{};
 	SafetyHookMid m_gameplayFOVHook{};
@@ -179,9 +217,7 @@ private:
 	void OverallFOVMidHook(uintptr_t fovAddress)
 	{
 		float& fCurrentCameraFOV = Memory::ReadMem(fovAddress);
-
 		m_newOverallCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale);
-
 		FPU::FLD(m_newOverallCameraFOV);
 	}
 
@@ -191,10 +227,7 @@ private:
 
 		constexpr float epsilon = 0.001f;
 
-		// If the current value is not just our previously modified value,
-		// treat it as a new genuine game FOV.
-		if (!m_hasGameplayFOV ||
-			std::fabs(fCurrentCameraFOV - m_gameplayModifiedFOV) > epsilon)
+		if (!m_hasGameplayFOV || std::fabs(fCurrentCameraFOV - m_gameplayModifiedFOV) > epsilon)
 		{
 			m_gameplayOriginalFOV = fCurrentCameraFOV;
 			m_hasGameplayFOV = true;
