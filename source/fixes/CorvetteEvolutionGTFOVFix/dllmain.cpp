@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.4";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -47,7 +47,11 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -169,10 +173,52 @@ protected:
 				s_instance_->CameraFOVMidHook(s_instance_->m_startingCutsceneAddress, FMUL, ctx);
 			});
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 6A ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());				
+
+				Memory::PatchBytes((uint8_t*)0x0041E104, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideoScanResult = Memory::PatternScan(ExeModule(), "C7 41 ?? ?? ?? ?? ?? C6 41 ?? ?? C6 41 ?? ?? C6 41 ?? ?? C6 41 ?? ?? FF 52 ?? 8B 4C 24 ?? 6A ?? 6A ?? 51",
+			"C7 41 44 ?? ?? ?? ?? C6 41 4A 01 C6 41 48 01 C6 41 49 01 C6 41 4B 01 FF 50 20 8B 44 24 40", "C7 41 ?? ?? ?? ?? ?? C6 41 ?? ?? C6 41 ?? ?? C6 41 ?? ?? FF 52",
+			"C7 41 44 ?? ?? ?? ?? C6 41 4A 01 C6 41 48 01 C6 41 49 01 C6 41 4B 01 FF 50 20 8B 44 24 50",
+			"8B 54 24 ?? 8B 4C 24 ?? 6A ?? 6A ?? 52 6A ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 4C 24 ?? 8B 07 51 8B CF FF 50 ?? 8B 54 24 ?? 8B 4C 24 ?? 6A ?? 6A ?? 52 6A ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 44 24");
+			if (Memory::AreAllSignaturesValid(SkipIntroVideoScanResult) == true)
+			{
+				spdlog::info("Black Bea Logo Intro Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[BlackBeaPss] - (std::uint8_t*)ExeModule());
+				spdlog::info("Milestone Logo Intro Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[MilestonePss] - (std::uint8_t*)ExeModule());
+				spdlog::info("Renderware Logo Intro Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[RenderwarePss] - (std::uint8_t*)ExeModule());
+				spdlog::info("Intro Video Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[IntroPss] - (std::uint8_t*)ExeModule());
+				spdlog::info("Legal Screen Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideoScanResult[LegalScreen] - (std::uint8_t*)ExeModule());
+
+				Memory::Write(SkipIntroVideoScanResult[BlackBeaPss] + 3, m_newFilename);
+				Memory::Write(SkipIntroVideoScanResult[MilestonePss] + 3, m_newFilename);
+				Memory::Write(SkipIntroVideoScanResult[RenderwarePss] + 3, m_newFilename);
+				Memory::Write(SkipIntroVideoScanResult[IntroPss] + 3, m_newFilename);
+				Memory::PatchBytes(SkipIntroVideoScanResult[LegalScreen] + 3, "\x14");
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	const char* m_newFilename = "new.pss";
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_windowedHook{};
@@ -210,6 +256,15 @@ private:
 		Gameplay,
 		StartingCutscene1,
 		StartingCutscene2
+	};
+
+	enum SkipIntroVideosInstructionsIndex
+	{
+		BlackBeaPss,
+		MilestonePss,
+		RenderwarePss,
+		IntroPss,
+		LegalScreen
 	};
 
 	uint8_t m_isWindowedOn = 0;
