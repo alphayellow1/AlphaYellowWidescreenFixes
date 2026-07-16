@@ -23,6 +23,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{247b9adf-9098-49ea-bcf9-3c22dcd8de89}</ProjectGuid>
     <RootNamespace>MotorM4XOffroadExtremeFOVFix</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

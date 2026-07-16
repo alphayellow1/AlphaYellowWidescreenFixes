@@ -23,6 +23,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{759066e8-4e0b-4f4a-922a-d179c096c286}</ProjectGuid>
     <RootNamespace>IronAcesHeroesOfWWIIFOVFix</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

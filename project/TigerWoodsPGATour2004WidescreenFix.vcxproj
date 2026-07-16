@@ -23,6 +23,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{51981a70-b553-4bf8-bde9-d5a764f07144}</ProjectGuid>
     <RootNamespace>TigerWoodsPGATour2004WidescreenFix</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

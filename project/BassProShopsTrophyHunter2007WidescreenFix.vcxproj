@@ -23,6 +23,7 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{b9a4909c-23e1-4e7c-9cb9-b923c289ee71}</ProjectGuid>
     <RootNamespace>BassProShopsTrophyHunter2007WidescreenFix</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
