@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -41,14 +41,16 @@ protected:
 
 	bool IsCompatibleExecutable(const std::string& exeName) const override
 	{
-		return Util::stringcmp_caseless(exeName, "Game.exe") || 
-		Util::stringcmp_caseless(exeName, "InitVid.exe");
+		return Util::stringcmp_caseless(exeName, "InitVid.exe") ||
+		Util::stringcmp_caseless(exeName, "Game.exe");
 	}
 
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -141,6 +143,22 @@ protected:
 					FPU::FLD(s_instance_->m_newCameraFOV7);
 				});
 			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "C7 05 ?? ?? ?? ?? ?? ?? ?? ?? 90");
+				if (SkipIntroVideosScanResult)
+				{
+					spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScanResult + 10, "\xE9\x8A\x00\x00\x00\x90");
+				}
+				else
+				{
+					spdlog::error("Failed to locate skip intro videos instruction memory address.");
+					return;
+				}
+			}			
 		}
 	}
 
@@ -149,6 +167,9 @@ private:
 	std::string m_x3dDllModuleName = "";
 
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr int m_newMovieState = 0;
+
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_cameraFOV1Hook{};
