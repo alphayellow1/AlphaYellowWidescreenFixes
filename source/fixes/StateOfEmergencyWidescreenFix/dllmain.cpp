@@ -122,9 +122,7 @@ protected:
 			m_newCameraFOV2 = 900.0f / m_fovFactor;
 
 			Memory::Write(CameraFOVScansResult[FOV1] + 1, m_newCameraFOV1);
-
 			Memory::Write(CameraFOVScansResult[FOV2] + 1, m_newCameraFOV1);
-
 			Memory::Write(CameraFOVScansResult[FOV3] + 1, m_newCameraFOV2);			
 		}
 
