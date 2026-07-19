@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.4";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -51,12 +51,16 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);		
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
 		spdlog_confparse(m_newResX);
 		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -69,12 +73,12 @@ protected:
 
 		if (ResolutionScan1Result != nullptr)
 		{
-			m_gameVersion = BS_ORIGINAL;
+			m_gameVersion = ORIGINAL;
 			ResolutionScanResult = ResolutionScan1Result;
 		}
 		else if (ResolutionScan2Result != nullptr)
 		{
-			m_gameVersion = BS_GOTY;
+			m_gameVersion = GOTY;
 			ResolutionScanResult = ResolutionScan2Result;
 		}
 
@@ -82,14 +86,14 @@ protected:
 		{
 			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
 
-			if (m_gameVersion == BS_ORIGINAL)
+			if (m_gameVersion == ORIGINAL)
 			{
 				// 640x480
 				Memory::Write(ResolutionScanResult + 4, m_newResX);
 
 				Memory::Write(ResolutionScanResult + 12, m_newResY);
 			}
-			else if (m_gameVersion == BS_GOTY)
+			else if (m_gameVersion == GOTY)
 			{
 				// 640x480
 				Memory::Write(ResolutionScanResult + 4, m_newResX);
@@ -106,11 +110,11 @@ protected:
 			return;
 		}
 
-		if (m_gameVersion == BS_ORIGINAL)
+		if (m_gameVersion == ORIGINAL)
 		{
 			CameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 46 ?? 83 C4 ?? 68");
 		}
-		else if (m_gameVersion == BS_GOTY)
+		else if (m_gameVersion == GOTY)
 		{
 			CameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 4E ?? 83 C4 ?? 50 51");
 		}
@@ -128,13 +132,13 @@ protected:
 
 				switch (s_instance_->m_gameVersion)
 				{
-					case BS_ORIGINAL:
+					case ORIGINAL:
 					{
 						ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV);
 						break;
 					}
 
-					case BS_GOTY:
+					case GOTY:
 					{
 						ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV);
 						break;
@@ -167,6 +171,67 @@ protected:
 			spdlog::error("Failed to locate HUD horizontal resolution instruction memory address.");
 			return;
 		}
+
+		if (m_gameVersion == ORIGINAL)
+		{
+			auto DiscCheckScanResult = Memory::PatternScan(ExeModule(), "84 C0 88 86 ?? ?? ?? ?? 0F 85");
+			if (DiscCheckScanResult)
+			{
+				spdlog::info("Disc Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), DiscCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(DiscCheckScanResult, "\xB0\x01");
+			}
+			else
+			{
+				spdlog::error("Failed to locate disc check instruction memory address");
+				return;
+			}
+		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "75 ?? 6A ?? 68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 8B F0");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 8D 49 ?? 8B 46");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Startup Intro Videos Skip Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				switch (m_gameVersion)
+				{
+					case ORIGINAL:
+					{
+						Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x65\x01\x00\x00\x90");
+						break;
+					}
+
+					case GOTY:
+					{
+						Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x66\x01\x00\x00\x90");
+						break;
+					}
+				}				
+			}
+			else
+			{
+				spdlog::error("Failed to locate startup intro videos skip instruction memory address.");
+				return;
+			}
+		}
 	}
 
 private:
@@ -174,6 +239,9 @@ private:
 
 	SafetyHookMid m_cameraFOVHook{};
 	SafetyHookMid m_hudHorizontalResHook{};
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	uint8_t* ResolutionScanResult = nullptr;
 	uint8_t* ResolutionScan1Result = nullptr;
@@ -185,8 +253,8 @@ private:
 
 	enum GameVersions
 	{
-		BS_ORIGINAL,
-		BS_GOTY
+		ORIGINAL,
+		GOTY
 	};
 
 	inline static BackyardSkateboardingFix* s_instance_ = nullptr;
@@ -198,25 +266,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<BackyardSkateboardingFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<BackyardSkateboardingFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
