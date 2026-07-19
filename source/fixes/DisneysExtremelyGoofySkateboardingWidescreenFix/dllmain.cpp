@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -50,7 +50,8 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
 		inipp::get_value(ini.sections["Settings"], "Framerate", m_newFramerate);
-		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_bSkipIntroVideos);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
@@ -58,7 +59,8 @@ protected:
 		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
 		spdlog_confparse(m_newFramerate);
-		spdlog_confparse(m_bSkipIntroVideos);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -122,7 +124,23 @@ protected:
 			Memory::Write(CameraFOVScansResult[Gameplay] + 1, m_newGameplayFOV);
 		}
 
-		if (m_bSkipIntroVideos == true)
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "75 ?? 5F B8 ?? ?? ?? ?? 5E");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Run Multiple Instances Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instances check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
 		{
 			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 85 ?? ?? ?? ?? 50 A1");
 			if (SkipIntroVideosScanResult)
@@ -145,7 +163,8 @@ private:
 
 	float m_newFramerate = 0.0f;
 	float m_newFrameDelta = 0.0f;
-	bool m_bSkipIntroVideos;
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	float m_newGeneralFOV = 0.0f;
 	float m_newGameplayFOV = 0.0f;
