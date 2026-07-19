@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -49,12 +49,14 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroLogos", m_skipIntroLogos);
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
 		spdlog_confparse(m_newResX);
 		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroLogos);
 	}
 
 	void ApplyFix() override
@@ -165,14 +167,42 @@ protected:
 			spdlog::error("Failed to locate window name instruction memory address.");
 			return;
 		}
+
+		if (m_skipIntroLogos == true)
+		{
+			auto SkipIntroLogosScansResult = Memory::PatternScan(ExeModule(), "75 ?? 83 F9 ?? 73 ?? 41", "75 ?? A1 ?? ?? ?? ?? 85 C0 75 ?? E8 ?? ?? ?? ?? A3 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 39 46",
+			"83 7E ?? ?? 75 ?? D9 46");
+			if (Memory::AreAllSignaturesValid(SkipIntroLogosScansResult) == true)
+			{
+				spdlog::info("Skip Logos Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[SkipLogos1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Logos Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[SkipLogos2] - (std::uint8_t*)ExeModule());
+				spdlog::info("Logos Transition Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[LogoTransitionCheck] - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(SkipIntroLogosScansResult[SkipLogos1], 2);
+				Memory::WriteNOPs(SkipIntroLogosScansResult[SkipLogos2], 2);
+
+				m_logoTransitionHook = safetyhook::create_mid(SkipIntroLogosScansResult[LogoTransitionCheck], [](SafetyHookContext& ctx)
+				{
+					const auto state = static_cast<std::uintptr_t>(ctx.esi);
+
+					if (state != 0 && *reinterpret_cast<std::uint32_t*>(state + 0x4C) == 4)
+					{
+						*reinterpret_cast<float*>(state + 0x84) = 1.0f;
+					}
+				});
+			}
+		}		
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 
+	bool m_skipIntroLogos = false;
+
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_generalFOVHook{};
 	SafetyHookMid m_gameplayFOVHook{};
+	SafetyHookMid m_logoTransitionHook{};
 
 	std::string m_newResolutionString = "";
 	std::string m_newResolutionWidthString = "";
@@ -200,6 +230,13 @@ private:
 	{
 		General,
 		Gameplay
+	};
+
+	enum SkipLogosInstructionsIndices
+	{
+		SkipLogos1,
+		SkipLogos2,
+		LogoTransitionCheck
 	};
 
 	inline static WinxClubFix* s_instance_ = nullptr;
