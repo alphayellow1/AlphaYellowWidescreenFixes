@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,11 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroLogos", m_skipIntroLogos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroLogos);
 	}
 
 	void ApplyFix() override
@@ -127,10 +131,45 @@ protected:
 				s_instance_->CameraFOVMidHook(ctx.esp + 0x208, ctx.edx, s_instance_->m_fovFactor);
 			});
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScansResult = Memory::PatternScan(ExeModule(), "74 ?? 83 C6 ?? 50 8B CE E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 33 C0 8B 4D ?? 64 89 0D ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C2 ?? ?? 8B 4D ?? 6A",
+			"74 ?? 83 C6 ?? 50 8B CE E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 33 C0 8B 4D ?? 64 89 0D ?? ?? ?? ?? 5F 5E 5B 8B E5 5D C2 ?? ?? 8B 4D ?? 89 4E");
+			if (Memory::AreAllSignaturesValid(RunMultipleInstancesCheckScansResult) == true)
+			{
+				spdlog::info("Multiple Instance Check Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScansResult[MultipleInstances1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Multiple Instance Check Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScansResult[MultipleInstances2] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScansResult[MultipleInstances1], "\xEB");
+				Memory::PatchBytes(RunMultipleInstancesCheckScansResult[MultipleInstances2], "\xEB");
+			}
+		}
+
+		if (m_skipIntroLogos == true)
+		{
+			auto SkipIntroLogosScanResult = Memory::PatternScan(ExeModule(), "8D 44 24 ?? 89 5C 24 ?? 89 5C 24 ?? 89 5C 24 ?? 89 44 24 ?? 8B 0D ?? ?? ?? ?? 89 9C 24");
+			if (SkipIntroLogosScanResult)
+			{
+				spdlog::info("Logo Splash Screens Skip Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroLogosScanResult, "\x83\xCE\xFF\xE9\xB0\x04\x00\x00");
+			}
+			else
+			{
+				spdlog::error("Failed to locate logo splash screen skip scan memory address.");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroLogos = false;
+
+	float m_currentCameraFOV = 0.0f;
 
 	uintptr_t m_resolutionWidthAddress = 0;
 	uintptr_t m_resolutionHeightAddress = 0;
@@ -155,21 +194,30 @@ private:
 		PauseMenuFOV,
 		GameplayFOV1,
 		GameplayFOV2
-	};	
+	};
+
+	enum MultipleInstancesCheckInstructionsIndex
+	{
+		MultipleInstances1,
+		MultipleInstances2
+	};
+
+	enum SkipIntroLogosInstructionsIndex
+	{
+		LogoSplashScreens,
+		AVIDiscScanning
+	};
 
 	static void AspectRatioMidHook(SafetyHookContext& ctx)
 	{
 		s_instance_->m_newAspectRatio2 = 0.75f / s_instance_->m_aspectRatioScale;
-
 		FPU::FMUL(s_instance_->m_newAspectRatio2);
 	}
 
 	void CameraFOVMidHook(uintptr_t FOVAddress, uintptr_t& DestInstruction, float fovFactor = 1.0f)
 	{
-		float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
-
-		m_newCameraFOV = (fCurrentCameraFOV / m_aspectRatioScale) / fovFactor;
-
+		m_currentCameraFOV = Memory::ReadMem(FOVAddress);
+		m_newCameraFOV = (m_currentCameraFOV / m_aspectRatioScale) / fovFactor;
 		DestInstruction = std::bit_cast<uintptr_t>(m_newCameraFOV);
 	}
 
@@ -182,25 +230,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<DickJohnsonV8ChallengeFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<DickJohnsonV8ChallengeFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
