@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -83,17 +85,16 @@ protected:
 			m_generalFOVHook = safetyhook::create_mid(CameraFOVScansResult[General], [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_newOverallFOV = 1.0 / (double)s_instance_->m_aspectRatioScale;
-
 				FPU::FDIVR(s_instance_->m_newOverallFOV);
 			});
 
-			OutsideViewsFOVAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[OutsideViews] + 1, Memory::PointerMode::Absolute);
+			m_outsideViewsFOVAddress = Memory::GetPointerFromAddress(CameraFOVScansResult[OutsideViews] + 1, Memory::PointerMode::Absolute);
 
 			Memory::WriteNOPs(CameraFOVScansResult[OutsideViews], 5);
 
 			m_outsideViewsFOVHook = safetyhook::create_mid(CameraFOVScansResult[OutsideViews], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentOutsideViewsFOV = Memory::ReadMem(s_instance_->OutsideViewsFOVAddress);
+				float& fCurrentOutsideViewsFOV = Memory::ReadMem(s_instance_->m_outsideViewsFOVAddress);
 				s_instance_->m_newOutsideViewsFOV = fCurrentOutsideViewsFOV * s_instance_->m_fovFactor;
 				ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newOutsideViewsFOV);
 			});
@@ -114,7 +115,6 @@ protected:
 			m_hudWidthHook = safetyhook::create_mid(HUDAspectRatioScansResult[HUDWidth], [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_newHUDWidth = (uint32_t)(s_instance_->m_originalHUDWidth * s_instance_->m_aspectRatioScale);
-
 				ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newHUDWidth);
 			});
 
@@ -125,12 +125,26 @@ protected:
 			m_hudVerticalPositionHook = safetyhook::create_mid(HUDAspectRatioScansResult[HUDVertical], [](SafetyHookContext& ctx)
 			{
 				float& fCurrentHUDVerticalPosition = Memory::ReadMem(s_instance_->m_hudVerticalPositionAddress);
-
 				s_instance_->m_newHUDVerticalPosition = fCurrentHUDVerticalPosition / s_instance_->m_aspectRatioScale;
-
 				FPU::FMUL(s_instance_->m_newHUDVerticalPosition);
 			});
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "75 ?? 5F 5E 5D B8 ?? ?? ?? ?? 5B 81 C4 ?? ?? ?? ?? C3");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(SkipIntroVideosScanResult, 2);
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro check instruction memory address.");
+				return;
+			}
+		}		
 	}
 
 private:
@@ -138,13 +152,15 @@ private:
 	static constexpr float m_originalCockpitFOV = 80.0f;
 	static constexpr float m_originalHUDWidth = 320;
 
+	bool m_skipIntroVideos = false;
+
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_generalFOVHook{};
 	SafetyHookMid m_outsideViewsFOVHook{};
 	SafetyHookMid m_hudWidthHook{};
 	SafetyHookMid m_hudVerticalPositionHook{};
 
-	uintptr_t OutsideViewsFOVAddress = 0;
+	uintptr_t m_outsideViewsFOVAddress = 0;
 	uintptr_t m_hudVerticalPositionAddress = 0;
 
 	double m_newOverallFOV = 0.0;
