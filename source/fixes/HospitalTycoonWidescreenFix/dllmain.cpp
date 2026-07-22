@@ -1,4 +1,7 @@
 #include "..\..\common\FixBase.hpp"
+#include <atomic>
+#include <thread>
+#include <chrono>
 
 class HospitalTycoonFix final : public FixBase
 {
@@ -24,7 +27,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +50,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
 	}
 
 	void ApplyFix() override
@@ -55,14 +60,14 @@ protected:
 		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "0F 82 ?? ?? ?? ?? 8B 5A", "8B 54 24 ?? 8B 44 24 ?? 89 6E");
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock], 6);
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 15, 6);
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 26, 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock], 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 15, 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 26, 6);
 
-			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
 			{
 				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x30);
 				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x34);
@@ -102,6 +107,22 @@ protected:
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "75 ?? A1 ?? ?? ?? ?? 56");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
 	}
 
 private:
@@ -110,12 +131,14 @@ private:
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_cameraFOVHook{};
 
+	bool m_runMultipleInstances = false;
+
 	double m_newAspectRatio = 0.0;
 
 	enum ResolutionInstructionsIndex
 	{
-		ResListUnlock,
-		ResWidthHeight
+		ListUnlock,
+		WidthHeight
 	};
 
 	inline static HospitalTycoonFix* s_instance_ = nullptr;
@@ -125,29 +148,31 @@ static std::unique_ptr<HospitalTycoonFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<HospitalTycoonFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<HospitalTycoonFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			if (g_fix)
+			{
+				g_fix->Shutdown();
+				g_fix.reset();
+			}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+			break;
+		}
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
