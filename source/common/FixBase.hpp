@@ -15,6 +15,7 @@ class FixBase
 public:
     explicit FixBase(HMODULE selfModule) : m_thisModule(selfModule), m_exeModule(GetModuleHandleW(nullptr))
     {
+        InitializeExecutableInfo();
     }
 
     virtual ~FixBase() = default;
@@ -188,11 +189,6 @@ private:
         GetModuleFileNameW(m_thisModule, dllPath, MAX_PATH);
         m_fixPath = std::filesystem::path(dllPath).remove_filename();
 
-        WCHAR exePathW[MAX_PATH] = {};
-        GetModuleFileNameW(m_exeModule, exePathW, MAX_PATH);
-        m_exePath = std::filesystem::path(exePathW).remove_filename();
-        m_exeName = std::filesystem::path(exePathW).filename().string();
-
         m_logFile = std::string(FixName()) + ".log";
 
         try
@@ -253,6 +249,28 @@ private:
     }
 
 private:
+    void InitializeExecutableInfo()
+    {
+        wchar_t exePath[MAX_PATH]{};
+
+        const DWORD length = GetModuleFileNameW(
+            m_exeModule,
+            exePath,
+            static_cast<DWORD>(std::size(exePath)));
+
+        if (length == 0 || length >= std::size(exePath))
+        {
+            m_exePath.clear();
+            m_exeName.clear();
+            return;
+        }
+
+        const std::filesystem::path fullExePath(exePath);
+
+        m_exePath = fullExePath.parent_path();
+        m_exeName = fullExePath.filename().string();
+    }
+
     HMODULE m_thisModule = nullptr;
     HMODULE m_exeModule = nullptr;
 
