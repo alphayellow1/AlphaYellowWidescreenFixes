@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.4.1";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -47,7 +47,11 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroLogos", m_skipIntroLogos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroLogos);
 	}
 
 	void ApplyFix() override
@@ -118,11 +122,46 @@ protected:
 			spdlog::info("Camera FOV Instruction 13: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV13] - (std::uint8_t*)ExeModule());
 			spdlog::info("Camera FOV Instruction 14: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV14] - (std::uint8_t*)ExeModule());			
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 07 6A 01 E8 ?? ?? ?? ??");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroLogos == true)
+		{
+			auto SkipIntroLogosScanResult = Memory::PatternScan(ExeModule(), "74 2A 8B 8D 74 FB FF FF");
+			if (SkipIntroLogosScanResult)
+			{
+				spdlog::info("Skip Intro Logos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroLogosScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro logos instruction memory address.");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalCameraFOV = 0.5f;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroLogos = false;
 
 	SafetyHookMid m_resolutionHook{};
 
