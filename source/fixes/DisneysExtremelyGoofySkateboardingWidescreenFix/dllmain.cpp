@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2.1";
+		return "1.2.2";
 	}
 
 	const char* TargetName() const override
@@ -84,13 +84,9 @@ protected:
 			Memory::Write(ResolutionScansResult[ResSetup] + 5, m_newResX);
 			Memory::Write(ResolutionScansResult[ResSetup] + 1, m_newResY);
 
-			Memory::WriteNOPs(ResolutionScansResult[TargetFPS], 6);
-			m_targetFPSHook = safetyhook::create_mid(ResolutionScansResult[TargetFPS], [](SafetyHookContext& ctx)
-			{
-				ctx.esi = std::bit_cast<uintptr_t>(s_instance_->m_newFramerate);
-			});
+			Memory::Write(ResolutionScansResult[TargetFPS] + 2, &m_newFramerate);
 
-			m_newFrameDelta = 1.0f / m_newFramerate;
+			m_newFrameDelta = (float)(1.0f / m_newFramerate);
 
 			Memory::Write(ResolutionScansResult[FrameDelta] + 1, m_newFrameDelta);
 			Memory::Write(ResolutionScansResult[FrameDelta] + 20, m_newFrameDelta);
@@ -161,15 +157,13 @@ private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalGameplayFOV = 1.04719758f;	
 
-	float m_newFramerate = 0.0f;
+	int m_newFramerate = 0;
 	float m_newFrameDelta = 0.0f;
 	bool m_runMultipleInstances = false;
 	bool m_skipIntroVideos = false;
 
 	float m_newGeneralFOV = 0.0f;
 	float m_newGameplayFOV = 0.0f;
-
-	SafetyHookMid m_targetFPSHook{};
 
 	enum ResolutionInstructionsIndex
 	{
