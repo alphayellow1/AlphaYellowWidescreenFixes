@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.4.1";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
 	}
 
 	void ApplyFix() override
@@ -119,6 +121,22 @@ protected:
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto MultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 57 8D 54 24");
+			if (MultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(MultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instances check scan memory address.");
+				return;
+			}
+		}
 	}
 
 private:
@@ -129,6 +147,8 @@ private:
 	SafetyHookMid m_hudAspectRatio1Hook{};
 	SafetyHookMid m_hudAspectRatio2Hook{};
 	SafetyHookMid m_cameraFOVHook{};
+
+	bool m_runMultipleInstances = false;
 
 	enum ResolutionInstructionsIndex
 	{
