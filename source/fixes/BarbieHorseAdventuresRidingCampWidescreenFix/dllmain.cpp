@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.3.1";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -49,12 +49,16 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
 		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
 		spdlog_confparse(m_newResX);
 		spdlog_confparse(m_newResY);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -118,21 +122,48 @@ protected:
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 8D 8C 24 ?? ?? ?? ?? E8");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "E8 ?? ?? ?? ?? 8B 16 8B 42 ?? 53");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(SkipIntroVideosScanResult, 5);
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos instruction memory address.");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 
-	bool m_bFullscreen;
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_cameraFOVHook{};
-
-	enum ResolutionInstructionsIndex
-	{
-		ResSelection,
-		Windowed
-	};
 
 	inline static BarbieRidingCampFix* s_instance_ = nullptr;
 };
@@ -143,25 +174,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<BarbieRidingCampFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<BarbieRidingCampFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
