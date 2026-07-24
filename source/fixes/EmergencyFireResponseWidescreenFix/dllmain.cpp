@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.4.1";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -49,12 +49,16 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "MainMenuWidth", m_newMenuWidth);
 		inipp::get_value(ini.sections["Settings"], "MainMenuHeight", m_newMenuHeight);
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 
 		FallbackToDesktopResolution(m_newMenuWidth, m_newMenuHeight);
 
 		spdlog_confparse(m_newMenuWidth);
 		spdlog_confparse(m_newMenuHeight);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -201,10 +205,45 @@ protected:
 			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "75 ?? 8B 0D ?? ?? ?? ?? 8D 45 ?? 50 6A FF E8 ?? ?? ?? ?? 84 C0 74 4D 39 5D F8 74 ?? 8B 45 F4 83 8D D8 FD FF FF FF 89 85 DC FD FF FF 8D 85 D8 FD FF FF 68 ?? ?? ?? ?? 50 C7 85 E0 FD FF FF ?? ?? ?? ?? C7 85 E4 FD FF FF ?? ?? ?? ?? 89 9D E8 FD FF FF E8 ?? ?? ?? ?? 8D 85 D8 FD FF FF 50 FF 55 F8 83 C4 ?? FF 35 ?? ?? ?? ?? FF 15 ?? ?? ?? ??");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "74 ?? 6A ?? E8 ?? ?? ?? ?? 59 89 45 ?? 3B C3 C6 45 FC ?? 74 ?? 8B C8 E8 ?? ?? ?? ?? EB ?? 33 C0 8B 75 ?? 6A ??");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos instruction memory address.");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatio1Hook{};
