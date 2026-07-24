@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.1.1";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -55,17 +57,17 @@ protected:
 		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "0F 82 ?? ?? ?? ?? 3D ?? ?? ?? ?? 0F 87 ?? ?? ?? ?? 81 F9", "8B 74 24 ?? 8B 7C 24 ?? 8B D6");
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock], 6);
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 11, 6);
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 23, 6);
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 35, 6);
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 56, 6);
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 77, 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock], 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 11, 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 23, 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 35, 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 56, 6);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 77, 6);
 
-			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
 			{
 				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0xC);
 				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x10);
@@ -81,12 +83,32 @@ protected:
 			spdlog::info("Menu Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Menu] - (std::uint8_t*)ExeModule());
 			spdlog::info("Races Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Races] - (std::uint8_t*)ExeModule());
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 83 C4 ?? BE");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(SkipIntroVideosScanResult, 5);
+				Memory::WriteNOPs(SkipIntroVideosScanResult + 10, 5);
+				Memory::WriteNOPs(SkipIntroVideosScanResult + 20, 5);
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos instructions scan memory address.");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalMenuFOV = 60.0f;
 	static constexpr float m_originalRacesFOV = 90.0f;
+
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionHook{};
 
@@ -97,8 +119,8 @@ private:
 
 	enum ResolutionInstructionsIndices
 	{
-		ResListUnlock,
-		ResWidthHeight
+		ListUnlock,
+		WidthHeight
 	};
 
 	enum CameraFOVInstructionsScansIndices
