@@ -1,5 +1,4 @@
 #include "..\..\common\FixBase.hpp"
-#include "WinReg.hpp"
 #include <set>
 
 class DrakeOfThe99DragonsFix final : public FixBase
@@ -26,7 +25,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -50,7 +49,11 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -97,6 +100,19 @@ protected:
 			{
 				spdlog::error("Failed to locate resolution list unlock scan memory address.");
 				return;
+			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 85 ?? ?? ?? ?? 33 C0", "8B 86 ?? ?? ?? ?? 50 8b 08 FF 51 ?? 8B 76");
+				if (Memory::AreAllSignaturesValid(SkipIntroVideosScanResult) == true)
+				{
+					spdlog::info("Skip Intro Logos Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult[StartupIntroVids] - (std::uint8_t*)ExeModule());
+					spdlog::info("Skip Intro Logos Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult[PostInitVid] - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScanResult[StartupIntroVids], "\xE9\xDC\x01\x00\x00\x90");
+					Memory::PatchBytes(SkipIntroVideosScanResult[PostInitVid], "\x8B\xCE\x6A\x00\x6A\x00\x6A\x00\xE8\x24\xFD\xFF\xFF\xE9\x1B\x00\x00\x00");
+				}
 			}
 		}
 
@@ -147,15 +163,15 @@ protected:
 				return;
 			}
 
-			auto CameraFOVInstructionsScansResult = Memory::PatternScan(ExeModule(), "8B 86 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 5F", "8B 86 ?? ?? ?? ?? 8D 4C 24 ?? 89 44 24");
-			if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+			auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "8B 86 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 5F", "8B 86 ?? ?? ?? ?? 8D 4C 24 ?? 89 44 24");
+			if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 			{
-				spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[FOV1] - (std::uint8_t*)ExeModule());
-				spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVInstructionsScansResult[FOV2] - (std::uint8_t*)ExeModule());
+				spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV2] - (std::uint8_t*)ExeModule());
 
-				Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV1], 6);
+				Memory::WriteNOPs(CameraFOVScansResult[FOV1], 6);
 
-				m_cameraFOV1Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV1], [](SafetyHookContext& ctx)
+				m_cameraFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[FOV1], [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV1 = Memory::ReadMem(ctx.esi + 0x2F0);
 
@@ -171,9 +187,9 @@ protected:
 					ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV1);
 				});
 
-				Memory::WriteNOPs(CameraFOVInstructionsScansResult[FOV2], 6);
+				Memory::WriteNOPs(CameraFOVScansResult[FOV2], 6);
 
-				m_cameraFOV2Hook = safetyhook::create_mid(CameraFOVInstructionsScansResult[FOV2], [](SafetyHookContext& ctx)
+				m_cameraFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[FOV2], [](SafetyHookContext& ctx)
 				{
 					float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.esi + 0x374);
 
@@ -189,11 +205,46 @@ protected:
 					ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV2);
 				});
 			}
+
+			if (m_runMultipleInstances == true)
+			{
+				auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 8B 8C 24 ?? ?? ?? ?? 8D 84 24");
+				if (RunMultipleInstancesCheckScanResult)
+				{
+					spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+				}
+				else
+				{
+					spdlog::error("Failed to locate multiple instance check instruction memory address.");
+					return;
+				}
+			}
+			
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "E8 ?? ?? ?? ?? 83 C4 ?? E8 ?? ?? ?? ?? 85 C0 74");
+				if (SkipIntroVideosScanResult)
+				{
+					spdlog::info("Skip Intro Logos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScanResult, "\x31\xC0\x90\x90\x90");
+				}
+				else
+				{
+					spdlog::error("Failed to locate skip intro videos instruction memory address.");
+					return;
+				}
+			}
 		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_registryCreateKeyHook{};
 	SafetyHookMid m_resolutionHook{};
@@ -217,6 +268,12 @@ private:
 	{
 		FOV1,
 		FOV2
+	};
+
+	enum SkipIntroVideosInstructionsIndex
+	{
+		StartupIntroVids,
+		PostInitVid
 	};
 
 	struct DisplayMode
@@ -255,14 +312,14 @@ private:
 		}
 
 		std::sort(modes.begin(), modes.end(), [](const DisplayMode& a, const DisplayMode& b)
+		{
+			if (a.width != b.width)
 			{
-				if (a.width != b.width)
-				{
-					return a.width < b.width;
-				}
+				return a.width < b.width;
+			}
 
-				return a.height < b.height;
-			});
+			return a.height < b.height;
+		});
 
 		return modes;
 	}
@@ -304,9 +361,7 @@ private:
 	void CameraFOVMidHook(uintptr_t SourceAddress, uintptr_t& DestAddress, float fovFactor = 1.0f)
 	{
 		float& fCurrentCameraFOV = Memory::ReadMem(SourceAddress);
-
 		m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale) * fovFactor;
-
 		DestAddress = std::bit_cast<uintptr_t>(m_newCameraFOV);
 	}
 
@@ -319,25 +374,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<DrakeOfThe99DragonsFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<DrakeOfThe99DragonsFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
