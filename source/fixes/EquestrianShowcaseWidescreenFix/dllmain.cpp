@@ -51,7 +51,7 @@ protected:
 
 	void ApplyFix() override
 	{
-		auto ResolutionListScansResult = Memory::PatternScan(ExeModule(), "0F 8C ?? ?? ?? ?? 81 7D", "75 ?? 81 7d ?? ?? ?? ?? ?? 7f");
+		auto ResolutionListScansResult = Memory::PatternScan(ExeModule(), "0F 8C ?? ?? ?? ?? 81 7D", "75 ?? 81 7D ?? ?? ?? ?? ?? 7F");
 		if (Memory::AreAllSignaturesValid(ResolutionListScansResult) == true)
 		{
 			spdlog::info("Resolution List Unlock 1 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionListScansResult[ListUnlock1] - (std::uint8_t*)ExeModule());
@@ -70,13 +70,16 @@ private:
 
 	SafetyHookMid m_cameraFOVHook{};
 
-	int m_newMenuWidth = 0;
-	int m_newMenuHeight = 0;
-
 	enum ResolutionInstructionsIndex
 	{
 		ListUnlock1,
 		ListUnlock2
+	};
+
+	enum SkipDiscChecksIntructionsIndex
+	{
+		Check1,
+		Check2
 	};
 
 	inline static EquestrianShowcaseFix* s_instance_ = nullptr;

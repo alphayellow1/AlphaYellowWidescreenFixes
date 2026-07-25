@@ -25,7 +25,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -49,7 +49,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -67,6 +69,22 @@ protected:
 			{
 				spdlog::error("Failed to locate resolution list unlock scan memory address.");
 				return;
+			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 85 ?? ?? ?? ?? 8A 44 24 13 BF ?? ?? ?? ??");
+				if (SkipIntroVideosScanResult)
+				{
+					spdlog::info("Skip Initial Launcher Videos: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+					Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\xD3\x01\x00\x00\x90");
+				}
+				else
+				{
+					spdlog::error("Failed to locate one or more launcher intro-video sequences.");
+					return;
+				}
 			}
 		}
 
@@ -159,16 +177,35 @@ protected:
 					ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV2);
 				});
 			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "74 ?? 6A ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 57");
+				if (SkipIntroVideosScanResult)
+				{
+					spdlog::info("Skip Intro Logos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScanResult, "\xEB\x39");
+				}
+				else
+				{
+					spdlog::error("Failed to locate skip intro videos instruction memory address.");
+					return;
+				}
+			}
 		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 
+	bool m_skipIntroVideos = false;
+
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_cameraFOV1Hook{};
 	SafetyHookMid m_cameraFOV2Hook{};
+	SafetyHookMid m_skipPostPlayVideoHook{};
 
 	float m_newCameraFOV1 = 0.0f;
 	float m_newCameraFOV2 = 0.0f;
@@ -186,6 +223,12 @@ private:
 	{
 		FOV1,
 		FOV2
+	};
+
+	enum SkipIntroVideosInstructionsIndex
+	{
+		StartupIntroVids,
+		PostInitVid
 	};
 
 	struct DisplayMode
@@ -270,15 +313,6 @@ private:
 		return result;
 	}
 
-	void CameraFOVMidHook(uintptr_t SourceAddress, uintptr_t& DestAddress, float fovFactor = 1.0f)
-	{
-		float& fCurrentCameraFOV = Memory::ReadMem(SourceAddress);
-
-		m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale) * fovFactor;
-
-		DestAddress = std::bit_cast<uintptr_t>(m_newCameraFOV);
-	}
-
 	inline static FBIHostageRescueFix* s_instance_ = nullptr;
 };
 
@@ -288,25 +322,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<FBIHostageRescueFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<FBIHostageRescueFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
