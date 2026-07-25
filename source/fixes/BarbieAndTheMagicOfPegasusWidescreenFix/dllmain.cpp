@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.3";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -47,7 +47,11 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroLogos", m_skipIntroLogos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroLogos);
 	}
 
 	void ApplyFix() override
@@ -101,11 +105,46 @@ protected:
 			spdlog::info("Camera FOV Instruction 4: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV4] - (std::uint8_t*)ExeModule());
 			spdlog::info("Camera FOV Instruction 5: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV5] - (std::uint8_t*)ExeModule());			
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 6A ?? E8 ?? ?? ?? ?? 8B 54 24");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroLogos == true)
+		{
+			auto SkipIntroLogosScansResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 3B 35 ?? ?? ?? ?? C7 05", "8b 15 ?? ?? ?? ?? 83 ce",
+			"68 ?? ?? ?? ?? e8 ?? ?? ?? ?? 83 c4 ?? 5e 5b 83 c4");
+			if (Memory::AreAllSignaturesValid(SkipIntroLogosScansResult) == true)
+			{
+				spdlog::info("Skip Intro Logos Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[0] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Logos Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Skip Intro Logos Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[2] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroLogosScansResult[0], "\xE9\x80\x00\x00\x00\x90");
+				Memory::PatchBytes(SkipIntroLogosScansResult[1] + 2, "\xC0");
+				Memory::PatchBytes(SkipIntroLogosScansResult[2], "\xE9\x08\x00\x00\x00");
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalCameraFOV = 0.5f;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroLogos = false;
 
 	SafetyHookMid m_resolutionHook{};
 
@@ -132,10 +171,9 @@ private:
 
 	void WriteARAndFOV()
 	{
-		Memory::Write(AspectRatioScansResult, AR1, AR5, 1, m_newAspectRatio);
-
 		m_newCameraFOV = m_originalCameraFOV * m_aspectRatioScale * m_fovFactor;
 
+		Memory::Write(AspectRatioScansResult, AR1, AR5, 1, m_newAspectRatio);
 		Memory::Write(CameraFOVScansResult, FOV1, FOV5, 1, m_newCameraFOV);
 	}
 
