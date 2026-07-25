@@ -1,277 +1,211 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <cmath> // For atanf, tanf
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "VegasMakeItBigFOVFix";
-std::string sFixVersion = "1.2";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class VegasMakeItBigFix final : public FixBase
 {
-	VMIB,
-	Unknown
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::VMIB, {"Vegas: Make It Big", "casino.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit VegasMakeItBigFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~VegasMakeItBigFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid AspectRatioInstructionHook{};
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void FOVFix()
-{
-	if (eGameType == Game::VMIB && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "VegasMakeItBigFOVFix";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* FixVersion() const override
+	{
+		return "1.3";
+	}
 
-		std::uint8_t* AspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 54 24 ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C2 ?? ?? 90 90 90 90 90 83 EC");
-		
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "8B 44 24 ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 8B 44 24 ?? 89 91 ?? ?? ?? ?? 8B 54 24 ?? 89 81 ?? ?? ?? ?? 89 91 ?? ?? ?? ?? C2 ?? ?? 90 90 90 90 90 83 EC");
-		
-		if (AspectRatioInstructionScanResult)
+	const char* TargetName() const override
+	{
+		return "Vegas: Make it Big";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "casino.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "66 A3 ?? ?? ?? ?? 8B 0D", "66 A3 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 6A ?? 52 E8 ?? ?? ?? ?? A1 ?? ?? ?? ?? 68 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 6A ?? 51 E8 ?? ?? ?? ?? A1 ?? ?? ?? ?? 6A ?? 50 E8 ?? ?? ?? ?? 83 C4 ?? 85 C0 74 ?? A1 ?? ?? ?? ?? 6A ?? 50 E8 ?? ?? ?? ?? 83 C4 ?? E8 ?? ?? ?? ?? 66 A3",
+		"66 89 1D ?? ?? ?? ?? 66 89 2D");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), AspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Width Instruction 1 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Width1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Height Instruction 1 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Height1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instruction 2 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight2] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(AspectRatioInstructionScanResult, 4);
-
-			AspectRatioInstructionHook = safetyhook::create_mid(AspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			m_resolutionWidth1Hook = safetyhook::create_mid(ResolutionScansResult[Width1], [](SafetyHookContext& ctx)
 			{
-				ctx.edx = std::bit_cast<uintptr_t>(fNewAspectRatio);
+				s_instance_->m_newResX = ctx.eax & 0xFFFF;
+			});
+
+			m_resolutionHeight1Hook = safetyhook::create_mid(ResolutionScansResult[Height1], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newResY = ctx.eax & 0xFFFF;
+				s_instance_->UpdateAR();
+				s_instance_->m_resolutionWidth1Hook.disable();
+				s_instance_->m_resolutionHeight1Hook.disable();
+			});
+
+			m_resolution2Hook = safetyhook::create_mid(ResolutionScansResult[WidthHeight2], [](SafetyHookContext& ctx)
+			{
+				s_instance_->m_newResX = ctx.ebx & 0xFFFF;
+				s_instance_->m_newResY = ctx.ebp & 0xFFFF;
+				s_instance_->UpdateAR();
+				s_instance_->m_resolution2Hook.disable();
 			});
 		}
-		else
+
+		AspectRatioScansResult = Memory::PatternScan(ExeModule(), "68 ?? ?? ?? ?? 51 B9 ?? ?? ?? ?? DD D8", "68 ?? ?? ?? ?? 50 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E",
+		"68 ?? ?? ?? ?? 51 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E");
+		if (Memory::AreAllSignaturesValid(AspectRatioScansResult) == true)
 		{
-			spdlog::error("Failed to locate aspect ratio instruction memory address.");
-			return;
+			spdlog::info("Aspect Ratio Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Aspect Ratio Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), AspectRatioScansResult[AR3] - (std::uint8_t*)ExeModule());
 		}
-		
-		if (CameraFOVInstructionScanResult)
+
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "DD 05 ?? ?? ?? ?? D9 F2 68", "DD 05 ?? ?? ?? ?? A1", "68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 86");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 3: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV3] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);			
+			m_newCameraFOV1 = m_originalCameraFOV1 * m_fovFactor;
+			m_newCameraFOV2 = m_originalCameraFOV2 * (float)m_fovFactor;
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::Write(CameraFOVScansResult, FOV1, FOV2, 2, &m_newCameraFOV1);
+			Memory::Write(CameraFOVScansResult[FOV3] + 1, m_newCameraFOV2);
+		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 8D 44 24");
+			if (RunMultipleInstancesCheckScanResult)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x4);
+				spdlog::info("Multiple Instances Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV1] - (std::uint8_t*)ExeModule());
 
-				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-				ctx.eax = std::bit_cast<uintptr_t>(fNewCameraFOV);
-			});
+				Memory::WriteNOPs(RunMultipleInstancesCheckScanResult, 6);
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instances check instruction memory address.");
+				return;
+			}
 		}
-		else
-		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
-		}		
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr double m_originalCameraFOV1 = 0.610865233466029;
+	static constexpr float m_originalCameraFOV2 = 90.0f;
+
+	int16_t m_newResX = 0;
+	int16_t m_newResY = 0;
+
+	SafetyHookMid m_resolutionWidth1Hook{};
+	SafetyHookMid m_resolutionHeight1Hook{};
+	SafetyHookMid m_resolution2Hook{};
+
+	bool m_runMultipleInstances = false;
+
+	double m_fovFactor = 0.0;
+	double m_newCameraFOV1 = 0.0;
+	float m_newCameraFOV2 = 0.0f;
+
+	std::vector<std::uint8_t*> AspectRatioScansResult;
+
+	enum ResolutionInstructionsIndex
 	{
-		FOVFix();
+		Width1,
+		Height1,
+		WidthHeight2
+	};
+
+	enum AspectRatioInstructionsIndex
+	{
+		AR1,
+		AR2,
+		AR3
+	};
+
+	enum CameraFOVInstructionsIndices
+	{
+		FOV1,
+		FOV2,
+		FOV3
+	};
+
+	void WriteStaticARs()
+	{
+		Memory::Write(AspectRatioScansResult, AR1, AR3, 1, m_newAspectRatio);
 	}
-	return TRUE;
-}
+
+	void UpdateAR()
+	{
+		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
+		WriteStaticARs();
+	}
+
+	inline static VegasMakeItBigFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<VegasMakeItBigFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		case DLL_PROCESS_ATTACH:
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<VegasMakeItBigFix>(hModule);
+			g_fix->Start();
+			break;
 		}
-		break;
+
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
+
 	return TRUE;
 }
