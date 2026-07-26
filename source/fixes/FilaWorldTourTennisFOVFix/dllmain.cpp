@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.5";
+		return "1.6";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -48,8 +48,10 @@ protected:
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
 		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroLogos", m_skipIntroLogos);
 		spdlog_confparse(m_fovFactor);
 		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroLogos);
 	}
 
 	void ApplyFix() override
@@ -163,6 +165,19 @@ protected:
 			});
 		}
 
+		auto MouseInputReleaseFixScanResult = Memory::PatternScan(ExeModule(), "74 ?? 8A 46 ?? 84 C0 74 ?? 68");
+		if (MouseInputReleaseFixScanResult)
+		{
+			spdlog::info("Mouse Input Release Fix Instruction Address is {:s}+{:x}", ExeName().c_str(), MouseInputReleaseFixScanResult - (std::uint8_t*)ExeModule());
+
+			Memory::PatchBytes(MouseInputReleaseFixScanResult, "\xEB\x3C");
+		}
+		else
+		{
+			spdlog::error("Failed to locate mouse input release fix scan memory address.");
+			return;
+		}
+
 		if (m_runMultipleInstances == true)
 		{
 			auto MultipleInstancesScanResult = Memory::PatternScan(ExeModule(), "75 ?? 8A 54 24 ?? 8D 44 24 ?? 68 ?? ?? ?? ?? 50 88 54 24 ?? E8 ?? ?? ?? ?? 8B 84 24");
@@ -178,6 +193,31 @@ protected:
 				return;
 			}
 		}
+
+		if (m_skipIntroLogos == true)
+		{
+			auto SkipIntroLogosScansResult = Memory::PatternScan(ExeModule(), "74 ?? D9 44 24 ?? D8 1D ?? ?? ?? ?? DF E0 F6 C4 ?? 7A ?? D9 05", "75 ?? 6A ?? FF 15",
+			"E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8D 9E", "E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 06 8D BE", "E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8D BE ?? ?? ?? ?? 8B CF E8 ?? ?? ?? ?? 85 C0",
+			"E8 ?? ?? ?? ?? 83 C4 ?? 8B CD E8 ?? ?? ?? ?? 5F 5E 5D 33 C0 5B 81 C4 ?? ?? ?? ?? C2 ?? ?? 90 90 90 90 83 EC", "7D ?? BF ?? ?? ?? ?? 8B D8");
+			if (Memory::AreAllSignaturesValid(SkipIntroLogosScansResult))
+			{
+				spdlog::info("Startup Fade Delay Instruction Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[StartupFadeDelay] - (std::uint8_t*)ExeModule());
+				spdlog::info("Startup Timer Instruction Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[StartupTimer] - (std::uint8_t*)ExeModule());
+				spdlog::info("Legal Logo Visual Instruction Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[LegalLogoVisual] - (std::uint8_t*)ExeModule());
+				spdlog::info("THQ Logo Visual Instruction Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[THQLogoVisual] - (std::uint8_t*)ExeModule());
+				spdlog::info("Hokus Pokus Logo Visual Instruction Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[HPLogoVisual] - (std::uint8_t*)ExeModule());
+				spdlog::info("FILA Logo Submission Instruction Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[FILALogoSubmission] - (std::uint8_t*)ExeModule());
+				spdlog::info("FILA Logo Delay Instruction Scan: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScansResult[FILALogoDelay] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroLogosScansResult[StartupFadeDelay], "\xEB\x28");
+				Memory::PatchBytes(SkipIntroLogosScansResult[StartupTimer], "\xEB\x18");
+				Memory::PatchBytes(SkipIntroLogosScansResult[LegalLogoVisual], "\x83\xC4\x08\x90\x90");
+				Memory::PatchBytes(SkipIntroLogosScansResult[THQLogoVisual], "\x83\xC4\x08\x90\x90");
+				Memory::PatchBytes(SkipIntroLogosScansResult[HPLogoVisual], "\x83\xC4\x08\x90\x90");
+				Memory::WriteNOPs(SkipIntroLogosScansResult[FILALogoSubmission], 5);
+				Memory::PatchBytes(SkipIntroLogosScansResult[FILALogoDelay], "\xEB\x29");
+			}
+		}
 	}
 
 private:
@@ -188,6 +228,7 @@ private:
 	static constexpr float m_originalCharacterSelectionAR2 = 224.0f;
 
 	bool m_runMultipleInstances = false;
+	bool m_skipIntroLogos = false;
 
 	SafetyHookMid m_resolutionWidthHook{};
 	SafetyHookMid m_resolutionHeightHook{};
@@ -231,6 +272,17 @@ private:
 		Gameplay4,
 		Cutscenes1,
 		Cutscenes2
+	};
+
+	enum SkipIntroLogosInstructionIndices
+	{
+		StartupFadeDelay,
+		StartupTimer,
+		LegalLogoVisual,
+		THQLogoVisual,
+		HPLogoVisual,
+		FILALogoSubmission,
+		FILALogoDelay
 	};
 
 	enum DestinationInstructions
