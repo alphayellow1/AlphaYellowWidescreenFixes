@@ -25,7 +25,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -35,8 +35,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -49,21 +49,25 @@ protected:
 	{
 		inipp::get_value(ini.sections["Settings"], "HipfireFOVFactor", m_hipfireFOVFactor);
 		inipp::get_value(ini.sections["Settings"], "ZoomFOVFactor", m_zoomFOVFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_hipfireFOVFactor);
 		spdlog_confparse(m_zoomFOVFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
 	{
 		PatchResolutionListToSystemModes();
 
-		HMODULE vision71DllModule = Memory::GetHandle("vision71.dll");
-		std::string vision71DllModuleName = Memory::GetModuleName(vision71DllModule);
+		m_vision71DllModule = Memory::GetHandle("vision71.dll");
+		m_vision71DllModuleName = Memory::GetModuleName(m_vision71DllModule);
 
-		auto ResolutionScanResult = Memory::PatternScan(vision71DllModule, "8B 5C 24 ?? 55 8B 6C 24 ?? 8D 04 2A");
+		auto ResolutionScanResult = Memory::PatternScan(m_vision71DllModule, "8B 5C 24 ?? 55 8B 6C 24 ?? 8D 04 2A");
 		if (ResolutionScanResult)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", vision71DllModuleName.c_str(), ResolutionScanResult - (std::uint8_t*)vision71DllModule);
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", m_vision71DllModuleName.c_str(), ResolutionScanResult - (std::uint8_t*)m_vision71DllModule);
 
 			m_resolutionWidthHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
 			{
@@ -96,11 +100,49 @@ protected:
 				ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newZoomFOV);
 			});
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 6A ?? FF 15 ?? ?? ?? ?? A1");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "C6 47 ?? ?? C6 47 ?? ?? C6 47 ?? ?? FF 50");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroVideosScanResult + 3, "\x00");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos instruction memory address.");
+				return;
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalHipfireFOV = 90.0f;
+
+	HMODULE m_vision71DllModule = nullptr;
+	std::string m_vision71DllModuleName = "";
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionWidthHook{};
 	SafetyHookMid m_resolutionHeightHook{};
@@ -155,14 +197,14 @@ private:
 		}
 
 		std::sort(result.begin(), result.end(), [](const ResolutionEntry& a, const ResolutionEntry& b)
+		{
+			if (a.Width != b.Width)
 			{
-				if (a.Width != b.Width)
-				{
-					return a.Width < b.Width;
-				}
+				return a.Width < b.Width;
+			}
 
-				return a.Height < b.Height;
-			});
+			return a.Height < b.Height;
+		});
 
 		return result;
 	}
