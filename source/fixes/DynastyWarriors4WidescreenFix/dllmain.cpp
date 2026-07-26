@@ -1,14 +1,14 @@
 #include "..\..\common\FixBase.hpp"
 
-class DW4Fix final : public FixBase
+class DynastyWarriors4Fix final : public FixBase
 {
 public:
-	explicit DW4Fix(HMODULE selfModule) : FixBase(selfModule)
+	explicit DynastyWarriors4Fix(HMODULE selfModule) : FixBase(selfModule)
 	{
 		s_instance_ = this;
 	}
 
-	~DW4Fix() override
+	~DynastyWarriors4Fix() override
 	{
 		if (s_instance_ == this)
 		{
@@ -24,18 +24,18 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.4";
 	}
 
 	const char* TargetName() const override
 	{
-		return "Dynasty Warriors 4";
+		return "Dynasty Warriors 4: Hyper";
 	}
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -51,7 +51,11 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -80,10 +84,10 @@ protected:
 			auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "8B 54 24 ?? 57 8B 7C 24 ?? 89 50", "0F 82 ?? ?? ?? ?? 8B 53");
 			if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
-				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
 
-				m_resolutionWidthHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight] + 5, [](SafetyHookContext& ctx)
+				m_resolutionWidthHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight] + 5, [](SafetyHookContext& ctx)
 				{
 					s_instance_->m_currentWidth = Memory::ReadMem(ctx.esp + 0x28);
 
@@ -91,15 +95,15 @@ protected:
 					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
 				});
 
-				m_resolutionHeightHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+				m_resolutionHeightHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
 				{
 					s_instance_->m_currentHeight = Memory::ReadMem(ctx.esp + 0x28);
 				});
 
-				Memory::WriteNOPs(ResolutionScansResult[ResListUnlock], 6);
-				Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 15, 6);
-				Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 33, 2);
-				Memory::WriteNOPs(ResolutionScansResult[ResListUnlock] + 47, 2);
+				Memory::WriteNOPs(ResolutionScansResult[ListUnlock], 6);
+				Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 15, 6);
+				Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 33, 2);
+				Memory::WriteNOPs(ResolutionScansResult[ListUnlock] + 47, 2);
 			}
 
 			auto CharactersNameAspectRatioScanResult = Memory::PatternScan(ExeModule(), "F3 0F 10 05 ?? ?? ?? ?? F3 0F 11 44 24 ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB ?? 83 FF ?? 75 ?? F3 0F 10 05 ?? ?? ?? ?? EB");
@@ -110,9 +114,9 @@ protected:
 				Memory::WriteNOPs(CharactersNameAspectRatioScanResult, 8); // NOP out the original instruction
 
 				m_charactersNameAspectRatioHook = safetyhook::create_mid(CharactersNameAspectRatioScanResult, [](SafetyHookContext& ctx)
-					{
-						ctx.xmm0.f32[0] = s_instance_->m_newAspectRatio;
-					});
+				{
+					ctx.xmm0.f32[0] = s_instance_->m_newAspectRatio;
+				});
 			}
 			else
 			{
@@ -125,32 +129,29 @@ protected:
 			if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 			{
 				spdlog::info("Main Menu Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[MainMenu] - (std::uint8_t*)ExeModule());
-
 				spdlog::info("Gameplay Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay1] - (std::uint8_t*)ExeModule());
-
 				spdlog::info("Gameplay Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Gameplay2] + 8 - (std::uint8_t*)ExeModule());
-
 				spdlog::info("Cutscenes Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[Cutscenes] + 19 - (std::uint8_t*)ExeModule());
 
 				Memory::WriteNOPs(CameraFOVScansResult[MainMenu], 8);
 
 				m_mainMenuFOVHook = safetyhook::create_mid(CameraFOVScansResult[MainMenu], [](SafetyHookContext& ctx)
 				{
-					s_instance_->CameraFOVInstructionsMidHook(ctx.xmm3.f32[0], ctx.esi + 0x98, FullAngle);
+					s_instance_->CameraFOVMidHook(ctx.xmm3.f32[0], ctx.esi + 0x98, FullAngle);
 				});
 
 				Memory::WriteNOPs(CameraFOVScansResult[Gameplay1], 8);
 
 				m_gameplayFOV1Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay1], [](SafetyHookContext& ctx)
 				{
-					s_instance_->CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.ebp + 0x98, FullAngle, s_instance_->m_fovFactor);
+					s_instance_->CameraFOVMidHook(ctx.xmm0.f32[0], ctx.ebp + 0x98, FullAngle, s_instance_->m_fovFactor);
 				});
 
 				Memory::WriteNOPs(CameraFOVScansResult[Gameplay2] + 8, 8);
 
 				m_gameplayFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[Gameplay2] + 8, [](SafetyHookContext& ctx)
 				{
-					s_instance_->CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.edi + 0x98, FullAngle, s_instance_->m_fovFactor);
+					s_instance_->CameraFOVMidHook(ctx.xmm0.f32[0], ctx.edi + 0x98, FullAngle, s_instance_->m_fovFactor);
 				});
 
 				m_cutscenesFOVOffset = Memory::GetPointerFromAddress(CameraFOVScansResult[Cutscenes] + 23, Memory::PointerMode::Absolute);
@@ -159,13 +160,44 @@ protected:
 
 				m_cutscenesFOVHook = safetyhook::create_mid(CameraFOVScansResult[Cutscenes] + 19, [](SafetyHookContext& ctx)
 				{
-					s_instance_->CameraFOVInstructionsMidHook(ctx.xmm0.f32[0], ctx.eax + s_instance_->m_cutscenesFOVOffset, HalfAngle);
+					s_instance_->CameraFOVMidHook(ctx.xmm0.f32[0], ctx.eax + s_instance_->m_cutscenesFOVOffset, HalfAngle);
 				});
 			}
+
+			if (m_runMultipleInstances == true)
+			{
+				auto MultipleInstancesCheckScansResult = Memory::PatternScan(ExeModule(), "74 ?? 57 56 FF 15", "68 ?? ?? ?? ?? 57 57 57");
+				if (Memory::AreAllSignaturesValid(MultipleInstancesCheckScansResult) == true)
+				{
+					spdlog::info("Multiple Instances Check Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[WindowName] - (std::uint8_t*)ExeModule());
+					spdlog::info("Multiple Instances Check Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[ThreadNotifEventName] - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(MultipleInstancesCheckScansResult[WindowName], "\xEB");
+					Memory::PatchBytes(MultipleInstancesCheckScansResult[ThreadNotifEventName], "\x6A\x00\x90\x90\x90");
+				}
+			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "A1 ?? ?? ?? ?? 6A ?? 50 6A");
+				if (SkipIntroVideosScanResult)
+				{
+					spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x2F\x00\x00\x00");
+				}
+				else
+				{
+					spdlog::error("Failed to locate skip intro videos instruction memory address.");
+					return;
+				}
+			} 
 		}		
 	}
 
 private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
 	SafetyHookMid m_resolutionWidthHook{};
 	SafetyHookMid m_resolutionHeightHook{};
 	SafetyHookMid m_charactersNameAspectRatioHook{};
@@ -174,10 +206,17 @@ private:
 	SafetyHookMid m_gameplayFOV2Hook{};
 	SafetyHookMid m_cutscenesFOVHook{};
 
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;	
+
+	uintptr_t m_cutscenesFOVOffset = 0;
+	int m_currentWidth = 0;
+	int m_currentHeight = 0;
+
 	enum ResolutionInstructionsIndex
 	{
-		ResWidthHeight,
-		ResListUnlock
+		WidthHeight,
+		ListUnlock
 	};
 
 	enum CameraFOVInstructionsIndex
@@ -188,24 +227,23 @@ private:
 		Cutscenes
 	};
 
-	uintptr_t m_cutscenesFOVOffset = 0;
+	enum InstancesInstructionsIndex
+	{
+		WindowName,
+		ThreadNotifEventName
+	};
 
-	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
-
-	int m_currentWidth = 0;
-	int m_currentHeight = 0;
-
-	enum angleMode
+	enum AngleMode
 	{
 		FullAngle,
 		HalfAngle
 	};
 
-	void CameraFOVInstructionsMidHook(float& SourceAddress, uintptr_t DestAddress, angleMode AngleMode, float fovFactor = 1.0f)
+	void CameraFOVMidHook(float& sourceAddress, uintptr_t destAddress, AngleMode angleMode, float fovFactor = 1.0f)
 	{
-		float& fCurrentCameraFOV = SourceAddress;
+		float& fCurrentCameraFOV = sourceAddress;
 
-		if (AngleMode == FullAngle)
+		if (angleMode == FullAngle)
 		{
 			m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale) * fovFactor;
 		}
@@ -214,39 +252,37 @@ private:
 			m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale, Maths::AngleMode::HalfAngle) * fovFactor;
 		}
 
-		*reinterpret_cast<float*>(DestAddress) = m_newCameraFOV;
+		*reinterpret_cast<float*>(destAddress) = m_newCameraFOV;
 	}
 
-	inline static DW4Fix* s_instance_ = nullptr;
+	inline static DynastyWarriors4Fix* s_instance_ = nullptr;
 };
 
-static std::unique_ptr<DW4Fix> g_fix;
+static std::unique_ptr<DynastyWarriors4Fix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<DW4Fix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<DynastyWarriors4Fix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
