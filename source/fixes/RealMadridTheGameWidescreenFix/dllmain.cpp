@@ -1,302 +1,251 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "RealMadridTheGameWidescreenFix";
-std::string sFixVersion = "1.1";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class RealMadridTheGameFix final : public FixBase
 {
-	RMTG,
-	Unknown
-};
-
-enum ResolutionInstructionsIndices
-{
-	Res1Scan,
-	Res2Scan,
-	Res3Scan
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::RMTG, {"Real Madrid: The Game", "Game.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit RealMadridTheGameFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~RealMadridTheGameFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid ResolutionWidthInstruction1Hook{};
-static SafetyHookMid ResolutionHeightInstruction1Hook{};
-static SafetyHookMid ResolutionInstructions2Hook{};
-static SafetyHookMid ResolutionInstructions3Hook{};
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::RMTG && bFixActive == true)
+protected:
+	const char* FixName() const override
 	{
-		std::vector<std::uint8_t*> ResolutionInstructionsScansResult = Memory::PatternScan(exeModule, "8B 4C 24 ?? 8A 54 24 ?? 56", "8B 88 ?? ?? ?? ?? 8B 90 ?? ?? ?? ?? 89 0D", "A1 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 15");
-		if (Memory::AreAllSignaturesValid(ResolutionInstructionsScansResult) == true)
+		return "RealMadridTheGameWidescreenFix";
+	}
+
+	const char* FixVersion() const override
+	{
+		return "1.2";
+	}
+
+	const char* TargetName() const override
+	{
+		return "Real Madrid: The Game";
+	}
+
+	InitMode GetInitMode() const override
+	{
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Game.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
+	}
+
+	void ApplyFix() override
+	{
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "8B 4C 24 ?? 8A 54 24 ?? 56", "8B 88 ?? ?? ?? ?? 8B 90 ?? ?? ?? ?? 89 0D",
+		"A1 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 89 15");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res1Scan] - (std::uint8_t*)exeModule);
+			spdlog::info("Resolution Instructions 1 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Res1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Res2] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Res3] - (std::uint8_t*)ExeModule());
 
-			spdlog::info("Resolution Instructions 2 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res2Scan] - (std::uint8_t*)exeModule);
+			Memory::WriteNOPs(ResolutionScansResult[Res1], 4);
 
-			spdlog::info("Resolution Instructions 3 Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionInstructionsScansResult[Res3Scan] - (std::uint8_t*)exeModule);
-
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1Scan], 4);
-
-			ResolutionWidthInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1Scan], [](SafetyHookContext& ctx)
+			m_resolutionWidth1Hook = safetyhook::create_mid(ResolutionScansResult[Res1], [](SafetyHookContext& ctx)
 			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
+				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newResX);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res1Scan] + 9, 4);
+			Memory::WriteNOPs(ResolutionScansResult[Res1] + 9, 4);
 
-			ResolutionHeightInstruction1Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res1Scan] + 9, [](SafetyHookContext& ctx)
+			m_resolutionHeight1Hook = safetyhook::create_mid(ResolutionScansResult[Res1] + 9, [](SafetyHookContext& ctx)
 			{
-				ctx.esi = std::bit_cast<uintptr_t>(iCurrentResY);
+				ctx.esi = std::bit_cast<uintptr_t>(s_instance_->m_newResY);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res2Scan], 12);
+			Memory::WriteNOPs(ResolutionScansResult[Res2], 12);
 
-			ResolutionInstructions2Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res2Scan], [](SafetyHookContext& ctx)
+			m_resolution2Hook = safetyhook::create_mid(ResolutionScansResult[Res2], [](SafetyHookContext& ctx)
 			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
-
-				ctx.edx = std::bit_cast<uintptr_t>(iCurrentResY);
+				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newResX);
+				ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newResY);
 			});
 
-			Memory::WriteNOPs(ResolutionInstructionsScansResult[Res3Scan], 11);
+			Memory::WriteNOPs(ResolutionScansResult[Res3], 11);
 
-			ResolutionInstructions3Hook = safetyhook::create_mid(ResolutionInstructionsScansResult[Res3Scan], [](SafetyHookContext& ctx)
+			m_resolution3Hook = safetyhook::create_mid(ResolutionScansResult[Res3], [](SafetyHookContext& ctx)
 			{
-				ctx.ecx = std::bit_cast<uintptr_t>(iCurrentResX);
-
-				ctx.eax = std::bit_cast<uintptr_t>(iCurrentResY);
+				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newResX);
+				ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newResY);
 			});
 		}
 
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "D9 44 24 ?? D9 15 ?? ?? ?? ?? DC 0D");
-		if (CameraFOVInstructionScanResult)
+		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D9 05 ?? ?? ?? ?? 51 8D 4C 24 ?? D9 1C 24 E8", "D9 42 ?? 51 8B CE");
+		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("Camera FOV Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV1] - (std::uint8_t*)ExeModule());
+			spdlog::info("Camera FOV Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScansResult[FOV2] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionScanResult, 4);
+			m_newCameraFOV1 = m_originalCameraFOV1 * m_fovFactor;
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			Memory::Write(CameraFOVScansResult[FOV1] + 2, &m_newCameraFOV1);
+
+			Memory::WriteNOPs(CameraFOVScansResult[FOV2], 3);
+
+			m_cameraFOV2Hook = safetyhook::create_mid(CameraFOVScansResult[FOV2], [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0x14);
-
-				fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-
-				FPU::FLD(fNewCameraFOV);
+				float& fCurrentCameraFOV2 = Memory::ReadMem(ctx.edx + 0x20);
+				s_instance_->m_newCameraFOV2 = fCurrentCameraFOV2 * s_instance_->m_fovFactor;
+				FPU::FLD(s_instance_->m_newCameraFOV2);
 			});
 		}
-		else
+
+		if (m_runMultipleInstances == true)
 		{
-			spdlog::error("Failed to locate camera FOV instruction memory address.");
-			return;
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "75 ?? A1 ?? ?? ?? ?? 50 FF 15");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "32 DB E8 ?? ?? ?? ?? 8B C8 E8 ?? ?? ?? ?? 85 C0");
+			if (SkipIntroVideosScanResult)
+			{
+				spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+				m_skipIntroVideosHook = safetyhook::create_mid(SkipIntroVideosScanResult + 612, [](SafetyHookContext& ctx)
+				{
+					const auto videoObject = static_cast<std::uintptr_t>(ctx.esi);
+
+					if (!videoObject)
+					{
+						return;
+					}
+
+					const auto nextVideo = *reinterpret_cast<const std::uintptr_t*>(videoObject + 0x08);
+
+					const auto parameter1 = *reinterpret_cast<const std::uint32_t*>(videoObject + 0x0C);
+
+					const auto parameter2 = *reinterpret_cast<const std::uint32_t*>(videoObject + 0x10);
+
+					const bool isPlaceholder = parameter1 == 7 && parameter2 == 1;
+
+					bool isV2PlayLogo = false;
+
+					if (nextVideo)
+					{
+						const auto nextParameter1 = *reinterpret_cast<const std::uint32_t*>(nextVideo + 0x0C);
+
+						const auto nextParameter2 = *reinterpret_cast<const std::uint32_t*>(nextVideo + 0x10);
+
+						isV2PlayLogo = nextParameter1 == 7 && nextParameter2 == 1;
+					}
+
+					if (isV2PlayLogo || isPlaceholder)
+					{
+						ctx.ebx = (ctx.ebx & 0xFFFFFF00u) | 1u;
+					}
+				});
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro videos instruction memory address.");
+				return;
+			}
 		}
 	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalCameraFOV1 = 0.9424778819f;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
+
+	float m_newCameraFOV1 = 0.0f;
+	float m_newCameraFOV2 = 0.0f;	
+
+	SafetyHookMid m_resolutionWidth1Hook{};
+	SafetyHookMid m_resolutionHeight1Hook{};
+	SafetyHookMid m_resolution2Hook{};
+	SafetyHookMid m_resolution3Hook{};
+	SafetyHookMid m_cameraFOV2Hook{};
+	SafetyHookMid m_skipIntroVideosHook{};
+
+	enum ResolutionInstructionsIndices
 	{
-		WidescreenFix();
-	}
-	return TRUE;
-}
+		Res1,
+		Res2,
+		Res3
+	};
+
+	enum CameraFOVInstructionsIndices
+	{
+		FOV1,
+		FOV2
+	};	
+
+	inline static RealMadridTheGameFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<RealMadridTheGameFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		case DLL_PROCESS_ATTACH:
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<RealMadridTheGameFix>(hModule);
+			g_fix->Start();
+			break;
 		}
-		break;
+
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
+
 	return TRUE;
 }
