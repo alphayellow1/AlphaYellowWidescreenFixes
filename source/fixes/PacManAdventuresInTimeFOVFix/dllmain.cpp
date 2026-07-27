@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.4";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -102,11 +104,43 @@ protected:
 			Memory::Write(CameraFOVScansResult[FOV1] + 1, m_newCameraFOV);
 			Memory::Write(CameraFOVScansResult[FOV2] + 1, m_newCameraFOV);
 		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroLogosScanResult = Memory::PatternScan(ExeModule(), "7D ?? C1 E0 ?? 8D 8C 30");
+			if (SkipIntroLogosScanResult)
+			{
+				spdlog::info("Skip Intro Logos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroLogosScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(SkipIntroLogosScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate skip intro logos instruction memory address.");
+				return;
+			}
+		}		
+
+		auto AltTabFixScansResult = Memory::PatternScan(ExeModule(), "6A ?? 51 8B 10 50 FF 52 ?? 68 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 83 C4 ?? 84 C0 0F 94 C0 C3 90 90 90 90 90 90 90 90 90 90 90 90 90 A1",
+		"6A ?? 52 8B 08 50 FF 51 ?? 68");
+		if (Memory::AreAllSignaturesValid(AltTabFixScansResult))
+		{
+			spdlog::info("Alt-Tab Fix: Runtime keyboard cooperative-level flags found at {:s}+{:x}", ExeName().c_str(), AltTabFixScansResult[RuntimeKeyboardCooperativeLevel] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+			spdlog::info("Alt-Tab Fix: Initial keyboard cooperative-level flags found at {:s}+{:x}", ExeName().c_str(), AltTabFixScansResult[InitialKeyboardCooperativeLevel] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+			// DISCL_NONEXCLUSIVE | DISCL_FOREGROUND
+			constexpr std::uint8_t NonExclusiveForeground = 0x06;
+
+			Memory::PatchBytes(AltTabFixScansResult[RuntimeKeyboardCooperativeLevel] + 1, NonExclusiveForeground);
+			Memory::PatchBytes(AltTabFixScansResult[InitialKeyboardCooperativeLevel] + 1, NonExclusiveForeground);
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalCameraFOV = 1.0471975803375244f;
+
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatioHook{};
@@ -115,6 +149,13 @@ private:
 	{
 		FOV1,
 		FOV2
+	};
+
+	enum AltTabFixScans
+	{
+		RuntimeKeyboardCooperativeLevel,
+		InitialKeyboardCooperativeLevel,
+		Count
 	};
 
 	float m_currentCameraHFOV = 0.0f;
