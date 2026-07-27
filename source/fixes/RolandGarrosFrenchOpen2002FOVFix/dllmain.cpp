@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,11 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -61,9 +65,7 @@ protected:
 			{
 				int& iCurrentWidth = Memory::ReadMem(ctx.eax + 0xC);
 				int& iCurrentHeight = Memory::ReadMem(ctx.eax + 0x10);
-
 				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
-
 				s_instance_->m_resolutionHook.disable();
 			});
 		}
@@ -108,21 +110,57 @@ protected:
 			spdlog::info("Failed to locate the camera FOV instruction memory address.");
 			return;
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "0F 85 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::WriteNOPs(RunMultipleInstancesCheckScanResult, 6);
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScansResult = Memory::PatternScan(ExeModule(), "76 ?? BF ?? ?? ?? ?? 89 7E", "0F 8D ?? ?? ?? ?? 6A ?? 6A");
+			if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+			{
+				spdlog::info("Movie Completion Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[0] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+				spdlog::info("Post-Intro Timer Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[1] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+				Memory::WriteNOPs(SkipIntroVideosScansResult[MovieCompletionCheck], 2);
+				Memory::PatchBytes(SkipIntroVideosScansResult[PostIntroTimerCheck], "\xE9\x03\x01\x00\x00\x90");
+			}
+		}
 	}
 
 private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_cameraFOVHook{};
 
-	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
+	
+	enum SkipIntroVideosIntructionsIndex
+	{
+		MovieCompletionCheck,
+		PostIntroTimerCheck
+	};
 
 	void CameraFOVMidHook(SafetyHookContext& ctx)
 	{
 		const float& fCurrentCameraFOV = std::bit_cast<float>(ctx.edx);
-
 		m_newCameraFOV = fCurrentCameraFOV * m_fovFactor;
-
 		*reinterpret_cast<float*>(ctx.eax + 0xEC) = m_newCameraFOV;
 	}
 
@@ -133,29 +171,27 @@ static std::unique_ptr<RGO2002Fix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<RGO2002Fix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<RGO2002Fix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
