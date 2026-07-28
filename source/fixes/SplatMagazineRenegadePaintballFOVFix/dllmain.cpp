@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.3.1";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -49,9 +49,13 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "HipfireFOVFactor", m_hipfireFOVFactor);
 		inipp::get_value(ini.sections["Settings"], "WeaponFOVFactor", m_weaponFOVFactor);
 		inipp::get_value(ini.sections["Settings"], "ZoomFactor", m_zoomFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_hipfireFOVFactor);
 		spdlog_confparse(m_weaponFOVFactor);
 		spdlog_confparse(m_zoomFactor);
+		spdlog_confparse(m_runMultipleInstances);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -59,18 +63,17 @@ protected:
 		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "6A ?? 89 74 24 ?? FF 15", "8B 8C 24 ?? ?? ?? ?? 8B BC 24 ?? ?? ?? ?? 89 0E");
 		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResListUnlock] - (std::uint8_t*)ExeModule());
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ResWidthHeight] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(ResolutionScansResult[ResListUnlock], 303);
+			Memory::WriteNOPs(ResolutionScansResult[ListUnlock], 303);
 
-			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[ResWidthHeight], [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
 			{
 				int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x148);
 				int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x14C);
 				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
 				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
-
 				s_instance_->WriteAR();
 			});
 		}
@@ -145,10 +148,44 @@ protected:
 				s_instance_->CameraFOVMidHook(ctx.eax + 0x4, s_instance_->m_weaponFOVFactor, ECX, ctx);
 			});
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 6A ?? 50 FF 15 ?? ?? ?? ?? 33 C0");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
+
+		if (m_skipIntroVideos == true)
+		{
+			auto SkipIntroVideosScansResult = Memory::PatternScan(ExeModule(), "75 ?? 8A 46 ?? 84 C0 74 ?? 8B 06", "C7 45 ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 5D", "C7 46 ?? ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 5E");
+			if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+			{
+				spdlog::info("Movie Completion Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[MovieCompletionCheck] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+				spdlog::info("Rating Image Timer Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[RatingLogoTimer] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+				spdlog::info("Game Logo Timer Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[GameLogoTimer] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+				Memory::PatchBytes(SkipIntroVideosScansResult[MovieCompletionCheck], "\xEB");
+				Memory::PatchBytes(SkipIntroVideosScansResult[RatingLogoTimer] + 3, 0.0f);
+				Memory::Write(SkipIntroVideosScansResult[GameLogoTimer] + 3, 0.0f);
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
 
 	std::vector<std::uint8_t*> AspectRatioScansResult;
 
@@ -173,8 +210,8 @@ private:
 
 	enum ResolutionInstructionsIndex
 	{
-		ResListUnlock,
-		ResWidthHeight
+		ListUnlock,
+		WidthHeight
 	};
 
 	enum AspectRatioInstructionsIndex
@@ -198,6 +235,13 @@ private:
 		Hipfire2,
 		Zoom,
 		Weapon
+	};
+
+	enum SkipIntroVideosInstructionsIndex
+	{
+		MovieCompletionCheck,
+		RatingLogoTimer,
+		GameLogoTimer
 	};
 
 	void CameraFOVMidHook(uintptr_t FOVAddress, float fovFactor, DestInstruction destInstruction, SafetyHookContext& ctx)
@@ -236,29 +280,27 @@ static std::unique_ptr<RenegadePaintballFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<RenegadePaintballFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<RenegadePaintballFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
