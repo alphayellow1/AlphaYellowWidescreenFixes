@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.1.1";
 	}
 
 	const char* TargetName() const override
@@ -48,28 +48,30 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
 	{
 		if (Util::stringcmp_caseless(ExeName(), "video.exe"))
 		{
-			auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "7F ?? 3B 44 24", "7F ?? 46 83 C1", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB");
-			if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
+			auto ResolutionScans1Result = Memory::PatternScan(ExeModule(), "7F ?? 3B 44 24", "7F ?? 46 83 C1", "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB");
+			if (Memory::AreAllSignaturesValid(ResolutionScans1Result) == true)
 			{
-				spdlog::info("Resolution List Unlock Scan 1: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock1] - (std::uint8_t*)ExeModule());
-				spdlog::info("Resolution List Unlock Scan 2: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock2] - (std::uint8_t*)ExeModule());
-				spdlog::info("Default Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[DefaultRes] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution List Unlock Scan 1: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans1Result[ListUnlock1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution List Unlock Scan 2: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans1Result[ListUnlock2] - (std::uint8_t*)ExeModule());
+				spdlog::info("Default Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans1Result[DefaultRes] - (std::uint8_t*)ExeModule());
 
-				Memory::WriteNOPs(ResolutionScansResult[ListUnlock1], 2);
-				Memory::WriteNOPs(ResolutionScansResult[ListUnlock2], 2);
+				Memory::WriteNOPs(ResolutionScans1Result[ListUnlock1], 2);
+				Memory::WriteNOPs(ResolutionScans1Result[ListUnlock2], 2);
 
 				m_newDefaultWidth = Screen::GetDesktopResolutionWidth();
 				m_newDefaultHeight = Screen::GetDesktopResolutionHeight();
 
-				Memory::Write(ResolutionScansResult[DefaultRes] + 4, m_newDefaultWidth);
-				Memory::Write(ResolutionScansResult[DefaultRes] + 12, m_newDefaultHeight);
+				Memory::Write(ResolutionScans1Result[DefaultRes] + 4, m_newDefaultWidth);
+				Memory::Write(ResolutionScans1Result[DefaultRes] + 12, m_newDefaultHeight);
 			}
 		}
 
@@ -80,17 +82,22 @@ protected:
 			m_fnxDX7Module = Memory::GetHandle("fnx_dx7.dll");
 			m_fnxDX7ModuleName = Memory::GetModuleName(m_fnxDX7Module);
 
-			auto ResolutionScanResult = Memory::PatternScan(m_fnxDX7Module, "FF 51 ?? 85 C0 0F 85 ?? ?? ?? ?? 6A");
-			if (ResolutionScanResult)
+			ResolutionScans2Result = Memory::PatternScan(m_fnxDX7Module, "FF 51 ?? 85 C0 0F 85 ?? ?? ?? ?? 6A", ExeModule(), "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? 6A ?? 56 E8 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? A1",
+			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? 6A ?? 56 E8 ?? ?? ?? ?? 56 E8 ?? ?? ?? ?? 83 C4", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? B9");
+			if (Memory::AreAllSignaturesValid(ResolutionScans2Result) == true)
 			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", m_fnxDX7ModuleName.c_str(), ResolutionScanResult - (std::uint8_t*)m_fnxDX7Module);
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", m_fnxDX7ModuleName.c_str(), ResolutionScans2Result[WidthHeight] - (std::uint8_t*)m_fnxDX7Module);
+				spdlog::info("Ubisoft Logo Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[UbisoftLogo] - (std::uint8_t*)ExeModule());
+				spdlog::info("In Utero Logo Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[InUteroLogo] - (std::uint8_t*)ExeModule());
+				spdlog::info("Startup Logos Resolution Instructions 2 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[LogoRes2] - (std::uint8_t*)ExeModule());
 
-				m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+				m_resolutionHook = safetyhook::create_mid(ResolutionScans2Result[WidthHeight], [](SafetyHookContext& ctx)
 				{
-					int& iCurrentWidth = Memory::ReadMem(ctx.esp + 0x4);
-					int& iCurrentHeight = Memory::ReadMem(ctx.esp + 0x8);
-					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+					s_instance_->m_newResX = Memory::ReadMem(ctx.esp + 0x4);
+					s_instance_->m_newResY = Memory::ReadMem(ctx.esp + 0x8);
+					s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
 					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
+					s_instance_->WriteIntroVideosRes();
 					s_instance_->m_resolutionHook.disable();
 				});
 			}
@@ -160,6 +167,22 @@ protected:
 					FPU::FLD(s_instance_->m_newCameraFOV2);
 				});
 			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 6A");
+				if (SkipIntroVideosScanResult)
+				{
+					spdlog::info("Skip Intro Videos Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x72\x01\x00\x00\x90");
+				}
+				else
+				{
+					spdlog::error("Failed to locate skip intro videos instruction memory address.");
+					return;
+				}
+			}
 		}
 	}
 
@@ -170,6 +193,10 @@ private:
 	std::string m_fnxDX7ModuleName = "";
 	HMODULE m_fnxCoreModule = nullptr;
 	std::string m_fnxCoreModuleName = "";
+
+	std::vector<std::uint8_t*> ResolutionScans2Result;
+
+	bool m_skipIntroVideos = false;
 
 	int m_newDefaultWidth = 0;
 	int m_newDefaultHeight = 0;
@@ -182,11 +209,29 @@ private:
 	SafetyHookMid m_cameraFOV1Hook{};
 	SafetyHookMid m_cameraFOV2Hook{};
 
-	enum ResolutionInstructionsIndex
+	void WriteIntroVideosRes()
+	{
+		Memory::Write(ResolutionScans2Result[UbisoftLogo] + 6, m_newResX);
+		Memory::Write(ResolutionScans2Result[UbisoftLogo] + 1, m_newResY);
+		Memory::Write(ResolutionScans2Result[InUteroLogo] + 6, m_newResX);
+		Memory::Write(ResolutionScans2Result[InUteroLogo] + 1, m_newResY);
+		Memory::Write(ResolutionScans2Result[LogoRes2] + 6, m_newResX);
+		Memory::Write(ResolutionScans2Result[LogoRes2] + 1, m_newResY);
+	}
+
+	enum ResolutionInstructions1Index
 	{
 		ListUnlock1,
 		ListUnlock2,
 		DefaultRes
+	};
+
+	enum ResolutionInstructions2Index
+	{
+		WidthHeight,
+		UbisoftLogo,
+		InUteroLogo,
+		LogoRes2
 	};
 
 	enum CameraFOVInstructionsIndex
@@ -194,6 +239,8 @@ private:
 		FOV1,
 		FOV2
 	};
+
+	
 
 	inline static EvilTwinFix* s_instance_ = nullptr;
 };
