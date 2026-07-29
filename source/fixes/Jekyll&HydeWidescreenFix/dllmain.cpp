@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -48,59 +48,105 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
 	{
 		if (Util::stringcmp_caseless(ExeName(), "video.exe"))
 		{
-			auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "3D ?? ?? ?? ?? 75 ?? 8B 16 8B CE FF 52 ?? 3D ?? ?? ?? ?? 0F 84",
+			auto ResolutionScans1Result = Memory::PatternScan(ExeModule(), "3D ?? ?? ?? ?? 75 ?? 8B 16 8B CE FF 52 ?? 3D ?? ?? ?? ?? 0F 84",
 			"3D ?? ?? ?? ?? 75 ?? 81 7C 24");
-			if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
+			if (Memory::AreAllSignaturesValid(ResolutionScans1Result) == true)
 			{
-				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[ListUnlock] - (std::uint8_t*)ExeModule());
-				spdlog::info("Default Resolution Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[DefaultRes] - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution List Unlock Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans1Result[ListUnlock] - (std::uint8_t*)ExeModule());
+				spdlog::info("Default Resolution Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans1Result[DefaultRes] - (std::uint8_t*)ExeModule());
 
-				Memory::PatchBytes(ResolutionScansResult[ListUnlock], "\xE9\xA8\x00\x00\x00");
+				Memory::PatchBytes(ResolutionScans1Result[ListUnlock], "\xE9\xA8\x00\x00\x00");
 
 				m_newDefaultWidth = Screen::GetDesktopResolutionWidth();
 				m_newDefaultHeight = Screen::GetDesktopResolutionHeight();
-
-				Memory::Write(ResolutionScansResult[DefaultRes] + 1, m_newDefaultWidth);
-				Memory::Write(ResolutionScansResult[DefaultRes] + 11, m_newDefaultHeight);
+				Memory::Write(ResolutionScans1Result[DefaultRes] + 1, m_newDefaultWidth);
+				Memory::Write(ResolutionScans1Result[DefaultRes] + 11, m_newDefaultHeight);
 			}
 		}
 
 		if (Util::stringcmp_caseless(ExeName(), "Game.exe"))
 		{
-			auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 2B C1");
-			if (ResolutionScanResult)
-			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
-
-				m_resolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionScanResult + 28, Memory::PointerMode::Absolute);
-				m_resolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionScanResult + 1, Memory::PointerMode::Absolute);
-
-				m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
-				{
-					int& iCurrentWidth = Memory::ReadMem(s_instance_->m_resolutionWidthAddress);
-					int& iCurrentHeight = Memory::ReadMem(s_instance_->m_resolutionHeightAddress);
-					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
-					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
-					s_instance_->m_resolutionHook.disable();
-				});
-			}
-			else
-			{
-				spdlog::error("Failed to locate resolution instructions scan memory address.");
-				return;
-			}
-
 			m_fnxCoreModule = Memory::GetHandle("fnx_core.dll");
 			m_fnxCoreModuleName = Memory::GetModuleName(m_fnxCoreModule);
 			m_fnxDX7Module = Memory::GetHandle("fnx_dx7.dll");
-			m_fnxDX7ModuleName = Memory::GetModuleName(m_fnxDX7Module);			
+			m_fnxDX7ModuleName = Memory::GetModuleName(m_fnxDX7Module);
+			m_4xmSdkDllModule = Memory::GetHandle("4xm_sdk.dll");
+			m_4xmSdkDllModuleName = Memory::GetModuleName(m_4xmSdkDllModule);
+
+			auto ResolutionScans2Result = Memory::PatternScan(m_fnxDX7Module, "FF 51 ?? 85 C0 0F 85 ?? ?? ?? ?? 6A", ExeModule(), "E8 ?? ?? ?? ?? 50 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 85 C0",
+			m_4xmSdkDllModule, "8B 44 24 ?? 48");
+			if (Memory::AreAllSignaturesValid(ResolutionScans2Result) == true)
+			{
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", m_fnxDX7ModuleName.c_str(), ResolutionScans2Result[WidthHeight] - (std::uint8_t*)m_fnxDX7Module);
+				spdlog::info("FMVs Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[FMVs] - (std::uint8_t*)ExeModule());
+				spdlog::info("FMVs Scale Instructions Scan: Address is {:s}+{:x}", m_4xmSdkDllModuleName.c_str(), ResolutionScans2Result[FMVsScale] - (std::uint8_t*)m_4xmSdkDllModule);
+
+				m_resolutionHook = safetyhook::create_mid(ResolutionScans2Result[WidthHeight], [](SafetyHookContext& ctx)
+				{
+					s_instance_->m_newResX = Memory::ReadMem(ctx.esp + 0x4);
+					s_instance_->m_newResY = Memory::ReadMem(ctx.esp + 0x8);
+					s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
+					s_instance_->m_resolutionHook.disable();
+				});
+
+				m_fmvsResolutionHook = safetyhook::create_mid(ResolutionScans2Result[FMVs], [](SafetyHookContext& ctx)
+				{
+					if (s_instance_->m_newResX < 640 || s_instance_->m_newResY < 480)
+					{
+						return;
+					}
+
+					auto& displayWidth = *reinterpret_cast<std::uint32_t*>(ctx.esp + 0x00);
+					auto& displayHeight = *reinterpret_cast<std::uint32_t*>(ctx.esp + 0x04);
+					auto& displayBitDepth = *reinterpret_cast<std::uint32_t*>(ctx.esp + 0x08);
+
+					displayWidth = static_cast<std::uint32_t>(s_instance_->m_newResX);
+					displayHeight = static_cast<std::uint32_t>(s_instance_->m_newResY);
+					displayBitDepth = 16;
+				});				
+
+				m_fmvsScaleHook = safetyhook::create_mid(ResolutionScans2Result[FMVsScale], [](SafetyHookContext& ctx)
+				{
+					constexpr std::uint32_t nativeVideoWidth = 640;
+					constexpr std::uint32_t nativeVideoHeight = 480;
+					constexpr std::uint32_t bytesPerPixel = 2;
+
+					if (s_instance_->m_newResX < nativeVideoWidth || s_instance_->m_newResY < nativeVideoHeight)
+					{
+						return;
+					}
+
+					auto* destinationArgument = reinterpret_cast<std::uint32_t*>(ctx.esp + 0x04);
+
+					if (!destinationArgument || *destinationArgument == 0)
+					{
+						return;
+					}
+
+					const auto destinationPitch = *reinterpret_cast<const std::uint32_t*>(ctx.esp + 0x08);
+					const auto expectedDestinationPitch = static_cast<std::uint32_t>(s_instance_->m_newResX) * bytesPerPixel;
+
+					if (destinationPitch != expectedDestinationPitch)
+					{
+						return;
+					}
+
+					const auto offsetX = (static_cast<std::uint32_t>(s_instance_->m_newResX) - nativeVideoWidth) / 2;
+					const auto offsetY = (static_cast<std::uint32_t>(s_instance_->m_newResY) - nativeVideoHeight) / 2;
+					const auto destinationByteOffset = offsetY * destinationPitch + offsetX * bytesPerPixel;
+					*destinationArgument += destinationByteOffset;
+				});
+			}
 
 			auto AspectRatioScanResult = Memory::PatternScan(m_fnxCoreModule, "A1 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B C6");
 			if (AspectRatioScanResult)
@@ -162,6 +208,20 @@ protected:
 					FPU::FLD(s_instance_->m_newCameraFOV2);
 				});
 			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScansResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 6A ?? E8 ?? ?? ?? ?? 83 C4 ?? 85 C0",
+				"E8 ?? ?? ?? ?? 8B 86 ?? ?? ?? ?? 89 9E");
+				if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+				{
+					spdlog::info("Cryo Logo Intro Video Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[CryoLogo] - (std::uint8_t*)ExeModule());
+					spdlog::info("In Utero Intro Video Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[InUteroLogo] - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScansResult[CryoLogo], "\xE9\xA8\x00\x00\x00\x90");
+					Memory::PatchBytes(SkipIntroVideosScansResult[InUteroLogo], "\x83\xC4\x14\xB0\x01");
+				}
+			}
 		}
 	}
 
@@ -169,9 +229,15 @@ private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 
 	HMODULE m_fnxDX7Module = nullptr;
-	std::string m_fnxDX7ModuleName = "";
 	HMODULE m_fnxCoreModule = nullptr;
+	HMODULE m_4xmSdkDllModule = nullptr;
+	std::string m_fnxDX7ModuleName = "";
 	std::string m_fnxCoreModuleName = "";
+	std::string m_4xmSdkDllModuleName = "";
+
+	bool m_skipIntroVideos = false;
+
+	std::vector<std::uint8_t*> ResolutionScans2Result;
 
 	int m_newDefaultWidth = 0;
 	int m_newDefaultHeight = 0;
@@ -179,24 +245,36 @@ private:
 	float m_newCameraFOV1 = 0.0f;
 	float m_newCameraFOV2 = 0.0f;
 
-	uintptr_t m_resolutionWidthAddress = 0;
-	uintptr_t m_resolutionHeightAddress = 0;
-
 	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_fmvsResolutionHook{};
+	SafetyHookMid m_fmvsScaleHook{};
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_cameraFOV1Hook{};
 	SafetyHookMid m_cameraFOV2Hook{};
 
-	enum ResolutionInstructionsIndex
+	enum ResolutionInstructions1Index
 	{
 		ListUnlock,
 		DefaultRes
+	};
+
+	enum ResolutionInstructions2Index
+	{
+		WidthHeight,
+		FMVs,
+		FMVsScale
 	};
 
 	enum CameraFOVInstructionsIndex
 	{
 		FOV1,
 		FOV2
+	};
+
+	enum SkipIntroVideosInstructionsIndex
+	{
+		CryoLogo,
+		InUteroLogo
 	};
 
 	inline static JekyllFix* s_instance_ = nullptr;
@@ -206,29 +284,27 @@ static std::unique_ptr<JekyllFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<JekyllFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<JekyllFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
