@@ -105,7 +105,7 @@ protected:
 			{
 				spdlog::error("Failed to locate resolution instructions scan memory address.");
 				return;
-			}			
+			}
 
 			auto AspectRatioScanResult = Memory::PatternScan(m_fnxCoreModule, "A1 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B C6");
 			if (AspectRatioScanResult)

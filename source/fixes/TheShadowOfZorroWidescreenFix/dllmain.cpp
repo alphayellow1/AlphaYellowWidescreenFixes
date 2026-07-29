@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1.1";
+		return "1.2";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,8 @@ protected:
 
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
-
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -67,20 +68,31 @@ protected:
 
 		if (Util::stringcmp_caseless(ExeName(), "Zorro.exe"))
 		{
-			auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 2B C1");
-			if (ResolutionScanResult)
+			m_fnxCoreModule = Memory::GetHandle("fnx_core.dll");
+			m_fnxCoreModuleName = Memory::GetModuleName(m_fnxCoreModule);
+			m_fnxDX7Module = Memory::GetHandle("fnx_dx7.dll");
+			m_fnxDX7ModuleName = Memory::GetModuleName(m_fnxDX7Module);
+
+			ResolutionScans2Result = Memory::PatternScan(m_fnxDX7Module, "FF 51 ?? 85 C0 0F 85 ?? ?? ?? ?? 6A", ExeModule(), "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? 8D 4C 24 ?? 6A ?? 51 8B CE E8 ?? ?? ?? ?? 8B 15",
+			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? 8D 4C 24 ?? 6A ?? 51 8B CE E8 ?? ?? ?? ?? 85 F6", "68 ?? ?? ?? ?? 68 ?? ?? ?? ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 50 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 85 C0 75 ?? 6A ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 50",
+			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 50 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 85 C0 75 ?? 6A ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 53",
+			"68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 53 8D 54 24");
+			if (Memory::AreAllSignaturesValid(ResolutionScans2Result) == true)
 			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", m_fnxDX7ModuleName.c_str(), ResolutionScans2Result[ResolutionWidthHeight] - (std::uint8_t*)m_fnxDX7Module);
+				spdlog::info("Cryo Logo Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[ResolutionCryoLogo] - (std::uint8_t*)ExeModule());
+				spdlog::info("In Utero Logo Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[ResolutionInUteroLogo] - (std::uint8_t*)ExeModule());
+				spdlog::info("Startup Resolution Instructions 1 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[ResolutionStartup1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Startup Resolution Instructions 2 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[ResolutionStartup2] - (std::uint8_t*)ExeModule());
+				spdlog::info("Startup Resolution Instructions 3 Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScans2Result[ResolutionStartup3] - (std::uint8_t*)ExeModule());
 
-				m_resolutionWidthAddress = Memory::GetPointerFromAddress(ResolutionScanResult + 28, Memory::PointerMode::Absolute);
-				m_resolutionHeightAddress = Memory::GetPointerFromAddress(ResolutionScanResult + 1, Memory::PointerMode::Absolute);
-
-				m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+				m_resolutionHook = safetyhook::create_mid(ResolutionScans2Result[ResolutionWidthHeight], [](SafetyHookContext& ctx)
 				{
-					int& iCurrentWidth = Memory::ReadMem(s_instance_->m_resolutionWidthAddress);
-					int& iCurrentHeight = Memory::ReadMem(s_instance_->m_resolutionHeightAddress);
-					s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
+					s_instance_->m_newResX = Memory::ReadMem(ctx.esp + 0x4);
+					s_instance_->m_newResY = Memory::ReadMem(ctx.esp + 0x8);
+					s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
 					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
+					s_instance_->WriteIntroVideosRes();
 					s_instance_->m_resolutionHook.disable();
 				});
 			}
@@ -89,11 +101,6 @@ protected:
 				spdlog::error("Failed to locate resolution instructions scan memory address.");
 				return;
 			}
-
-			m_fnxCoreModule = Memory::GetHandle("fnx_core.dll");
-			m_fnxCoreModuleName = Memory::GetModuleName(m_fnxCoreModule);
-			m_fnxDX7Module = Memory::GetHandle("fnx_dx7.dll");
-			m_fnxDX7ModuleName = Memory::GetModuleName(m_fnxDX7Module);
 
 			auto AspectRatioScanResult = Memory::PatternScan(m_fnxCoreModule, "A1 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 8B C6");
 			if (AspectRatioScanResult)
@@ -137,6 +144,30 @@ protected:
 					FPU::FLD(s_instance_->m_newCameraFOV2);
 				});
 			}
+			
+			auto InputFixScansResult = Memory::PatternScan(ExeModule(), "3D ?? ?? ?? ?? 75 ?? 8B 46", "3D ?? ?? ?? ?? 75 ?? 8B 43 ?? 50 8B 08 FF 51 ?? 85 C0 7D ?? BF");
+			if (Memory::AreAllSignaturesValid(InputFixScansResult) == true)
+			{
+				spdlog::info("Input fix: Mouse GetDeviceState error check found at {:s}+{:x}", ExeName().c_str(), InputFixScansResult[MouseErrorCheck] - (std::uint8_t*)(ExeModule()));
+				spdlog::info("Input fix: Keyboard GetDeviceState error check found at {:s}+{:x}", ExeName().c_str(), InputFixScansResult[KeyboardErrorCheck] - (std::uint8_t*)(ExeModule()));
+
+				Memory::PatchBytes(InputFixScansResult[MouseErrorCheck], "\x85\xC0\x90\x90\x90\x79\x18");
+				Memory::PatchBytes(InputFixScansResult[KeyboardErrorCheck], "\x85\xC0\x90\x90\x90\x79\x0D");
+			}
+
+			if (m_skipIntroVideos == true)
+			{
+				auto SkipIntroVideosScansResult = Memory::PatternScan(ExeModule(), "74 ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? 8D 4C 24 ?? 6A ?? 51 8B CE E8 ?? ?? ?? ?? 8B 15",
+				"74 ?? 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A ?? 8D 4C 24 ?? 6A ?? 51 8B CE E8 ?? ?? ?? ?? 85 F6");
+				if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+				{
+					spdlog::info("Cryo Logo Intro Video Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[IntroCryoLogo] - (std::uint8_t*)ExeModule());
+					spdlog::info("In Utero Logo Intro Video Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScansResult[IntroInUteroLogo] - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(SkipIntroVideosScansResult[IntroCryoLogo], "\xEB");
+					Memory::PatchBytes(SkipIntroVideosScansResult[IntroInUteroLogo], "\xEB");
+				}
+			}
 		}
 	}
 
@@ -148,24 +179,47 @@ private:
 	HMODULE m_fnxCoreModule = nullptr;
 	std::string m_fnxCoreModuleName = "";
 
+	bool m_skipIntroVideos = false;
+
+	std::vector<std::uint8_t*> ResolutionScans2Result;
+
 	int m_newDefaultWidth = 0;
 	int m_newDefaultHeight = 0;
 
 	float m_newCameraFOV1 = 0.0f;
 	float m_newCameraFOV2 = 0.0f;
 
-	uintptr_t m_resolutionWidthAddress = 0;
-	uintptr_t m_resolutionHeightAddress = 0;
-
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_cameraFOV1Hook{};
 	SafetyHookMid m_cameraFOV2Hook{};
 
-	enum ResolutionInstructionsIndex
+	enum Resolution1
 	{
 		ListUnlock1,
 		ListUnlock2
+	};
+
+	enum ResolutionScanIndex
+	{
+		ResolutionWidthHeight,
+		ResolutionCryoLogo,
+		ResolutionInUteroLogo,
+		ResolutionStartup1,
+		ResolutionStartup2,
+		ResolutionStartup3
+	};
+
+	enum InputFixScanIndex
+	{
+		MouseErrorCheck,
+		KeyboardErrorCheck
+	};
+
+	enum IntroVideoScanIndex
+	{
+		IntroCryoLogo,
+		IntroInUteroLogo
 	};
 
 	enum CameraFOVInstructionsIndex
@@ -174,6 +228,12 @@ private:
 		FOV2
 	};
 
+	void WriteIntroVideosRes()
+	{
+		Memory::Write(ResolutionScans2Result, ResolutionCryoLogo, ResolutionStartup3, 6, m_newResX);
+		Memory::Write(ResolutionScans2Result, ResolutionCryoLogo, ResolutionStartup3, 1, m_newResY);
+	}
+
 	inline static ShadowOfZorroFix* s_instance_ = nullptr;
 };
 
@@ -181,29 +241,27 @@ static std::unique_ptr<ShadowOfZorroFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<ShadowOfZorroFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<ShadowOfZorroFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
