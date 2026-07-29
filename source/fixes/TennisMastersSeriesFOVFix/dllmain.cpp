@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3";
+		return "1.3.1";
 	}
 
 	const char* TargetName() const override
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
 	}
 
 	void ApplyFix() override
@@ -277,12 +279,29 @@ protected:
 				*reinterpret_cast<float*>(ctx.ecx + 0x148) = s_instance_->m_newPlayerSelectionHFOV2;
 			});
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto MultipleInstancesCheckScansResult = Memory::PatternScan(ExeModule(), "50 6A ?? 55 FF 15", "68 ?? ?? ?? ?? 6A ?? 8B E9", "68 ?? ?? ?? ?? 6A ?? 6A ?? A3");
+			if (Memory::AreAllSignaturesValid(MultipleInstancesCheckScansResult) == true)
+			{
+				spdlog::info("Game Mutex Name Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[GameMutex] - (std::uint8_t*)ExeModule());
+				spdlog::info("Audio Mutex 1 Name Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[AudioMutexName1] - (std::uint8_t*)ExeModule());
+				spdlog::info("Audio Mutex 2 Name Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[AudioMutexName2] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(MultipleInstancesCheckScansResult[GameMutex], "\x55");
+				Memory::PatchBytes(MultipleInstancesCheckScansResult[AudioMutexName1], "\x6A\x00\x90\x90\x90");
+				Memory::PatchBytes(MultipleInstancesCheckScansResult[AudioMutexName2], "\x6A\x00\x90\x90\x90");
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_originalPlayerSelectionHFOV1 = -0.55f;
 	static constexpr float m_originalPlayerSelectionHFOV2 = 0.55f;
+
+	bool m_runMultipleInstances = false;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_camera1_HFOV1Hook{};
@@ -335,12 +354,17 @@ private:
 		PlayerSelection
 	};
 
+	enum MultipleInstancesInstructionsIndex
+	{
+		GameMutex,
+		AudioMutexName1,
+		AudioMutexName2
+	};
+
 	void CameraFOVMidHook(uintptr_t FOVAddress, float arScale, float fovFactor)
 	{
 		float& fCurrentCameraFOV = *reinterpret_cast<float*>(FOVAddress);
-
 		m_newCameraFOV = fCurrentCameraFOV * arScale * fovFactor;
-
 		FPU::FMUL(m_newCameraFOV);
 	}
 
@@ -353,25 +377,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<TennisMastersSeriesFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<TennisMastersSeriesFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
