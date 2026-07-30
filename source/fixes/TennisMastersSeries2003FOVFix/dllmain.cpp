@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.2.1";
 	}
 
 	const char* TargetName() const override
@@ -34,8 +34,8 @@ protected:
 
 	InitMode GetInitMode() const override
 	{
-		// return InitMode::Direct;
-		return InitMode::WorkerThread;
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
 		// return InitMode::ExportedOnly;
 	}
 
@@ -47,7 +47,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
 	}
 
 	void ApplyFix() override
@@ -135,10 +137,29 @@ protected:
 			m_aspectRatio3Hook = safetyhook::create_mid(AspectRatioScansResult[AR3], AspectRatioMidHook);
 			m_aspectRatio4Hook = safetyhook::create_mid(AspectRatioScansResult[AR4], AspectRatioMidHook);
 		}
+
+		if (m_runMultipleInstances == true)
+		{
+			auto MultipleInstancesCheckScansResult = Memory::PatternScan(ExeModule(), "50 6A ?? 53 FF 15 ?? ?? ?? ??", "68 ?? ?? ?? ?? 6A ?? 6A ?? FF 15 ?? ?? ?? ?? 85 C0 89 86 C0 00 00 00",
+			"68 ?? ?? ?? ?? 6A ?? 6A ?? 8B F9", "68 ?? ?? ?? ?? 84 C0 0F 94 C0", "68 ?? ?? ?? ?? 6A ?? 6A ?? A3 ?? ?? ?? ??");
+			if (Memory::AreAllSignaturesValid(MultipleInstancesCheckScansResult) == true)
+			{
+				spdlog::info("Game Mutex Name Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[GameMutexName] - (std::uint8_t*)ExeModule());
+				spdlog::info("Events Modifier Mutex Name Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[EventsModifierMutexName] - (std::uint8_t*)ExeModule());
+				spdlog::info("Input Thread Closing Mutex Name Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[InputThreadClosingMutexName] - (std::uint8_t*)ExeModule());
+				spdlog::info("Sound Mutex Name 1 Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[SoundMutex1Name] - (std::uint8_t*)ExeModule());
+				spdlog::info("Sound Mutex Name 2 Instruction: Address is {:s}+{:x}", ExeName().c_str(), MultipleInstancesCheckScansResult[SoundMutex2Name] - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(MultipleInstancesCheckScansResult[GameMutexName], "\x53");
+				Memory::PatchBytes(MultipleInstancesCheckScansResult, EventsModifierMutexName, SoundMutex2Name, 0, "\x6A\x00\x90\x90\x90");
+			}
+		}
 	}
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_runMultipleInstances = false;
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatio1Hook{};
@@ -168,17 +189,24 @@ private:
 		Cutscenes2
 	};
 
+	enum MultipleInstancesInstructionsIndex
+	{
+		GameMutexName,
+		EventsModifierMutexName,
+		InputThreadClosingMutexName,
+		SoundMutex1Name,
+		SoundMutex2Name
+	};
+
 	static void AspectRatioMidHook(SafetyHookContext& ctx)
 	{
 		FPU::FDIV(s_instance_->m_newAspectRatio);
 	}
 
-	void CameraFOVMidHook(uintptr_t CameraFOVAddress, float fovFactor = 1.0f)
+	void CameraFOVMidHook(uintptr_t cameraFOVAddress, float fovFactor = 1.0f)
 	{
-		float& fCurrentCameraFOV = Memory::ReadMem(CameraFOVAddress);
-
-		m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale) * m_fovFactor;
-
+		float& fCurrentCameraFOV = Memory::ReadMem(cameraFOVAddress);
+		m_newCameraFOV = Maths::CalculateNewFOV_DegBased(fCurrentCameraFOV, m_aspectRatioScale) * fovFactor;
 		FPU::FLD(m_newCameraFOV);
 	}
 
@@ -191,25 +219,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<TennisMastersSeries2003Fix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<TennisMastersSeries2003Fix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
