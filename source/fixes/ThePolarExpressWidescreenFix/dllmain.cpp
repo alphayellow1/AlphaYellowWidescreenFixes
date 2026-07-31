@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.3";
 	}
 
 	const char* TargetName() const override
@@ -74,12 +74,13 @@ protected:
 
 		if (Util::stringcmp_caseless(ExeName(), "PolarExpress.exe"))
 		{
-			auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 08 89 0D ?? ?? ?? ?? 8B 50");
-			if (ResolutionScanResult)
+			auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "8B 08 89 0D ?? ?? ?? ?? 8B 50", "89 46 ?? 5E 5D 74");
+			if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 			{
-				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
+				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[Resolution] - (std::uint8_t*)ExeModule());
+				spdlog::info("Bink Video Rectangle Instruction: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[BinkVideoRect] - (std::uint8_t*)ExeModule());
 
-				m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+				m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[Resolution], [](SafetyHookContext & ctx)
 				{
 					s_instance_->m_newResX = Memory::ReadMem(ctx.eax);
 					s_instance_->m_newResY = Memory::ReadMem(ctx.eax + 0x4);
@@ -87,11 +88,45 @@ protected:
 					s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
 					s_instance_->m_resolutionHook.disable();
 				});
-			}
-			else
-			{
-				spdlog::error("Failed to locate resolution instructions scan memory address.");
-				return;
+
+				m_binkVideoRectHook = safetyhook::create_mid(ResolutionScansResult[BinkVideoRect], [](SafetyHookContext & ctx)
+				{
+					const uintptr_t binkHandle = Memory::ReadMem(ctx.esi);
+
+					if (binkHandle == 0 || s_instance_->m_newResX <= 0 || s_instance_->m_newResY <= 0)
+					{
+						return;
+					}
+
+					const auto videoWidth = *reinterpret_cast<uint32_t*>(binkHandle);
+					const auto videoHeight = *reinterpret_cast<uint32_t*>(binkHandle + 0x4);
+
+					if (videoWidth == 0 || videoHeight == 0)
+					{
+						return;
+					}
+
+					std::int32_t drawWidth = 0;
+					std::int32_t drawHeight = 0;
+
+					if (static_cast<std::int64_t>(s_instance_->m_newResX) * videoHeight <= static_cast<std::int64_t>(s_instance_->m_newResY) * videoWidth)
+					{
+						drawWidth = s_instance_->m_newResX;
+						drawHeight = static_cast<std::int32_t>(static_cast<std::int64_t>(drawWidth) * videoHeight / videoWidth);
+					}
+					else
+					{
+						drawHeight = s_instance_->m_newResY;
+						drawWidth = static_cast<std::int32_t>(static_cast<std::int64_t>(drawHeight) * videoWidth / videoHeight);
+					}
+
+					RECT& destinationRect = Memory::ReadMem(ctx.esi + 0x174);
+
+					destinationRect.left = (s_instance_->m_newResX - drawWidth) / 2;
+					destinationRect.top = (s_instance_->m_newResY - drawHeight) / 2;
+					destinationRect.right = destinationRect.left + drawWidth;
+					destinationRect.bottom = destinationRect.top + drawHeight;
+				});
 			}
 
 			auto AspectRatioScansResult = Memory::PatternScan(ExeModule(), "8B 50 ?? 8B 4C 24 ?? 83 C0 ?? 89 11 8B 40",
@@ -155,15 +190,16 @@ private:
 	float m_newGameplayAspectRatio = 0.0f;
 
 	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_binkVideoRectHook{};
 	SafetyHookMid m_cutscenesAspectRatioHook{};
 	SafetyHookMid m_gameplayAspectRatioHook{};
 	SafetyHookMid m_pauseMenuAspectRatioHook{};
 	SafetyHookMid m_cameraFOVHook{};
 
-	enum ResolutionInstructionsIndex
+	enum ResolutionInstructionsIndices
 	{
-		ListUnlock1,
-		ListUnlock2
+		Resolution,
+		BinkVideoRect
 	};
 
 	enum AspectRatioInstructionsIndices
@@ -180,29 +216,27 @@ static std::unique_ptr<PolarExpressFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
-	UNREFERENCED_PARAMETER(lpReserved);
-
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<PolarExpressFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<PolarExpressFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
