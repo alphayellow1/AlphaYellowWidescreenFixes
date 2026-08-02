@@ -30,7 +30,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1";
+		return "1.1.1";
 	}
 
 	const char* TargetName() const override
@@ -54,7 +54,9 @@ protected:
 	void ParseFixConfig(inipp::Ini<char>& ini) override
 	{
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
 		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
 	}
 
 	void ApplyFix() override
@@ -157,6 +159,22 @@ protected:
 					ctx.edx = std::bit_cast<uintptr_t>(s_instance_->m_newGameplayFOV3);
 				});
 			}
+
+			if (m_runMultipleInstances == true)
+			{
+				auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? 5F 5E 33 C0 5B 83 C4 ?? C2");
+				if (RunMultipleInstancesCheckScanResult)
+				{
+					spdlog::info("Multiple Instances Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+					Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+				}
+				else
+				{
+					spdlog::error("Failed to locate multiple instances check instruction memory address.");
+					return;
+				}
+			}
 		}
 	}
 
@@ -165,6 +183,8 @@ private:
 	std::string m_renderDllModuleName = "";
 
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_runMultipleInstances = false;
 
 	float m_newGeneralFOV = 0.0f;
 	float m_newGameplayFOV1 = 0.0f;
@@ -176,6 +196,28 @@ private:
 	SafetyHookMid m_gameplayFOV1Hook{};
 	SafetyHookMid m_gameplayFOV2Hook{};
 	SafetyHookMid m_gameplayFOV3Hook{};
+	SafetyHookMid g_skip_intro_hook{};
+
+#pragma pack(push, 1)
+	struct GameEvent
+	{
+		std::uint8_t type;        // +00
+		std::uint8_t subtype;     // +01
+		std::uint16_t flags;      // +02
+		std::uint8_t option;      // +04
+		std::uint8_t padding05;   // +05
+		std::int16_t id;          // +06
+		std::int16_t parameter;   // +08
+		std::uint16_t padding0A;  // +0A
+		std::uint32_t value0C;    // +0C
+		std::uint32_t value10;    // +10
+		std::uint32_t value14;    // +14
+	};
+#pragma pack(pop)
+
+	static_assert(sizeof(GameEvent) == 0x18);
+	static_assert(offsetof(GameEvent, subtype) == 0x01);
+	static_assert(offsetof(GameEvent, id) == 0x06);
 
 	enum CameraFOVInstructionsIndex
 	{
