@@ -48,6 +48,11 @@ concept Integral = std::is_integral_v<T>;
 
 namespace Memory
 {
+	template<typename T>
+	concept AddressLike =
+		std::is_pointer_v<std::remove_cvref_t<T>> ||
+		std::is_integral_v<std::remove_cvref_t<T>>;
+
 	struct RegisterProxy
 	{
 		uintptr_t value;
@@ -81,9 +86,6 @@ namespace Memory
 	{
 		return MemProxy{ address };
 	}
-
-	template<typename A>
-	concept AddressLike = std::is_pointer_v<std::remove_reference_t<A>> || std::is_integral_v<std::remove_reference_t<A>>;
 
 	template<AddressLike A>
 	[[nodiscard]] inline std::uint8_t* ToBytePtr(A address) noexcept
@@ -965,61 +967,44 @@ namespace Memory
 		Relative
 	};
 
-	struct PointerResult
+	template<typename ResultType = std::uintptr_t, typename AddressType> requires AddressLike<ResultType>&&
+	AddressLike<AddressType>
+	[[nodiscard]]
+	ResultType GetPointerFromAddress(AddressType operandAddress, PointerMode mode) noexcept
 	{
-		std::uintptr_t value{};
+		const std::uintptr_t address = reinterpret_cast<std::uintptr_t>(ToBytePtr(operandAddress));
 
-		template<typename T>
-			requires (std::is_pointer_v<T> || std::is_integral_v<T>)
-		operator T() const noexcept
+		if (address == 0)
 		{
-			if constexpr (std::is_pointer_v<T>)
-			{
-				return reinterpret_cast<T>(value);
-			}
-			else
-			{
-				return static_cast<T>(value);
-			}
-		}
-	};
-
-	template<typename AddressType>
-	PointerResult GetPointerFromAddress(AddressType address, PointerMode mode) noexcept
-	{
-		std::uintptr_t addr{};
-
-		if constexpr (std::is_pointer_v<AddressType>)
-		{
-			addr = reinterpret_cast<std::uintptr_t>(address);
-		}
-		else
-		{
-			addr = static_cast<std::uintptr_t>(address);
+			return ResultType{};
 		}
 
-		if (!addr)
-		{
-			return {};
-		}
+		std::uintptr_t result{};
 
 		if (mode == PointerMode::Absolute)
 		{
-			std::uintptr_t raw{};
+			std::uint32_t absoluteAddress{};
 
-			std::memcpy(&raw, reinterpret_cast<void*>(addr), sizeof(raw));
+			std::memcpy(&absoluteAddress, reinterpret_cast<const void*>(address), sizeof(absoluteAddress));
 
-			return { raw };
+			result = static_cast<std::uintptr_t>(absoluteAddress);
 		}
 		else
 		{
-			std::intptr_t displacement{};
+			std::int32_t displacement{};
 
-			std::memcpy(&displacement, reinterpret_cast<void*>(addr), sizeof(displacement));
+			std::memcpy(&displacement, reinterpret_cast<const void*>(address), sizeof(displacement));
 
-			std::uintptr_t result = addr + sizeof(displacement) + displacement;
+			result = static_cast<std::uintptr_t>(static_cast<std::intptr_t>(address) + sizeof(displacement) + displacement);
+		}
 
-			return { result };
+		if constexpr(std::is_pointer_v<std::remove_cvref_t<ResultType>>)
+		{
+			return reinterpret_cast<ResultType>(result);
+		}
+		else
+		{
+			return static_cast<ResultType>(result);
 		}
 	}
 
