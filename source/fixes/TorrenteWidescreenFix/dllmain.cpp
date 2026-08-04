@@ -31,7 +31,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.3.3";
+		return "1.3.4";
 	}
 
 	const char* TargetName() const override
@@ -58,6 +58,7 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "ThirdPersonFOVFactor", m_thirdPersonFOVFactor);
 		inipp::get_value(ini.sections["Settings"], "FirstPersonFOVFactor", m_firstPersonFOVFactor);
 		inipp::get_value(ini.sections["Settings"], "ZoomFactor", m_zoomFactor);
+		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
 
 		FallbackToDesktopResolution(m_newResX, m_newResY);
 
@@ -66,6 +67,7 @@ protected:
 		spdlog_confparse(m_thirdPersonFOVFactor);
 		spdlog_confparse(m_firstPersonFOVFactor);
 		spdlog_confparse(m_zoomFactor);
+		spdlog_confparse(m_skipIntroVideos);
 	}
 
 	void ApplyFix() override
@@ -121,9 +123,9 @@ protected:
 
 				if (Util::stringcmp_caseless(moduleName, "camera.dll")) // Camera
 				{
-					auto CameraFOVScansResult = Memory::PatternScan(module, "b8 ?? ?? ?? ?? 3b c8 74 ?? 50 89 85 ?? ?? ?? ?? 8b 45 ?? 50 ff 15 ?? ?? ?? ?? 83 c4 ?? 8a 85 ?? ?? ?? ?? 84 c0 0f 84 ?? ?? ?? ?? 8b 8d",
-					"68 ?? ?? ?? ?? 51 C7 86", "b8 ?? ?? ?? ?? 3b c8 74 ?? 50 89 85 ?? ?? ?? ?? 8b 45 ?? 50 ff 15 ?? ?? ?? ?? 83 c4 ?? 8a 85 ?? ?? ?? ?? 84 c0 0f 84 ?? ?? ?? ?? b9",
-					"d8 25 ?? ?? ?? ?? d9 54 24", "d8 05 ?? ?? ?? ?? d9 54 24");
+					auto CameraFOVScansResult = Memory::PatternScan(module, "B8 ?? ?? ?? ?? 3B C8 74 ?? 50 89 85 ?? ?? ?? ?? 8B 45 ?? 50 FF 15 ?? ?? ?? ?? 83 C4 ?? 8A 85 ?? ?? ?? ?? 84 C0 0F 84 ?? ?? ?? ?? 8B 8D",
+					"68 ?? ?? ?? ?? 51 C7 86", "B8 ?? ?? ?? ?? 3B C8 74 ?? 50 89 85 ?? ?? ?? ?? 8B 45 ?? 50 FF 15 ?? ?? ?? ?? 83 C4 ?? 8A 85 ?? ?? ?? ?? 84 C0 0F 84 ?? ?? ?? ?? B9",
+					"D8 25 ?? ?? ?? ?? D9 54 24", "D8 05 ?? ?? ?? ?? D9 54 24");
 					if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 					{
 						spdlog::info("Third-Person FOV Instruction: Address is {:s}+{:x}", moduleName.c_str(), CameraFOVScansResult[ThirdPerson] - (std::uint8_t*)module);
@@ -264,9 +266,9 @@ protected:
 
 				if (Util::stringcmp_caseless(moduleName, "contadorsalud.dll")) // Health Counter
 				{
-					auto ContadorSaludHUDScansResult = Memory::PatternScan(module, "68 ?? ?? ?? ?? 8d 44 24 ?? 50 8d 4c 24 ?? 51 68", "68 ?? ?? ?? ?? 8d 4c 24 ?? 51 8d 54 24 ?? 52 68",
-					"68 ?? ?? ?? ?? 8d 44 24 ?? 50 8d 4c 24 ?? 51 6a", "68 ?? ?? ?? ?? 8d 54 24 ?? 52 8d 44 24 ?? 50 6a", "68 ?? ?? ?? ?? 8d 54 24 ?? 52 8d 44 24 ?? 50 68",
-					"68 ?? ?? ?? ?? 8d 4c 24 ?? 51 8d 54 24 ?? 52 6a", "68 ?? ?? ?? ?? 8d 4c 24 ?? 51 8d 54 24 ?? 2b c6", "68 ?? ?? ?? ?? 8d 4c 24 ?? 51 8d 54 24 ?? 52 56");
+					auto ContadorSaludHUDScansResult = Memory::PatternScan(module, "68 ?? ?? ?? ?? 8D 44 24 ?? 50 8D 4C 24 ?? 51 68", "68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 52 68",
+					"68 ?? ?? ?? ?? 8D 44 24 ?? 50 8D 4C 24 ?? 51 6A", "68 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 6A", "68 ?? ?? ?? ?? 8D 54 24 ?? 52 8D 44 24 ?? 50 68",
+					"68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 52 6A", "68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 2B C6", "68 ?? ?? ?? ?? 8D 4C 24 ?? 51 8D 54 24 ?? 52 56");
 					if (Memory::AreAllSignaturesValid(ContadorSaludHUDScansResult) == true)
 					{
 						spdlog::info("HUD Instruction 1: Address is {:s}+{:x}", moduleName.c_str(), ContadorSaludHUDScansResult[ContadorSaludHUD1] - (std::uint8_t*)module);
@@ -491,6 +493,20 @@ protected:
 						Memory::Write(MainHUDScansResult[MainHUD3] + 19, m_newHUDWidth);
 						Memory::Write(MainHUDScansResult[MainHUD4] + 39, m_newHUDWidth);
 					}
+
+					if (m_skipIntroVideos == true)
+					{
+						auto SkipIntroVideosScansResult = Memory::PatternScan(module, "FF D6 8B 44 24 ?? 83 C4 ?? 3B C3 89 6C 24 ?? 74 ?? 50 E8 ?? ?? ?? ?? 83 C4 ?? B9",
+						"FF D6 8B 44 24 ?? 83 C4 ?? 3B C3 89 6C 24 ?? 74 ?? 50 E8 ?? ?? ?? ?? 83 C4 ?? 8B 74 24");
+						if (Memory::AreAllSignaturesValid(SkipIntroVideosScansResult) == true)
+						{
+							spdlog::info("Skip Intro Videos Instruction 1: Address is {:s}+{:x}", moduleName.c_str(), SkipIntroVideosScansResult[SkipIntroVideos1] - (std::uint8_t*)module);
+							spdlog::info("Skip Intro Videos Instruction 2: Address is {:s}+{:x}", moduleName.c_str(), SkipIntroVideosScansResult[SkipIntroVideos2] - (std::uint8_t*)module);
+							
+							Memory::WriteNOPs(SkipIntroVideosScansResult[SkipIntroVideos1], 2);
+							Memory::WriteNOPs(SkipIntroVideosScansResult[SkipIntroVideos2], 2);
+						}
+					}
 				}
 
 				if (Util::stringcmp_caseless(moduleName, "marbella_chalets.dll")) // Marbella Mansions Level
@@ -666,6 +682,8 @@ protected:
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
 	static constexpr float m_defaultCameraFOV = 0.6899999976f;
+
+	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_sniperZoomFOVHook{};
 
@@ -883,6 +901,12 @@ private:
 		ScriptHUD6
 	};
 
+	enum SkipIntroVideosInstructionsIndices
+	{
+		SkipIntroVideos1,
+		SkipIntroVideos2
+	};
+
 	float m_firstPersonFOVFactor = 0.0f;
 	float m_thirdPersonFOVFactor = 0.0f;
 	float m_zoomFactor = 0.0f;
@@ -957,7 +981,6 @@ private:
 		return false;
 	}
 
-
 	std::unique_ptr<DllNotificationWatcher> m_gameWatcher;
 
 	inline static Torrente1Fix* s_instance_ = nullptr;
@@ -969,31 +992,29 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-
-		g_fix = std::make_unique<Torrente1Fix>(hModule);
-		g_fix->Start();
-
-		break;
-	}
-
-	case DLL_PROCESS_DETACH:
-	{
-		if (g_fix)
+		case DLL_PROCESS_ATTACH:
 		{
-			g_fix->Shutdown();
-			g_fix.reset();
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<Torrente1Fix>(hModule);
+			g_fix->Start();
+			break;
 		}
 
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			if (g_fix)
+			{
+				g_fix->Shutdown();
+				g_fix.reset();
+			}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+			break;
+		}
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
