@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.4.1";
 	}
 
 	const char* TargetName() const override
@@ -68,40 +68,38 @@ protected:
 		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
 		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
 
-		ResolutionScan1Result = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? C7 44 24");
-		ResolutionScan2Result = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? 8B 08 50 FF 51 ?? 3B C7");
+		m_resolutionScan1Result = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? C7 44 24");
+		m_resolutionScan2Result = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? 74 ?? 8B 08 50 FF 51 ?? 3B C7");
 
-		if (ResolutionScan1Result != nullptr)
+		if (m_resolutionScan1Result != nullptr)
 		{
 			m_gameVersion = ORIGINAL;
-			ResolutionScanResult = ResolutionScan1Result;
+			m_resolutionScanResult = m_resolutionScan1Result;
 		}
-		else if (ResolutionScan2Result != nullptr)
+		else if (m_resolutionScan2Result != nullptr)
 		{
 			m_gameVersion = GOTY;
-			ResolutionScanResult = ResolutionScan2Result;
+			m_resolutionScanResult = m_resolutionScan2Result;
 		}
 
-		if (ResolutionScanResult)
+		if (m_resolutionScanResult)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), m_resolutionScanResult - (std::uint8_t*)ExeModule());
 
 			if (m_gameVersion == ORIGINAL)
 			{
 				// 640x480
-				Memory::Write(ResolutionScanResult + 4, m_newResX);
-
-				Memory::Write(ResolutionScanResult + 12, m_newResY);
+				Memory::Write(m_resolutionScanResult + 4, m_newResX);
+				Memory::Write(m_resolutionScanResult + 12, m_newResY);
 			}
 			else if (m_gameVersion == GOTY)
 			{
 				// 640x480
-				Memory::Write(ResolutionScanResult + 4, m_newResX);
-				Memory::Write(ResolutionScanResult + 12, m_newResX);
-
+				Memory::Write(m_resolutionScanResult + 4, m_newResX);
+				Memory::Write(m_resolutionScanResult + 12, m_newResY);
 				// 800x600
-				Memory::Write(ResolutionScanResult + 55, m_newResX);
-				Memory::Write(ResolutionScanResult + 63, m_newResY);
+				Memory::Write(m_resolutionScanResult + 55, m_newResX);
+				Memory::Write(m_resolutionScanResult + 63, m_newResY);
 			}
 		}
 		else
@@ -110,40 +108,17 @@ protected:
 			return;
 		}
 
-		if (m_gameVersion == ORIGINAL)
+		m_cameraFOVScanResult = Memory::PatternScan(ExeModule(), "DD 05 ?? ?? ?? ?? D9 F2");
+		if (m_cameraFOVScanResult)
 		{
-			CameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 46 ?? 83 C4 ?? 68");
-		}
-		else if (m_gameVersion == GOTY)
-		{
-			CameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 4E ?? 83 C4 ?? 50 51");
-		}
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_cameraFOVScanResult - (std::uint8_t*)ExeModule());
 
-		if (CameraFOVScanResult)
-		{
-			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), CameraFOVScanResult - (std::uint8_t*)ExeModule());
+			Memory::WriteNOPs(m_cameraFOVScanResult, 6);
 
-			Memory::WriteNOPs(CameraFOVScanResult, 3);
-
-			m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
+			m_cameraFOVHook = safetyhook::create_mid(m_cameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentCameraFOV = Memory::ReadMem(ctx.esi + 0x2C);
-				s_instance_->m_newCameraFOV = Maths::CalculateNewFOV_MultiplierBased(fCurrentCameraFOV, s_instance_->m_aspectRatioScale) * s_instance_->m_fovFactor;
-
-				switch (s_instance_->m_gameVersion)
-				{
-					case ORIGINAL:
-					{
-						ctx.eax = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV);
-						break;
-					}
-
-					case GOTY:
-					{
-						ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newCameraFOV);
-						break;
-					}
-				}
+				s_instance_->m_newCameraFOV = Maths::CalculateNewFOV_RadBased(m_originalCameraFOV, s_instance_->m_aspectRatioScale, Maths::AngleMode::HalfAngle) * (double)s_instance_->m_fovFactor;
+				FPU::FLD(s_instance_->m_newCameraFOV);
 			});
 		}
 		else
@@ -152,14 +127,14 @@ protected:
 			return;
 		}
 
-		auto HUDHorizontalResScanResult = Memory::PatternScan(ExeModule(), "8B 44 24 ?? 8B 4C 24 ?? 89 04 ?? 8B 44 24 ?? 8D 14");
-		if (HUDHorizontalResScanResult)
+		m_hudHorizontalResScanResult = Memory::PatternScan(ExeModule(), "8B 44 24 ?? 8B 4C 24 ?? 89 04 ?? 8B 44 24 ?? 8D 14");
+		if (m_hudHorizontalResScanResult)
 		{
-			spdlog::info("HUD Horizontal Res Instruction: Address is {:s}+{:x}", ExeName().c_str(), HUDHorizontalResScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Horizontal Res Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_hudHorizontalResScanResult - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(HUDHorizontalResScanResult, 4);
+			Memory::WriteNOPs(m_hudHorizontalResScanResult, 4);
 
-			m_hudHorizontalResHook = safetyhook::create_mid(HUDHorizontalResScanResult, [](SafetyHookContext& ctx)
+			m_hudHorizontalResHook = safetyhook::create_mid(m_hudHorizontalResScanResult, [](SafetyHookContext& ctx)
 			{
 				float& fCurrentHUDVerticalRes = Memory::ReadMem(ctx.esp + 0x14);
 				s_instance_->m_newHUDHorizontalRes = fCurrentHUDVerticalRes * s_instance_->m_newAspectRatio;
@@ -174,12 +149,12 @@ protected:
 
 		if (m_gameVersion == ORIGINAL)
 		{
-			auto DiscCheckScanResult = Memory::PatternScan(ExeModule(), "84 C0 88 86 ?? ?? ?? ?? 0F 85");
-			if (DiscCheckScanResult)
+			m_discCheckScanResult = Memory::PatternScan(ExeModule(), "84 C0 88 86 ?? ?? ?? ?? 0F 85");
+			if (m_discCheckScanResult)
 			{
-				spdlog::info("Disc Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), DiscCheckScanResult - (std::uint8_t*)ExeModule());
+				spdlog::info("Disc Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_discCheckScanResult - (std::uint8_t*)ExeModule());
 
-				Memory::PatchBytes(DiscCheckScanResult, "\xB0\x01");
+				Memory::PatchBytes(m_discCheckScanResult, "\xB0\x01");
 			}
 			else
 			{
@@ -206,22 +181,22 @@ protected:
 
 		if (m_skipIntroVideos == true)
 		{
-			auto SkipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 8D 49 ?? 8B 46");
-			if (SkipIntroVideosScanResult)
+			m_skipIntroVideosScanResult = Memory::PatternScan(ExeModule(), "0F 84 ?? ?? ?? ?? 8D 49 ?? 8B 46");
+			if (m_skipIntroVideosScanResult)
 			{
-				spdlog::info("Startup Intro Videos Skip Instruction: Address is {:s}+{:x}", ExeName().c_str(), SkipIntroVideosScanResult - (std::uint8_t*)ExeModule());
+				spdlog::info("Startup Intro Videos Skip Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_skipIntroVideosScanResult - (std::uint8_t*)ExeModule());
 
 				switch (m_gameVersion)
 				{
 					case ORIGINAL:
 					{
-						Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x65\x01\x00\x00\x90");
+						Memory::PatchBytes(m_skipIntroVideosScanResult, "\xE9\x65\x01\x00\x00\x90");
 						break;
 					}
 
 					case GOTY:
 					{
-						Memory::PatchBytes(SkipIntroVideosScanResult, "\xE9\x66\x01\x00\x00\x90");
+						Memory::PatchBytes(m_skipIntroVideosScanResult, "\xE9\x66\x01\x00\x00\x90");
 						break;
 					}
 				}				
@@ -236,17 +211,23 @@ protected:
 
 private:
 	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr double m_originalCameraFOV = 0.523598790168762;
 
 	SafetyHookMid m_cameraFOVHook{};
 	SafetyHookMid m_hudHorizontalResHook{};
 
+	double m_newCameraFOV = 0.0;
+
 	bool m_runMultipleInstances = false;
 	bool m_skipIntroVideos = false;
 
-	uint8_t* ResolutionScanResult = nullptr;
-	uint8_t* ResolutionScan1Result = nullptr;
-	uint8_t* ResolutionScan2Result = nullptr;
-	uint8_t* CameraFOVScanResult = nullptr;
+	uint8_t* m_resolutionScanResult = nullptr;
+	uint8_t* m_resolutionScan1Result = nullptr;
+	uint8_t* m_resolutionScan2Result = nullptr;
+	uint8_t* m_cameraFOVScanResult = nullptr;
+	uint8_t* m_hudHorizontalResScanResult = nullptr;
+	uint8_t* m_discCheckScanResult = nullptr;
+	uint8_t* m_skipIntroVideosScanResult = nullptr;
 
 	float m_newHUDHorizontalRes = 0.0f;
 	int m_gameVersion = 0;
