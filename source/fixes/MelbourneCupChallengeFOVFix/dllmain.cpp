@@ -1,301 +1,226 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-#include <algorithm>
-#include <cmath>
-#include <bit>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-
-// Fix details
-std::string sFixName = "MelbourneCupChallengeFOVFix";
-std::string sFixVersion = "1.3";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fNewHUDAspectRatio;
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class MelbourneCupChallengeFix final : public FixBase
 {
-	MCC,
-	Unknown
-};
-
-enum CameraFOVInstructionsIndices
-{
-	HFOV,
-	VFOV
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::MCC, {"Melbourne Cup Challenge", "Racing.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit MelbourneCupChallengeFix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["FOVFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~MelbourneCupChallengeFix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			return true;
+			s_instance_ = nullptr;
 		}
 	}
 
-	spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-	return false;
-}
-
-static SafetyHookMid HUDAspectRatioInstructionHook{};
-static SafetyHookMid CameraHFOVInstructionHook{};
-static SafetyHookMid CameraVFOVInstructionHook{};
-
-void CameraFOVInstructionsMidHook(uintptr_t FOVAddress, float fARScale)
-{
-	float& fCurrentCameraFOV = Memory::ReadMem(FOVAddress);
-
-	if (fCurrentCameraFOV != fNewCameraFOV)
+protected:
+	const char* FixName() const override
 	{
-		fNewCameraFOV = fCurrentCameraFOV * fARScale * fFOVFactor;
-	}	
+		return "MelbourneCupChallengeFOVFix";
+	}
 
-	FPU::FADD(fNewCameraFOV);
-}
-
-void FOVFix()
-{
-	if (eGameType == Game::MCC && bFixActive == true)
+	const char* FixVersion() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "1.4";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	const char* TargetName() const override
+	{
+		return "Melbourne Cup Challenge";
+	}
 
-		std::uint8_t* HUDAspectRatioInstructionScanResult = Memory::PatternScan(exeModule, "8B 4F ?? 50 51 8B CE");
-		if (HUDAspectRatioInstructionScanResult)
+	InitMode GetInitMode() const override
+	{
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
+
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "Racing.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+	}
+
+	void ApplyFix() override
+	{
+		m_resolutionScanResult = Memory::PatternScan(ExeModule(), "8B 0F 89 0D ?? ?? ?? ?? 8B 57");
+		if (m_resolutionScanResult)
 		{
-			spdlog::info("HUD Aspect Ratio Instruction: Address is {:s}+{:x}", sExeName.c_str(), HUDAspectRatioInstructionScanResult - (std::uint8_t*)exeModule);
-			
-			Memory::WriteNOPs(HUDAspectRatioInstructionScanResult, 3);			
-			
-			HUDAspectRatioInstructionHook = safetyhook::create_mid(HUDAspectRatioInstructionScanResult, [](SafetyHookContext& ctx)
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), m_resolutionScanResult - (std::uint8_t*)ExeModule());
+
+			m_resolutionHook = safetyhook::create_mid(m_resolutionScanResult, [](SafetyHookContext& ctx)
 			{
-				float& fCurrentHUDAspectRatio = Memory::ReadMem(ctx.edi + 0x30);
-
-				fNewHUDAspectRatio = fCurrentHUDAspectRatio * fAspectRatioScale;
-
-				ctx.ecx = std::bit_cast<uintptr_t>(fNewHUDAspectRatio);
+				s_instance_->m_newResX = Memory::ReadMem(ctx.edi);
+				s_instance_->m_newResY = Memory::ReadMem(ctx.edi + 0x4);
+				s_instance_->m_newAspectRatio = static_cast<float>(s_instance_->m_newResX) / static_cast<float>(s_instance_->m_newResY);
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / s_instance_->m_oldAspectRatio;
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the HUD aspect ratio instruction memory address.");
+			spdlog::error("Failed to locate resolution instructions scan memory address.");
 			return;
 		}
 
-		std::vector<std::uint8_t*> CameraFOVInstructionsScansResult = Memory::PatternScan(exeModule, "D8 46 ?? D9 1C", "D8 46 ?? D9 5C 24 ?? D9 46 ?? D8 66");
-		if (Memory::AreAllSignaturesValid(CameraFOVInstructionsScansResult) == true)
+		m_aspectRatioScansResult = Memory::PatternScan(ExeModule(), "E8 ?? ?? ?? ?? D9 44 24 ?? D8 0D ?? ?? ?? ?? D8 46", "8B 4F ?? 50 51 8B CE");
+		if (Memory::AreAllSignaturesValid(m_aspectRatioScansResult) == true)
 		{
-			spdlog::info("Camera HFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[HFOV] - (std::uint8_t*)exeModule);
-			
-			spdlog::info("Camera VFOV Instruction: Address is {:s}+{:x}", sExeName.c_str(), CameraFOVInstructionsScansResult[VFOV] - (std::uint8_t*)exeModule);
+			spdlog::info("Camera Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_aspectRatioScansResult[Camera] - (std::uint8_t*)ExeModule());
+			spdlog::info("HUD Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_aspectRatioScansResult[HUD] - (std::uint8_t*)ExeModule());
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[HFOV], 3);
-
-			CameraHFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[HFOV], [](SafetyHookContext& ctx)
+			m_cameraAspectRatioHook = safetyhook::create_mid(m_aspectRatioScansResult[Camera], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esi + 0x30, fAspectRatioScale);
+				auto* arguments = reinterpret_cast<float*>(ctx.esp);
+
+				float& horizontalExtent = arguments[0];
+				float& verticalExtent = arguments[1];
+
+				horizontalExtent = verticalExtent * s_instance_->m_newAspectRatio;
 			});
 
-			Memory::WriteNOPs(CameraFOVInstructionsScansResult[VFOV], 3);
+			Memory::WriteNOPs(m_aspectRatioScansResult[HUD], 3);
 
-			CameraVFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionsScansResult[VFOV], [](SafetyHookContext& ctx)
+			m_hudAspectRatioHook = safetyhook::create_mid(m_aspectRatioScansResult[HUD], [](SafetyHookContext& ctx)
 			{
-				CameraFOVInstructionsMidHook(ctx.esi + 0x34, 1.0f);
+				s_instance_->m_currentHUDAspectRatio = Memory::ReadMem(ctx.edi + 0x30);
+				s_instance_->m_newHUDAspectRatio = s_instance_->m_currentHUDAspectRatio * s_instance_->m_aspectRatioScale;
+				ctx.ecx = std::bit_cast<uintptr_t>(s_instance_->m_newHUDAspectRatio);
 			});
 		}
-	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		FOVFix();
+		m_cameraFOVScanResult = Memory::PatternScan(ExeModule(), "8B 4C 24 10 50 E8 ?? ?? ?? ?? 83 7C 24 30 10 C6 84 24 0C 01 00 00 05");
+		if (m_cameraFOVScanResult)
+		{
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_cameraFOVScanResult - (std::uint8_t*)ExeModule());
+			
+			m_cameraFOVHook = safetyhook::create_mid(m_cameraFOVScanResult, [](SafetyHookContext& ctx)
+			{
+				auto* framing = reinterpret_cast<ManualFramingDefinition*>(ctx.eax);
+				const auto* shot = reinterpret_cast<const ShotDefinition*>(ctx.ebp);
+
+				if (framing == nullptr || shot == nullptr || shot->name == nullptr)
+				{
+					return;
+				}
+
+				if (std::strcmp(shot->name, "shakyfollow") == 0)
+				{
+					s_instance_->m_newShakyFollowViewWidth = 0.5f * s_instance_->m_fovFactor;
+					s_instance_->m_newShakyFollowViewHeight = 0.375f * s_instance_->m_fovFactor;
+
+					framing->viewWidth = s_instance_->m_newShakyFollowViewWidth;
+					framing->viewHeight = s_instance_->m_newShakyFollowViewHeight;
+				}				
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
+			return;
+		}
+
+		if (m_runMultipleInstances == true)
+		{
+			m_multipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "74 ?? A1 ?? ?? ?? ?? 50 FF 15 ?? ?? ?? ?? 32 C0");
+			if (m_multipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instances Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_multipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(m_multipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instances check instruction memory address.");
+				return;
+			}
+		}
 	}
-	return TRUE;
-}
+
+private:
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+
+	bool m_runMultipleInstances = false;
+
+	std::uint8_t* m_resolutionScanResult = nullptr;
+	std::vector<std::uint8_t*> m_aspectRatioScansResult{};
+	std::uint8_t* m_cameraFOVScanResult = nullptr;
+	std::uint8_t* m_multipleInstancesCheckScanResult = nullptr;
+
+	float m_currentHUDAspectRatio = 0.0f;
+	float m_newHUDAspectRatio = 0.0f;
+
+	float m_newShakyFollowViewWidth = 0.0f;
+	float m_newShakyFollowViewHeight = 0.0f;
+
+	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_cameraAspectRatioHook{};
+	SafetyHookMid m_hudAspectRatioHook{};
+	SafetyHookMid m_cameraFOVHook{};
+
+	struct ManualFramingDefinition
+	{
+		std::byte unknown00[0x18];
+		std::int32_t viewMode;
+		float viewWidth;
+		float viewHeight;
+		std::int32_t nearClipMode;
+		float nearClip;
+		float maxHorizontalFov;
+		float maxHorizontalTan;
+		float lookFactor;
+	};
+
+	struct ShotDefinition
+	{
+		const char* name;
+	};
+
+	enum AspectRatioInstructionsIndex
+	{
+		Camera,
+		HUD
+	};
+
+	inline static MelbourneCupChallengeFix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<MelbourneCupChallengeFix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		thisModule = hModule;
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		case DLL_PROCESS_ATTACH:
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<MelbourneCupChallengeFix>(hModule);
+			g_fix->Start();
+			break;
 		}
-		break;
+
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
+
 	return TRUE;
 }
