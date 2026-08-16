@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.4";
+		return "1.4.1";
 	}
 
 	const char* TargetName() const override
@@ -54,23 +54,35 @@ protected:
 
 	void ApplyFix() override
 	{
-		auto ResolutionScanResult = Memory::PatternScan(ExeModule(), "8B 46 ?? A3 ?? ?? ?? ?? 8B 4E ?? 89 0D ?? ?? ?? ?? 8B 56 ?? 89 15 ?? ?? ?? ?? 8B 46 ?? A3 ?? ?? ?? ?? 8B 4E ?? 89 0D ?? ?? ?? ?? 8B 56 ?? 89 15 ?? ?? ?? ?? 8B 46 ?? A3 ?? ?? ?? ?? 8B 4E ?? 89 0D ?? ?? ?? ?? 8A 97");
-		if (ResolutionScanResult)
+		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "8B 46 ?? A3 ?? ?? ?? ?? 8B 4E ?? 89 0D ?? ?? ?? ?? 8B 56 ?? 89 15 ?? ?? ?? ?? 8B 46 ?? A3 ?? ?? ?? ?? 8B 4E ?? 89 0D ?? ?? ?? ?? 8B 56 ?? 89 15 ?? ?? ?? ?? 8B 46 ?? A3 ?? ?? ?? ?? 8B 4E ?? 89 0D ?? ?? ?? ?? 8A 97",
+		"ff 51 ?? 85 c0 7d ?? c6 05", "ff 52 ?? 85 c0 7d ?? c6 05");
+		if (Memory::AreAllSignaturesValid(ResolutionScansResult) == true)
 		{
-			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScanResult - (std::uint8_t*)ExeModule());
+			spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
+			spdlog::info("DirectDraw Surface Blit Call Instruction 1: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[DDrawBlit1] - (std::uint8_t*)ExeModule());
+			spdlog::info("DirectDraw Surface Blit Call Instruction 2: Address is {:s}+{:x}", ExeName().c_str(), ResolutionScansResult[DDrawBlit2] - (std::uint8_t*)ExeModule());
 
-			m_resolutionHook = safetyhook::create_mid(ResolutionScanResult, [](SafetyHookContext& ctx)
+			m_resolutionHook = safetyhook::create_mid(ResolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
 			{
 				int& iCurrentWidth = Memory::ReadMem(ctx.esi + 0x14);
 				int& iCurrentHeight = Memory::ReadMem(ctx.esi + 0x18);
+
+				s_instance_->m_currentWidth = iCurrentWidth;
+				s_instance_->m_currentHeight = iCurrentHeight;
+
 				s_instance_->m_newAspectRatio = static_cast<float>(iCurrentWidth) / static_cast<float>(iCurrentHeight);
-				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+				s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;				
 			});
-		}
-		else
-		{
-			spdlog::error("Failed to locate resolution instructions scan memory address.");
-			return;
+
+			m_bltHook1 = safetyhook::create_mid(ResolutionScansResult[DDrawBlit1], [](SafetyHookContext& ctx)
+			{
+				s_instance_->SetDestinationRect(ctx, s_instance_->m_videoRect1);
+			});
+
+			m_bltHook2 = safetyhook::create_mid(ResolutionScansResult[DDrawBlit2], [](SafetyHookContext& ctx)
+			{
+				s_instance_->SetDestinationRect(ctx, s_instance_->m_videoRect2);
+			});
 		}
 
 		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 55");
@@ -83,7 +95,6 @@ protected:
 			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_newAspectRatio2 = 1.0f / s_instance_->m_newAspectRatio;
-
 				*reinterpret_cast<float*>(ctx.esp + 0x34) = s_instance_->m_newAspectRatio2;
 			});
 		}
@@ -128,7 +139,7 @@ protected:
 			spdlog::info("Alt-Tab Fix: Runtime keyboard cooperative-level flags found at {:s}+{:x}", ExeName().c_str(), AltTabFixScansResult[RuntimeKeyboardCooperativeLevel] - reinterpret_cast<std::uint8_t*>(ExeModule()));
 			spdlog::info("Alt-Tab Fix: Initial keyboard cooperative-level flags found at {:s}+{:x}", ExeName().c_str(), AltTabFixScansResult[InitialKeyboardCooperativeLevel] - reinterpret_cast<std::uint8_t*>(ExeModule()));
 
-			// DISCL_NONEXCLUSIVE | DISCL_FOREGROUND
+			// DISCL_NONEXCLUSIVE
 			constexpr std::uint8_t NonExclusiveForeground = 0x06;
 
 			Memory::PatchBytes(AltTabFixScansResult[RuntimeKeyboardCooperativeLevel] + 1, NonExclusiveForeground);
@@ -144,6 +155,68 @@ private:
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_aspectRatioHook{};
+	SafetyHookMid m_bltHook1{};
+	SafetyHookMid m_bltHook2{};
+
+	RECT m_videoRect1{};
+	RECT m_videoRect2{};
+
+	LONG m_currentWidth = 640;
+	LONG m_currentHeight = 480;
+
+	static constexpr std::uintptr_t m_binkHandleRVA = 0x2B08478;
+
+	struct BinkHeader
+	{
+		std::uint32_t width;
+		std::uint32_t height;
+	};
+
+	RECT MakeCenteredRect()
+	{
+		const auto bink = *reinterpret_cast<BinkHeader**>(reinterpret_cast<std::uintptr_t>(ExeModule()) + m_binkHandleRVA);
+
+		if (bink == nullptr || bink->width == 0 || bink->height == 0 || m_currentWidth <= 0 || m_currentHeight <= 0)
+		{
+			return RECT{0, 0, m_currentWidth, m_currentHeight};
+		}
+
+		const std::int64_t videoWidth = bink->width;
+		const std::int64_t videoHeight = bink->height;
+
+		LONG scaledWidth{};
+		LONG scaledHeight{};
+
+		if (videoWidth * m_currentHeight > static_cast<std::int64_t>(m_currentWidth) * videoHeight)
+		{
+			scaledWidth = m_currentWidth;
+			scaledHeight = static_cast<LONG>(static_cast<std::int64_t>(m_currentWidth) * videoHeight / videoWidth);
+		}
+		else
+		{
+			scaledHeight = m_currentHeight;
+			scaledWidth = static_cast<LONG>(static_cast<std::int64_t>(m_currentHeight) * videoWidth / videoHeight);
+		}
+
+		const LONG left = (m_currentWidth - scaledWidth) / 2;
+		const LONG top = (m_currentHeight - scaledHeight) / 2;
+
+		return RECT{left, top, left + scaledWidth, top + scaledHeight};
+	}
+
+	void SetDestinationRect(SafetyHookContext& ctx, RECT& storage)
+	{
+		storage = MakeCenteredRect();
+		auto* const lpDestRect = reinterpret_cast<RECT**>(ctx.esp + 0x4);
+		*lpDestRect = &storage;
+	}
+
+	enum ResolutionInstructionsIndices
+	{
+		WidthHeight,
+		DDrawBlit1,
+		DDrawBlit2
+	};
 
 	enum CameraFOVInstructionsIndices
 	{
@@ -154,8 +227,7 @@ private:
 	enum AltTabFixScans
 	{
 		RuntimeKeyboardCooperativeLevel,
-		InitialKeyboardCooperativeLevel,
-		Count
+		InitialKeyboardCooperativeLevel
 	};
 
 	float m_currentCameraHFOV = 0.0f;
@@ -172,25 +244,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<PacManAdventuresInTimeFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<PacManAdventuresInTimeFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
