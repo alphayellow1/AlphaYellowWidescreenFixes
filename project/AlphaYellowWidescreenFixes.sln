@@ -1157,6 +1157,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MichelinRallyMastersRaceOfC
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DisneysDinosaurWidescreenFix", "DisneysDinosaurWidescreenFix.vcxproj", "{0E194224-4DDE-4F6B-A4E5-2FF86650C7E4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RallyChampionshipXtremeFOVFix", "RallyChampionshipXtremeFOVFix.vcxproj", "{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -5765,6 +5767,14 @@ Global
 		{0E194224-4DDE-4F6B-A4E5-2FF86650C7E4}.Release|x64.Build.0 = Release|x64
 		{0E194224-4DDE-4F6B-A4E5-2FF86650C7E4}.Release|x86.ActiveCfg = Release|Win32
 		{0E194224-4DDE-4F6B-A4E5-2FF86650C7E4}.Release|x86.Build.0 = Release|Win32
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}.Debug|x64.ActiveCfg = Debug|x64
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}.Debug|x64.Build.0 = Debug|x64
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}.Debug|x86.ActiveCfg = Debug|Win32
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}.Debug|x86.Build.0 = Debug|Win32
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}.Release|x64.ActiveCfg = Release|x64
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}.Release|x64.Build.0 = Release|x64
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}.Release|x86.ActiveCfg = Release|Win32
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -6345,6 +6355,7 @@ Global
 		{EEA6851B-FB1A-4CC9-A2A0-23291A9EDE09} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{2DE5918B-D455-477A-ABB3-B057EF83C02C} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{0E194224-4DDE-4F6B-A4E5-2FF86650C7E4} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{02DA363E-1D00-4B78-8DC5-92D464C4ADA0} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {819F2548-FBC0-4875-B742-3F9EC500E03C}

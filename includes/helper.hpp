@@ -1880,24 +1880,25 @@ namespace FileIO
 
 			switch (mode)
 			{
-			case OpenMode::Read:
-				flags |= std::ios::in;
-				break;
+				case OpenMode::Read:
+					flags |= std::ios::in;
+					break;
 
-			case OpenMode::Write:
-				flags |= std::ios::out | std::ios::trunc;
-				break;
+				case OpenMode::Write:
+					flags |= std::ios::out | std::ios::trunc;
+					break;
 
-			case OpenMode::ReadWrite:
-				flags |= std::ios::in | std::ios::out;
-				break;
+				case OpenMode::ReadWrite:
+					flags |= std::ios::in | std::ios::out;
+					break;
 
-			case OpenMode::Append:
-				flags |= std::ios::out | std::ios::app;
-				break;
+				case OpenMode::Append:
+					flags |= std::ios::out | std::ios::app;
+					break;
 			}
 
-			m_file.open(path, flags);
+			const auto resolvedPath = ResolveFromExecutable(path);
+			m_file.open(resolvedPath, flags);
 
 			if (!m_file)
 			{
@@ -1923,6 +1924,67 @@ namespace FileIO
 		[[nodiscard]] bool IsOpen() const
 		{
 			return m_file.is_open();
+		}
+
+		inline std::filesystem::path GetModulePath(HMODULE module)
+		{
+			std::wstring buffer(512, L'\0');
+
+			for (;;)
+			{
+				SetLastError(ERROR_SUCCESS);
+
+				const DWORD length = GetModuleFileNameW(
+					module,
+					buffer.data(),
+					static_cast<DWORD>(buffer.size())
+				);
+
+				if (length == 0)
+				{
+					throw std::runtime_error(
+						fmt::format(
+							"GetModuleFileNameW failed with error {}",
+							GetLastError()
+						)
+					);
+				}
+
+				if (length < buffer.size())
+				{
+					buffer.resize(length);
+					return std::filesystem::path(buffer);
+				}
+
+				if (buffer.size() >= (1u << 20))
+				{
+					throw std::runtime_error(
+						"Module path exceeds the supported length"
+					);
+				}
+
+				buffer.resize(buffer.size() * 2);
+			}
+		}
+
+		inline std::filesystem::path GetExecutablePath()
+		{
+			return GetModulePath(nullptr);
+		}
+
+		inline std::filesystem::path GetExecutableDirectory()
+		{
+			return GetExecutablePath().parent_path();
+		}
+
+		inline std::filesystem::path ResolveFromExecutable(const std::filesystem::path& path)
+		{
+			if (path.is_absolute())
+			{
+				return path.lexically_normal();
+			}
+
+			return (GetExecutableDirectory() / path).lexically_normal();
 		}
 
 		[[nodiscard]] bool Good() const
@@ -1984,8 +2046,7 @@ namespace FileIO
 			return true;
 		}
 
-		template <typename T>
-			requires std::is_trivially_copyable_v<T>
+		template <typename T> requires std::is_trivially_copyable_v<T>
 		T Read(std::streamoff offset)
 		{
 			T value{};
@@ -2005,8 +2066,7 @@ namespace FileIO
 			return value;
 		}
 
-		template <typename T>
-			requires std::is_trivially_copyable_v<T>
+		template <typename T> requires std::is_trivially_copyable_v<T>
 		bool Write(std::streamoff offset, const T& value)
 		{
 			return WriteBytes(offset, &value, sizeof(T));
