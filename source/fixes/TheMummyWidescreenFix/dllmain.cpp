@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.7";
+		return "1.7.1";
 	}
 
 	const char* TargetName() const override
@@ -49,9 +49,11 @@ protected:
 		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
 		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
 		inipp::get_value(ini.sections["Settings"], "SkipIntroVideos", m_skipIntroVideos);
+		inipp::get_value(ini.sections["Settings"], "SkipSetupDialog", m_skipSetupDialog);
 		spdlog_confparse(m_fovFactor);
 		spdlog_confparse(m_runMultipleInstances);
 		spdlog_confparse(m_skipIntroVideos);
+		spdlog_confparse(m_skipSetupDialog);
 	}
 
 	void ApplyFix() override
@@ -604,7 +606,40 @@ protected:
 				Memory::WriteNOPs(m_skipIntroVideosScansResult[LicenseImageLoader], 5);
 				Memory::Write(m_skipIntroVideosScansResult[LicenseDisplayDelay] + 1, m_skippedDisplayDuration);
 			}
-		}		
+		}
+
+		if (m_skipSetupDialog == true)
+		{
+			m_setupDialogScansResult = Memory::PatternScan(ExeModule(), "64 A1 ?? ?? ?? ?? 6A ?? 68 ?? ?? ?? ?? 50 8B 44 24 ?? 64 89 25 ?? ?? ?? ?? 81 EC",
+			"83 C4 ?? 8B C3 EB");
+			if (Memory::AreAllSignaturesValid(m_setupDialogScansResult))
+			{
+				spdlog::info("Skip Setup Dialog: dialog procedure found at {:s}+{:x}", ExeName().c_str(), m_setupDialogScansResult[SetupDialogProcedure] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+				spdlog::info("Skip Setup Dialog: WM_INITDIALOG completion found at {:s}+{:x}", ExeName().c_str(), m_setupDialogScansResult[SetupDialogInitComplete] - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+				m_setupDialogProcedureAddress = (uintptr_t)m_setupDialogScansResult[SetupDialogProcedure];
+
+				m_setupDialogHook = safetyhook::create_mid(m_setupDialogScansResult[SetupDialogInitComplete], [](SafetyHookContext & ctx)
+				{
+					if (s_instance_ == nullptr || s_instance_->m_setupDialogProcedureAddress == 0 || s_instance_->m_setupDialogAutoAccepted)
+					{
+						return;
+					}
+
+					const HWND dialogWindow = reinterpret_cast<HWND>(static_cast<std::uintptr_t>(ctx.esi));
+
+					if (dialogWindow == nullptr)
+					{
+						return;
+					}
+
+					s_instance_->m_setupDialogAutoAccepted = true;
+					using DialogProcedure = INT_PTR(CALLBACK*)(HWND, UINT, WPARAM, LPARAM);
+					const auto dialogProcedure = reinterpret_cast<DialogProcedure>(s_instance_->m_setupDialogProcedureAddress);
+					dialogProcedure(dialogWindow, WM_COMMAND, MAKEWPARAM(1000, BN_CLICKED), 0);
+				});
+			}
+		}
 	}
 
 private:
@@ -632,11 +667,21 @@ private:
 	SafetyHookMid m_optionsMenuDiagnosticHook{};
 	SafetyHookMid m_aspectRatioHook{};
 
+	SafetyHookMid m_setupDialogHook{};
+
+	std::vector<std::uint8_t*> m_setupDialogScansResult{};
+
+	std::uintptr_t m_setupDialogProcedureAddress = 0;
+
+	bool m_skipSetupDialog = false;
+	bool m_setupDialogAutoAccepted = false;
+
 	std::vector<std::uint8_t*> m_resolutionScansResult = {};
 	uint8_t* m_aspectRatioScanResult = nullptr;
 	std::vector<uint8_t*> m_cameraFOVScansResult;
 	uint8_t* m_multipleInstancesCheckScanResult = nullptr;
 	std::vector<uint8_t*> m_skipIntroVideosScansResult = {};
+	std::vector<uint8_t*> m_setupDialogScansResult = {};
 
 	uintptr_t m_resolutionWidthOffset = 0;
 	uintptr_t m_resolutionHeightOffset = 0;
@@ -688,6 +733,12 @@ private:
 		BookIntro,
 		LicenseImageLoader,
 		LicenseDisplayDelay
+	};
+
+	enum SetupDialogInstructionsIndex
+	{
+		SetupDialogProcedure,
+		SetupDialogInitComplete
 	};
 
 	void TranslateTextGlyphVertices(SafetyHookContext& ctx) const
