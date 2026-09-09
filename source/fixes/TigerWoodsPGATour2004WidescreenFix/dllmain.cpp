@@ -1,389 +1,238 @@
-// Include necessary headers
-#include "stdafx.h"
-#include "helper.hpp"
+#include "..\..\common\FixBase.hpp"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <inipp/inipp.h>
-#include <safetyhook.hpp>
-#include <vector>
-#include <map>
-#include <windows.h>
-#include <psapi.h> // For GetModuleInformation
-#include <fstream>
-#include <filesystem>
-#include <sstream>
-#include <cstring>
-#include <iomanip>
-#include <cstdint>
-#include <iostream>
-
-#define spdlog_confparse(var) spdlog::info("Config Parse: {}: {}", #var, var)
-
-HMODULE exeModule = GetModuleHandle(NULL);
-HMODULE thisModule;
-HMODULE dllModule2;
-
-// Fix details
-std::string sFixName = "TigerWoodsPGATour2004WidescreenFix";
-std::string sFixVersion = "1.0";
-std::filesystem::path sFixPath;
-
-// Ini
-inipp::Ini<char> ini;
-std::string sConfigFile = sFixName + ".ini";
-
-// Logger
-std::shared_ptr<spdlog::logger> logger;
-std::string sLogFile = sFixName + ".log";
-std::filesystem::path sExePath;
-std::string sExeName;
-
-// Ini variables
-bool bFixActive;
-int iCurrentResX;
-int iCurrentResY;
-float fFOVFactor;
-
-// Constants
-constexpr float fOldAspectRatio = 4.0f / 3.0f;
-
-// Variables
-float fNewAspectRatio;
-float fAspectRatioScale;
-float fCurrentCameraFOV;
-float fNewCameraFOV;
-
-// Game detection
-enum class Game
+class TigerWoodsPGATour2004Fix final : public FixBase
 {
-	TWPGAT2004,
-	Unknown
-};
-
-enum ResolutionListsIndex
-{
-	ResolutionList1Scan,
-	ResolutionList2Scan,
-	ResolutionList3Scan,
-	ResolutionList4Scan,
-	ResolutionList5Scan
-};
-
-struct GameInfo
-{
-	std::string GameTitle;
-	std::string ExeName;
-};
-
-const std::map<Game, GameInfo> kGames = {
-	{Game::TWPGAT2004, {"Tiger Woods PGA Tour 2004", "TW2004.exe"}},
-};
-
-const GameInfo* game = nullptr;
-Game eGameType = Game::Unknown;
-
-void Logging()
-{
-	// Get path to DLL
-	WCHAR dllPath[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(thisModule, dllPath, MAX_PATH);
-	sFixPath = dllPath;
-	sFixPath = sFixPath.remove_filename();
-
-	// Get game name and exe path
-	WCHAR exePathW[_MAX_PATH] = { 0 };
-	GetModuleFileNameW(exeModule, exePathW, MAX_PATH);
-	sExePath = exePathW;
-	sExeName = sExePath.filename().string();
-	sExePath = sExePath.remove_filename();
-
-	// Spdlog initialization
-	try
+public:
+	explicit TigerWoodsPGATour2004Fix(HMODULE selfModule) : FixBase(selfModule)
 	{
-		logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "\\" + sLogFile, true);
-		spdlog::set_default_logger(logger);
-		spdlog::flush_on(spdlog::level::debug);
-		spdlog::set_level(spdlog::level::debug); // Enable debug level logging
-
-		spdlog::info("----------");
-		spdlog::info("{:s} v{:s} loaded.", sFixName.c_str(), sFixVersion.c_str());
-		spdlog::info("----------");
-		spdlog::info("Log file: {}", sExePath.string() + "\\" + sLogFile);
-		spdlog::info("----------");
-		spdlog::info("Module Name: {0:s}", sExeName.c_str());
-		spdlog::info("Module Path: {0:s}", sExePath.string());
-		spdlog::info("Module Address: 0x{0:X}", (uintptr_t)exeModule);
-		spdlog::info("----------");
-		spdlog::info("DLL has been successfully loaded.");
-	}
-	catch (const spdlog::spdlog_ex& ex)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << "Log initialization failed: " << ex.what() << std::endl;
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-}
-
-void Configuration()
-{
-	// Inipp initialization
-	std::ifstream iniFile(sFixPath.string() + "\\" + sConfigFile);
-	if (!iniFile)
-	{
-		AllocConsole();
-		FILE* dummy;
-		freopen_s(&dummy, "CONOUT$", "w", stdout);
-		std::cout << sFixName.c_str() << " v" << sFixVersion.c_str() << " loaded." << std::endl;
-		std::cout << "ERROR: Could not locate config file." << std::endl;
-		std::cout << "ERROR: Make sure " << sConfigFile.c_str() << " is located in " << sFixPath.string().c_str() << std::endl;
-		spdlog::shutdown();
-		FreeLibraryAndExitThread(thisModule, 1);
-	}
-	else
-	{
-		spdlog::info("Config file: {}", sFixPath.string() + "\\" + sConfigFile);
-		ini.parse(iniFile);
+		s_instance_ = this;
 	}
 
-	// Parse config
-	ini.strip_trailing_comments();
-	spdlog::info("----------");
-
-	// Load settings from ini
-	inipp::get_value(ini.sections["WidescreenFix"], "Enabled", bFixActive);
-	spdlog_confparse(bFixActive);
-
-	// Load resolution from ini
-	inipp::get_value(ini.sections["Settings"], "Width", iCurrentResX);
-	inipp::get_value(ini.sections["Settings"], "Height", iCurrentResY);
-	inipp::get_value(ini.sections["Settings"], "FOVFactor", fFOVFactor);
-	spdlog_confparse(iCurrentResX);
-	spdlog_confparse(iCurrentResY);
-	spdlog_confparse(fFOVFactor);
-
-	// If resolution not specified, use desktop resolution
-	if (iCurrentResX <= 0 || iCurrentResY <= 0)
+	~TigerWoodsPGATour2004Fix() override
 	{
-		spdlog::info("Resolution not specified in ini file. Using desktop resolution.");
-		// Implement Util::GetPhysicalDesktopDimensions() accordingly
-		auto desktopDimensions = Util::GetPhysicalDesktopDimensions();
-		iCurrentResX = desktopDimensions.first;
-		iCurrentResY = desktopDimensions.second;
-		spdlog_confparse(iCurrentResX);
-		spdlog_confparse(iCurrentResY);
-	}
-
-	spdlog::info("----------");
-}
-
-bool DetectGame()
-{
-	bool bGameFound = false;
-
-	for (const auto& [type, info] : kGames)
-	{
-		if (Util::stringcmp_caseless(info.ExeName, sExeName))
+		if (s_instance_ == this)
 		{
-			spdlog::info("Detected game: {:s} ({:s})", info.GameTitle, sExeName);
-			spdlog::info("----------");
-			eGameType = type;
-			game = &info;
-			bGameFound = true;
-			break;
+			s_instance_ = nullptr;
 		}
 	}
 
-	if (bGameFound == false)
+protected:
+	const char* FixName() const override
 	{
-		spdlog::error("Failed to detect supported game, {:s} isn't supported by the fix.", sExeName);
-		return false;
+		return "TigerWoodsPGATour2004WidescreenFix";
 	}
 
-	while ((dllModule2 = GetModuleHandleA("DXWrap.dll")) == nullptr)
+	const char* FixVersion() const override
 	{
-		spdlog::warn("DXWrap.dll not loaded yet. Waiting...");
+		return "1.1";
 	}
 
-	spdlog::info("Successfully obtained handle for DXWrap.dll: 0x{:X}", reinterpret_cast<uintptr_t>(dllModule2));
-
-	return true;
-}
-
-static SafetyHookMid CameraFOVInstructionHook{};
-
-void WidescreenFix()
-{
-	if (eGameType == Game::TWPGAT2004 && bFixActive == true)
+	const char* TargetName() const override
 	{
-		fNewAspectRatio = static_cast<float>(iCurrentResX) / static_cast<float>(iCurrentResY);
+		return "Tiger Woods: PGA Tour 2004";
+	}
 
-		fAspectRatioScale = fNewAspectRatio / fOldAspectRatio;
+	InitMode GetInitMode() const override
+	{
+		return InitMode::Direct;
+		// return InitMode::WorkerThread;
+		// return InitMode::ExportedOnly;
+	}
 
-		// Lists are located in DXWrap.dll.CDisplay::FindMode and DXWrap.dll.CDisplay::ForceToGameBitDepth
-		std::vector<std::uint8_t*> ResolutionListsScansResult = Memory::PatternScan(dllModule2, "C7 01 20 03 00 00 C7 02 58 02 00 00 C3 8B 44 24 08 8B 4C 24 0C C7 00 00 04 00 00 C7 01 00 03 00 00 C3 8B 54 24 08 8B 44 24 0C C7 02 00 05 00 00 C7 00 00 04 00 00 C3 8B 4C 24 08 8B 54 24 0C C7 01 40 06 00 00 C7 02 B0 04 00 00", "BA 20 03 00 00 B8 58 02 00 00 EB 2C BA 00 04 00 00 B8 00 03 00 00 EB 20 BA 00 05 00 00 B8 00 04 00 00 EB 14 BA 40 06 00 00 B8 B0 04 00 00", "BA 20 03 00 00 B8 58 02 00 00 EB 32 BA 00 04 00 00 B8 00 03 00 00 EB 26 BA 00 05 00 00 B8 00 04 00 00 EB 1A BA 40 06 00 00 B8 B0 04 00 00", "BF 20 03 00 00 BE 58 02 00 00 EB 2C BF 00 04 00 00 BE 00 03 00 00 EB 20 BF 00 05 00 00 BE 00 04 00 00 EB 14 BF 40 06 00 00 BE B0 04 00 00", "BD 20 03 00 00 BB 58 02 00 00 EB 2C BD 00 04 00 00 BB 00 03 00 00 EB 20 BD 00 05 00 00 BB 00 04 00 00 EB 14 BD 40 06 00 00 BB B0 04 00 00");
-		if (Memory::AreAllSignaturesValid(ResolutionListsScansResult) == true)
+	bool IsCompatibleExecutable(const std::string& exeName) const override
+	{
+		return Util::stringcmp_caseless(exeName, "TW2004.exe");
+	}
+
+	void ParseFixConfig(inipp::Ini<char>& ini) override
+	{
+		inipp::get_value(ini.sections["Settings"], "Width", m_newResX);
+		inipp::get_value(ini.sections["Settings"], "Height", m_newResY);
+		inipp::get_value(ini.sections["Settings"], "FOVFactor", m_fovFactor);
+		inipp::get_value(ini.sections["Settings"], "RunMultipleInstances", m_runMultipleInstances);
+
+		FallbackToDesktopResolution(m_newResX, m_newResY);
+
+		spdlog_confparse(m_newResX);
+		spdlog_confparse(m_newResY);
+		spdlog_confparse(m_fovFactor);
+		spdlog_confparse(m_runMultipleInstances);
+	}
+
+	void ApplyFix() override
+	{
+		m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
+		m_aspectRatioScale = m_newAspectRatio / m_oldAspectRatio;
+
+		m_dxWrapDllModule = Memory::GetHandle("DXWrap.dll");
+		m_dxWrapDllModuleName = Memory::GetModuleName(m_dxWrapDllModule);		
+
+		// Lists are located in the following functions in DXWrap.dll: FormatToBPP, CDisplay::FindMode, CDisplay::IsModeAvailable, CDisplay::RestoreSelectedMode, CDisplay::ForceToGameBitDepth
+		m_resolutionScansResult = Memory::PatternScan(m_dxWrapDllModule, "C7 01 ?? ?? ?? ?? C7 02 ?? ?? ?? ?? C3 8B 44 24",
+		"BA ?? ?? ?? ?? B8 ?? ?? ?? ?? EB ?? BA ?? ?? ?? ?? B8 ?? ?? ?? ?? EB ?? BA ?? ?? ?? ?? B8 ?? ?? ?? ?? EB ?? BA ?? ?? ?? ?? B8 ?? ?? ?? ?? EB ?? 8B 44 24",
+		"BA ?? ?? ?? ?? B8 ?? ?? ?? ?? EB ?? BA ?? ?? ?? ?? B8 ?? ?? ?? ?? EB ?? BA ?? ?? ?? ?? B8 ?? ?? ?? ?? EB ?? BA ?? ?? ?? ?? B8 ?? ?? ?? ?? EB ?? 8B 84 24",
+		"BF ?? ?? ?? ?? BE ?? ?? ?? ?? EB ?? BF ?? ?? ?? ?? BE ?? ?? ?? ?? EB ?? BF ?? ?? ?? ?? BE ?? ?? ?? ?? EB ?? BF ?? ?? ?? ?? BE ?? ?? ?? ?? EB ?? 8B 74 24",
+		"BD ?? ?? ?? ?? BB ?? ?? ?? ?? EB ?? BD ?? ?? ?? ?? BB ?? ?? ?? ?? EB ?? BD ?? ?? ?? ?? BB ?? ?? ?? ?? EB ?? BD ?? ?? ?? ?? BB ?? ?? ?? ?? EB ?? 8B 5C 24");
+		if (Memory::AreAllSignaturesValid(m_resolutionScansResult) == true)
 		{
-			spdlog::info("Resolution List 1 Scan: Address is DXWrap.dll+{:x}", ResolutionListsScansResult[ResolutionList1Scan] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Resolution List 2 Scan: Address is DXWrap.dll+{:x}", ResolutionListsScansResult[ResolutionList2Scan] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Resolution List 3 Scan: Address is DXWrap.dll+{:x}", ResolutionListsScansResult[ResolutionList3Scan] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Resolution List 4 Scan: Address is DXWrap.dll+{:x}", ResolutionListsScansResult[ResolutionList4Scan] - (std::uint8_t*)dllModule2);
-
-			spdlog::info("Resolution List 5 Scan: Address is DXWrap.dll+{:x}", ResolutionListsScansResult[ResolutionList5Scan] - (std::uint8_t*)dllModule2);
+			spdlog::info("Resolution List 1 Scan: Address is {:s}+{:x}", m_dxWrapDllModuleName.c_str(), m_resolutionScansResult[List1] - (std::uint8_t*)m_dxWrapDllModule);
+			spdlog::info("Resolution List 2 Scan: Address is {:s}+{:x}", m_dxWrapDllModuleName.c_str(), m_resolutionScansResult[List2] - (std::uint8_t*)m_dxWrapDllModule);
+			spdlog::info("Resolution List 3 Scan: Address is {:s}+{:x}", m_dxWrapDllModuleName.c_str(), m_resolutionScansResult[List3] - (std::uint8_t*)m_dxWrapDllModule);
+			spdlog::info("Resolution List 4 Scan: Address is {:s}+{:x}", m_dxWrapDllModuleName.c_str(), m_resolutionScansResult[List4] - (std::uint8_t*)m_dxWrapDllModule);
+			spdlog::info("Resolution List 5 Scan: Address is {:s}+{:x}", m_dxWrapDllModuleName.c_str(), m_resolutionScansResult[List5] - (std::uint8_t*)m_dxWrapDllModule);
 
 			// Resolution List 1
-			
 			// 800x600
-			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 2, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 8, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List1] + 2, m_newResX);
+			Memory::Write(m_resolutionScansResult[List1] + 8, m_newResY);
 			// 1024x768
-			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 23, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 29, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List1] + 23, m_newResX);
+			Memory::Write(m_resolutionScansResult[List1] + 29, m_newResY);
 			// 1280x1024
-			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 44, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 50, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List1] + 44, m_newResX);
+			Memory::Write(m_resolutionScansResult[List1] + 50, m_newResY);
 			// 1600x1200
-			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 65, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList1Scan] + 71, iCurrentResY);
+			Memory::Write(m_resolutionScansResult[List1] + 65, m_newResX);
+			Memory::Write(m_resolutionScansResult[List1] + 71, m_newResY);
 
 			// Resolution List 2
-
 			// 800x600
-			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 1, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 6, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List2] + 1, m_newResX);
+			Memory::Write(m_resolutionScansResult[List2] + 6, m_newResY);
 			// 1024x768
-			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 13, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 18, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List2] + 13, m_newResX);
+			Memory::Write(m_resolutionScansResult[List2] + 18, m_newResY);
 			// 1280x1024
-			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 25, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 30, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List2] + 25, m_newResX);
+			Memory::Write(m_resolutionScansResult[List2] + 30, m_newResY);
 			// 1600x1200
-			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 40, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList2Scan] + 48, iCurrentResY);
+			Memory::Write(m_resolutionScansResult[List2] + 40, m_newResX);
+			Memory::Write(m_resolutionScansResult[List2] + 48, m_newResY);
 
 			// Resolution List 3
-
 			// 800x600
-			Memory::Write(ResolutionListsScansResult[ResolutionList3Scan] + 1, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList3Scan] + 6, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List3] + 1, m_newResX);
+			Memory::Write(m_resolutionScansResult[List3] + 6, m_newResY);
 			// 1024x768
-			Memory::Write(ResolutionListsScansResult[ResolutionList3Scan] + 13, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList3Scan] + 18, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List3] + 13, m_newResX);
+			Memory::Write(m_resolutionScansResult[List3] + 18, m_newResY);
 			// 1280x1024
-			Memory::Write(ResolutionListsScansResult[ResolutionList3Scan] + 25, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList3Scan] + 30, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List3] + 25, m_newResX);
+			Memory::Write(m_resolutionScansResult[List3] + 30, m_newResY);
 			// 1600x1200
-			Memory::Write(ResolutionListsScansResult[ResolutionList3Scan] + 40, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList3Scan] + 48, iCurrentResY);
+			Memory::Write(m_resolutionScansResult[List3] + 40, m_newResX);
+			Memory::Write(m_resolutionScansResult[List3] + 48, m_newResY);
 
 			// Resolution List 4
-
 			// 800x600
-			Memory::Write(ResolutionListsScansResult[ResolutionList4Scan] + 1, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList4Scan] + 6, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List4] + 1, m_newResX);
+			Memory::Write(m_resolutionScansResult[List4] + 6, m_newResY);
 			// 1024x768
-			Memory::Write(ResolutionListsScansResult[ResolutionList4Scan] + 13, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList4Scan] + 18, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List4] + 13, m_newResX);
+			Memory::Write(m_resolutionScansResult[List4] + 18, m_newResY);
 			// 1280x1024
-			Memory::Write(ResolutionListsScansResult[ResolutionList4Scan] + 25, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList4Scan] + 30, iCurrentResY);
-
+			Memory::Write(m_resolutionScansResult[List4] + 25, m_newResX);
+			Memory::Write(m_resolutionScansResult[List4] + 30, m_newResY);
 			// 1600x1200
-			Memory::Write(ResolutionListsScansResult[ResolutionList4Scan] + 40, iCurrentResX);
-
-			Memory::Write(ResolutionListsScansResult[ResolutionList4Scan] + 48, iCurrentResY);
+			Memory::Write(m_resolutionScansResult[List4] + 40, m_newResX);
+			Memory::Write(m_resolutionScansResult[List4] + 48, m_newResY);
 		}
 
-		// Located in DXWrap.dll.Render3D::SetProjection
-		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(dllModule2, "8B 94 24 ?? ?? ?? ?? 50 DA 73");
-		if (CameraFOVInstructionScanResult)
+		m_engineDllModule = Memory::GetHandle("Engine.dll");
+		m_engineDllModuleName = Memory::GetModuleName(m_engineDllModule);
+
+		m_cameraFOVScanResult = Memory::PatternScan(m_engineDllModule, "D9 05 ?? ?? ?? ?? D8 75 ?? D9 5D ?? 8B 4D");
+		if (m_cameraFOVScanResult)
 		{
-			spdlog::info("Camera FOV Instruction: Address is DXWrap.dll+{:x}", CameraFOVInstructionScanResult - (std::uint8_t*)dllModule2);
+			spdlog::info("Camera FOV Instruction: Address is {:s}+{:x}", m_engineDllModuleName.c_str(), m_cameraFOVScanResult - (std::uint8_t*)m_engineDllModule);
 
-			Memory::PatchBytes(CameraFOVInstructionScanResult, "\x90\x90\x90\x90\x90\x90\x90", 7);
+			Memory::WriteNOPs(m_cameraFOVScanResult, 6);
 
-			CameraFOVInstructionHook = safetyhook::create_mid(CameraFOVInstructionScanResult, [](SafetyHookContext& ctx)
+			m_cameraFOVHook = safetyhook::create_mid(m_cameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
-				fCurrentCameraFOV = Memory::ReadMem(ctx.esp + 0xA4);
-
-				if (fCurrentCameraFOV != fNewCameraFOV)
-				{
-					fNewCameraFOV = fCurrentCameraFOV * fFOVFactor;
-				}
-				
-				ctx.edx = std::bit_cast<uintptr_t>(fNewCameraFOV);
+				s_instance_->m_newCameraFOV = m_originalCameraFOV * s_instance_->m_fovFactor;
+				FPU::FLD(s_instance_->m_newCameraFOV);
 			});
 		}
 		else
 		{
-			spdlog::info("Cannot locate the camera FOV instruction memory address.");
+			spdlog::error("Failed to locate camera FOV instruction memory address.");
 			return;
 		}
-	}
-}
 
-DWORD __stdcall Main(void*)
-{
-	Logging();
-	Configuration();
-	if (DetectGame())
-	{
-		WidescreenFix();
+		if (m_runMultipleInstances == true)
+		{
+			auto RunMultipleInstancesCheckScanResult = Memory::PatternScan(ExeModule(), "75 ?? C7 85 ?? ?? ?? ?? ?? ?? ?? ?? C6 45 ?? ?? 8D 8D ?? ?? ?? ?? E8 ?? ?? ?? ?? C7 45 ?? ?? ?? ?? ?? 8D 8D ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 85 ?? ?? ?? ?? E9 ?? ?? ?? ?? E8");
+			if (RunMultipleInstancesCheckScanResult)
+			{
+				spdlog::info("Multiple Instance Check Instruction: Address is {:s}+{:x}", ExeName().c_str(), RunMultipleInstancesCheckScanResult - (std::uint8_t*)ExeModule());
+
+				Memory::PatchBytes(RunMultipleInstancesCheckScanResult, "\xEB");
+			}
+			else
+			{
+				spdlog::error("Failed to locate multiple instance check instruction memory address.");
+				return;
+			}
+		}
 	}
-	return TRUE;
-}
+
+private:
+	HMODULE m_dxWrapDllModule = nullptr;
+	std::string m_dxWrapDllModuleName = "";
+	HMODULE m_engineDllModule = nullptr;
+	std::string m_engineDllModuleName = "";
+
+	static constexpr float m_oldAspectRatio = 4.0f / 3.0f;
+	static constexpr float m_originalCameraFOV = 0.7853981634f;
+
+	SafetyHookMid m_cameraFOVHook{};
+
+	bool m_runMultipleInstances = false;
+	bool m_skipIntroVideos = false;
+
+	std::vector<uint8_t*> m_resolutionScansResult{};
+	uint8_t* m_cameraFOVScanResult = nullptr;
+	uint8_t* m_skipIntroVideosScanResult = nullptr;
+
+	enum ResolutionListsIndex
+	{
+		List1,
+		List2,
+		List3,
+		List4,
+		List5
+	};
+
+	inline static TigerWoodsPGATour2004Fix* s_instance_ = nullptr;
+};
+
+static std::unique_ptr<TigerWoodsPGATour2004Fix> g_fix;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		thisModule = hModule;
-
-		HANDLE mainHandle = CreateThread(NULL, 0, Main, 0, NULL, 0);
-		if (mainHandle)
+		case DLL_PROCESS_ATTACH:
 		{
-			SetThreadPriority(mainHandle, THREAD_PRIORITY_HIGHEST);
-			CloseHandle(mainHandle);
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<TigerWoodsPGATour2004Fix>(hModule);
+			g_fix->Start();
+			break;
 		}
-		break;
+
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
+
 	return TRUE;
 }
