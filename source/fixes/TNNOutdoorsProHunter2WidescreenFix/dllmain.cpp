@@ -1,5 +1,6 @@
 #include "..\..\common\FixBase.hpp"
 #include "..\..\common\DllNotificationWatcher.cpp"
+#include <ddraw.h>
 
 class TNNOutdoorsProHunter2Fix final : public FixBase
 {
@@ -31,7 +32,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.5";
+		return "1.5.1";
 	}
 
 	const char* TargetName() const override
@@ -69,12 +70,13 @@ protected:
 			m_clientShellDllModule = Memory::GetHandle("cshell.dll");
 			m_clientShellDllModuleName = Memory::GetModuleName(m_clientShellDllModule);
 
-			m_resolutionScansResult = Memory::PatternScan(ExeModule(), "8B 48 ?? 89 0D ?? ?? ?? ?? 8B 50", "74 ?? 8B 46 ?? 8B 0D ?? ?? ?? ?? 89 7C 24", m_clientShellDllModule,
-			"ff 91 ?? ?? ?? ?? 8b 15 ?? ?? ?? ?? ff 52");
+			m_resolutionScansResult = Memory::PatternScan(ExeModule(), "8B 48 ?? 89 0D ?? ?? ?? ?? 8B 50", "74 ?? 8B 46 ?? 8B 0D ?? ?? ?? ?? 89 7C 24", "55 FF 50 ?? E9", m_clientShellDllModule,
+			"FF 91 ?? ?? ?? ?? 8B 15 ?? ?? ?? ?? FF 52");
 			if (Memory::AreAllSignaturesValid(m_resolutionScansResult) == true)
 			{
 				spdlog::info("Resolution Instructions Scan: Address is {:s}+{:x}", ExeName().c_str(), m_resolutionScansResult[WidthHeight] - (std::uint8_t*)ExeModule());
-				spdlog::info("Centered Smacker Movies Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_resolutionScansResult[CenteredSmackerMovies] - (std::uint8_t*)ExeModule());
+				spdlog::info("Centered Smacker Movies Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_resolutionScansResult[CenteredSmackerMoviesBranch] - (std::uint8_t*)ExeModule());
+				spdlog::info("Smacker Movies Instruction: Address is {:s}+{:x}", ExeName().c_str(), m_resolutionScansResult[SmackerMovies] - (std::uint8_t*)ExeModule());
 				spdlog::info("Centered Splash Screen Instruction: Address is {:s}+{:x}", m_clientShellDllModuleName.c_str(), m_resolutionScansResult[CenteredSplashScreen] - (std::uint8_t*)m_clientShellDllModule);
 
 				m_resolutionHook = safetyhook::create_mid(m_resolutionScansResult[WidthHeight], [](SafetyHookContext& ctx)
@@ -82,7 +84,50 @@ protected:
 					s_instance_->ResolutionMidHook(ctx);
 				});
 
-				Memory::PatchBytes(m_resolutionScansResult[CenteredSmackerMovies], "\xEB");
+				Memory::WriteNOPs(m_resolutionScansResult[CenteredSmackerMoviesBranch], 2);
+
+				m_smackerMoviesHook = safetyhook::create_mid(m_resolutionScansResult[SmackerMovies], [](SafetyHookContext& ctx)
+				{
+					auto* const stack = reinterpret_cast<std::uintptr_t*>(ctx.esp);
+					auto* const backbuffer = reinterpret_cast<IDirectDrawSurface*>(ctx.ebp);
+
+					auto* const destinationRect = reinterpret_cast<Rect*>(stack[0]);
+					const auto* const sourceRect = reinterpret_cast<const Rect*>(stack[2]);
+
+					if (backbuffer == nullptr || destinationRect == nullptr || sourceRect == nullptr)
+					{
+						return;
+					}
+
+					const std::int32_t destinationWidth = destinationRect->right - destinationRect->left;
+					const std::int32_t destinationHeight = destinationRect->bottom - destinationRect->top;
+					const std::int32_t sourceWidth = sourceRect->right - sourceRect->left;
+					const std::int32_t sourceHeight = sourceRect->bottom - sourceRect->top;
+
+					if (destinationWidth <= 0 || destinationHeight <= 0 || sourceWidth <= 0 || sourceHeight <= 0)
+					{
+						return;
+					}
+
+					const double scaleX = static_cast<double>(destinationWidth) / static_cast<double>(sourceWidth);
+					const double scaleY = static_cast<double>(destinationHeight) / static_cast<double>(sourceHeight);
+					const double scale = std::min(scaleX, scaleY);
+					const auto scaledWidth = static_cast<std::int32_t>(std::lround(static_cast<double>(sourceWidth) * scale));
+					const auto scaledHeight = static_cast<std::int32_t>(std::lround(static_cast<double>(sourceHeight) * scale));
+					const std::int32_t centeredX = destinationRect->left + ((destinationWidth - scaledWidth) / 2);
+					const std::int32_t centeredY = destinationRect->top + ((destinationHeight - scaledHeight) / 2);
+
+					destinationRect->left = centeredX;
+					destinationRect->top = centeredY;
+					destinationRect->right = centeredX + scaledWidth;
+					destinationRect->bottom = centeredY + scaledHeight;
+
+					DDBLTFX bltFx{};
+					bltFx.dwSize = sizeof(bltFx);
+					bltFx.dwFillColor = 0;
+
+					backbuffer->Blt(nullptr, nullptr, nullptr, DDBLT_COLORFILL | DDBLT_WAIT, &bltFx);
+				});
 
 				m_splashScreenCenterHook = safetyhook::create_mid(m_resolutionScansResult[CenteredSplashScreen], [](SafetyHookContext& ctx)
 				{
@@ -147,7 +192,7 @@ protected:
 
 				m_runtimeVFOVHook = safetyhook::create_mid(m_cameraFOVScansResult[RuntimeVFOV], [](SafetyHookContext& ctx)
 				{
-					s_instance_->m_currentHFOV = *reinterpret_cast<float*>(ctx.esp + 0x08);
+					s_instance_->m_currentHFOV = *reinterpret_cast<float*>(ctx.esp + 0x8);
 					s_instance_->m_currentVFOV = Maths::CalculateNewHFOV_RadBased(s_instance_->m_currentHFOV, 1.0f / s_instance_->m_newAspectRatio);
 					ctx.eax = std::bit_cast<std::uintptr_t>(s_instance_->m_currentVFOV);
 				});
@@ -250,6 +295,7 @@ private:
 
 	SafetyHookMid m_resolutionHook{};
 	SafetyHookMid m_splashScreenCenterHook{};
+	SafetyHookMid m_smackerMoviesHook{};
 	SafetyHookMid m_unzoomedFOV2Hook{};
 	SafetyHookMid m_runtimeVFOVHook{};
 	SafetyHookMid m_zoomedFOV1Hook{};
@@ -265,7 +311,8 @@ private:
 	enum ResolutionInstructionsIndex
 	{
 		WidthHeight,
-		CenteredSmackerMovies,
+		CenteredSmackerMoviesBranch,
+		SmackerMovies,
 		CenteredSplashScreen
 	};
 
