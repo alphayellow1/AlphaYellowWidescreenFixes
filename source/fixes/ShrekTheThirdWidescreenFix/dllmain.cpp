@@ -228,6 +228,121 @@ void WidescreenFix()
 			});
 		}
 
+		// The game does not create its device from the resolution globals above. It picks a
+		// mode out of a hardcoded 5-entry table ({width, height, 1} each, followed by the
+		// entry count) and the "resolution" value in its settings file is an index into it.
+		// The hooks above rewrite the globals, but the device is still built from the indexed
+		// table entry, so the two disagree and the frame comes out black - which is the
+		// black screen reported in issue #77.
+		//
+		// Rewriting the table makes the wanted mode a real member of the game's own list, so
+		// it is selected on every path, including the one taken when no settings file exists
+		// yet. It also gets past the resolution validator at exe+0x18F3C4, which resets any
+		// mode that is not in the list.
+		//
+		// All five entries are set: the index then cannot select a wrong one, so this works
+		// with no settings file at all. (Rewriting a single entry only works for the last
+		// one - the list appears to need ascending order.)
+		std::uint8_t* ResolutionModeTableScanResult = Memory::PatternScan(exeModule,
+			"80 02 00 00 E0 01 00 00 01 00 00 00 20 03 00 00 58 02 00 00 01 00 00 00 "
+			"00 04 00 00 00 03 00 00 01 00 00 00 00 05 00 00 00 04 00 00 01 00 00 00 "
+			"40 06 00 00 B0 04 00 00 01 00 00 00 05 00 00 00");
+		if (ResolutionModeTableScanResult)
+		{
+			spdlog::info("Resolution Mode Table Scan: Address is {:s}+{:x}", sExeName.c_str(), ResolutionModeTableScanResult - (std::uint8_t*)exeModule);
+
+			for (int i = 0; i < 5; ++i)
+			{
+				Memory::Write(ResolutionModeTableScanResult + (i * 12), iCurrentResX);
+				Memory::Write(ResolutionModeTableScanResult + (i * 12) + 4, iCurrentResY);
+			}
+		}
+		else
+		{
+			spdlog::error("Failed to locate resolution mode table memory address.");
+			return;
+		}
+
+		// 2D UI scale. The function holding the Res1 instruction derives the UI scale at its
+		// tail from its own stack arguments - the mode that was ASKED for - which the Res1
+		// hook never touches:
+		//
+		//   fild [esp+0x18] ; fmul [1/200] ; fstp [uiScaleX]      = width/200
+		//   fild [esp+0x0C] ; fmul [1/200] ; fstp [uiScaleY]      = height/200
+		//   fld  [uiScaleX] ; fmul [0.3125]; fstp [uiScaleZ]      = width/640
+		//
+		// Sizing the UI off the WIDTH means that on a 16:9 display the menu text is scaled
+		// for a 16:9 basis while the art is authored for 4:3, and it overflows. Worse, when
+		// no settings file exists the game asks for its small default, gets the right mode,
+		// and lays the menu out for the wrong one.
+		//
+		// The game already contains an unused override for this: at the scale function the
+		// pair below is tested, and if non-zero the scale is taken from it instead. Both live
+		// in .bss and nothing ever writes them, so the branch is always skipped. Setting them
+		// to a 4:3-proportioned canvas at the real screen height gives the proportion the art
+		// expects, and repointing the inline tail at the same globals keeps both writers in
+		// agreement.
+		std::uint8_t* UIScaleOverrideScanResult = Memory::PatternScan(exeModule,
+			"8B 0D ?? ?? ?? ?? 85 C9 74 1A DB 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? DB 05 ?? ?? ?? ?? EB 12");
+		std::uint8_t* UIScaleInlineScanResult = Memory::PatternScan(exeModule,
+			"DB 44 24 18 5F 5E 5D D8 0D ?? ?? ?? ?? B0 01 5B D9 1D ?? ?? ?? ?? DB 44 24 0C "
+			"D8 0D ?? ?? ?? ?? D9 1D ?? ?? ?? ?? D9 05 ?? ?? ?? ?? D8 0D ?? ?? ?? ?? "
+			"D9 1D ?? ?? ?? ?? 59 C2 08 00");
+		if (UIScaleOverrideScanResult && UIScaleInlineScanResult)
+		{
+			spdlog::info("UI Scale Override Scan: Address is {:s}+{:x}", sExeName.c_str(), UIScaleOverrideScanResult - (std::uint8_t*)exeModule);
+			spdlog::info("UI Scale Instructions Scan: Address is {:s}+{:x}", sExeName.c_str(), UIScaleInlineScanResult - (std::uint8_t*)exeModule);
+
+			std::uint32_t uiOverrideWidthAddress = *reinterpret_cast<std::uint32_t*>(UIScaleOverrideScanResult + 2);
+			std::uint32_t uiOverrideHeightAddress = *reinterpret_cast<std::uint32_t*>(UIScaleOverrideScanResult + 0x1E);
+
+			std::uint32_t fOneOver200Address = *reinterpret_cast<std::uint32_t*>(UIScaleInlineScanResult + 0x09);
+			std::uint32_t uiScaleXAddress = *reinterpret_cast<std::uint32_t*>(UIScaleInlineScanResult + 0x12);
+			std::uint32_t uiScaleYAddress = *reinterpret_cast<std::uint32_t*>(UIScaleInlineScanResult + 0x22);
+			std::uint32_t f0Point3125Address = *reinterpret_cast<std::uint32_t*>(UIScaleInlineScanResult + 0x2E);
+			std::uint32_t uiScaleZAddress = *reinterpret_cast<std::uint32_t*>(UIScaleInlineScanResult + 0x34);
+
+			// a 4:3-wide canvas at the real screen height
+			Memory::Write(uiOverrideWidthAddress, static_cast<int>((iCurrentResY * 4) / 3));
+			Memory::Write(uiOverrideHeightAddress, iCurrentResY);
+
+			// Rewrite the inline tail to read the same override. It is 60 bytes and is
+			// followed by 12 bytes of int3 alignment padding before the next function, so
+			// the 64-byte replacement fits without relocating anything.
+			std::uint8_t trampoline[64];
+			std::size_t n = 0;
+			auto emit = [&](std::uint8_t a, std::uint8_t b, std::uint32_t address)
+			{
+				trampoline[n++] = a;
+				trampoline[n++] = b;
+				*reinterpret_cast<std::uint32_t*>(trampoline + n) = address;
+				n += 4;
+			};
+			emit(0xDB, 0x05, uiOverrideWidthAddress);   // fild dword ptr [overrideWidth]
+			emit(0xD8, 0x0D, fOneOver200Address);       // fmul dword ptr [1/200]
+			emit(0xD9, 0x1D, uiScaleXAddress);          // fstp dword ptr [uiScaleX]
+			emit(0xDB, 0x05, uiOverrideHeightAddress);  // fild dword ptr [overrideHeight]
+			emit(0xD8, 0x0D, fOneOver200Address);       // fmul dword ptr [1/200]
+			emit(0xD9, 0x1D, uiScaleYAddress);          // fstp dword ptr [uiScaleY]
+			emit(0xD9, 0x05, uiScaleXAddress);          // fld  dword ptr [uiScaleX]
+			emit(0xD8, 0x0D, f0Point3125Address);       // fmul dword ptr [0.3125]
+			emit(0xD9, 0x1D, uiScaleZAddress);          // fstp dword ptr [uiScaleZ]
+			trampoline[n++] = 0x5F;                     // pop edi
+			trampoline[n++] = 0x5E;                     // pop esi
+			trampoline[n++] = 0x5D;                     // pop ebp
+			trampoline[n++] = 0xB0; trampoline[n++] = 0x01;  // mov al, 1
+			trampoline[n++] = 0x5B;                     // pop ebx
+			trampoline[n++] = 0x59;                     // pop ecx
+			trampoline[n++] = 0xC2; trampoline[n++] = 0x08; trampoline[n++] = 0x00;  // ret 8
+
+			Memory::PatchBytes(UIScaleInlineScanResult, trampoline, n);
+		}
+		else
+		{
+			spdlog::error("Failed to locate UI scale memory address(es).");
+			return;
+		}
+
 		std::uint8_t* CameraFOVInstructionScanResult = Memory::PatternScan(exeModule, "68 ?? ?? ?? ?? FF 52 ?? 8B 4C 24");
 		if (CameraFOVInstructionScanResult)
 		{
