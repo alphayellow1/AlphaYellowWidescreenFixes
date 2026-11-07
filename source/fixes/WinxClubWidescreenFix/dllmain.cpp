@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.2";
+		return "1.3";
 	}
 
 	const char* TargetName() const override
@@ -63,6 +63,7 @@ protected:
 	{
 		s_instance_->m_newAspectRatio = static_cast<float>(m_newResX) / static_cast<float>(m_newResY);
 		s_instance_->m_aspectRatioScale = s_instance_->m_newAspectRatio / m_oldAspectRatio;
+		s_instance_->m_movieHorizontalScale = 1.0f / s_instance_->m_aspectRatioScale;
 
 		auto ResolutionScansResult = Memory::PatternScan(ExeModule(), "C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB ?? C7 44 24 ?? ?? ?? ?? ?? C7 44 24 ?? ?? ?? ?? ?? EB",
 		"C7 06 ?? ?? ?? ?? C7 46 ?? ?? ?? ?? ?? 89 46 ?? 89 46 ?? A1", "A1 ?? ?? ?? ?? 89 02 8B 0D ?? ?? ?? ?? 89 4A ?? 66 A1");
@@ -120,6 +121,38 @@ protected:
 			});
 		}
 
+		auto MovieQuadScanResult = Memory::PatternScan(ExeModule(), "8B 03 8B 08 50 FF 51 ?? 5F");
+		if (MovieQuadScanResult)
+		{
+			spdlog::info("Movie Quad Instruction: Address is {:s}+{:x}", ExeName().c_str(), MovieQuadScanResult - reinterpret_cast<std::uint8_t*>(ExeModule()));
+
+			m_movieQuadHook = safetyhook::create_mid(MovieQuadScanResult, [](SafetyHookContext& ctx)
+			{
+				// wxMovieFrameDrawer::InitialiseVertexBuffer stores the locked vertex buffer pointer in the local at ESP+C
+				auto* vertices = *reinterpret_cast<std::uint8_t**>(ctx.esp + 0x0C);
+
+				if (!vertices)
+				{
+					return;
+				}
+
+				// There are six vertices, each with a 24 byte stride
+				// This only modifies the X coordinate at the start of each vertex
+				*reinterpret_cast<float*>(vertices + 0x00) = -s_instance_->m_movieHorizontalScale;
+				*reinterpret_cast<float*>(vertices + 0x18) = s_instance_->m_movieHorizontalScale;
+				*reinterpret_cast<float*>(vertices + 0x30) = -s_instance_->m_movieHorizontalScale;
+
+				*reinterpret_cast<float*>(vertices + 0x48) = -s_instance_->m_movieHorizontalScale;
+				*reinterpret_cast<float*>(vertices + 0x60) = s_instance_->m_movieHorizontalScale;
+				*reinterpret_cast<float*>(vertices + 0x78) = s_instance_->m_movieHorizontalScale;
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate movie quad initialization instruction.");
+			return;
+		}
+
 		auto CameraFOVScansResult = Memory::PatternScan(ExeModule(), "D9 44 24 ?? 8B 44 24 ?? D8 0D ?? ?? ?? ?? 89 81", "8B 91 88 01 00 00 52 E8 ?? ?? ?? ??");
 		if (Memory::AreAllSignaturesValid(CameraFOVScansResult) == true)
 		{
@@ -131,7 +164,6 @@ protected:
 			m_generalFOVHook = safetyhook::create_mid(CameraFOVScansResult[General], [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_currentGeneralFOV = Memory::ReadMem(ctx.esp + 0x4);
-				spdlog::info("Current general FOV: {:.12f}", s_instance_->m_currentGeneralFOV);
 				s_instance_->m_newGeneralFOV = Maths::CalculateNewFOV_RadBased(s_instance_->m_currentGeneralFOV, s_instance_->m_aspectRatioScale);
 				FPU::FLD(s_instance_->m_newGeneralFOV);
 			});
@@ -141,8 +173,6 @@ protected:
 			m_gameplayFOVHook = safetyhook::create_mid(CameraFOVScansResult[Gameplay], [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_currentGameplayFOV = Memory::ReadMem(ctx.ecx + 0x188);
-
-				spdlog::info("Current gameplay FOV: {:.12f}", s_instance_->m_currentGameplayFOV);
 
 				if (s_instance_->m_currentGameplayFOV != s_instance_->m_newGameplayFOV)
 				{
@@ -203,6 +233,7 @@ private:
 	SafetyHookMid m_generalFOVHook{};
 	SafetyHookMid m_gameplayFOVHook{};
 	SafetyHookMid m_logoTransitionHook{};
+	SafetyHookMid m_movieQuadHook{};
 
 	std::string m_newResolutionString = "";
 	std::string m_newResolutionWidthString = "";
@@ -218,6 +249,7 @@ private:
 	float m_currentGameplayFOV = 0.0f;
 	float m_newGeneralFOV = 0.0f;
 	float m_newGameplayFOV = 0.0f;
+	float m_movieHorizontalScale = 1.0f;
 
 	enum ResolutionInstructionsIndices
 	{
@@ -248,25 +280,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<WinxClubFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<WinxClubFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
