@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.1.1";
+		return "1.1.2";
 	}
 
 	const char* TargetName() const override
@@ -72,6 +72,134 @@ protected:
 			});
 		}
 
+		auto VideoSurfaceScansResult = Memory::PatternScan(ExeModule(), "C7 86 ?? ?? ?? ?? ?? ?? ?? ?? 5F 5E C3 90",
+		"33 DB 89 5C 24 ?? 8B 46 ?? 85 C0");
+		if (Memory::AreAllSignaturesValid(VideoSurfaceScansResult) == true)
+		{
+			spdlog::info("Video Aspect Ratio Instruction: Address is {:s}+{:x}", ExeName().c_str(), VideoSurfaceScansResult[AspectRatio] - (std::uint8_t*)ExeModule());			
+			spdlog::info("Video Background Hook: Address is {:s}+{:x}", ExeName().c_str(), VideoSurfaceScansResult[Background] - (std::uint8_t*)ExeModule());
+
+			m_videoAspectRatioHook = safetyhook::create_mid(VideoSurfaceScansResult[AspectRatio], [](SafetyHookContext& ctx)
+			{
+				const auto movieObject = static_cast<std::uintptr_t>(Memory::ReadRegister(ctx.esi));
+
+				if (movieObject == 0)
+				{
+					return;
+				}
+
+				auto* destinationRect = reinterpret_cast<RECT*>(movieObject + 0x208);
+
+				const LONG clientLeft = destinationRect->left;
+				const LONG clientTop = destinationRect->top;
+				const LONG clientWidth = destinationRect->right - destinationRect->left;
+				const LONG clientHeight = destinationRect->bottom - destinationRect->top;
+
+				if (clientWidth <= 0 || clientHeight <= 0)
+				{
+					return;
+				}
+
+				LONG outputWidth = clientWidth;
+				LONG outputHeight = clientHeight;
+				
+				const auto scaledClientWidth = static_cast<std::int64_t>(clientWidth) * 3;
+				const auto scaledClientHeight = static_cast<std::int64_t>(clientHeight) * 4;
+
+				if (scaledClientWidth > scaledClientHeight)
+				{
+					outputHeight = clientHeight;
+					outputWidth = static_cast<LONG>((static_cast<std::int64_t>(clientHeight) * 4) / 3);
+				}
+				else
+				{
+					outputWidth = clientWidth;
+					outputHeight = static_cast<LONG>((static_cast<std::int64_t>(clientWidth) * 3) / 4);
+				}
+
+				const LONG offsetX = (clientWidth - outputWidth) / 2;
+				const LONG offsetY = (clientHeight - outputHeight) / 2;
+
+				destinationRect->left = clientLeft + offsetX;
+				destinationRect->top = clientTop + offsetY;
+				destinationRect->right = destinationRect->left + outputWidth;
+				destinationRect->bottom = destinationRect->top + outputHeight;
+			});
+
+			m_videoBackgroundHook = safetyhook::create_mid(VideoSurfaceScansResult[Background], [](SafetyHookContext& ctx)
+			{
+				const auto movieObject = static_cast<std::uintptr_t>(Memory::ReadRegister(ctx.esi));
+
+				if (movieObject == 0)
+				{
+					return;
+				}
+
+				const auto targetWindow = *reinterpret_cast<HWND*>(movieObject + 0x204);
+
+				if (targetWindow == nullptr || IsWindow(targetWindow) == FALSE)
+				{
+					return;
+				}
+
+				const auto* destinationRect = reinterpret_cast<const RECT*>(movieObject + 0x208);
+
+				RECT clientRect{};
+
+				if (GetClientRect(targetWindow, &clientRect) == FALSE)
+				{
+					return;
+				}
+
+				const LONG clientWidth = clientRect.right - clientRect.left;
+				const LONG clientHeight = clientRect.bottom - clientRect.top;
+
+				if (clientWidth <= 0 || clientHeight <= 0)
+				{
+					return;
+				}
+
+				const LONG videoLeft = std::clamp(destinationRect->left, clientRect.left, clientRect.right);
+				const LONG videoTop = std::clamp(destinationRect->top, clientRect.top, clientRect.bottom);
+				const LONG videoRight = std::clamp(destinationRect->right, clientRect.left, clientRect.right);
+				const LONG videoBottom = std::clamp(destinationRect->bottom, clientRect.top, clientRect.bottom);
+
+				HDC deviceContext = GetDC(targetWindow);
+
+				if (deviceContext == nullptr)
+				{
+					return;
+				}
+
+				if (videoLeft > clientRect.left)
+				{
+					PatBlt(deviceContext, clientRect.left, clientRect.top, videoLeft - clientRect.left, clientHeight, BLACKNESS);
+				}
+
+				if (videoRight < clientRect.right)
+				{
+					PatBlt(deviceContext, videoRight, clientRect.top, clientRect.right - videoRight, clientHeight, BLACKNESS);
+				}
+
+				const LONG videoWidth = videoRight - videoLeft;
+
+				if (videoWidth > 0)
+				{
+					if (videoTop > clientRect.top)
+					{
+						PatBlt(deviceContext, videoLeft, clientRect.top, videoWidth, videoTop - clientRect.top, BLACKNESS);
+					}
+
+					if (videoBottom < clientRect.bottom)
+					{
+						PatBlt(deviceContext, videoLeft, videoBottom, videoWidth, clientRect.bottom - videoBottom, BLACKNESS);
+					}
+				}
+
+				ReleaseDC(targetWindow, deviceContext);
+			});
+		}
+
 		auto AspectRatioScanResult = Memory::PatternScan(ExeModule(), "D8 0D ?? ?? ?? ?? D9 5C 24 ?? E8 ?? ?? ?? ?? 83 C4 ?? 5E");
 		if (AspectRatioScanResult)
 		{
@@ -82,7 +210,6 @@ protected:
 			m_aspectRatioHook = safetyhook::create_mid(AspectRatioScanResult, [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_newAspectRatio2 = m_originalAspectRatio / s_instance_->m_aspectRatioScale;
-
 				FPU::FMUL(s_instance_->m_newAspectRatio2);
 			});
 		}
@@ -102,7 +229,6 @@ protected:
 			m_cameraFOVHook = safetyhook::create_mid(CameraFOVScanResult, [](SafetyHookContext& ctx)
 			{
 				s_instance_->m_newCameraFOV = m_originalCameraFOV * s_instance_->m_aspectRatioScale * s_instance_->m_fovFactor;
-
 				FPU::FMUL(s_instance_->m_newCameraFOV);
 			});
 		}
@@ -128,7 +254,7 @@ protected:
 				spdlog::error("Failed to locate skip intro videos instructions scan memory address.");
 				return;
 			}
-		}		
+		}
 	}
 
 private:
@@ -139,6 +265,8 @@ private:
 	bool m_skipIntroVideos = false;
 
 	SafetyHookMid m_resolutionHook{};
+	SafetyHookMid m_videoAspectRatioHook{};
+	SafetyHookMid m_videoBackgroundHook{};
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_cameraFOVHook{};
 
@@ -146,6 +274,12 @@ private:
 	{
 		ListUnlock,
 		WidthHeight
+	};
+
+	enum VideoSurfaceInstructionsIndex
+	{
+		AspectRatio,
+		Background
 	};
 
 	inline static DaveMirraFreestyleBMXFix* s_instance_ = nullptr;
@@ -157,25 +291,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<DaveMirraFreestyleBMXFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<DaveMirraFreestyleBMXFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
