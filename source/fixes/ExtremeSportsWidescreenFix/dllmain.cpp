@@ -24,7 +24,7 @@ protected:
 
 	const char* FixVersion() const override
 	{
-		return "1.5";
+		return "1.5.1";
 	}
 
 	const char* TargetName() const override
@@ -81,6 +81,84 @@ protected:
 		else
 		{
 			spdlog::error("Failed to locate resolution list scan memory address.");
+			return;
+		}
+
+		auto MovieBlitScanResult = Memory::PatternScan(ExeModule(), "FF 52 ?? 8B 44 24 ?? 50 8B 10 FF 52 ?? 5F");
+		if (MovieBlitScanResult)
+		{
+			spdlog::info("Movie Blit Instruction: Address is {:s}+{:x}", ExeName().c_str(), MovieBlitScanResult - (std::uint8_t*)ExeModule());
+
+			m_movieBltHook = safetyhook::create_mid(MovieBlitScanResult, [](SafetyHookContext& ctx)
+			{
+				if (!s_instance_ || s_instance_->m_newResX <= 0 || s_instance_->m_newResY <= 0)
+				{
+					return;
+				}
+
+				auto* stack = reinterpret_cast<std::uintptr_t*>(ctx.esp);
+					
+				if (stack[1] != 0 || stack[3] == 0)
+				{
+					return;
+				}
+
+				const auto* srcRect = reinterpret_cast<const RECT*>(stack[3]);
+
+				const std::int64_t srcWidth = static_cast<std::int64_t>(srcRect->right) - srcRect->left;
+				const std::int64_t srcHeight = static_cast<std::int64_t>(srcRect->bottom) - srcRect->top;
+
+				if (srcWidth <= 0 || srcHeight <= 0)
+				{
+					return;
+				}
+
+				constexpr double surfaceWidth = 640.0;
+				constexpr double surfaceHeight = 480.0;
+
+				const double movieAspect = static_cast<double>(srcWidth) / srcHeight;
+				const double surfaceAspect = surfaceWidth / surfaceHeight;
+				const double outputAspect = static_cast<double>(s_instance_->m_newResX) / s_instance_->m_newResY;
+				const double correctedAspect = movieAspect * surfaceAspect / outputAspect;
+
+				if (correctedAspect <= 0.0)
+				{
+					return;
+				}
+
+				double destWidth;
+				double destHeight;
+
+				if (correctedAspect >= surfaceAspect)
+				{
+					destWidth = surfaceWidth;
+					destHeight = surfaceWidth / correctedAspect;
+				}
+				else
+				{
+					destHeight = surfaceHeight;
+					destWidth = surfaceHeight * correctedAspect;
+				}
+
+				const LONG width = static_cast<LONG>(std::lround(destWidth));
+				const LONG height = static_cast<LONG>(std::lround(destHeight));
+
+				if (width <= 0 || height <= 0)
+				{
+					return;
+				}
+
+				s_instance_->m_movieDestRect.left = static_cast<LONG>((640 - width) / 2);
+				s_instance_->m_movieDestRect.top = static_cast<LONG>((480 - height) / 2);
+				s_instance_->m_movieDestRect.right = s_instance_->m_movieDestRect.left + width;
+				s_instance_->m_movieDestRect.bottom = s_instance_->m_movieDestRect.top + height;
+
+				stack[1] = reinterpret_cast<std::uintptr_t>(&s_instance_->m_movieDestRect);
+			});
+		}
+		else
+		{
+			spdlog::error("Failed to locate movie Blt instruction memory address.");
 			return;
 		}
 
@@ -173,8 +251,11 @@ private:
 	bool m_runMultipleInstances = false;
 	bool m_skipIntroVideos = false;
 
+	SafetyHookMid m_movieBltHook{};
 	SafetyHookMid m_aspectRatioHook{};
 	SafetyHookMid m_generalFOVHook{};
+
+	RECT m_movieDestRect{};
 
 	enum CameraFOVInstructionsIndex
 	{
@@ -203,25 +284,25 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
 	switch (ul_reason_for_call)
 	{
-	case DLL_PROCESS_ATTACH:
-	{
-		DisableThreadLibraryCalls(hModule);
-		g_fix = std::make_unique<ExtremeSportsFix>(hModule);
-		g_fix->Start();
-		break;
-	}
+		case DLL_PROCESS_ATTACH:
+		{
+			DisableThreadLibraryCalls(hModule);
+			g_fix = std::make_unique<ExtremeSportsFix>(hModule);
+			g_fix->Start();
+			break;
+		}
 
-	case DLL_PROCESS_DETACH:
-	{
-		g_fix->Shutdown();
-		g_fix.reset();
-		break;
-	}
+		case DLL_PROCESS_DETACH:
+		{
+			g_fix->Shutdown();
+			g_fix.reset();
+			break;
+		}
 
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	default:
-		break;
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
+		default:
+			break;
 	}
 
 	return TRUE;
